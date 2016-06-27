@@ -1,8 +1,9 @@
-from graphql.execution import execute
 from graphql.validation import validate
 from graphql.utils.build_client_schema import build_client_schema
 from graphql.utils.build_ast_schema import build_ast_schema
 from graphql import parse
+
+from .transport import LocalSchemaTransport
 
 
 class Client(object):
@@ -15,6 +16,8 @@ class Client(object):
             assert not schema, 'Cant provide Type definition and schema at the same time'
             type_def_ast = parse(type_def)
             schema = build_ast_schema(type_def_ast)
+        elif schema and not transport:
+            transport = LocalSchemaTransport(schema)
         self.schema = schema
         self.introspection = introspection
         self.transport = transport
@@ -26,13 +29,10 @@ class Client(object):
         if validation_errors:
             raise validation_errors[0]
 
-    def execute(self, document):
+    def execute(self, document, *args, **kwargs):
         if self.schema:
             self.validate(document)
-        result = execute(
-            self.schema,
-            document,
-        )
+        result = self.transport.execute(document, *args, **kwargs)
         if result.errors:
             raise result.errors[0]
         return result.data
