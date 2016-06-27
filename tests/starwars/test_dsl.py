@@ -152,22 +152,21 @@ human(id: "1000") {
 #     assert result.data == expected
 
 
-# def test_fetch_luke_aliased():
-#     query = '''
-#         query FetchLukeAliased {
-#           luke: human(id: "1000") {
-#             name
-#           }
-#         }
-#     '''
-#     expected = {
-#         'luke': {
-#             'name': 'Luke Skywalker',
-#         }
-#     }
-#     result = schema.execute(query)
-#     assert not result.errors
-#     assert result.data == expected
+def test_fetch_luke_aliased():
+    query = '''
+luke: human(id: "1000") {
+  name
+}
+    '''.strip()
+    expected = {
+        'luke': {
+            'name': 'Luke Skywalker',
+        }
+    }
+    query_dsl = dsl.field(Query.human, id=1000).alias('luke').get(
+        Character.name,
+    )
+    assert query == str(query_dsl)
 
 
 # def test_fetch_luke_and_leia_aliased():

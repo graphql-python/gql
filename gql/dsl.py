@@ -35,6 +35,10 @@ class DSLField(object):
         self.ast_field.selection_set.selections.extend(selections(*fields))
         return self
 
+    def alias(self, alias):
+        self.ast_field.alias = ast.Name(value=alias)
+        return self
+
     def get_field_args(self):
         if isinstance(self.field, GraphQLFieldDefinition):
             # The args will be an array
