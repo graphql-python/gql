@@ -3,7 +3,7 @@ from graphql.utils.build_client_schema import build_client_schema
 from graphql.utils.build_ast_schema import build_ast_schema
 from graphql import parse
 
-from .transport import LocalSchemaTransport
+from .transport.local_schema import LocalSchemaTransport
 
 
 class Client(object):

@@ -13,9 +13,3 @@ class LocalSchemaTransport(object):
             **kwargs
         )
 
-
-class HTTPTransport(object):
-    pass
-
-class RequestsTransport(object):
-    pass
