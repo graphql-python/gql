@@ -1,8 +1,6 @@
 import pytest
-from graphql import graphql
-from graphql.error import format_error
 
-from gql import gql, Client
+from gql import Client, gql
 from gql.transport.requests import RequestsHTTPTransport
 
 
@@ -30,38 +28,38 @@ def test_hero_name_query(client):
     ''')
     expected = {
         "myFavoriteFilm": {
-          "id": "RmlsbToz",
-          "title": "Return of the Jedi",
-          "episodeId": 6,
-          "characters": {
-            "edges": [
-              {
-                "node": {
-                  "name": "Luke Skywalker"
-                }
-              },
-              {
-                "node": {
-                  "name": "C-3PO"
-                }
-              },
-              {
-                "node": {
-                  "name": "R2-D2"
-                }
-              },
-              {
-                "node": {
-                  "name": "Darth Vader"
-                }
-              },
-              {
-                "node": {
-                  "name": "Leia Organa"
-                }
-              }
-            ]
-          }
+            "id": "RmlsbToz",
+            "title": "Return of the Jedi",
+            "episodeId": 6,
+            "characters": {
+                "edges": [
+                  {
+                      "node": {
+                          "name": "Luke Skywalker"
+                      }
+                  },
+                    {
+                      "node": {
+                          "name": "C-3PO"
+                      }
+                  },
+                    {
+                      "node": {
+                          "name": "R2-D2"
+                      }
+                  },
+                    {
+                      "node": {
+                          "name": "Darth Vader"
+                      }
+                  },
+                    {
+                      "node": {
+                          "name": "Leia Organa"
+                      }
+                  }
+                ]
+            }
         }
     }
     result = client.execute(query)

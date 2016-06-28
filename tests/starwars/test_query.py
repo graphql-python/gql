@@ -1,10 +1,10 @@
 import pytest
-from graphql import graphql
 from graphql.error import format_error
+
+from gql import Client, gql
 
 from .schema import StarWarsSchema
 
-from gql import gql, Client
 
 @pytest.fixture
 def client():

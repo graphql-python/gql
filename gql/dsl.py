@@ -1,9 +1,11 @@
 import collections
 import decimal
 from functools import partial
+
 from graphql.language import ast
 from graphql.language.printer import print_ast
-from graphql.type import GraphQLField, GraphQLFieldDefinition, GraphQLNonNull, GraphQLList
+from graphql.type import (GraphQLField, GraphQLFieldDefinition, GraphQLList,
+                          GraphQLNonNull)
 
 
 def selections(*fields):
@@ -24,6 +26,7 @@ def get_ast_value(value):
 
 
 class DSLField(object):
+
     def __init__(self, field):
         self.field = field
         self.ast_field = ast.Field(name=ast.Name(value=field.name), arguments=[])

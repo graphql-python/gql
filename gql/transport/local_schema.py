@@ -2,6 +2,7 @@ from graphql.execution import execute
 
 
 class LocalSchemaTransport(object):
+
     def __init__(self, schema):
         self.schema = schema
 
@@ -12,4 +13,3 @@ class LocalSchemaTransport(object):
             *args,
             **kwargs
         )
-

@@ -1,23 +1,24 @@
-from .schema import queryType, characterInterface, humanType
 from gql import dsl
+
+from .schema import characterInterface, humanType, queryType
 
 
 # We construct a Simple DSL objects for easy field referencing
 
 class Query(object):
-  hero = queryType.get_fields()['hero']
-  human = queryType.get_fields()['human']
+    hero = queryType.get_fields()['hero']
+    human = queryType.get_fields()['human']
 
 
 class Character(object):
-  id = characterInterface.get_fields()['id']
-  name = characterInterface.get_fields()['name']
-  friends = characterInterface.get_fields()['friends']
-  appears_in = characterInterface.get_fields()['appearsIn']
+    id = characterInterface.get_fields()['id']
+    name = characterInterface.get_fields()['name']
+    friends = characterInterface.get_fields()['friends']
+    appears_in = characterInterface.get_fields()['appearsIn']
 
 
 class Human(object):
-  name = humanType.get_fields()['name']
+    name = humanType.get_fields()['name']
 
 
 def test_hero_name_query():
@@ -85,7 +86,7 @@ human(id: "1000") {
 }
     '''.strip()
     query_dsl = dsl.field(Query.human, id="1000").get(
-      Human.name,
+        Human.name,
     )
 
     assert query == str(query_dsl)

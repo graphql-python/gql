@@ -1,14 +1,10 @@
 import pytest
 from graphql import graphql
-from graphql.language.parser import parse
-from graphql.language.source import Source
-from graphql.validation import validate
-from graphql.utils.schema_printer import print_schema
 from graphql.utils.introspection_query import introspection_query
 
-from .schema import StarWarsSchema
+from gql import Client, gql
 
-from gql import gql, Client
+from .schema import StarWarsSchema
 
 introspection = graphql(StarWarsSchema, introspection_query).data
 

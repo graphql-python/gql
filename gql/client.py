@@ -1,12 +1,13 @@
-from graphql.validation import validate
-from graphql.utils.build_client_schema import build_client_schema
-from graphql.utils.build_ast_schema import build_ast_schema
 from graphql import parse
+from graphql.utils.build_ast_schema import build_ast_schema
+from graphql.utils.build_client_schema import build_client_schema
+from graphql.validation import validate
 
 from .transport.local_schema import LocalSchemaTransport
 
 
 class Client(object):
+
     def __init__(self, schema=None, introspection=None, type_def=None, transport=None):
         assert not(type_def and introspection), 'Cant provide introspection type definition at the same time'
         if introspection:
