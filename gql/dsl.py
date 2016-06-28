@@ -3,7 +3,6 @@ import decimal
 from functools import partial
 
 import six
-
 from graphql.language import ast
 from graphql.language.printer import print_ast
 from graphql.type import (GraphQLField, GraphQLFieldDefinition, GraphQLList,
