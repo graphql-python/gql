@@ -20,6 +20,7 @@ class RequestsHTTPTransport(HTTPTransport):
             headers=self.client_headers
         )
         result = request.json()
+        assert 'errors' in result or 'data' in result, 'Received non-compatible response "{}"'.format(result)
         return ExecutionResult(
             errors=result.get('errors'),
             data=result.get('data')
