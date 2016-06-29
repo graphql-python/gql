@@ -1,6 +1,4 @@
-from graphql import parse
-from graphql.utils.build_ast_schema import build_ast_schema
-from graphql.utils.build_client_schema import build_client_schema
+from graphql import parse, introspection_query, build_ast_schema, build_client_schema
 from graphql.validation import validate
 
 from .transport.local_schema import LocalSchemaTransport
@@ -8,8 +6,11 @@ from .transport.local_schema import LocalSchemaTransport
 
 class Client(object):
 
-    def __init__(self, schema=None, introspection=None, type_def=None, transport=None):
+    def __init__(self, schema=None, introspection=None, type_def=None, transport=None, fetch_schema_from_transport=False):
         assert not(type_def and introspection), 'Cant provide introspection type definition at the same time'
+        if transport and fetch_schema_from_transport:
+            assert not schema, 'Cant fetch the schema from transport if is already provided'
+            introspection = transport.execute(parse(introspection_query)).data
         if introspection:
             assert not schema, 'Cant provide introspection and schema at the same time'
             schema = build_client_schema(introspection)
@@ -19,6 +20,7 @@ class Client(object):
             schema = build_ast_schema(type_def_ast)
         elif schema and not transport:
             transport = LocalSchemaTransport(schema)
+
         self.schema = schema
         self.introspection = introspection
         self.transport = transport
