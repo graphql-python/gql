@@ -8,8 +8,8 @@ from .http import HTTPTransport
 
 
 class RequestsHTTPTransport(HTTPTransport):
-    def __init__(self, auth=None, *args, **kwargs):
-        super(RequestsHTTPTransport, self).__init__(*args, **kwargs)
+    def __init__(self, url, auth=None, **kwargs):
+        super(RequestsHTTPTransport, self).__init__(url, **kwargs)
         self.auth = auth
 
     def execute(self, document, variable_values=None):
