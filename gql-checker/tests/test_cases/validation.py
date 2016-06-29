@@ -25,13 +25,13 @@ gql('''
         favoriteSpaceship
       }
     }
-''') # GQL101
+''') # GQL101: Cannot query field "favoriteSpaceship" on type "Character".
 
 gql('''
     query HeroNoFieldsQuery {
       hero
     }
-''') # GQL101
+''') # GQL101: Field "hero" of type "Character" must have a sub selection.
 
 
 gql('''
@@ -42,7 +42,7 @@ gql('''
         }
       }
     }
-''') # GQL101
+''') # GQL101: Field "name" of type "String" must not have a sub selection.
 
 
 gql('''
@@ -52,7 +52,7 @@ gql('''
         primaryFunction
       }
     }
-''') # GQL101
+''') # GQL101: Cannot query field "primaryFunction" on type "Character". However, this field exists on "Droid". Perhaps you meant to use an inline fragment?
 
 gql('''
     query DroidFieldInFragment {
