@@ -1,5 +1,5 @@
 import sys
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
     name='gql',
@@ -23,7 +23,7 @@ setup(
         'Programming Language :: Python :: Implementation :: PyPy',
     ],
     keywords='api graphql protocol rest relay gql client',
-    packages=["gql"],
+    packages=find_packages(include=["gql", "gql/*"]),
     install_requires=[
         'six>=1.10.0',
         'graphql-core>=0.5.0',
