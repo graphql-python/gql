@@ -8,8 +8,8 @@ from .http import HTTPTransport
 
 
 class RequestsHTTPTransport(HTTPTransport):
-    def __init__(self, auth=None, timeout=None, *args, **kwargs):
-        super(RequestsHTTPTransport, self).__init__(*args, **kwargs)
+    def __init__(self, url, auth=None, timeout=None, **kwargs):
+        super(RequestsHTTPTransport, self).__init__(url, **kwargs)
         self.auth = auth
         self.default_timeout = timeout
 
