@@ -1,0 +1,5 @@
+include CHANGELOG.rst
+include COPYING
+include README.md
+recursive-include tests *
+recursive-exclude tests *.py[co]
