@@ -6,7 +6,8 @@ from .transport.local_schema import LocalSchemaTransport
 
 class Client(object):
 
-    def __init__(self, schema=None, introspection=None, type_def=None, transport=None, fetch_schema_from_transport=False):
+    def __init__(self, schema=None, introspection=None, type_def=None, transport=None,
+                 fetch_schema_from_transport=False):
         assert not(type_def and introspection), 'Cant provide introspection type definition at the same time'
         if transport and fetch_schema_from_transport:
             assert not schema, 'Cant fetch the schema from transport if is already provided'
