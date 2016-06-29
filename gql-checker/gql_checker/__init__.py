@@ -1,4 +1,5 @@
 import ast
+import json
 
 import pycodestyle
 
@@ -7,7 +8,7 @@ from gql_checker.__about__ import (
     __uri__, __version__
 )
 from gql_checker.stdlib_list import STDLIB_NAMES
-from graphql import Source, validate, parse
+from graphql import Source, validate, parse, build_client_schema
 
 
 __all__ = [
@@ -68,6 +69,15 @@ class ImportOrderChecker(object):
             self.tree = ast.parse("".join(self.lines))
 
     def get_schema(self):
+        gql_introspection_schema = self.options.get('gql_introspection_schema')
+        if gql_introspection_schema:
+            try:
+                with open(gql_introspection_schema) as data_file:
+                    introspection_schema = json.load(data_file)
+                    return build_client_schema(introspection_schema)
+            except IOError as e:
+                raise Exception("Cannot find the provided introspection schema. {}".format(str(e)))
+
         schema = self.options.get('schema')
         assert schema, 'Need to provide schema'
 

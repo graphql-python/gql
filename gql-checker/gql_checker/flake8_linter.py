@@ -15,10 +15,8 @@ class Linter(ImportOrderChecker):
     def add_options(cls, parser):
         # List of application import names. They go last.
         parser.add_option(
-            "--gql-json-schema",
-            default="",
-            action="store",
-            type="string",
+            "--gql-introspection-schema",
+            metavar="FILE",
             help="Import names to consider as application specific"
         )
         parser.add_option(
@@ -29,7 +27,7 @@ class Linter(ImportOrderChecker):
             help=("Style to follow. Available: "
                   "cryptography, google, smarkets, pep8")
         )
-        parser.config_options.append("gql-json-schema")
+        parser.config_options.append("gql-introspection-schema")
         parser.config_options.append("gql-typedef-schema")
 
     @classmethod
@@ -37,7 +35,7 @@ class Linter(ImportOrderChecker):
         optdict = {}
 
         optdict = dict(
-            gql_json_schema=options.gql_json_schema,
+            gql_introspection_schema=options.gql_introspection_schema,
             gql_typedef_schema=options.gql_typedef_schema,
         )
 

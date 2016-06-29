@@ -40,10 +40,10 @@ setup(
     py_modules=['gql_checker'],
     entry_points={
         'flake8.extension': [
-            'I10 = gql_checker.flake8_linter:Linter',
+            'GQL = gql_checker.flake8_linter:Linter',
         ],
         'pylama.linter': [
-            'import_order = gql_checker.pylama_linter:Linter'
+            'gql_checker = gql_checker.pylama_linter:Linter'
         ]
     },
 

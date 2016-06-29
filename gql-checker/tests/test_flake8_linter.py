@@ -37,7 +37,7 @@ def load_test_cases():
 )
 def test_expected_error(tree, filename, expected_codes, expected_messages):
     argv = [
-        "--gql-json-schema=./test_schema.json"
+        "--gql-introspection-schema=./tests/introspection_schema.json"
     ]
 
     parser = pycodestyle.get_parser('', '')

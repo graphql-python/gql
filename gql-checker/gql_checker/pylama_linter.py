@@ -29,7 +29,7 @@ class Linter(ImportOrderChecker, BaseLinter):
         self.filename = path
         self.tree = None
         self.options = dict(
-            {'import_order_style': ''},
+            {'schema': ''},
             **meta)
 
         for error in self.check_gql():

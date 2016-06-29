@@ -1,7 +1,7 @@
 import re
 
 
-ERROR_RX = re.compile("# ((I[0-9]+ ?)+)(: (.*))?$")
+ERROR_RX = re.compile("# ((GQL[0-9]+ ?)+)(: (.*))?$")
 
 
 def extract_expected_errors(data):
