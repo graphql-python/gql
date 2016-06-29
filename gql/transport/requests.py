@@ -23,6 +23,8 @@ class RequestsHTTPTransport(HTTPTransport):
             headers=self.client_headers,
             auth=self.auth
         )
+        request.raise_for_status()
+
         result = request.json()
         assert 'errors' in result or 'data' in result, 'Received non-compatible response "{}"'.format(result)
         return ExecutionResult(
