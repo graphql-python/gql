@@ -8,11 +8,12 @@ from .http import HTTPTransport
 
 
 class RequestsHTTPTransport(HTTPTransport):
-    def __init__(self, url, auth=None, **kwargs):
-        super(RequestsHTTPTransport, self).__init__(url, **kwargs)
+    def __init__(self, auth=None, timeout=None, *args, **kwargs):
+        super(RequestsHTTPTransport, self).__init__(*args, **kwargs)
         self.auth = auth
+        self.default_timeout = timeout
 
-    def execute(self, document, variable_values=None):
+    def execute(self, document, variable_values=None, timeout=None):
         query_str = print_ast(document)
         request = requests.post(
             self.url,
@@ -21,7 +22,8 @@ class RequestsHTTPTransport(HTTPTransport):
                 'variables': variable_values
             },
             headers=self.headers,
-            auth=self.auth
+            auth=self.auth,
+            timeout=timeout or self.default_timeout
         )
         request.raise_for_status()
 
