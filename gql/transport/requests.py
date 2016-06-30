@@ -20,7 +20,7 @@ class RequestsHTTPTransport(HTTPTransport):
                 'query': query_str,
                 'variables': variable_values
             },
-            headers=self.client_headers,
+            headers=self.headers,
             auth=self.auth
         )
         request.raise_for_status()
