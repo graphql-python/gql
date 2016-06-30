@@ -12,7 +12,7 @@ class RequestsHTTPTransport(HTTPTransport):
         """
         :param url: The GraphQL URL
         :param auth: Auth tuple or callable to enable Basic/Digest/Custom HTTP Auth
-        :param use_json: Choose whether to send the request body as a json or as form-urlencoded (Default: form-urlencoded)
+        :param use_json: Send request body as JSON instead of form-urlencoded
         :param timeout: Specifies a default timeout for requests (Default: None)
         """
         super(RequestsHTTPTransport, self).__init__(url, **kwargs)
