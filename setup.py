@@ -29,5 +29,5 @@ setup(
         'graphql-core>=0.5.0',
         'promise>=0.4.0'
     ],
-    tests_require=['pytest>=2.7.2'],
+    tests_require=['pytest>=2.7.2', 'mock'],
 )
