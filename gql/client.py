@@ -49,7 +49,7 @@ class Client(object):
 
         result = self._get_result(document, *args, **kwargs)
         if result.errors:
-            raise result.errors[0]
+            raise Exception(str(result.errors[0]))
 
         return result.data
 
