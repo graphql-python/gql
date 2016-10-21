@@ -1,4 +1,5 @@
 import pytest
+import requests
 
 from gql import Client, gql
 from gql.transport.requests import RequestsHTTPTransport
@@ -6,9 +7,19 @@ from gql.transport.requests import RequestsHTTPTransport
 
 @pytest.fixture
 def client():
+    request = requests.get('http://swapi.graphene-python.org/graphql',
+                           headers={
+                               'Host': 'swapi.graphene-python.org',
+                               'Accept': 'text/html',
+                           })
+    request.raise_for_status()
+    csrf = request.cookies['csrftoken']
+
     return Client(
-      transport=RequestsHTTPTransport(url='http://swapi.graphene-python.org/graphql'),
-      fetch_schema_from_transport=True
+        transport=RequestsHTTPTransport(url='http://swapi.graphene-python.org/graphql',
+                                        cookies={"csrftoken": csrf},
+                                        headers={'x-csrftoken':  csrf}),
+        fetch_schema_from_transport=True
     )
 
 
