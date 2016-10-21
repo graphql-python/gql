@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 
 import requests
+import json
 from graphql.execution import ExecutionResult
 from graphql.language.printer import print_ast
 
@@ -24,8 +25,12 @@ class RequestsHTTPTransport(HTTPTransport):
         query_str = print_ast(document)
         payload = {
             'query': query_str,
-            'variables': variable_values or {}
         }
+
+        if type(variable_values) is str:
+            payload['variables'] = variable_values or ""
+        else:
+            payload['variables'] = json.dumps(variable_values or {}, sort_keys=True)
 
         data_key = 'json' if self.use_json else 'data'
         post_args = {
