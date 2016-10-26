@@ -31,6 +31,7 @@ class RequestsHTTPTransport(HTTPTransport):
         post_args = {
             'headers': self.headers,
             'auth': self.auth,
+            'cookies': self.cookies,
             'timeout': timeout or self.default_timeout,
             data_key: payload
         }
