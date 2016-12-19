@@ -23,6 +23,15 @@ class DSLSchema(object):
         type_def = self.schema.get_type(name)
         return DSLType(type_def)
 
+    def query(self, *args, **kwargs):
+        return self.execute(query(*args, **kwargs))
+
+    def mutate(self, *args, **kwargs):
+        return self.query(*args, operation='mutate', **kwargs)
+
+    def execute(self, document):
+        return self.client.execute(document)
+
 
 class DSLType(object):
     def __init__(self, type):

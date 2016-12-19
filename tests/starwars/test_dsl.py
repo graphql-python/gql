@@ -277,3 +277,18 @@ luke: human(id: "1000") {
 #     result = schema.execute(query)
 #     assert not result.errors
 #     assert result.data == expected
+
+
+
+def test_hero_name_query(ds):
+    result = ds.query(
+        ds.Query.hero.select(
+            ds.Character.name
+        )
+    )
+    expected = {
+        'hero': {
+            'name': 'R2-D2'
+        }
+    }
+    assert result == expected
