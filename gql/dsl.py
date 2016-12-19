@@ -5,8 +5,43 @@ from functools import partial
 import six
 from graphql.language import ast
 from graphql.language.printer import print_ast
-from graphql.type import (GraphQLField, GraphQLFieldDefinition, GraphQLList,
+from graphql.type import (GraphQLField, GraphQLList,
                           GraphQLNonNull, GraphQLEnumType)
+
+from .utils import to_camel_case
+
+
+class DSLSchema(object):
+    def __init__(self, client):
+        self.client = client
+
+    @property
+    def schema(self):
+        return self.client.schema
+
+    def __getattr__(self, name):
+        type_def = self.schema.get_type(name)
+        return DSLType(type_def)
+
+
+class DSLType(object):
+    def __init__(self, type):
+        self.type = type
+
+    def __getattr__(self, name):
+        formatted_name, field_def = self.get_field(name)
+        return DSLField(formatted_name, field_def)
+
+    def get_field(self, name):
+        camel_cased_name = to_camel_case(name)
+
+        if name in self.type.fields:
+            return name, self.type.fields[name]
+
+        if camel_cased_name in self.type.fields:
+            return camel_cased_name, self.type.fields[camel_cased_name]
+
+        raise KeyError('Field {} doesnt exist in type {}.'.format(name, self.type.name))
 
 
 def selections(*fields):
@@ -30,9 +65,9 @@ def get_ast_value(value):
 
 class DSLField(object):
 
-    def __init__(self, field):
+    def __init__(self, name, field):
         self.field = field
-        self.ast_field = ast.Field(name=ast.Name(value=field.name), arguments=[])
+        self.ast_field = ast.Field(name=ast.Name(value=name), arguments=[])
         self.selection_set = None
 
     def get(self, *fields):
@@ -41,21 +76,16 @@ class DSLField(object):
         self.ast_field.selection_set.selections.extend(selections(*fields))
         return self
 
+    def __call__(self, *args, **kwargs):
+        return self.get(*args, **kwargs)
+
     def alias(self, alias):
         self.ast_field.alias = ast.Name(value=alias)
         return self
 
-    def get_field_args(self):
-        if isinstance(self.field, GraphQLFieldDefinition):
-            # The args will be an array
-            return {
-                arg.name: arg for arg in self.field.args
-            }
-        return self.field.args
-
     def args(self, **args):
         for name, value in args.items():
-            arg = self.get_field_args().get(name)
+            arg = self.field.args.get(name)
             arg_type_serializer = get_arg_serializer(arg.type)
             value = arg_type_serializer(value)
             self.ast_field.arguments.append(
@@ -75,7 +105,7 @@ class DSLField(object):
 
 
 def field(field, **args):
-    if isinstance(field, (GraphQLField, GraphQLFieldDefinition)):
+    if isinstance(field, GraphQLField):
         return DSLField(field).args(**args)
     elif isinstance(field, DSLField):
         return field
