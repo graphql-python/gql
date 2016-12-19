@@ -78,3 +78,60 @@ def test_hero_name_query(client):
     }
     result = client.execute(query)
     assert result == expected
+
+
+def test_hero_name_query_variable(client):
+    query = gql('''
+    query($user: ID!) {
+      myFavoriteFilm: film(id:$user) {
+        id
+        title
+        episodeId
+        characters(first:5) {
+          edges {
+            node {
+              name
+            }
+          }
+        }
+      }
+    }
+    ''')
+    expected = {
+        "myFavoriteFilm": {
+            "id": "RmlsbToz",
+            "title": "Return of the Jedi",
+            "episodeId": 6,
+            "characters": {
+                "edges": [
+                  {
+                      "node": {
+                          "name": "Luke Skywalker"
+                      }
+                  },
+                    {
+                      "node": {
+                          "name": "C-3PO"
+                      }
+                  },
+                    {
+                      "node": {
+                          "name": "R2-D2"
+                      }
+                  },
+                    {
+                      "node": {
+                          "name": "Darth Vader"
+                      }
+                  },
+                    {
+                      "node": {
+                          "name": "Leia Organa"
+                      }
+                  }
+                ]
+            }
+        }
+    }
+    result = client.execute(query, variable_values={"user": "RmlsbToz"})
+    assert result == expected
