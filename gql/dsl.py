@@ -70,14 +70,14 @@ class DSLField(object):
         self.ast_field = ast.Field(name=ast.Name(value=name), arguments=[])
         self.selection_set = None
 
-    def get(self, *fields):
+    def select(self, *fields):
         if not self.ast_field.selection_set:
             self.ast_field.selection_set = ast.SelectionSet(selections=[])
         self.ast_field.selection_set.selections.extend(selections(*fields))
         return self
 
     def __call__(self, *args, **kwargs):
-        return self.get(*args, **kwargs)
+        return self.args(*args, **kwargs)
 
     def alias(self, alias):
         self.ast_field.alias = ast.Name(value=alias)

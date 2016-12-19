@@ -3,27 +3,6 @@ import pytest
 from gql import Client
 from gql.dsl import DSLSchema
 
-from .schema import characterInterface, humanType, queryType
-
-
-# We construct a Simple DSL objects for easy field referencing
-
-# class Query(object):
-#     hero = queryType.fields['hero']
-#     human = queryType.fields['human']
-
-
-# class Character(object):
-#     id = characterInterface.fields['id']
-#     name = characterInterface.fields['name']
-#     friends = characterInterface.fields['friends']
-#     appears_in = characterInterface.fields['appearsIn']
-
-
-# class Human(object):
-#     name = humanType.fields['name']
-
-
 from .schema import StarWarsSchema
 
 
@@ -40,7 +19,7 @@ hero {
   name
 }
     '''.strip()
-    query_dsl = ds.Query.hero(
+    query_dsl = ds.Query.hero.select(
         ds.Character.name
     )
     assert query == str(query_dsl)
@@ -56,10 +35,10 @@ hero {
   }
 }
     '''.strip()
-    query_dsl = ds.Query.hero(
+    query_dsl = ds.Query.hero.select(
         ds.Character.id,
         ds.Character.name,
-        ds.Character.friends(
+        ds.Character.friends.select(
             ds.Character.name,
         )
     )
@@ -79,12 +58,12 @@ hero {
   }
 }
     '''.strip()
-    query_dsl = ds.Query.hero(
+    query_dsl = ds.Query.hero.select(
         ds.Character.name,
-        ds.Character.friends(
+        ds.Character.friends.select(
             ds.Character.name,
             ds.Character.appears_in,
-            ds.Character.friends(
+            ds.Character.friends.select(
                 ds.Character.name
             )
         )
@@ -98,7 +77,7 @@ human(id: "1000") {
   name
 }
     '''.strip()
-    query_dsl = ds.Query.human.args(id="1000").get(
+    query_dsl = ds.Query.human(id="1000").select(
         ds.Human.name,
     )
 
@@ -172,7 +151,7 @@ luke: human(id: "1000") {
   name
 }
     '''.strip()
-    query_dsl = ds.Query.human.args(id=1000).alias('luke').get(
+    query_dsl = ds.Query.human.args(id=1000).alias('luke').select(
         ds.Character.name,
     )
     assert query == str(query_dsl)
