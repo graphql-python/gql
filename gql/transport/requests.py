@@ -25,7 +25,7 @@ class RequestsHTTPTransport(Transport):
         headers=None,  # type: Dict[str, Any]
         cookies=None,  # type: Union[Dict[str, Any], RequestsCookieJar]
         auth=None,  # type: AuthBase
-        use_json=False,  # type: bool
+        use_json=True,  # type: bool
         timeout=None,  # type: int
         verify=True,  # type: bool
         retries=0,  # type: int
