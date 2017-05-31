@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 
+import json
 import requests
 from graphql.execution import ExecutionResult
 from graphql.language.printer import print_ast
@@ -20,12 +21,14 @@ class RequestsHTTPTransport(HTTPTransport):
         self.default_timeout = timeout
         self.use_json = use_json
 
-    def execute(self, document, variable_values=None, timeout=None):
-        query_str = print_ast(document)
+    def execute(self, document, variable_values=None, operation_name=None, timeout=None):
+        query = print_ast(document)
         payload = {
-            'query': query_str,
+            'query': json.dumps(query) if isinstance(query, dict) else query,
             'variables': variable_values or {}
         }
+        if operation_name:
+            payload.operationName = operation_name
 
         data_key = 'json' if self.use_json else 'data'
         post_args = {
