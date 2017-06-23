@@ -5,13 +5,12 @@ from functools import partial
 import six
 from graphql.language import ast
 from graphql.language.printer import print_ast
-from graphql.type import (GraphQLField, GraphQLFieldDefinition, GraphQLList,
-                          GraphQLNonNull, GraphQLEnumType)
+from graphql.type import GraphQLField, GraphQLList, GraphQLNonNull, GraphQLEnumType
 
 
 def selections(*fields):
     for _field in fields:
-        yield field(_field).ast
+        yield _field.ast if isinstance(_field, DSLField) else field(*_field).ast
 
 
 def get_ast_value(value):
@@ -30,9 +29,9 @@ def get_ast_value(value):
 
 class DSLField(object):
 
-    def __init__(self, field):
+    def __init__(self, name, field):
         self.field = field
-        self.ast_field = ast.Field(name=ast.Name(value=field.name), arguments=[])
+        self.ast_field = ast.Field(name=ast.Name(value=name), arguments=[])
         self.selection_set = None
 
     def get(self, *fields):
@@ -46,11 +45,10 @@ class DSLField(object):
         return self
 
     def get_field_args(self):
-        if isinstance(self.field, GraphQLFieldDefinition):
+        if isinstance(self.field, GraphQLField):
             # The args will be an array
-            return {
-                arg.name: arg for arg in self.field.args
-            }
+            return { name: arg for name, arg in self.field.args.iteritems() }
+
         return self.field.args
 
     def args(self, **args):
@@ -74,9 +72,9 @@ class DSLField(object):
         return print_ast(self.ast_field)
 
 
-def field(field, **args):
-    if isinstance(field, (GraphQLField, GraphQLFieldDefinition)):
-        return DSLField(field).args(**args)
+def field(name, field, **args):
+    if isinstance(field, GraphQLField):
+        return DSLField(name, field).args(**args)
     elif isinstance(field, DSLField):
         return field
 

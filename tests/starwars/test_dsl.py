@@ -6,19 +6,19 @@ from .schema import characterInterface, humanType, queryType
 # We construct a Simple DSL objects for easy field referencing
 
 class Query(object):
-    hero = queryType.get_fields()['hero']
-    human = queryType.get_fields()['human']
+    hero = ('hero', queryType.fields['hero'])
+    human = ('human', queryType.fields['human'])
 
 
 class Character(object):
-    id = characterInterface.get_fields()['id']
-    name = characterInterface.get_fields()['name']
-    friends = characterInterface.get_fields()['friends']
-    appears_in = characterInterface.get_fields()['appearsIn']
+    id = ('id', characterInterface.fields['id'])
+    name = ('name', characterInterface.fields['name'])
+    friends = ('friends', characterInterface.fields['friends'])
+    appears_in = ('appearsIn', characterInterface.fields['appearsIn'])
 
 
 class Human(object):
-    name = humanType.get_fields()['name']
+    name = ('name', humanType.fields['name'])
 
 
 def test_hero_name_query():
@@ -27,9 +27,7 @@ hero {
   name
 }
     '''.strip()
-    query_dsl = dsl.field(Query.hero).get(
-        Character.name
-    )
+    query_dsl = dsl.field(*Query.hero).get(Character.name)
     assert query == str(query_dsl)
 
 
@@ -43,10 +41,10 @@ hero {
   }
 }
     '''.strip()
-    query_dsl = dsl.field(Query.hero).get(
+    query_dsl = dsl.field(*Query.hero).get(
         Character.id,
         Character.name,
-        dsl.field(Character.friends).get(
+        dsl.field(*Character.friends).get(
             Character.name,
         )
     )
@@ -66,12 +64,12 @@ hero {
   }
 }
     '''.strip()
-    query_dsl = dsl.field(Query.hero).get(
+    query_dsl = dsl.field(*Query.hero).get(
         Character.name,
-        dsl.field(Character.friends).get(
+        dsl.field(*Character.friends).get(
             Character.name,
             Character.appears_in,
-            dsl.field(Character.friends).get(
+            dsl.field(*Character.friends).get(
                 Character.name
             )
         )
@@ -85,7 +83,7 @@ human(id: "1000") {
   name
 }
     '''.strip()
-    query_dsl = dsl.field(Query.human, id="1000").get(
+    query_dsl = dsl.field(*Query.human, id="1000").get(
         Human.name,
     )
 
@@ -164,7 +162,7 @@ luke: human(id: "1000") {
             'name': 'Luke Skywalker',
         }
     }
-    query_dsl = dsl.field(Query.human, id=1000).alias('luke').get(
+    query_dsl = dsl.field(*Query.human, id=1000).alias('luke').get(
         Character.name,
     )
     assert query == str(query_dsl)

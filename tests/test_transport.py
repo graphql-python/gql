@@ -7,7 +7,7 @@ from gql.transport.requests import RequestsHTTPTransport
 @pytest.fixture
 def client():
     return Client(
-      transport=RequestsHTTPTransport(url='http://swapi.graphene-python.org/graphql'),
+      transport=RequestsHTTPTransport(url='https://swapi.graphene-python.org/graphql'),
       fetch_schema_from_transport=True
     )
 
