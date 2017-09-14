@@ -8,17 +8,19 @@ from .http import HTTPTransport
 
 
 class RequestsHTTPTransport(HTTPTransport):
-    def __init__(self, url, auth=None, use_json=False, timeout=None, **kwargs):
+    def __init__(self, url, auth=None, use_json=False, timeout=None, verify_ssl=None, **kwargs):
         """
         :param url: The GraphQL URL
         :param auth: Auth tuple or callable to enable Basic/Digest/Custom HTTP Auth
         :param use_json: Send request body as JSON instead of form-urlencoded
         :param timeout: Specifies a default timeout for requests (Default: None)
+        :param verify_ssl: SSL verification (Default: None)
         """
         super(RequestsHTTPTransport, self).__init__(url, **kwargs)
         self.auth = auth
         self.default_timeout = timeout
         self.use_json = use_json
+        self.verify_ssl = verify_ssl
 
     def execute(self, document, variable_values=None, timeout=None):
         query_str = print_ast(document)
@@ -33,6 +35,7 @@ class RequestsHTTPTransport(HTTPTransport):
             'auth': self.auth,
             'cookies': self.cookies,
             'timeout': timeout or self.default_timeout,
+            'verify': self.verify_ssl,
             data_key: payload
         }
         request = requests.post(self.url, **post_args)
