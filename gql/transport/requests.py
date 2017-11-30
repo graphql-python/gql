@@ -25,10 +25,9 @@ class RequestsHTTPTransport(HTTPTransport):
         query = print_ast(document)
         payload = {
             'query': json.dumps(query) if isinstance(query, dict) else query,
-            'variables': variable_values or {}
+            'variables': variable_values or {},
+            'operationName': operation_name or ''
         }
-        if operation_name:
-            payload.operationName = operation_name
 
         data_key = 'json' if self.use_json else 'data'
         post_args = {
