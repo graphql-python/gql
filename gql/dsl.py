@@ -2,14 +2,17 @@ import collections
 import decimal
 from functools import partial
 
+import pdb
+
 import six
 from graphql.language import ast
 from graphql.language.printer import print_ast
 from graphql.type import (GraphQLField, GraphQLList,
-                          GraphQLNonNull, GraphQLEnumType)
+                          GraphQLNonNull, GraphQLEnumType, GraphQLObjectType, GraphQLInputObjectField,GraphQLInputObjectType)
 
 from .utils import to_camel_case
 
+from graphql.utils.ast_from_value import ast_from_value
 
 class DSLSchema(object):
     def __init__(self, client):
@@ -60,6 +63,8 @@ def selections(*fields):
 
 def get_ast_value(value):
     if isinstance(value, ast.Node):
+        return value
+    if isinstance(value, ast.Value):
         return value
     if isinstance(value, six.string_types):
         return ast.StringValue(value=value)
@@ -137,16 +142,22 @@ def serialize_list(serializer, values):
     assert isinstance(values, collections.Iterable), 'Expected iterable, received "{}"'.format(repr(values))
     return [serializer(v) for v in values]
 
-
 def get_arg_serializer(arg_type):
     if isinstance(arg_type, GraphQLNonNull):
         return get_arg_serializer(arg_type.of_type)
+    if isinstance(arg_type, six.string_types):
+        return ast.StringValue(value=value)
+    if isinstance(arg_type, GraphQLInputObjectField):
+        return get_arg_serializer(arg_type.type)
     if isinstance(arg_type, GraphQLList):
         inner_serializer = get_arg_serializer(arg_type.of_type)
         return partial(serialize_list, inner_serializer)
+    if isinstance(arg_type, GraphQLInputObjectType):
+        serializers = {k: get_arg_serializer(v) for k,v in arg_type.fields.items()}
+        return lambda value: ast.ObjectValue(fields=[ast.ObjectField(ast.Name(k), serializers[k](v)) for k,v in value.items()])
     if isinstance(arg_type, GraphQLEnumType):
         return lambda value: ast.EnumValue(value=arg_type.serialize(value))
-    return arg_type.serialize
+    return lambda value: ast_from_value(arg_type.serialize(value))
 
 
 def var(name):
