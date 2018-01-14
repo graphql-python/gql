@@ -12,12 +12,12 @@ if sys.version_info < (3, 5):
 
 setup(
     name='pygql',
-    version='0.1.0',
+    version='0.1.1',
     description='GraphQL client for Python',
     long_description=open('README.rst').read(),
-    url='https://github.com/graphql-python/gql',
-    author='Syrus Akbary',
-    author_email='me@syrusakbary.com',
+    url='https://github.com/itolosa/pygql',
+    author='Ignacio Tolosa',
+    author_email='ignacio@perejil.cl',
     license='MIT',
     classifiers=[
         'Development Status :: 3 - Alpha',
