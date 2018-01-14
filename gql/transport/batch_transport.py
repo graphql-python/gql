@@ -2,16 +2,17 @@ from gql.transport.requests import RequestsHTTPTransport
 import requests
 from graphql.language.printer import print_ast
 from graphql.execution import ExecutionResult
-#import concurrent.futures
-import time 
+import concurrent.futures
+import time
 import threading
 
 import sys
 
-if sys.version_info >= (3,0):
+if sys.version_info >= (3, 0):
     import queue
 else:
     import Queue as queue
+
 
 class FutureExecResult(ExecutionResult):
     def __init__(self, future):
@@ -43,6 +44,7 @@ class FutureExecResult(ExecutionResult):
         self._fill_data()
         return self._invalid
 
+
 class BatchTransport(RequestsHTTPTransport):
     def __init__(self, url, cookies, **kwargs):
         """
@@ -65,7 +67,7 @@ class BatchTransport(RequestsHTTPTransport):
         self.query_batcher_queue = queue.Queue()
         self.query_batcher = threading.Thread(target=self._batch_query, daemon=True)
         self.query_batcher.start()
-        
+
     def _batch_query(self):
         while self.query_batcher_active:
             query_payloads = []
@@ -104,7 +106,9 @@ class BatchTransport(RequestsHTTPTransport):
                 results = request.json()
                 for result, future in zip(results, new_futures):
                     try:
-                        assert 'errors' in result or 'data' in result, 'Received non-compatible response "{}"'.format(result)
+
+                        assert 'errors' in result or 'data' in result, \
+                                'Received non-compatible response "{}"'.format(result)
                         future.set_result(result)
                     except Exception as exc:
                         future.set_exception(exc)

@@ -27,7 +27,8 @@ setup(
     install_requires=[
         'six>=1.10.0',
         'graphql-core~=1.1',
-        'promise>=0.4.0'
+        'promise>=0.4.0',
+        'futures;python_version<"3.4"'
     ],
     tests_require=['pytest>=2.7.2', 'mock'],
 )

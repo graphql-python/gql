@@ -3,6 +3,7 @@ import requests
 from graphql.language.printer import print_ast
 from graphql.execution import ExecutionResult
 
+
 class SessionTransport(RequestsHTTPTransport):
     def __init__(self, url, cookies, **kwargs):
         """
