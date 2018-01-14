@@ -4,6 +4,7 @@ from graphql import parse, introspection_query, build_ast_schema, build_client_s
 from graphql.validation import validate
 
 from .transport.local_schema import LocalSchemaTransport
+from .transport.batch_transport import BatchTransport
 
 log = logging.getLogger(__name__)
 
@@ -49,6 +50,10 @@ class Client(object):
             self.validate(document)
 
         result = self._get_result(document, *args, **kwargs)
+
+        if isinstance(self.transport, BatchTransport):
+            return result
+
         if result.errors:
             raise Exception(str(result.errors[0]))
 

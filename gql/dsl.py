@@ -2,13 +2,13 @@ import collections
 import decimal
 from functools import partial
 
-import pdb
-
 import six
 from graphql.language import ast
 from graphql.language.printer import print_ast
 from graphql.type import (GraphQLField, GraphQLList,
-                          GraphQLNonNull, GraphQLEnumType, GraphQLObjectType, GraphQLInputObjectField,GraphQLInputObjectType)
+                          GraphQLNonNull, GraphQLEnumType,
+                          GraphQLObjectType, GraphQLInputObjectField,
+                          GraphQLInputObjectType)
 
 from .utils import to_camel_case
 
@@ -30,7 +30,7 @@ class DSLSchema(object):
         return self.execute(query(*args, **kwargs))
 
     def mutate(self, *args, **kwargs):
-        return self.query(*args, operation='mutate', **kwargs)
+        return self.query(*args, operation='mutation', **kwargs)
 
     def execute(self, document):
         return self.client.execute(document)
@@ -127,15 +127,18 @@ def field(field, **args):
     raise Exception('Received incompatible query field: "{}".'.format(field))
 
 
-def query(*fields):
+def query(*fields, **kwargs):
+    if not 'operation' in kwargs:
+        kwargs['operation'] = 'query'
     return ast.Document(
         definitions=[ast.OperationDefinition(
-            operation='query',
+            operation=kwargs['operation'],
             selection_set=ast.SelectionSet(
                 selections=list(selections(*fields))
             )
         )]
     )
+
 
 
 def serialize_list(serializer, values):
