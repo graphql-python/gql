@@ -8,7 +8,7 @@ GQL architecture is inspired by `React-Relay` and `Apollo-Client`.
 [![travis][travis-image]][travis-url]
 [![coveralls][coveralls-image]][coveralls-url]
 
-[travis-image]: https://img.shields.io/travis/graphql-python/gql.svg?style=flat
+[travis-image]: https://img.shields.io/travis/itolosa/gql.svg?style=flat
 [travis-url]: https://travis-ci.org/itolosa/gql
 [coveralls-image]: https://coveralls.io/repos/itolosa/gql/badge.svg?branch=master&service=github
 [coveralls-url]: https://coveralls.io/github/itolosa/gql?branch=master
