@@ -1,6 +1,15 @@
 import sys
 from setuptools import setup, find_packages
 
+install_requires = [
+    'six>=1.10.0',
+    'graphql-core~=1.1',
+    'promise>=0.4.0'
+]
+
+if sys.version_info < (3, 5):
+    install_requires.append('futures')
+
 setup(
     name='gql',
     version='0.1.0',
@@ -24,11 +33,6 @@ setup(
     ],
     keywords='api graphql protocol rest relay gql client',
     packages=find_packages(include=["gql*"]),
-    install_requires=[
-        'six>=1.10.0',
-        'graphql-core~=1.1',
-        'promise>=0.4.0',
-        'futures;python_version<"3.4"'
-    ],
+    install_requires=install_requires,
     tests_require=['pytest>=2.7.2', 'mock'],
 )
