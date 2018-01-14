@@ -5,6 +5,7 @@ from graphql.validation import validate
 
 from .transport.local_schema import LocalSchemaTransport
 
+log = logging.getLogger(__name__)
 
 class RetryError(Exception):
     """Custom exception thrown when retry logic fails"""
@@ -65,7 +66,7 @@ class Client(object):
                 return result
             except Exception as e:
                 last_exception = e
-                logging.warn("Request failed with exception %s. Retrying for the %s time...",
+                log.warn("Request failed with exception %s. Retrying for the %s time...",
                              e, retries_count + 1, exc_info=True)
             finally:
                 retries_count += 1
