@@ -1,6 +1,6 @@
-# GQL
+# PYGQL
 
-This is a GraphQL client for Python.
+Is a fork of GQL and a GraphQL client for Python.
 Plays nicely with `graphene`, `graphql-core`, `graphql-js` and any other GraphQL implementation compatible with the spec.
 
 GQL architecture is inspired by `React-Relay` and `Apollo-Client`.
@@ -15,7 +15,7 @@ GQL architecture is inspired by `React-Relay` and `Apollo-Client`.
 
 ## Installation
 
-    $ pip install gql
+    $ pip install pygql
 
 
 ## Usage
@@ -24,7 +24,7 @@ The example below shows how you can execute queries against a local schema.
 
 
 ```python
-from gql import gql, Client
+from pygql import gql, Client
 
 client = Client(schema=schema)
 query = gql('''
@@ -38,4 +38,4 @@ client.execute(query)
 
 ## License
 
-[MIT License](https://github.com/graphql-python/gql/blob/master/LICENSE)
+[MIT License](https://github.com/itolosa/pygql/blob/master/LICENSE)
