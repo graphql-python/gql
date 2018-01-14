@@ -1,31 +1,37 @@
-import pytest
+from gql import dsl
 
-from gql import Client
-from gql.dsl import DSLSchema
-
-from .schema import StarWarsSchema
+from .schema import characterInterface, humanType, queryType
 
 
-@pytest.fixture
-def ds():
-    client = Client(schema=StarWarsSchema)
-    ds = DSLSchema(client)
-    return ds
+# We construct a Simple DSL objects for easy field referencing
+
+class Query(object):
+    hero = ('hero', queryType.fields['hero'])
+    human = ('human', queryType.fields['human'])
 
 
-def test_hero_name_query(ds):
+class Character(object):
+    id = ('id', characterInterface.fields['id'])
+    name = ('name', characterInterface.fields['name'])
+    friends = ('friends', characterInterface.fields['friends'])
+    appears_in = ('appearsIn', characterInterface.fields['appearsIn'])
+
+
+class Human(object):
+    name = ('name', humanType.fields['name'])
+
+
+def test_hero_name_query():
     query = '''
 hero {
   name
 }
     '''.strip()
-    query_dsl = ds.Query.hero.select(
-        ds.Character.name
-    )
+    query_dsl = dsl.field(*Query.hero).get(Character.name)
     assert query == str(query_dsl)
 
 
-def test_hero_name_and_friends_query(ds):
+def test_hero_name_and_friends_query():
     query = '''
 hero {
   id
@@ -35,17 +41,17 @@ hero {
   }
 }
     '''.strip()
-    query_dsl = ds.Query.hero.select(
-        ds.Character.id,
-        ds.Character.name,
-        ds.Character.friends.select(
-            ds.Character.name,
+    query_dsl = dsl.field(*Query.hero).get(
+        Character.id,
+        Character.name,
+        dsl.field(*Character.friends).get(
+            Character.name,
         )
     )
     assert query == str(query_dsl)
 
 
-def test_nested_query(ds):
+def test_nested_query():
     query = '''
 hero {
   name
@@ -58,27 +64,27 @@ hero {
   }
 }
     '''.strip()
-    query_dsl = ds.Query.hero.select(
-        ds.Character.name,
-        ds.Character.friends.select(
-            ds.Character.name,
-            ds.Character.appears_in,
-            ds.Character.friends.select(
-                ds.Character.name
+    query_dsl = dsl.field(*Query.hero).get(
+        Character.name,
+        dsl.field(*Character.friends).get(
+            Character.name,
+            Character.appears_in,
+            dsl.field(*Character.friends).get(
+                Character.name
             )
         )
     )
     assert query == str(query_dsl)
 
 
-def test_fetch_luke_query(ds):
+def test_fetch_luke_query():
     query = '''
 human(id: "1000") {
   name
 }
     '''.strip()
-    query_dsl = ds.Query.human(id="1000").select(
-        ds.Human.name,
+    query_dsl = dsl.field(*Query.human, id="1000").get(
+        Human.name,
     )
 
     assert query == str(query_dsl)
@@ -145,14 +151,19 @@ human(id: "1000") {
 #     assert result.data == expected
 
 
-def test_fetch_luke_aliased(ds):
+def test_fetch_luke_aliased():
     query = '''
 luke: human(id: "1000") {
   name
 }
     '''.strip()
-    query_dsl = ds.Query.human.args(id=1000).alias('luke').select(
-        ds.Character.name,
+    expected = {
+        'luke': {
+            'name': 'Luke Skywalker',
+        }
+    }
+    query_dsl = dsl.field(*Query.human, id=1000).alias('luke').get(
+        Character.name,
     )
     assert query == str(query_dsl)
 
@@ -277,18 +288,3 @@ luke: human(id: "1000") {
 #     result = schema.execute(query)
 #     assert not result.errors
 #     assert result.data == expected
-
-
-
-def test_hero_name_query(ds):
-    result = ds.query(
-        ds.Query.hero.select(
-            ds.Character.name
-        )
-    )
-    expected = {
-        'hero': {
-            'name': 'R2-D2'
-        }
-    }
-    assert result == expected
