@@ -2,10 +2,16 @@ from gql.transport.requests import RequestsHTTPTransport
 import requests
 from graphql.language.printer import print_ast
 from graphql.execution import ExecutionResult
-import concurrent.futures
+#import concurrent.futures
 import time 
 import threading
-import queue
+
+import sys
+
+if sys.version_info >= (3,0):
+    import queue
+else:
+    import Queue as queue
 
 class FutureExecResult(ExecutionResult):
     def __init__(self, future):
