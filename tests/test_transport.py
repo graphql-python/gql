@@ -2,14 +2,25 @@ import pytest
 
 from gql import Client, gql
 from gql.transport.requests import RequestsHTTPTransport
-
+import requests
 
 @pytest.fixture
 def client():
+    request = requests.get('https://fierce-crag-44069.herokuapp.com/graphql',
+                           headers={
+                               'Host': 'fierce-crag-44069.herokuapp.com',
+                               'Accept': 'text/html',
+                           })
+    request.raise_for_status()
+    csrf = request.cookies['csrftoken']
+
     return Client(
-      transport=RequestsHTTPTransport(url='https://swapi.graphene-python.org/graphql'),
-      fetch_schema_from_transport=True
+        transport=RequestsHTTPTransport(url='https://fierce-crag-44069.herokuapp.com/graphql',
+                                        cookies={"csrftoken": csrf},
+                                        headers={'x-csrftoken':  csrf}),
+        fetch_schema_from_transport=True
     )
+
 
 
 def test_hero_name_query(client):

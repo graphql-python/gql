@@ -12,7 +12,7 @@ def test_retries(execute_mock):
 
     client = Client(
         retries=expected_retries,
-        transport=RequestsHTTPTransport(url='http://swapi.graphene-python.org/graphql')
+        transport=RequestsHTTPTransport(url='https://fierce-crag-44069.herokuapp.com/graphql')
     )
 
     query = gql('''

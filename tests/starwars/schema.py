@@ -45,7 +45,7 @@ characterInterface = GraphQLInterfaceType(
             description='Which movies they appear in.'
         ),
     },
-    resolve_type=lambda character, *_: humanType if getHuman(character.id) else droidType,
+    resolve_type=lambda character, info: humanType if getHuman(character.id) else droidType,
 )
 
 humanType = GraphQLObjectType(
@@ -92,7 +92,7 @@ droidType = GraphQLObjectType(
         'friends': GraphQLField(
             GraphQLList(characterInterface),
             description='The friends of the droid, or an empty list if they have none.',
-            resolver=lambda droid, *_: getFriends(droid),
+            resolver=lambda droid, info, **args: getFriends(droid),
         ),
         'appearsIn': GraphQLField(
             GraphQLList(episodeEnum),
@@ -118,7 +118,7 @@ queryType = GraphQLObjectType(
                     type=episodeEnum,
                 )
             },
-            resolver=lambda root, args, *_: getHero(args.get('episode')),
+            resolver=lambda root, info, **args: getHero(args.get('episode')),
         ),
         'human': GraphQLField(
             humanType,
@@ -128,7 +128,7 @@ queryType = GraphQLObjectType(
                     type=GraphQLNonNull(GraphQLString),
                 )
             },
-            resolver=lambda root, args, *_: getHuman(args['id']),
+            resolver=lambda root, info, **args: getHuman(args['id']),
         ),
         'droid': GraphQLField(
             droidType,
@@ -138,7 +138,7 @@ queryType = GraphQLObjectType(
                     type=GraphQLNonNull(GraphQLString),
                 )
             },
-            resolver=lambda root, args, *_: getDroid(args['id']),
+            resolver=lambda root, info, **args: getDroid(args['id']),
         ),
     }
 )
