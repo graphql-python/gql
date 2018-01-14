@@ -3,11 +3,11 @@ import json
 
 import pycodestyle
 
-from gql_checker.__about__ import (
+from pygql_checker.__about__ import (
     __author__, __copyright__, __email__, __license__, __summary__, __title__,
     __uri__, __version__
 )
-from gql_checker.stdlib_list import STDLIB_NAMES
+from pygql_checker.stdlib_list import STDLIB_NAMES
 from graphql import Source, validate, parse, build_client_schema
 
 
@@ -16,8 +16,8 @@ __all__ = [
     "__email__", "__license__", "__copyright__",
 ]
 
-GQL_SYNTAX_ERROR = 'GQL100'
-GQL_VALIDATION_ERROR = 'GQL101'
+PYGQL_SYNTAX_ERROR = 'PYGQL100'
+PYGQL_VALIDATION_ERROR = 'PYGQL101'
 
 class ImportVisitor(ast.NodeVisitor):
     """
@@ -30,7 +30,7 @@ class ImportVisitor(ast.NodeVisitor):
         self.calls = []
 
     def visit_Call(self, node):  # noqa
-        if node.func.id == 'gql':
+        if node.func.id == 'pygql':
             self.calls.append(node)
 
     def node_query(self, node):
@@ -69,10 +69,10 @@ class ImportOrderChecker(object):
             self.tree = ast.parse("".join(self.lines))
 
     def get_schema(self):
-        gql_introspection_schema = self.options.get('gql_introspection_schema')
+        pygql_introspection_schema = self.options.get('pygql_introspection_schema')
         if gql_introspection_schema:
             try:
-                with open(gql_introspection_schema) as data_file:
+                with open(pygql_introspection_schema) as data_file:
                     introspection_schema = json.load(data_file)
                     return build_client_schema(introspection_schema)
             except IOError as e:
@@ -87,7 +87,7 @@ class ImportOrderChecker(object):
     def error(self, node, code, message):
         raise NotImplemented()
 
-    def check_gql(self):
+    def check_pygql(self):
         if not self.tree or not self.lines:
             self.load_file()
 
@@ -104,15 +104,15 @@ class ImportOrderChecker(object):
                 continue
 
             try:
-                source = Source(query, 'gql query')
+                source = Source(query, 'pygql query')
                 ast = parse(source)
             except Exception as e:
                 message = str(e)
-                yield self.error(node, GQL_SYNTAX_ERROR, message)
+                yield self.error(node, PYGQL_SYNTAX_ERROR, message)
                 continue
 
             validation_errors = self.validation_errors(ast)
             if validation_errors:
                 for error in validation_errors:
                     message = str(error)
-                    yield self.error(node, GQL_VALIDATION_ERROR, message)
+                    yield self.error(node, PYGQL_VALIDATION_ERROR, message)

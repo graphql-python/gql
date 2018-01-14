@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 base_dir = os.path.dirname(__file__)
 
 about = {}
-with open(os.path.join(base_dir, "gql_checker", "__about__.py")) as f:
+with open(os.path.join(base_dir, "pygql_checker", "__about__.py")) as f:
     exec(f.read(), about)
 
 with open(os.path.join(base_dir, "README.rst")) as f:
@@ -37,13 +37,13 @@ setup(
         "pylama"
     ],
 
-    py_modules=['gql_checker'],
+    py_modules=['pygql_checker'],
     entry_points={
         'flake8.extension': [
-            'GQL = gql_checker.flake8_linter:Linter',
+            'pygql = pygql_checker.flake8_linter:Linter',
         ],
         'pylama.linter': [
-            'gql_checker = gql_checker.pylama_linter:Linter'
+            'pygql_checker = pygql_checker.pylama_linter:Linter'
         ]
     },
 

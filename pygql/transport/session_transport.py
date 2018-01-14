@@ -1,4 +1,4 @@
-from gql.transport.requests import RequestsHTTPTransport
+from pygql.transport.requests import RequestsHTTPTransport
 import requests
 from graphql.language.printer import print_ast
 from graphql.execution import ExecutionResult

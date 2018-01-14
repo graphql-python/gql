@@ -5,11 +5,11 @@ __all__ = [
     "__email__", "__license__", "__copyright__",
 ]
 
-__title__ = "gql-checker"
+__title__ = "pygql-checker"
 __summary__ = (
-    "Flake8 and pylama plugin that checks gql GraphQL calls."
+    "Flake8 and pylama plugin that checks pygql GraphQL calls."
 )
-__uri__ = "https://github.com/graphql-python/gql-checker"
+__uri__ = "https://github.com/graphql-python/pygql-checker"
 
 __version__ = "0.1"
 

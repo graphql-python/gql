@@ -10,7 +10,7 @@ install:
 - pip install -r ./dev_requirements.txt
 - pip install -e .
 script:
-- flake8 gql
-- py.test --cov=gql tests
+- flake8 pygql
+- py.test --cov=pygql tests
 after_success:
 - coveralls

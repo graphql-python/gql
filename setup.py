@@ -11,7 +11,7 @@ if sys.version_info < (3, 5):
     install_requires.append('futures')
 
 setup(
-    name='gql',
+    name='pygql',
     version='0.1.0',
     description='GraphQL client for Python',
     long_description=open('README.rst').read(),

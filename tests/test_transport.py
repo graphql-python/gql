@@ -1,7 +1,7 @@
 import pytest
 
-from gql import Client, gql
-from gql.transport.requests import RequestsHTTPTransport
+from pygql import Client, gql
+from pygql.transport.requests import RequestsHTTPTransport
 import requests
 
 @pytest.fixture

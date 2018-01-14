@@ -24,7 +24,7 @@ schema.
 
 .. code:: python
 
-    from gql import gql, Client
+    from pygql import gql, Client
 
     client = Client(schema=schema)
     query = gql('''

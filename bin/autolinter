@@ -2,6 +2,6 @@
 
 # Install the required scripts with
 # pip install autoflake autopep8 isort
-autoflake ./tests/ ./gql/ -r --remove-unused-variables --remove-all-unused-imports --in-place
-autopep8 ./tests/ ./gql/ -r --in-place --experimental --aggressive --max-line-length 120
-isort -rc ./tests/ ./gql/
+autoflake ./tests/ ./pygql/ -r --remove-unused-variables --remove-all-unused-imports --in-place
+autopep8 ./tests/ ./pygql/ -r --in-place --experimental --aggressive --max-line-length 120
+isort -rc ./tests/ ./pygql/

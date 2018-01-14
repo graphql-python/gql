@@ -1,12 +1,12 @@
 from __future__ import absolute_import
 
-import gql_checker
-from gql_checker import ImportOrderChecker
+import pygql_checker
+from pygql_checker import ImportOrderChecker
 
 
 class Linter(ImportOrderChecker):
     name = "gql"
-    version = gql_checker.__version__
+    version = pygql_checker.__version__
 
     def __init__(self, tree, filename):
         super(Linter, self).__init__(filename, tree)
@@ -15,28 +15,28 @@ class Linter(ImportOrderChecker):
     def add_options(cls, parser):
         # List of application import names. They go last.
         parser.add_option(
-            "--gql-introspection-schema",
+            "--pygql-introspection-schema",
             metavar="FILE",
             help="Import names to consider as application specific"
         )
         parser.add_option(
-            "--gql-typedef-schema",
+            "--pygql-typedef-schema",
             default='',
             action="store",
             type="string",
             help=("Style to follow. Available: "
                   "cryptography, google, smarkets, pep8")
         )
-        parser.config_options.append("gql-introspection-schema")
-        parser.config_options.append("gql-typedef-schema")
+        parser.config_options.append("pygql-introspection-schema")
+        parser.config_options.append("pygql-typedef-schema")
 
     @classmethod
     def parse_options(cls, options):
         optdict = {}
 
         optdict = dict(
-            gql_introspection_schema=options.gql_introspection_schema,
-            gql_typedef_schema=options.gql_typedef_schema,
+            pygql_introspection_schema=options.pygql_introspection_schema,
+            pygql_typedef_schema=options.pygql_typedef_schema,
         )
 
         cls.options = optdict
@@ -46,5 +46,5 @@ class Linter(ImportOrderChecker):
         return (lineno, col_offset, '{0} {1}'.format(code, message), Linter)
 
     def run(self):
-        for error in self.check_gql():
+        for error in self.check_pygql():
             yield error

@@ -1,7 +1,7 @@
 import pytest
 
-from gql import Client
-from gql.dsl import DSLSchema
+from pygql import Client
+from pygql.dsl import DSLSchema
 
 from .schema import StarWarsSchema
 

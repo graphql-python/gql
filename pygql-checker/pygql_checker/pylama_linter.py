@@ -2,13 +2,13 @@ from __future__ import absolute_import
 
 from pylama.lint import Linter as BaseLinter
 
-import gql_checker
-from gql_checker import ImportOrderChecker
+import pygql_checker
+from pygql_checker import ImportOrderChecker
 
 
 class Linter(ImportOrderChecker, BaseLinter):
-    name = "gql"
-    version = gql_checker.__version__
+    name = "pygql"
+    version = pygql_checker.__version__
 
     def __init__(self):
         super(Linter, self).__init__(None, None)
@@ -32,5 +32,5 @@ class Linter(ImportOrderChecker, BaseLinter):
             {'schema': ''},
             **meta)
 
-        for error in self.check_gql():
+        for error in self.check_pygql():
             yield error

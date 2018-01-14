@@ -1,7 +1,7 @@
 import pytest
 from graphql.error import format_error
 
-from gql import Client, gql
+from pygql import Client, gql
 
 from .schema import StarWarsSchema
 

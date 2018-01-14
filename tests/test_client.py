@@ -1,11 +1,11 @@
 import pytest
 import mock
 
-from gql import Client, gql
-from gql.transport.requests import RequestsHTTPTransport
+from pygql import Client, gql
+from pygql.transport.requests import RequestsHTTPTransport
 
 
-@mock.patch('gql.transport.requests.RequestsHTTPTransport.execute')
+@mock.patch('pygql.transport.requests.RequestsHTTPTransport.execute')
 def test_retries(execute_mock):
     expected_retries = 3
     execute_mock.side_effect =Exception("fail")

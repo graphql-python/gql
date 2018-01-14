@@ -3,7 +3,7 @@ import os
 
 import pytest
 
-from gql_checker import pylama_linter
+from pygql_checker import pylama_linter
 
 from tests.utils import extract_expected_errors
 

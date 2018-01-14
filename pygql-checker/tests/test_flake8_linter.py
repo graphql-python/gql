@@ -5,7 +5,7 @@ import os
 import pycodestyle
 import pytest
 
-from gql_checker.flake8_linter import Linter
+from pygql_checker.flake8_linter import Linter
 
 from tests.utils import extract_expected_errors
 
@@ -37,7 +37,7 @@ def load_test_cases():
 )
 def test_expected_error(tree, filename, expected_codes, expected_messages):
     argv = [
-        "--gql-introspection-schema=./tests/introspection_schema.json"
+        "--pygql-introspection-schema=./tests/introspection_schema.json"
     ]
 
     parser = pycodestyle.get_parser('', '')

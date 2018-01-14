@@ -1,4 +1,4 @@
-gql-checker
+pygql-checker
 ===========
 
 |Build Status|
