@@ -46,7 +46,7 @@ class FutureExecResult(ExecutionResult):
 
 
 class BatchTransport(RequestsHTTPTransport):
-    def __init__(self, url, cookies, **kwargs):
+    def __init__(self, url, **kwargs):
         """
         :param url: The GraphQL URL
         :param auth: Auth tuple or callable to enable Basic/Digest/Custom HTTP Auth
@@ -55,7 +55,6 @@ class BatchTransport(RequestsHTTPTransport):
         """
         super(BatchTransport, self).__init__(url, **kwargs)
         self.session = requests.Session()
-        self.cookies = cookies
         self.session.cookies = requests.utils.cookiejar_from_dict(self.cookies)
         self.session.headers.update(self.headers)
         self.session.auth = self.auth
