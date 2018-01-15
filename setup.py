@@ -12,7 +12,7 @@ if sys.version_info < (3, 5):
 
 setup(
     name='pygql',
-    version='0.1.1',
+    version='0.1.2',
     description='GraphQL client for Python',
     long_description=open('README.rst').read(),
     url='https://github.com/itolosa/pygql',
@@ -32,7 +32,7 @@ setup(
         'Programming Language :: Python :: Implementation :: PyPy',
     ],
     keywords='api graphql protocol rest relay gql client',
-    packages=find_packages(include=["gql*"]),
+    packages=find_packages(include=["pygql*"]),
     install_requires=install_requires,
     tests_require=['pytest>=2.7.2', 'mock'],
 )
