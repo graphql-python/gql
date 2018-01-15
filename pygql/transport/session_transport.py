@@ -14,8 +14,10 @@ class SessionTransport(RequestsHTTPTransport):
         """
         super(SessionTransport, self).__init__(url, **kwargs)
         self.session = requests.Session()
-        self.session.cookies = requests.utils.cookiejar_from_dict(self.cookies)
-        self.session.headers.update(self.headers)
+        if self.cookies:
+            self.session.cookies = requests.utils.cookiejar_from_dict(self.cookies)
+        if self.headers:
+            self.session.headers.update(self.headers)
         self.session.auth = self.auth
 
     def execute(self, document, variable_values=None, timeout=None):
