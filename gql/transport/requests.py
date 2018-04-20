@@ -20,7 +20,7 @@ class RequestsHTTPTransport(HTTPTransport):
         self.default_timeout = timeout
         self.use_json = use_json
 
-    def execute(self, document, variable_values=None, timeout=None):
+    def execute(self, document, variable_values=None, timeout=None, url=None, headers={}):
         query_str = print_ast(document)
         payload = {
             'query': query_str,
@@ -29,13 +29,13 @@ class RequestsHTTPTransport(HTTPTransport):
 
         data_key = 'json' if self.use_json else 'data'
         post_args = {
-            'headers': self.headers,
+            'headers': headers or self.headers,
             'auth': self.auth,
             'cookies': self.cookies,
             'timeout': timeout or self.default_timeout,
             data_key: payload
         }
-        request = requests.post(self.url, **post_args)
+        request = requests.post(url or self.url, **post_args)
         request.raise_for_status()
 
         result = request.json()
