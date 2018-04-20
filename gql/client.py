@@ -4,6 +4,7 @@ from graphql import parse, introspection_query, build_ast_schema, build_client_s
 from graphql.validation import validate
 
 from .transport.local_schema import LocalSchemaTransport
+from .response_parser import ResponseParser
 
 log = logging.getLogger(__name__)
 
@@ -17,7 +18,7 @@ class RetryError(Exception):
 
 class Client(object):
     def __init__(self, schema=None, introspection=None, type_def=None, transport=None,
-                 fetch_schema_from_transport=False, retries=0):
+                 fetch_schema_from_transport=False, custom_scalars={}, retries=0):
         assert not(type_def and introspection), 'Cant provide introspection type definition at the same time'
         if transport and fetch_schema_from_transport:
             assert not schema, 'Cant fetch the schema from transport if is already provided'
@@ -36,6 +37,7 @@ class Client(object):
         self.introspection = introspection
         self.transport = transport
         self.retries = retries
+        self.response_parser = ResponseParser(schema, custom_scalars) if custom_scalars else None
 
     def validate(self, document):
         if not self.schema:
@@ -51,6 +53,9 @@ class Client(object):
         result = self._get_result(document, *args, **kwargs)
         if result.errors:
             raise Exception(str(result.errors[0]))
+
+        if self.response_parser:
+            result.data = self.response_parser.parse(result.data)
 
         return result.data
 
