@@ -20,16 +20,19 @@ class RequestsHTTPTransport(HTTPTransport):
         self.default_timeout = timeout
         self.use_json = use_json
 
-    def execute(self, document, variable_values=None, timeout=None):
+    def execute(self, document, variable_values=None, timeout=None, headers={}):
         query_str = print_ast(document)
         payload = {
             'query': query_str,
             'variables': variable_values or {}
         }
 
+        merged_headers = self.headers.copy() if self.headers else {}
+        merged_headers.update(headers)
+
         data_key = 'json' if self.use_json else 'data'
         post_args = {
-            'headers': self.headers,
+            'headers': merged_headers,
             'auth': self.auth,
             'cookies': self.cookies,
             'timeout': timeout or self.default_timeout,
