@@ -5,7 +5,7 @@ server endpoint. In future it would be better to store this schema in a file
 locally.
 """
 import copy
-from gql.response_parser import ResponseParser
+from gql.type_adaptor import TypeAdaptor
 import pytest
 import requests
 from gql import Client
@@ -36,37 +36,37 @@ def schema():
     return client.schema
 
 def test_scalar_type_name_for_scalar_field_returns_name(schema):
-    parser = ResponseParser(schema)
+    type_adaptor = TypeAdaptor(schema)
     schema_obj = schema.get_query_type().fields['film']
 
-    assert parser._get_scalar_type_name(schema_obj.type.fields['releaseDate']) == 'DateTime'
+    assert type_adaptor ._get_scalar_type_name(schema_obj.type.fields['releaseDate']) == 'DateTime'
 
 
 def test_scalar_type_name_for_non_scalar_field_returns_none(schema):
-    parser = ResponseParser(schema)
+    type_adaptor = TypeAdaptor(schema)
     schema_obj = schema.get_query_type().fields['film']
 
-    assert parser._get_scalar_type_name(schema_obj.type.fields['species']) is None
+    assert type_adaptor._get_scalar_type_name(schema_obj.type.fields['species']) is None
 
-def test_lookup_scalar_type(gql_schema):
-    parser = ResponseParser(gql_schema)
+def test_lookup_scalar_type(schema):
+    type_adaptor = TypeAdaptor(schema)
 
-    assert parser._lookup_scalar_type(["film"]) is None
-    assert parser._lookup_scalar_type(["film", "releaseDate"]) == 'DateTime'
-    assert parser._lookup_scalar_type(["film", "species"]) is None
+    assert type_adaptor._lookup_scalar_type(["film"]) is None
+    assert type_adaptor._lookup_scalar_type(["film", "releaseDate"]) == 'DateTime'
+    assert type_adaptor._lookup_scalar_type(["film", "species"]) is None
 
 def test_lookup_scalar_type_in_mutation(schema):
-    parser = ResponseParser(schema)
+    type_adaptor = TypeAdaptor(schema)
 
-    assert parser._lookup_scalar_type(["createHero"]) is None
-    assert parser._lookup_scalar_type(["createHero", "hero"]) is None
-    assert parser._lookup_scalar_type(["createHero", "ok"]) == 'Boolean'
+    assert type_adaptor._lookup_scalar_type(["createHero"]) is None
+    assert type_adaptor._lookup_scalar_type(["createHero", "hero"]) is None
+    assert type_adaptor._lookup_scalar_type(["createHero", "ok"]) == 'Boolean'
 
 def test_parse_response(schema):
     custom_scalars = {
         'DateTime': Capitalize
     }
-    parser = ResponseParser(schema, custom_scalars)
+    type_adaptor = TypeAdaptor(schema, custom_scalars)
 
     response = {
         'film': {
@@ -82,14 +82,14 @@ def test_parse_response(schema):
         }
     }
 
-    assert parser.parse(response) == expected
+    assert type_adaptor.apply(response) == expected
     assert response['film']['releaseDate'] == 'some_datetime' # ensure original response is not changed
 
 def test_parse_response_containing_list(schema):
     custom_scalars = {
         'DateTime': Capitalize
     }
-    parser = ResponseParser(schema, custom_scalars)
+    type_adaptor = TypeAdaptor(schema, custom_scalars)
 
     response = {
         "allFilms": {
@@ -111,7 +111,7 @@ def test_parse_response_containing_list(schema):
     expected['allFilms']['edges'][0]['node']['releaseDate'] = "SOME_DATETIME"
     expected['allFilms']['edges'][1]['node']['releaseDate'] = "SOME_OTHER_DATETIME"
 
-    result = parser.parse(response)
+    result = type_adaptor.apply(response)
 
     assert result == expected
     expected['allFilms']['edges'][0]['node']['releaseDate'] = "some_datetime"

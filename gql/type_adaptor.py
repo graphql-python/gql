@@ -4,19 +4,23 @@ from graphql.type.schema import GraphQLSchema
 from graphql.type.definition import GraphQLObjectType, GraphQLField, GraphQLScalarType
 
 
-class ResponseParser(object):
-    """The challenge is to substitute custom scalars in a GQL response with their
-    decoded counterparts.
+class TypeAdaptor(object):
+    """Substitute custom scalars in a GQL response with their decoded counterparts.
 
-    To solve this problem, we first need to iterate over all the fields in the
-    response (which is done in the `_traverse()` function).
+    GQL custom scalar types are defined on the GQL schema and are used to represent
+    fields which have special behaviour. To define custom scalar type, you need
+    the type name, and a class which has a class method called `parse_value()` -
+    this is the function which will be used to deserialize the custom scalar field.
 
-    Each time we find a field which has type scalar and is a custom scalar, we
-    need to replace the value of that field with the decoded value. All of this
-    logic happens in `_substitute()`.
+    We first need iterate over all the fields in the response (which is done in
+    the `_traverse()` function).
+
+    Each time we find a field which is a custom scalar (it's type name appears
+    as a key in self.custom_scalars), we replace the value of that field with the
+    decoded value. All of this logic happens in `_substitute()`.
 
     Public Interface:
-    parse(): call parse with a GQL response to replace all instances of custom
+    parse(): pass in a GQL response to replace all instances of custom
         scalar strings with their deserialized representation."""
 
     def __init__(self, schema: GraphQLSchema, custom_scalars: Dict[str, Any] = {}) -> None:
@@ -110,5 +114,5 @@ class ResponseParser(object):
                 return substitute(keys, node)
         return iterate(response)
 
-    def parse(self, response: Dict[str, Any]) -> Dict[str, Any]:
+    def apply(self, response: Dict[str, Any]) -> Dict[str, Any]:
         return self._traverse(response, self._substitute)

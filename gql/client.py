@@ -4,7 +4,7 @@ from graphql import parse, introspection_query, build_ast_schema, build_client_s
 from graphql.validation import validate
 
 from .transport.local_schema import LocalSchemaTransport
-from .response_parser import ResponseParser
+from .type_adaptor import TypeAdaptor
 
 log = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ class Client(object):
         self.introspection = introspection
         self.transport = transport
         self.retries = retries
-        self.response_parser = ResponseParser(schema, custom_scalars) if custom_scalars else None
+        self.type_adaptor = TypeAdaptor(schema, custom_scalars) if custom_scalars else None
 
     def validate(self, document):
         if not self.schema:
@@ -54,8 +54,8 @@ class Client(object):
         if result.errors:
             raise Exception(str(result.errors[0]))
 
-        if self.response_parser:
-            result.data = self.response_parser.parse(result.data)
+        if self.type_adaptor:
+            result.data = self.type_adaptor.apply(result.data)
 
         return result.data
 
