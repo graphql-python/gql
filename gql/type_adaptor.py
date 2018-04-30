@@ -20,7 +20,7 @@ class TypeAdaptor(object):
     decoded value. All of this logic happens in `_substitute()`.
 
     Public Interface:
-    parse(): pass in a GQL response to replace all instances of custom
+    apply(): pass in a GQL response to replace all instances of custom
         scalar strings with their deserialized representation."""
 
     def __init__(self, schema: GraphQLSchema, custom_scalars: Dict[str, Any] = {}) -> None:
@@ -32,11 +32,12 @@ class TypeAdaptor(object):
         self.custom_scalars = custom_scalars
 
     def _follow_type_chain(self, node: Any) -> Any:
-        """In the schema GraphQL types are often listed with the format
-        `obj.type.of_type...` where there are 0 or more 'of_type' fields before
-        you get to the type you are interested in.
+        """ Get the type of the schema node in question.
 
-        This is a convenience method to help us get to these nested types."""
+        In the GraphQL schema, GraphQLFields have a "type" property. However, often
+        that dict has an "of_type" property itself. In order to get to the actual
+        type, we need to indefinitely follow the chain of "of_type" fields to get
+        to the last one, which is the one we care about."""
         if isinstance(node, GraphQLObjectType):
             return node
 
@@ -55,16 +56,17 @@ class TypeAdaptor(object):
         return None
 
     def _lookup_scalar_type(self, keys: List[str]) -> Optional[str]:
-        """
-        `keys` is a breadcrumb trail telling us where to look in the GraphQL schema.
-        By default the root level is `schema.query`, if that fails, then we check
-        `schema.mutation`.
+        """Search through the GQL schema and return the type identified by 'keys'.
 
-        If keys (e.g. ['wallet', 'balance']) points to a scalar type, then
-        this function returns the name of that type. (e.g. 'Money')
+        If keys (e.g. ['film', 'release_date']) points to a scalar type, then
+        this function returns the name of that type. (e.g. 'DateTime')
 
         If it is not a scalar type (e..g a GraphQLObject or list), then this
-        function returns None"""
+        function returns None.
+
+        `keys` is a breadcrumb trail telling us where to look in the GraphQL schema.
+        By default the root level is `schema.query`, if that fails, then we check
+        `schema.mutation`."""
 
         def iterate(node: Any, lookup: List[str]):
             lookup = lookup.copy()
@@ -83,24 +85,27 @@ class TypeAdaptor(object):
                 return None
 
     def _substitute(self, keys: List[str], value: Any) -> Any:
-        """Looks in the GraphQL schema to find the type identified by 'keys'
+        """Get the decoded value of the type identified by `keys`.
 
-        If that type is not a custom scalar, we return the original value.
-        If it is a custom scalar, we return the deserialized value, as
-        processed by `<CustomScalarType>.parse_value()`"""
+        If the type is not a custom scalar, then return the original value.
+
+        If it is a custom scalar, return the deserialized value, as
+        output by `<CustomScalarType>.parse_value()`"""
         scalar_type = self._lookup_scalar_type(keys)
         if scalar_type and scalar_type in self.custom_scalars:
             return self.custom_scalars[scalar_type].parse_value(value)
         return value
 
     def _traverse(self, response: Dict[str, Any], substitute: Callable) -> Dict[str, Any]:
-        """Recursively traverses the GQL response and calls the `substitute`
+        """Recursively traverse the GQL response
+
+        Recursively traverses the GQL response and calls the `substitute`
         function on all leaf nodes. The function is called with 2 arguments:
             keys: List[str] is a breadcrumb trail telling us where we are in the
                 response, and therefore, where to look in the GQL Schema.
-            value: Any is the value at that node in the tree
+            value: Any is the value at that node in the response
 
-        Builds a new tree with the substituted values so `response` is not
+        Builds a new tree with the substituted values so old `response` is not
         modified."""
         def iterate(node: Any, keys: List[str] = []):
             if isinstance(node, dict):
