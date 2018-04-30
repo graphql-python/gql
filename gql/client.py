@@ -5,6 +5,7 @@ from graphql.validation import validate
 
 from .transport.local_schema import LocalSchemaTransport
 from .type_adaptor import TypeAdaptor
+from .exceptions import GQLServerError, GQLSyntaxError
 
 log = logging.getLogger(__name__)
 
@@ -41,7 +42,7 @@ class Client(object):
 
     def validate(self, document):
         if not self.schema:
-            raise Exception("Cannot validate locally the document, you need to pass a schema.")
+            raise GQLSyntaxError("Cannot validate locally the document, you need to pass a schema.")
         validation_errors = validate(self.schema, document)
         if validation_errors:
             raise validation_errors[0]
@@ -52,7 +53,7 @@ class Client(object):
 
         result = self._get_result(document, *args, **kwargs)
         if result.errors:
-            raise Exception(str(result.errors[0]))
+            raise GQLServerError(result.errors[0])
 
         if self.type_adaptor:
             result.data = self.type_adaptor.apply(result.data)
