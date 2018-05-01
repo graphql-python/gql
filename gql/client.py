@@ -4,7 +4,7 @@ from graphql import parse, introspection_query, build_ast_schema, build_client_s
 from graphql.validation import validate
 
 from .transport.local_schema import LocalSchemaTransport
-from .type_adaptor import TypeAdaptor
+from .type_adapter import TypeAdapter
 from .exceptions import GQLServerError, GQLSyntaxError
 
 log = logging.getLogger(__name__)
@@ -19,7 +19,10 @@ class RetryError(Exception):
 
 class Client(object):
     def __init__(self, schema=None, introspection=None, type_def=None, transport=None,
-                 fetch_schema_from_transport=False, custom_scalars={}, retries=0):
+                 fetch_schema_from_transport=False, retries=0, custom_types={}):
+        """custom_types should be of type Dict[str, Any]
+                    where str is the name of the custom scalar type, and
+                          Any is a class which has a `parse_value()` function"""
         assert not(type_def and introspection), 'Cant provide introspection type definition at the same time'
         if transport and fetch_schema_from_transport:
             assert not schema, 'Cant fetch the schema from transport if is already provided'
@@ -38,7 +41,7 @@ class Client(object):
         self.introspection = introspection
         self.transport = transport
         self.retries = retries
-        self.type_adaptor = TypeAdaptor(schema, custom_scalars) if custom_scalars else None
+        self.type_adapter = TypeAdapter(schema, custom_types) if custom_types else None
 
     def validate(self, document):
         if not self.schema:
@@ -55,8 +58,8 @@ class Client(object):
         if result.errors:
             raise GQLServerError(result.errors[0])
 
-        if self.type_adaptor:
-            result.data = self.type_adaptor.apply(result.data)
+        if self.type_adapter:
+            result.data = self.type_adapter.convert_scalars(result.data)
 
         return result.data
 

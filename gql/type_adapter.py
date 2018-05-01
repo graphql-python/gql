@@ -4,7 +4,7 @@ from graphql.type.schema import GraphQLSchema
 from graphql.type.definition import GraphQLObjectType, GraphQLField, GraphQLScalarType
 
 
-class TypeAdaptor(object):
+class TypeAdapter(object):
     """Substitute custom scalars in a GQL response with their decoded counterparts.
 
     GQL custom scalar types are defined on the GQL schema and are used to represent
@@ -16,20 +16,20 @@ class TypeAdaptor(object):
     the `_traverse()` function).
 
     Each time we find a field which is a custom scalar (it's type name appears
-    as a key in self.custom_scalars), we replace the value of that field with the
+    as a key in self.custom_types), we replace the value of that field with the
     decoded value. All of this logic happens in `_substitute()`.
 
     Public Interface:
     apply(): pass in a GQL response to replace all instances of custom
         scalar strings with their deserialized representation."""
 
-    def __init__(self, schema: GraphQLSchema, custom_scalars: Dict[str, Any] = {}) -> None:
+    def __init__(self, schema: GraphQLSchema, custom_types: Dict[str, Any] = {}) -> None:
         """ schema: a graphQL schema in the GraphQLSchema format
-            custom_scalars: a Dict[str, Any],
+            custom_types: a Dict[str, Any],
                 where str is the name of the custom scalar type, and
-                      Any is a class which has a `parse_value()` function"""
+                      Any is a class which has a `parse_value(str)` function"""
         self.schema = schema
-        self.custom_scalars = custom_scalars
+        self.custom_types = custom_types
 
     def _follow_type_chain(self, node: Any) -> Any:
         """ Get the type of the schema node in question.
@@ -61,30 +61,33 @@ class TypeAdaptor(object):
         If keys (e.g. ['film', 'release_date']) points to a scalar type, then
         this function returns the name of that type. (e.g. 'DateTime')
 
-        If it is not a scalar type (e..g a GraphQLObject or list), then this
+        If it is not a scalar type (e..g a GraphQLObject), then this
         function returns None.
 
         `keys` is a breadcrumb trail telling us where to look in the GraphQL schema.
         By default the root level is `schema.query`, if that fails, then we check
         `schema.mutation`."""
 
-        def iterate(node: Any, lookup: List[str]):
-            lookup = lookup.copy()
+        def traverse_schema(node: Any, lookup: List[str]):
             if not lookup:
                 return self._get_scalar_type_name(node)
 
             final_node = self._follow_type_chain(node)
-            return iterate(final_node.fields[lookup.pop(0)], lookup)
+            return traverse_schema(final_node.fields[lookup[0]], lookup[1:])
+
+        if keys[0] in self.schema.get_query_type().fields:
+            schema_root = self.schema.get_query_type()
+        elif keys[0] in self.schema.get_mutation_type().fields:
+            schema_root = self.schema.get_mutation_type()
+        else:
+            return None
 
         try:
-            return iterate(self.schema.get_query_type(), keys)
+            return traverse_schema(schema_root, keys)
         except (KeyError, AttributeError):
-            try:
-                return iterate(self.schema.get_mutation_type(), keys)
-            except (KeyError, AttributeError):
-                return None
+            return None
 
-    def _substitute(self, keys: List[str], value: Any) -> Any:
+    def _get_decoded_scalar_type(self, keys: List[str], value: Any) -> Any:
         """Get the decoded value of the type identified by `keys`.
 
         If the type is not a custom scalar, then return the original value.
@@ -92,15 +95,15 @@ class TypeAdaptor(object):
         If it is a custom scalar, return the deserialized value, as
         output by `<CustomScalarType>.parse_value()`"""
         scalar_type = self._lookup_scalar_type(keys)
-        if scalar_type and scalar_type in self.custom_scalars:
-            return self.custom_scalars[scalar_type].parse_value(value)
+        if scalar_type and scalar_type in self.custom_types:
+            return self.custom_types[scalar_type].parse_value(value)
         return value
 
-    def _traverse(self, response: Dict[str, Any], substitute: Callable) -> Dict[str, Any]:
+    def convert_scalars(self, response: Dict[str, Any]) -> Dict[str, Any]:
         """Recursively traverse the GQL response
 
-        Recursively traverses the GQL response and calls the `substitute`
-        function on all leaf nodes. The function is called with 2 arguments:
+        Recursively traverses the GQL response and calls _get_decoded_scalar_type()
+        for all leaf nodes. The function is called with 2 arguments:
             keys: List[str] is a breadcrumb trail telling us where we are in the
                 response, and therefore, where to look in the GQL Schema.
             value: Any is the value at that node in the response
@@ -109,15 +112,9 @@ class TypeAdaptor(object):
         modified."""
         def iterate(node: Any, keys: List[str] = []):
             if isinstance(node, dict):
-                result = {}
-                for _key, value in node.items():
-                    result[_key] = iterate(value, keys + [_key])
-                return result
+                return {_key: iterate(value, keys + [_key]) for _key, value in node.items()}
             elif isinstance(node, list):
                 return [(iterate(item, keys)) for item in node]
             else:
-                return substitute(keys, node)
+                return self._get_decoded_scalar_type(keys, node)
         return iterate(response)
-
-    def apply(self, response: Dict[str, Any]) -> Dict[str, Any]:
-        return self._traverse(response, self._substitute)

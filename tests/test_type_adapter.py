@@ -5,7 +5,7 @@ server endpoint. In future it would be better to store this schema in a file
 locally.
 """
 import copy
-from gql.type_adaptor import TypeAdaptor
+from gql.type_adapter import TypeAdapter
 import pytest
 import requests
 from gql import Client
@@ -16,7 +16,7 @@ class Capitalize():
     def parse_value(self, value: str):
         return value.upper();
 
-@pytest.fixture
+@pytest.fixture(scope='session')
 def schema():
     request = requests.get('http://swapi.graphene-python.org/graphql',
                            headers={
@@ -36,37 +36,37 @@ def schema():
     return client.schema
 
 def test_scalar_type_name_for_scalar_field_returns_name(schema):
-    type_adaptor = TypeAdaptor(schema)
+    type_adapter = TypeAdapter(schema)
     schema_obj = schema.get_query_type().fields['film']
 
-    assert type_adaptor ._get_scalar_type_name(schema_obj.type.fields['releaseDate']) == 'DateTime'
+    assert type_adapter ._get_scalar_type_name(schema_obj.type.fields['releaseDate']) == 'DateTime'
 
 
 def test_scalar_type_name_for_non_scalar_field_returns_none(schema):
-    type_adaptor = TypeAdaptor(schema)
+    type_adapter = TypeAdapter(schema)
     schema_obj = schema.get_query_type().fields['film']
 
-    assert type_adaptor._get_scalar_type_name(schema_obj.type.fields['species']) is None
+    assert type_adapter._get_scalar_type_name(schema_obj.type.fields['species']) is None
 
 def test_lookup_scalar_type(schema):
-    type_adaptor = TypeAdaptor(schema)
+    type_adapter = TypeAdapter(schema)
 
-    assert type_adaptor._lookup_scalar_type(["film"]) is None
-    assert type_adaptor._lookup_scalar_type(["film", "releaseDate"]) == 'DateTime'
-    assert type_adaptor._lookup_scalar_type(["film", "species"]) is None
+    assert type_adapter._lookup_scalar_type(["film"]) is None
+    assert type_adapter._lookup_scalar_type(["film", "releaseDate"]) == 'DateTime'
+    assert type_adapter._lookup_scalar_type(["film", "species"]) is None
 
 def test_lookup_scalar_type_in_mutation(schema):
-    type_adaptor = TypeAdaptor(schema)
+    type_adapter = TypeAdapter(schema)
 
-    assert type_adaptor._lookup_scalar_type(["createHero"]) is None
-    assert type_adaptor._lookup_scalar_type(["createHero", "hero"]) is None
-    assert type_adaptor._lookup_scalar_type(["createHero", "ok"]) == 'Boolean'
+    assert type_adapter._lookup_scalar_type(["createHero"]) is None
+    assert type_adapter._lookup_scalar_type(["createHero", "hero"]) is None
+    assert type_adapter._lookup_scalar_type(["createHero", "ok"]) == 'Boolean'
 
 def test_parse_response(schema):
-    custom_scalars = {
+    custom_types = {
         'DateTime': Capitalize
     }
-    type_adaptor = TypeAdaptor(schema, custom_scalars)
+    type_adapter = TypeAdapter(schema, custom_types)
 
     response = {
         'film': {
@@ -82,14 +82,14 @@ def test_parse_response(schema):
         }
     }
 
-    assert type_adaptor.apply(response) == expected
+    assert type_adapter.convert_scalars(response) == expected
     assert response['film']['releaseDate'] == 'some_datetime' # ensure original response is not changed
 
 def test_parse_response_containing_list(schema):
-    custom_scalars = {
+    custom_types = {
         'DateTime': Capitalize
     }
-    type_adaptor = TypeAdaptor(schema, custom_scalars)
+    type_adapter = TypeAdapter(schema, custom_types)
 
     response = {
         "allFilms": {
@@ -108,11 +108,11 @@ def test_parse_response_containing_list(schema):
     }
 
     expected = copy.deepcopy(response)
-    expected['allFilms']['edges'][0]['node']['releaseDate'] = "SOME_DATETIME"
-    expected['allFilms']['edges'][1]['node']['releaseDate'] = "SOME_OTHER_DATETIME"
+    expected['allFilms']['edges'][0]['node']['releaseDate'] = 'SOME_DATETIME'
+    expected['allFilms']['edges'][1]['node']['releaseDate'] = 'SOME_OTHER_DATETIME'
 
-    result = type_adaptor.apply(response)
-
+    result = type_adapter.convert_scalars(response)
     assert result == expected
-    expected['allFilms']['edges'][0]['node']['releaseDate'] = "some_datetime"
-    expected['allFilms']['edges'][1]['node']['releaseDate'] = "some_other_datetime"
+
+    assert response['allFilms']['edges'][0]['node']['releaseDate'] == 'some_datetime' # ensure original response is not changed
+    assert response['allFilms']['edges'][1]['node']['releaseDate'] == 'some_other_datetime' # ensure original response is not changed
