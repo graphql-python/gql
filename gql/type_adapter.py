@@ -1,7 +1,4 @@
-from typing import Any, Dict, Callable, Optional, List
-
-from graphql.type.schema import GraphQLSchema
-from graphql.type.definition import GraphQLObjectType, GraphQLField, GraphQLScalarType
+from graphql.type.definition import GraphQLObjectType, GraphQLScalarType
 
 
 class TypeAdapter(object):
@@ -23,7 +20,7 @@ class TypeAdapter(object):
     apply(): pass in a GQL response to replace all instances of custom
         scalar strings with their deserialized representation."""
 
-    def __init__(self, schema: GraphQLSchema, custom_types: Dict[str, Any] = {}) -> None:
+    def __init__(self, schema, custom_types = {}):
         """ schema: a graphQL schema in the GraphQLSchema format
             custom_types: a Dict[str, Any],
                 where str is the name of the custom scalar type, and
@@ -31,7 +28,7 @@ class TypeAdapter(object):
         self.schema = schema
         self.custom_types = custom_types
 
-    def _follow_type_chain(self, node: Any) -> Any:
+    def _follow_type_chain(self, node):
         """ Get the type of the schema node in question.
 
         In the GraphQL schema, GraphQLFields have a "type" property. However, often
@@ -47,7 +44,7 @@ class TypeAdapter(object):
 
         return field_type
 
-    def _get_scalar_type_name(self, field: GraphQLField) -> Optional[str]:
+    def _get_scalar_type_name(self, field):
         """Returns the name of the type if the type is a scalar type.
         Returns None otherwise"""
         node = self._follow_type_chain(field)
@@ -55,7 +52,7 @@ class TypeAdapter(object):
             return node.name
         return None
 
-    def _lookup_scalar_type(self, keys: List[str]) -> Optional[str]:
+    def _lookup_scalar_type(self, keys):
         """Search through the GQL schema and return the type identified by 'keys'.
 
         If keys (e.g. ['film', 'release_date']) points to a scalar type, then
@@ -68,7 +65,7 @@ class TypeAdapter(object):
         By default the root level is `schema.query`, if that fails, then we check
         `schema.mutation`."""
 
-        def traverse_schema(node: Any, lookup: List[str]):
+        def traverse_schema(node, lookup):
             if not lookup:
                 return self._get_scalar_type_name(node)
 
@@ -87,7 +84,7 @@ class TypeAdapter(object):
         except (KeyError, AttributeError):
             return None
 
-    def _get_decoded_scalar_type(self, keys: List[str], value: Any) -> Any:
+    def _get_decoded_scalar_type(self, keys, value):
         """Get the decoded value of the type identified by `keys`.
 
         If the type is not a custom scalar, then return the original value.
@@ -99,7 +96,7 @@ class TypeAdapter(object):
             return self.custom_types[scalar_type].parse_value(value)
         return value
 
-    def convert_scalars(self, response: Dict[str, Any]) -> Dict[str, Any]:
+    def convert_scalars(self, response):
         """Recursively traverse the GQL response
 
         Recursively traverses the GQL response and calls _get_decoded_scalar_type()
@@ -110,7 +107,7 @@ class TypeAdapter(object):
 
         Builds a new tree with the substituted values so old `response` is not
         modified."""
-        def iterate(node: Any, keys: List[str] = []):
+        def iterate(node, keys = []):
             if isinstance(node, dict):
                 return {_key: iterate(value, keys + [_key]) for _key, value in node.items()}
             elif isinstance(node, list):
