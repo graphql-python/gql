@@ -38,6 +38,25 @@ query = gql('''
 
 client.execute(query)
 ```
+The example below shows how you can execute queries against a local schema with additional headers
+
+```python
+from gql import gql, Client
+from gql.transport.requests import RequestsHTTPTransport
+
+
+client = Client(transport = RequestsHTTPTransport(
+                                        url='/graphql'
+                                        headers={'Authorization': 'token'}), 
+                                        schema=schema)
+query = gql('''
+{
+  hello
+}
+''')
+
+client.execute(query)
+```
 
 ## License
 
