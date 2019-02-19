@@ -4,3 +4,4 @@ class HTTPTransport(object):
         self.url = url
         self.headers = headers
         self.cookies = cookies
+        self.kwargs = kwargs
