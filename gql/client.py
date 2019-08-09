@@ -7,6 +7,7 @@ from .transport.local_schema import LocalSchemaTransport
 
 log = logging.getLogger(__name__)
 
+
 class RetryError(Exception):
     """Custom exception thrown when retry logic fails"""
     def __init__(self, retries_count, last_exception):
@@ -15,9 +16,15 @@ class RetryError(Exception):
         self.last_exception = last_exception
 
 
+class ResultError(Exception):
+    """Custom exception thrown when results contain an errors."""
+    def __init__(self, message):
+        super(Exception, self).__init__(message)
+
+
 class Client(object):
     def __init__(self, schema=None, introspection=None, type_def=None, transport=None,
-                 fetch_schema_from_transport=False, retries=0):
+                 fetch_schema_from_transport=False, retries=0, raise_error=False):
         assert not(type_def and introspection), 'Cant provide introspection type definition at the same time'
         if transport and fetch_schema_from_transport:
             assert not schema, 'Cant fetch the schema from transport if is already provided'
@@ -36,6 +43,7 @@ class Client(object):
         self.introspection = introspection
         self.transport = transport
         self.retries = retries
+        self.raise_error = raise_error
 
     def validate(self, document):
         if not self.schema:
@@ -50,7 +58,10 @@ class Client(object):
 
         result = self._get_result(document, *args, **kwargs)
         if result.errors:
-            raise Exception(str(result.errors[0]))
+            if self.raise_error:
+                return result
+            else:
+                raise ResultError(str(result.errors[0]))
 
         return result.data
 
