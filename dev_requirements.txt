@@ -1,5 +1,6 @@
-pytest
+pytest<4
 pytest-cov
 coveralls
 flake8
 mock
+vcrpy==2.1.1
