@@ -64,7 +64,7 @@ def introspection_schema():
 
 @pytest.fixture(params=['local_schema', 'typedef_schema', 'introspection_schema'])
 def client(request):
-    return request.getfuncargvalue(request.param)
+    return request.getfixturevalue(request.param)
 
 
 def validation_errors(client, query):

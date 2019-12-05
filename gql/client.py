@@ -67,8 +67,8 @@ class Client(object):
                 return result
             except Exception as e:
                 last_exception = e
-                log.warn("Request failed with exception %s. Retrying for the %s time...",
-                         e, retries_count + 1, exc_info=True)
+                log.warning("Request failed with exception %s. Retrying for the %s time...",
+                            e, retries_count + 1, exc_info=True)
             finally:
                 retries_count += 1
 
