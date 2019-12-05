@@ -16,9 +16,9 @@ setup(
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.3',
-        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: Implementation :: PyPy',
     ],
     keywords='api graphql protocol rest relay gql client',
@@ -28,5 +28,5 @@ setup(
         'graphql-core>=0.5.0,<2',
         'promise>=0.4.0'
     ],
-    tests_require=['pytest>=2.7.2', 'mock'],
+    tests_require=['pytest>=3,<4', 'mock'],
 )
