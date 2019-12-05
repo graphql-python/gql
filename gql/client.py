@@ -7,6 +7,7 @@ from .transport.local_schema import LocalSchemaTransport
 
 log = logging.getLogger(__name__)
 
+
 class RetryError(Exception):
     """Custom exception thrown when retry logic fails"""
     def __init__(self, retries_count, last_exception):
@@ -67,7 +68,7 @@ class Client(object):
             except Exception as e:
                 last_exception = e
                 log.warn("Request failed with exception %s. Retrying for the %s time...",
-                             e, retries_count + 1, exc_info=True)
+                         e, retries_count + 1, exc_info=True)
             finally:
                 retries_count += 1
 
