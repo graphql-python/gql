@@ -1,16 +1,23 @@
 language: python
 sudo: false
 python:
-- 2.7
-- 3.5
-- 3.6
-- 3.7
+  - 2.7
+  - 3.5
+  - 3.6
+  - 3.7
 cache: pip
 install:
-- pip install -r ./dev_requirements.txt
-- pip install -e .
+  - pip install -r ./dev_requirements.txt
+  - pip install -e .
 script:
-- flake8 gql
-- pytest --cov=gql tests
+  - flake8 gql
+  - pytest --cov=gql tests
 after_success:
-- coveralls
+  - coveralls
+deploy:
+  provider: pypi
+  user: __token__
+  password:
+    secure: ipBUDzdL/hW4+brQbjkqdP/VTV1Fv5t8e/7Xjt+AtXR2Qoe49MYVFB/Ea7fKfYYN1nL/xLlSuOj8aPQP4tKDshSELV2WT/SsMkz9EUHUUBu4HlZpVnLLoHlOgR//JfdSrcWNEGTANxwNZT4bdXkcITfDL2GefwiAVfdQ+nop/zEtFFwQmdHU0kylajV9f4PXjulKl3N9uIInsepjSFZR3iU4nn33aQ3meXyf+gs8OX4/AsvmnGAIX6l8W8MUrkVdQwzRV2phFF48xw6SKJeXhboNyoGOtr7CHg6oKd69t5sLtlNGxZpTG1XmxWX8SX+eLFJd3y+jE70Z9qtA+iRmgc8mQ5ghMijbZvyhruupJP8SsvwZBos3vUtTklMX1zYT0xL9mdvRuFWHu3q0z67unGkKE/BycIEpibwH6HLJ0HZcAVlWoaJZfs08+vENXSmHTSS+3xpuxHm7L8RF5lg91OuF7gm5DGyHzF/Kjrcu/3HVwzFO76vK4sEDO5FovHq+kuI+QvvxNIEvMCPt8i0FBnObfr2M1g0iyvT73qkJWI9JCpPW1g3ubb3EWKk3ZP28mlbcvw76JxDaEFDO554W9hDr4HO0Bq4LHalnTaTlqe/uP1TA+Tp9OARlftkuh1q14ukMwk9JtlCZhUkWldtGMMH7FJCSoOJ6RJl+l1ucCRo=
+  on:
+    tags: true
