@@ -12,18 +12,21 @@ URL = 'http://127.0.0.1:8000/graphql'
 @pytest.fixture
 def client():
     with vcr.use_cassette('tests/fixtures/vcr_cassettes/client.yaml'):
-        request = requests.get(URL,
-                            headers={
-                                'Host': 'swapi.graphene-python.org',
-                                'Accept': 'text/html',
-                            })
+        request = requests.get(
+            URL,
+            headers={
+                'Host': 'swapi.graphene-python.org',
+                'Accept': 'text/html',
+            }
+        )
         request.raise_for_status()
         csrf = request.cookies['csrftoken']
 
         return Client(
-            transport=RequestsHTTPTransport(url=URL,
-                                            cookies={"csrftoken": csrf},
-                                            headers={'x-csrftoken':  csrf}),
+            transport=RequestsHTTPTransport(
+                url=URL,
+                cookies={"csrftoken": csrf},
+                headers={'x-csrftoken':  csrf}),
             fetch_schema_from_transport=True
         )
 

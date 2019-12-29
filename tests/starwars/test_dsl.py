@@ -279,8 +279,7 @@ luke: human(id: "1000") {
 #     assert result.data == expected
 
 
-
-def test_hero_name_query(ds):
+def test_hero_name_query_result(ds):
     result = ds.query(
         ds.Query.hero.select(
             ds.Character.name

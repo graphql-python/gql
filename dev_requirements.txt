@@ -1,6 +1,6 @@
 pytest>=3,<4
-pytest-cov
-coveralls
-flake8
-mock
-vcrpy==2.1.1
+pytest-cov>=2.8,<3
+coveralls>=1.8,<2
+flake8>=3.7,<4
+mock>=3,<4
+vcrpy>=2.1,<3
