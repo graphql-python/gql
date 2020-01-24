@@ -1,8 +1,22 @@
 from setuptools import setup, find_packages
 
+install_requires = [
+    'six>=1.10.0',
+    'graphql-core>=2,<3',
+    'promise>=2.0,<3',
+    'requests>=2.12,<3'
+]
+
+tests_require = [
+    'pytest==4.6.9',
+    'pytest-cov==2.8.1',
+    'mock==3.0.5',
+    'vcrpy==3.0.0'
+]
+
 setup(
     name='gql',
-    version='0.2.0',
+    version='0.3.0',
     description='GraphQL client for Python',
     long_description=open('README.md').read(),
     long_description_content_type="text/markdown",
@@ -25,16 +39,9 @@ setup(
     ],
     keywords='api graphql protocol rest relay gql client',
     packages=find_packages(include=["gql*"]),
-    install_requires=[
-        'six>=1.10.0',
-        'graphql-core>=2,<3',
-        'promise>=2.0,<3',
-        'requests>=2.12,<3'
-    ],
-    tests_require=[
-        'pytest>=3,<4',
-        'pytest-cov>=2.8,<3',
-        'mock>=3,<4',
-        'vcrpy>=2.1,<3'
-    ],
+    install_requires=install_requires,
+    tests_require=tests_require,
+    extras_require={
+        'test': tests_require
+    }
 )
