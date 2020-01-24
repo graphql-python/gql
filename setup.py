@@ -27,7 +27,7 @@ setup(
     packages=find_packages(include=["gql*"]),
     install_requires=[
         'six>=1.10.0',
-        'graphql-core>=0.5.0,<2',
+        'graphql-core>=2,<3',
         'promise>=2.0,<3',
         'requests>=2.12,<3'
     ],
