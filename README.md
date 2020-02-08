@@ -7,6 +7,7 @@ GQL architecture is inspired by `React-Relay` and `Apollo-Client`.
 
 [![travis][travis-image]][travis-url]
 [![pypi][pypi-image]][pypi-url]
+[![Anaconda-Server Badge][conda-image]][conda-url]
 [![coveralls][coveralls-image]][coveralls-url]
 
 [travis-image]: https://img.shields.io/travis/graphql-python/gql.svg?style=flat
@@ -15,6 +16,8 @@ GQL architecture is inspired by `React-Relay` and `Apollo-Client`.
 [pypi-url]: https://pypi.python.org/pypi/gql
 [coveralls-image]: https://coveralls.io/repos/graphql-python/gql/badge.svg?branch=master&service=github
 [coveralls-url]: https://coveralls.io/github/graphql-python/gql?branch=master
+[conda-image]: https://anaconda.org/conda-forge/gql/badges/version.svg
+[conda-url]: https://anaconda.org/conda-forge/gql
 
 ## Installation
 
