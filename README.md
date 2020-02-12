@@ -28,7 +28,6 @@ GQL architecture is inspired by `React-Relay` and `Apollo-Client`.
 
 The example below shows how you can execute queries against a local schema.
 
-
 ```python
 from gql import gql, Client
 
@@ -41,24 +40,15 @@ query = gql('''
 
 client.execute(query)
 ```
-The example below shows how you can execute queries against a local schema with additional headers
+
+If you want to add additional headers when executing the query, you can specify these in a transport object:
 
 ```python
-from gql import gql, Client
+from gql import Client
 from gql.transport.requests import RequestsHTTPTransport
 
-
-client = Client(transport = RequestsHTTPTransport(
-                                        url='/graphql',
-                                        headers={'Authorization': 'token'}), 
-                                        schema=schema)
-query = gql('''
-{
-  hello
-}
-''')
-
-client.execute(query)
+client = Client(transport=RequestsHTTPTransport(
+     url='/graphql', headers={'Authorization': 'token'}), schema=schema)
 ```
 
 ## License
