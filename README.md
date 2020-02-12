@@ -46,7 +46,7 @@ from gql.transport.requests import RequestsHTTPTransport
 
 
 client = Client(transport = RequestsHTTPTransport(
-                                        url='/graphql'
+                                        url='/graphql',
                                         headers={'Authorization': 'token'}), 
                                         schema=schema)
 query = gql('''
