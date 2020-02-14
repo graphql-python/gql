@@ -1,4 +1,3 @@
-import collections
 import decimal
 from functools import partial
 
@@ -9,6 +8,11 @@ from graphql.type import (GraphQLField, GraphQLList,
                           GraphQLNonNull, GraphQLEnumType)
 
 from .utils import to_camel_case
+
+if six.PY3:
+    from collections.abc import Iterable
+else:
+    from collections import Iterable
 
 
 class DSLSchema(object):
@@ -134,7 +138,7 @@ def query(*fields):
 
 
 def serialize_list(serializer, values):
-    assert isinstance(values, collections.Iterable), 'Expected iterable, received "{}"'.format(repr(values))
+    assert isinstance(values, Iterable), 'Expected iterable, received "{}"'.format(repr(values))
     return [serializer(v) for v in values]
 
 
