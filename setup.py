@@ -11,8 +11,13 @@ tests_require = [
     'pytest==4.6.9',
     'pytest-cov==2.8.1',
     'mock==3.0.5',
-    'vcrpy==3.0.0'
+    'vcrpy==3.0.0',
 ]
+
+dev_requires = [
+    'flake8==3.7.9',
+    'check-manifest>=0.40,<1',
+] + tests_require
 
 setup(
     name='gql',
@@ -42,6 +47,10 @@ setup(
     install_requires=install_requires,
     tests_require=tests_require,
     extras_require={
-        'test': tests_require
-    }
+        'test': tests_require,
+        'dev': dev_requires,
+    },
+    include_package_data=True,
+    zip_safe=False,
+    platforms="any",
 )

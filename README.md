@@ -51,6 +51,9 @@ client = Client(transport=RequestsHTTPTransport(
      url='/graphql', headers={'Authorization': 'token'}), schema=schema)
 ```
 
+## Contributing
+See [CONTRIBUTING.md](contributing.md)
+
 ## License
 
 [MIT License](https://github.com/graphql-python/gql/blob/master/LICENSE)
