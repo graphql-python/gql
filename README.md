@@ -6,17 +6,20 @@ Plays nicely with `graphene`, `graphql-core`, `graphql-js` and any other GraphQL
 GQL architecture is inspired by `React-Relay` and `Apollo-Client`.
 
 [![travis][travis-image]][travis-url]
+[![pyversion][pyversion-image]][pyversion-url]
 [![pypi][pypi-image]][pypi-url]
 [![Anaconda-Server Badge][conda-image]][conda-url]
 [![coveralls][coveralls-image]][coveralls-url]
 
 [travis-image]: https://img.shields.io/travis/graphql-python/gql.svg?style=flat
 [travis-url]: https://travis-ci.org/graphql-python/gql
+[pyversion-image]: https://img.shields.io/pypi/pyversions/gql
+[pyversion-url]: https://pypi.org/project/gql/
 [pypi-image]: https://img.shields.io/pypi/v/gql.svg?style=flat
-[pypi-url]: https://pypi.python.org/pypi/gql
+[pypi-url]: https://pypi.org/project/gql/
 [coveralls-image]: https://coveralls.io/repos/graphql-python/gql/badge.svg?branch=master&service=github
 [coveralls-url]: https://coveralls.io/github/graphql-python/gql?branch=master
-[conda-image]: https://anaconda.org/conda-forge/gql/badges/version.svg
+[conda-image]: https://img.shields.io/conda/vn/conda-forge/gql.svg
 [conda-url]: https://anaconda.org/conda-forge/gql
 
 ## Installation
