@@ -36,7 +36,7 @@ class RequestsHTTPTransport(HTTPTransport):
             data_key: payload
         }
         request = requests.post(self.url, **post_args)
-        request.raise_for_status()
+        # request.raise_for_status()
 
         result = request.json()
         assert 'errors' in result or 'data' in result, 'Received non-compatible response "{}"'.format(result)
