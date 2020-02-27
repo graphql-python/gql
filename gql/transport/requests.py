@@ -35,12 +35,16 @@ class RequestsHTTPTransport(HTTPTransport):
             'timeout': timeout or self.default_timeout,
             data_key: payload
         }
-        request = requests.post(self.url, **post_args)
-        request.raise_for_status()
 
-        result = request.json()
-        assert 'errors' in result or 'data' in result, 'Received non-compatible response "{}"'.format(result)
-        return ExecutionResult(
-            errors=result.get('errors'),
-            data=result.get('data')
-        )
+        response = requests.post(self.url, **post_args)
+        try:
+            result = response.json()
+            if not isinstance(result, dict):
+                raise ValueError
+        except ValueError:
+            result = {}
+
+        if 'errors' not in result and 'data' not in result:
+            response.raise_for_status()
+            raise requests.HTTPError("Server did not return a GraphQL result", response=response)
+        return ExecutionResult(errors=result.get('errors'), data=result.get('data'))
