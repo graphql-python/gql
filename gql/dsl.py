@@ -151,7 +151,3 @@ def get_arg_serializer(arg_type):
     if isinstance(arg_type, GraphQLEnumType):
         return lambda value: ast.EnumValue(value=arg_type.serialize(value))
     return arg_type.serialize
-
-
-def var(name):
-    return ast.Variable(name=name)
