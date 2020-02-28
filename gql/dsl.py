@@ -4,8 +4,8 @@ from functools import partial
 import six
 from graphql.language import ast
 from graphql.language.printer import print_ast
-from graphql.type import (GraphQLField, GraphQLList,
-                          GraphQLNonNull, GraphQLEnumType)
+from graphql.type import (GraphQLField, GraphQLList, GraphQLNonNull, GraphQLEnumType)
+from graphql.utils.ast_from_value import ast_from_value
 
 from .utils import to_camel_case
 
@@ -31,7 +31,7 @@ class DSLSchema(object):
         return self.execute(query(*args, **kwargs))
 
     def mutate(self, *args, **kwargs):
-        return self.query(*args, operation='mutate', **kwargs)
+        return self.query(*args, operation='mutation', **kwargs)
 
     def execute(self, document):
         return self.client.execute(document)
@@ -126,10 +126,12 @@ def field(field, **args):
     raise Exception('Received incompatible query field: "{}".'.format(field))
 
 
-def query(*fields):
+def query(*fields, **kwargs):
+    if 'operation' not in kwargs:
+        kwargs['operation'] = 'query'
     return ast.Document(
         definitions=[ast.OperationDefinition(
-            operation='query',
+            operation=kwargs['operation'],
             selection_set=ast.SelectionSet(
                 selections=list(selections(*fields))
             )
@@ -150,4 +152,4 @@ def get_arg_serializer(arg_type):
         return partial(serialize_list, inner_serializer)
     if isinstance(arg_type, GraphQLEnumType):
         return lambda value: ast.EnumValue(value=arg_type.serialize(value))
-    return arg_type.serialize
+    return lambda value: ast_from_value(arg_type.serialize(value))

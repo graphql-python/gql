@@ -122,3 +122,19 @@ def test_hero_name_query_result(ds):
         }
     }
     assert result == expected
+
+
+def test_human_alive_mutation_result(ds):
+    result = ds.mutate(
+        ds.Mutation.updateHumanAliveStatus.args(id=1004, status=True).select(
+            ds.Human.name,
+            ds.Human.isAlive
+        )
+    )
+    expected = {
+        'updateHumanAliveStatus': {
+            'name': 'Wilhuff Tarkin',
+            'isAlive': True
+        }
+    }
+    assert result == expected

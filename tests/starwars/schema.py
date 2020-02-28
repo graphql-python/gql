@@ -1,9 +1,9 @@
 from graphql.type import (GraphQLArgument, GraphQLEnumType, GraphQLEnumValue,
                           GraphQLField, GraphQLInterfaceType, GraphQLList,
                           GraphQLNonNull, GraphQLObjectType, GraphQLSchema,
-                          GraphQLString)
+                          GraphQLString, GraphQLBoolean)
 
-from .fixtures import getDroid, getFriends, getHero, getHuman
+from .fixtures import getDroid, getFriends, getHero, getHuman, updateHumanAlive
 
 episodeEnum = GraphQLEnumType(
     'Episode',
@@ -72,7 +72,11 @@ humanType = GraphQLObjectType(
         'homePlanet': GraphQLField(
             GraphQLString,
             description='The home planet of the human, or null if unknown.',
-        )
+        ),
+        'isAlive': GraphQLField(
+            GraphQLBoolean,
+            description='The human is still alive.'
+        ),
     },
     interfaces=[characterInterface]
 )
@@ -143,4 +147,24 @@ queryType = GraphQLObjectType(
     }
 )
 
-StarWarsSchema = GraphQLSchema(query=queryType, types=[humanType, droidType])
+mutationType = GraphQLObjectType(
+    'Mutation',
+    fields=lambda: {
+        'updateHumanAliveStatus': GraphQLField(
+            humanType,
+            args={
+                'id': GraphQLArgument(
+                    description='id of the human',
+                    type=GraphQLNonNull(GraphQLString),
+                ),
+                'status': GraphQLArgument(
+                    description='set alive status',
+                    type=GraphQLNonNull(GraphQLBoolean),
+                ),
+            },
+            resolver=lambda root, info, **args: updateHumanAlive(args['id'], args['status']),
+        ),
+    }
+)
+
+StarWarsSchema = GraphQLSchema(query=queryType, mutation=mutationType, types=[humanType, droidType])
