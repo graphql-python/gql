@@ -8,6 +8,7 @@ install_requires = [
 ]
 
 tests_require = [
+    'coveralls==1.11.1',
     'pytest==4.6.9',
     'pytest-cov==2.8.1',
     'mock==3.0.5',
