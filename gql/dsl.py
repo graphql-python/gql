@@ -1,4 +1,3 @@
-import decimal
 from functools import partial
 
 import six
@@ -62,20 +61,6 @@ def selections(*fields):
         yield selection_field(_field).ast
 
 
-def get_ast_value(value):
-    if isinstance(value, ast.Node):
-        return value
-    if isinstance(value, six.string_types):
-        return ast.StringValue(value=value)
-    elif isinstance(value, bool):
-        return ast.BooleanValue(value=value)
-    elif isinstance(value, (float, decimal.Decimal)):
-        return ast.FloatValue(value=value)
-    elif isinstance(value, int):
-        return ast.IntValue(value=value)
-    return None
-
-
 class DSLField(object):
 
     def __init__(self, name, field):
@@ -100,11 +85,11 @@ class DSLField(object):
         for name, value in kwargs.items():
             arg = self.field.args.get(name)
             arg_type_serializer = get_arg_serializer(arg.type)
-            value = arg_type_serializer(value)
+            serialized_value = arg_type_serializer(value)
             self.ast_field.arguments.append(
                 ast.Argument(
                     name=ast.Name(value=name),
-                    value=get_ast_value(value)
+                    value=serialized_value
                 )
             )
         return self
