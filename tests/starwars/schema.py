@@ -3,7 +3,7 @@ from graphql.type import (GraphQLArgument, GraphQLEnumType, GraphQLEnumValue,
                           GraphQLNonNull, GraphQLObjectType, GraphQLSchema,
                           GraphQLString, GraphQLBoolean)
 
-from .fixtures import getDroid, getFriends, getHero, getHuman, updateHumanAlive
+from .fixtures import getCharacters, getDroid, getFriends, getHero, getHuman, updateHumanAlive
 
 episodeEnum = GraphQLEnumType(
     'Episode',
@@ -143,6 +143,16 @@ queryType = GraphQLObjectType(
                 )
             },
             resolver=lambda root, info, **args: getDroid(args['id']),
+        ),
+        'characters': GraphQLField(
+            GraphQLList(characterInterface),
+            args={
+                'ids': GraphQLArgument(
+                    description='list of character ids',
+                    type=GraphQLList(GraphQLString),
+                )
+            },
+            resolver=lambda root, info, **args: getCharacters(args['ids']),
         ),
     }
 )

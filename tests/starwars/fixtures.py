@@ -83,6 +83,10 @@ def getCharacter(id):
     return humanData.get(id) or droidData.get(id)
 
 
+def getCharacters(ids):
+    return map(getCharacter, ids)
+
+
 def getFriends(character):
     return map(getCharacter, character.friends)
 

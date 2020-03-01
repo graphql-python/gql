@@ -124,6 +124,43 @@ def test_hero_name_query_result(ds):
     assert result == expected
 
 
+# TODO: Keep the function name or switch to schema query names?
+def test_arg_serializer_list(ds):
+    result = ds.query(
+        ds.Query.characters.args(ids=[1000, 1001, 1003]).select(
+            ds.Character.name,
+        )
+    )
+    expected = {
+        'characters': [
+            {
+                'name': 'Luke Skywalker'
+            },
+            {
+                'name': 'Darth Vader'
+            },
+            {
+                'name': 'Leia Organa'
+            }
+        ]
+    }
+    assert result == expected
+
+
+def test_arg_serializer_enum(ds):
+    result = ds.query(
+        ds.Query.hero.args(episode=5).select(
+            ds.Character.name
+        )
+    )
+    expected = {
+        'hero': {
+            'name': 'Luke Skywalker'
+        }
+    }
+    assert result == expected
+
+
 def test_human_alive_mutation_result(ds):
     result = ds.mutate(
         ds.Mutation.updateHumanAliveStatus.args(id=1004, status=True).select(

@@ -4,7 +4,7 @@ from functools import partial
 import six
 from graphql.language import ast
 from graphql.language.printer import print_ast
-from graphql.type import (GraphQLField, GraphQLList, GraphQLNonNull, GraphQLEnumType)
+from graphql.type import (GraphQLEnumType, GraphQLField, GraphQLList, GraphQLNonNull)
 from graphql.utils.ast_from_value import ast_from_value
 
 from .utils import to_camel_case
@@ -59,7 +59,7 @@ class DSLType(object):
 
 def selections(*fields):
     for _field in fields:
-        yield field(_field).ast
+        yield selection_field(_field).ast
 
 
 def get_ast_value(value):
@@ -89,15 +89,15 @@ class DSLField(object):
         self.ast_field.selection_set.selections.extend(selections(*fields))
         return self
 
-    def __call__(self, *args, **kwargs):
-        return self.args(*args, **kwargs)
+    def __call__(self, **kwargs):
+        return self.args(**kwargs)
 
     def alias(self, alias):
         self.ast_field.alias = ast.Name(value=alias)
         return self
 
-    def args(self, **args):
-        for name, value in args.items():
+    def args(self, **kwargs):
+        for name, value in kwargs.items():
             arg = self.field.args.get(name)
             arg_type_serializer = get_arg_serializer(arg.type)
             value = arg_type_serializer(value)
@@ -117,8 +117,9 @@ class DSLField(object):
         return print_ast(self.ast_field)
 
 
-def field(field, **args):
+def selection_field(field, **args):
     if isinstance(field, GraphQLField):
+        # TODO: Pass name argument
         return DSLField(field).args(**args)
     elif isinstance(field, DSLField):
         return field
@@ -139,9 +140,9 @@ def query(*fields, **kwargs):
     )
 
 
-def serialize_list(serializer, values):
-    assert isinstance(values, Iterable), 'Expected iterable, received "{}"'.format(repr(values))
-    return [serializer(v) for v in values]
+def serialize_list(serializer, list_values):
+    assert isinstance(list_values, Iterable), 'Expected iterable, received "{}"'.format(repr(list_values))
+    return ast.ListValue(values=[serializer(v) for v in list_values])
 
 
 def get_arg_serializer(arg_type):
