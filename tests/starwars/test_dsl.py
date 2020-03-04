@@ -18,7 +18,7 @@ def test_invalid_field_on_type_query(ds):
         ds.Query.extras.select(
             ds.Character.name
         )
-        assert "Field extras doesnt exist in type Query." in str(excInfo.value)
+    assert "Field extras does not exist in type Query." in str(excInfo.value)
 
 
 def test_incompatible_query_field(ds):
@@ -124,7 +124,6 @@ def test_hero_name_query_result(ds):
     assert result == expected
 
 
-# TODO: Keep the function name or switch to schema query names?
 def test_arg_serializer_list(ds):
     result = ds.query(
         ds.Query.characters.args(ids=[1000, 1001, 1003]).select(

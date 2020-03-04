@@ -3,7 +3,7 @@ from functools import partial
 import six
 from graphql.language import ast
 from graphql.language.printer import print_ast
-from graphql.type import (GraphQLEnumType, GraphQLField, GraphQLList, GraphQLNonNull)
+from graphql.type import (GraphQLEnumType, GraphQLList, GraphQLNonNull)
 from graphql.utils.ast_from_value import ast_from_value
 
 from .utils import to_camel_case
@@ -53,7 +53,7 @@ class DSLType(object):
         if camel_cased_name in self.type.fields:
             return camel_cased_name, self.type.fields[camel_cased_name]
 
-        raise KeyError('Field {} doesnt exist in type {}.'.format(name, self.type.name))
+        raise KeyError('Field {} does not exist in type {}.'.format(name, self.type.name))
 
 
 def selections(*fields):
@@ -102,11 +102,8 @@ class DSLField(object):
         return print_ast(self.ast_field)
 
 
-def selection_field(field, **args):
-    if isinstance(field, GraphQLField):
-        # TODO: Pass name argument
-        return DSLField(field).args(**args)
-    elif isinstance(field, DSLField):
+def selection_field(field):
+    if isinstance(field, DSLField):
         return field
 
     raise Exception('Received incompatible query field: "{}".'.format(field))
