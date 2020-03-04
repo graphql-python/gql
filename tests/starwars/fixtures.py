@@ -1,6 +1,6 @@
 from collections import namedtuple
 
-Human = namedtuple('Human', 'id name friends appearsIn homePlanet')
+Human = namedtuple('Human', 'id name friends appearsIn homePlanet isAlive')
 
 luke = Human(
     id='1000',
@@ -8,6 +8,7 @@ luke = Human(
     friends=['1002', '1003', '2000', '2001'],
     appearsIn=[4, 5, 6],
     homePlanet='Tatooine',
+    isAlive=True,
 )
 
 vader = Human(
@@ -16,6 +17,7 @@ vader = Human(
     friends=['1004'],
     appearsIn=[4, 5, 6],
     homePlanet='Tatooine',
+    isAlive=False,
 )
 
 han = Human(
@@ -24,6 +26,7 @@ han = Human(
     friends=['1000', '1003', '2001'],
     appearsIn=[4, 5, 6],
     homePlanet=None,
+    isAlive=True,
 )
 
 leia = Human(
@@ -32,6 +35,7 @@ leia = Human(
     friends=['1000', '1002', '2000', '2001'],
     appearsIn=[4, 5, 6],
     homePlanet='Alderaan',
+    isAlive=True,
 )
 
 tarkin = Human(
@@ -40,6 +44,7 @@ tarkin = Human(
     friends=['1001'],
     appearsIn=[4],
     homePlanet=None,
+    isAlive=False,
 )
 
 humanData = {
@@ -78,6 +83,10 @@ def getCharacter(id):
     return humanData.get(id) or droidData.get(id)
 
 
+def getCharacters(ids):
+    return map(getCharacter, ids)
+
+
 def getFriends(character):
     return map(getCharacter, character.friends)
 
@@ -94,3 +103,9 @@ def getHuman(id):
 
 def getDroid(id):
     return droidData.get(id)
+
+
+def updateHumanAlive(id, status):
+    human = humanData.get(id)
+    human = human._replace(isAlive=status)
+    return human

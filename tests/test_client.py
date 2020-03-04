@@ -64,3 +64,28 @@ def test_execute_result_error():
     with pytest.raises(Exception) as excInfo:
         client.execute(query)
     assert "Cannot query field \"id\" on type \"Continent\"." in str(excInfo.value)
+
+
+def test_http_transport_raise_for_status_error():
+    client = Client(
+        transport=RequestsHTTPTransport(
+            url='https://countries.trevorblades.com/',
+            use_json=False,
+            headers={
+                "Content-type": "application/json",
+            }
+        )
+    )
+
+    query = gql('''
+    query getContinents {
+      continents {
+        code
+        name
+        id
+      }
+    }
+    ''')
+    with pytest.raises(Exception) as excInfo:
+        client.execute(query)
+    assert "400 Client Error: Bad Request for url" in str(excInfo.value)

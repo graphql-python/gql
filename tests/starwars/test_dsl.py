@@ -18,7 +18,7 @@ def test_invalid_field_on_type_query(ds):
         ds.Query.extras.select(
             ds.Character.name
         )
-        assert "Field extras doesnt exist in type Query." in str(excInfo.value)
+    assert "Field extras does not exist in type Query." in str(excInfo.value)
 
 
 def test_incompatible_query_field(ds):
@@ -119,6 +119,58 @@ def test_hero_name_query_result(ds):
     expected = {
         'hero': {
             'name': 'R2-D2'
+        }
+    }
+    assert result == expected
+
+
+def test_arg_serializer_list(ds):
+    result = ds.query(
+        ds.Query.characters.args(ids=[1000, 1001, 1003]).select(
+            ds.Character.name,
+        )
+    )
+    expected = {
+        'characters': [
+            {
+                'name': 'Luke Skywalker'
+            },
+            {
+                'name': 'Darth Vader'
+            },
+            {
+                'name': 'Leia Organa'
+            }
+        ]
+    }
+    assert result == expected
+
+
+def test_arg_serializer_enum(ds):
+    result = ds.query(
+        ds.Query.hero.args(episode=5).select(
+            ds.Character.name
+        )
+    )
+    expected = {
+        'hero': {
+            'name': 'Luke Skywalker'
+        }
+    }
+    assert result == expected
+
+
+def test_human_alive_mutation_result(ds):
+    result = ds.mutate(
+        ds.Mutation.updateHumanAliveStatus.args(id=1004, status=True).select(
+            ds.Human.name,
+            ds.Human.isAlive
+        )
+    )
+    expected = {
+        'updateHumanAliveStatus': {
+            'name': 'Wilhuff Tarkin',
+            'isAlive': True
         }
     }
     assert result == expected

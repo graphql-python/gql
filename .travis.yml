@@ -11,11 +11,10 @@ python:
   - pypy3
 cache: pip
 install:
-  - pip install -e .[test]
-  - pip install flake8==3.7.9
+  - pip install -e .[dev]
 script:
   - flake8 gql tests
-  - pytest --cov=gql tests
+  - pytest --cov-report=term-missing --cov=gql tests
 after_success:
   - coveralls
 deploy:

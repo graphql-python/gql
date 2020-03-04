@@ -1,11 +1,10 @@
-import decimal
 from functools import partial
 
 import six
 from graphql.language import ast
 from graphql.language.printer import print_ast
-from graphql.type import (GraphQLField, GraphQLList,
-                          GraphQLNonNull, GraphQLEnumType)
+from graphql.type import (GraphQLEnumType, GraphQLList, GraphQLNonNull)
+from graphql.utils.ast_from_value import ast_from_value
 
 from .utils import to_camel_case
 
@@ -31,7 +30,7 @@ class DSLSchema(object):
         return self.execute(query(*args, **kwargs))
 
     def mutate(self, *args, **kwargs):
-        return self.query(*args, operation='mutate', **kwargs)
+        return self.query(*args, operation='mutation', **kwargs)
 
     def execute(self, document):
         return self.client.execute(document)
@@ -54,26 +53,12 @@ class DSLType(object):
         if camel_cased_name in self.type.fields:
             return camel_cased_name, self.type.fields[camel_cased_name]
 
-        raise KeyError('Field {} doesnt exist in type {}.'.format(name, self.type.name))
+        raise KeyError('Field {} does not exist in type {}.'.format(name, self.type.name))
 
 
 def selections(*fields):
     for _field in fields:
-        yield field(_field).ast
-
-
-def get_ast_value(value):
-    if isinstance(value, ast.Node):
-        return value
-    if isinstance(value, six.string_types):
-        return ast.StringValue(value=value)
-    elif isinstance(value, bool):
-        return ast.BooleanValue(value=value)
-    elif isinstance(value, (float, decimal.Decimal)):
-        return ast.FloatValue(value=value)
-    elif isinstance(value, int):
-        return ast.IntValue(value=value)
-    return None
+        yield selection_field(_field).ast
 
 
 class DSLField(object):
@@ -89,22 +74,22 @@ class DSLField(object):
         self.ast_field.selection_set.selections.extend(selections(*fields))
         return self
 
-    def __call__(self, *args, **kwargs):
-        return self.args(*args, **kwargs)
+    def __call__(self, **kwargs):
+        return self.args(**kwargs)
 
     def alias(self, alias):
         self.ast_field.alias = ast.Name(value=alias)
         return self
 
-    def args(self, **args):
-        for name, value in args.items():
+    def args(self, **kwargs):
+        for name, value in kwargs.items():
             arg = self.field.args.get(name)
             arg_type_serializer = get_arg_serializer(arg.type)
-            value = arg_type_serializer(value)
+            serialized_value = arg_type_serializer(value)
             self.ast_field.arguments.append(
                 ast.Argument(
                     name=ast.Name(value=name),
-                    value=get_ast_value(value)
+                    value=serialized_value
                 )
             )
         return self
@@ -117,19 +102,19 @@ class DSLField(object):
         return print_ast(self.ast_field)
 
 
-def field(field, **args):
-    if isinstance(field, GraphQLField):
-        return DSLField(field).args(**args)
-    elif isinstance(field, DSLField):
+def selection_field(field):
+    if isinstance(field, DSLField):
         return field
 
     raise Exception('Received incompatible query field: "{}".'.format(field))
 
 
-def query(*fields):
+def query(*fields, **kwargs):
+    if 'operation' not in kwargs:
+        kwargs['operation'] = 'query'
     return ast.Document(
         definitions=[ast.OperationDefinition(
-            operation='query',
+            operation=kwargs['operation'],
             selection_set=ast.SelectionSet(
                 selections=list(selections(*fields))
             )
@@ -137,9 +122,9 @@ def query(*fields):
     )
 
 
-def serialize_list(serializer, values):
-    assert isinstance(values, Iterable), 'Expected iterable, received "{}"'.format(repr(values))
-    return [serializer(v) for v in values]
+def serialize_list(serializer, list_values):
+    assert isinstance(list_values, Iterable), 'Expected iterable, received "{}"'.format(repr(list_values))
+    return ast.ListValue(values=[serializer(v) for v in list_values])
 
 
 def get_arg_serializer(arg_type):
@@ -150,8 +135,4 @@ def get_arg_serializer(arg_type):
         return partial(serialize_list, inner_serializer)
     if isinstance(arg_type, GraphQLEnumType):
         return lambda value: ast.EnumValue(value=arg_type.serialize(value))
-    return arg_type.serialize
-
-
-def var(name):
-    return ast.Variable(name=name)
+    return lambda value: ast_from_value(arg_type.serialize(value))
