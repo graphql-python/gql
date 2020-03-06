@@ -38,6 +38,18 @@ def test_no_schema_exception():
     assert "Cannot validate locally the document, you need to pass a schema." in str(excInfo.value)
 
 
+@pytest.fixture
+def http_transport_query():
+    return gql('''
+    query getContinents {
+      continents {
+        code
+        name
+      }
+    }
+    ''')
+
+
 def test_execute_result_error():
     expected_retries = 3
 
@@ -52,7 +64,7 @@ def test_execute_result_error():
         )
     )
 
-    query = gql('''
+    failing_query = gql('''
     query getContinents {
       continents {
         code
@@ -61,31 +73,39 @@ def test_execute_result_error():
       }
     }
     ''')
+
     with pytest.raises(Exception) as excInfo:
-        client.execute(query)
+        client.execute(failing_query)
     assert "Cannot query field \"id\" on type \"Continent\"." in str(excInfo.value)
 
 
-def test_http_transport_raise_for_status_error():
+def test_http_transport_raise_for_status_error(http_transport_query):
     client = Client(
         transport=RequestsHTTPTransport(
             url='https://countries.trevorblades.com/',
-            use_json=False,
             headers={
                 "Content-type": "application/json",
             }
         )
     )
 
-    query = gql('''
-    query getContinents {
-      continents {
-        code
-        name
-        id
-      }
-    }
-    ''')
     with pytest.raises(Exception) as excInfo:
-        client.execute(query)
+        client.execute(http_transport_query)
     assert "400 Client Error: Bad Request for url" in str(excInfo.value)
+
+
+def test_http_transport_verify_error(http_transport_query):
+    client = Client(
+        transport=RequestsHTTPTransport(
+            url='https://countries.trevorblades.com/',
+            use_json=True,
+            headers={
+                "Content-type": "application/json",
+            },
+            verify=False
+        )
+    )
+    with pytest.warns(Warning) as record:
+        client.execute(http_transport_query)
+    assert len(record) == 1
+    assert "Unverified HTTPS request is being made to host" in str(record[0].message)
