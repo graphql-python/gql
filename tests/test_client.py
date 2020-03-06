@@ -1,6 +1,9 @@
+import os
+
 import pytest
 import mock
 
+from graphql import build_ast_schema, parse
 from gql import Client, gql
 from gql.transport.requests import RequestsHTTPTransport
 
@@ -109,3 +112,23 @@ def test_http_transport_verify_error(http_transport_query):
         client.execute(http_transport_query)
     assert len(record) == 1
     assert "Unverified HTTPS request is being made to host" in str(record[0].message)
+
+
+def test_gql():
+    sample_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fixtures', 'graphql', 'sample.graphql')
+    with open(sample_path) as source:
+        document = parse(source.read())
+
+    schema = build_ast_schema(document)
+
+    client = Client(schema=schema)
+    query = gql('''
+        query getUser {
+          user(id: "1000") {
+            id
+            username
+          }
+        }
+    ''')
+    result = client.execute(query)
+    assert result['user'] is None
