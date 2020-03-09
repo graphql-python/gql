@@ -1,24 +1,25 @@
 from graphql.type import (GraphQLArgument, GraphQLEnumType, GraphQLEnumValue,
                           GraphQLField, GraphQLInterfaceType, GraphQLList,
                           GraphQLNonNull, GraphQLObjectType, GraphQLSchema,
-                          GraphQLString, GraphQLBoolean)
+                          GraphQLString, GraphQLBoolean, GraphQLInt,
+                          GraphQLInputObjectType, GraphQLInputObjectField)
 
-from .fixtures import getCharacters, getDroid, getFriends, getHero, getHuman, updateHumanAlive
+from .fixtures import createReview, getCharacters, getDroid, getFriends, getHero, getHuman, reviewAdded
 
 episodeEnum = GraphQLEnumType(
     'Episode',
     description='One of the films in the Star Wars Trilogy',
     values={
         'NEWHOPE': GraphQLEnumValue(
-            4,
+            value='NEWHOPE',
             description='Released in 1977.',
         ),
         'EMPIRE': GraphQLEnumValue(
-            5,
+            value='EMPIRE',
             description='Released in 1980.',
         ),
         'JEDI': GraphQLEnumValue(
-            6,
+            value='JEDI',
             description='Released in 1983.',
         )
     }
@@ -110,6 +111,40 @@ droidType = GraphQLObjectType(
     interfaces=[characterInterface]
 )
 
+reviewType = GraphQLObjectType(
+    'Review',
+    description='Represents a review for a movie',
+    fields=lambda: {
+        'episode': GraphQLField(
+            episodeEnum,
+            description='The movie'
+        ),
+        'stars': GraphQLField(
+            GraphQLNonNull(GraphQLInt),
+            description='The number of stars this review gave, 1-5'
+        ),
+        'commentary': GraphQLField(
+            GraphQLString,
+            description='Comment about the movie'
+        )
+    }
+)
+
+reviewInputType = GraphQLInputObjectType(
+    'ReviewInput',
+    description='The input object sent when someone is creating a new review',
+    fields={
+        'stars': GraphQLInputObjectField(
+            GraphQLInt,
+            description='0-5 stars'
+        ),
+        'commentary': GraphQLInputObjectField(
+            GraphQLString,
+            description='Comment about the movie, optional'
+        )
+    }
+)
+
 queryType = GraphQLObjectType(
     'Query',
     fields=lambda: {
@@ -159,22 +194,44 @@ queryType = GraphQLObjectType(
 
 mutationType = GraphQLObjectType(
     'Mutation',
+    description='The mutation type, represents all updates we can make to our data',
     fields=lambda: {
-        'updateHumanAliveStatus': GraphQLField(
-            humanType,
+        'createReview': GraphQLField(
+            reviewType,
             args={
-                'id': GraphQLArgument(
-                    description='id of the human',
-                    type=GraphQLNonNull(GraphQLString),
+                'episode': GraphQLArgument(
+                    description='Episode to create review',
+                    type=episodeEnum,
                 ),
-                'status': GraphQLArgument(
+                'review': GraphQLArgument(
                     description='set alive status',
-                    type=GraphQLNonNull(GraphQLBoolean),
+                    type=reviewInputType,
                 ),
             },
-            resolver=lambda root, info, **args: updateHumanAlive(args['id'], args['status']),
+            resolver=lambda root, info, **args: createReview(args.get('episode'), args.get('review')),
         ),
     }
 )
 
-StarWarsSchema = GraphQLSchema(query=queryType, mutation=mutationType, types=[humanType, droidType])
+subscriptionType = GraphQLObjectType(
+    'Subscription',
+    fields=lambda: {
+        'reviewAdded': GraphQLField(
+            reviewType,
+            args={
+                'episode': GraphQLArgument(
+                    description='Episode to review',
+                    type=episodeEnum,
+                )
+            },
+            resolver=lambda root, info, **args: reviewAdded(args.get('episode')),
+        )
+    }
+)
+
+StarWarsSchema = GraphQLSchema(
+    query=queryType,
+    mutation=mutationType,
+    subscription=subscriptionType,
+    types=[humanType, droidType, reviewType, reviewInputType]
+)
