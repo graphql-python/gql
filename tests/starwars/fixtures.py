@@ -1,7 +1,7 @@
 import asyncio
 from collections import namedtuple
 
-Human = namedtuple('Human', 'id name friends appearsIn homePlanet isAlive')
+Human = namedtuple('Human', 'id name friends appearsIn homePlanet')
 
 luke = Human(
     id='1000',
@@ -9,7 +9,6 @@ luke = Human(
     friends=['1002', '1003', '2000', '2001'],
     appearsIn=['NEWHOPE', 'EMPIRE', 'JEDI'],
     homePlanet='Tatooine',
-    isAlive=True,
 )
 
 vader = Human(
@@ -18,7 +17,6 @@ vader = Human(
     friends=['1004'],
     appearsIn=['NEWHOPE', 'EMPIRE', 'JEDI'],
     homePlanet='Tatooine',
-    isAlive=False,
 )
 
 han = Human(
@@ -27,7 +25,6 @@ han = Human(
     friends=['1000', '1003', '2001'],
     appearsIn=['NEWHOPE', 'EMPIRE', 'JEDI'],
     homePlanet=None,
-    isAlive=True,
 )
 
 leia = Human(
@@ -36,7 +33,6 @@ leia = Human(
     friends=['1000', '1002', '2000', '2001'],
     appearsIn=['NEWHOPE', 'EMPIRE', 'JEDI'],
     homePlanet='Alderaan',
-    isAlive=True,
 )
 
 tarkin = Human(
@@ -45,7 +41,6 @@ tarkin = Human(
     friends=['1001'],
     appearsIn=['NEWHOPE'],
     homePlanet=None,
-    isAlive=False,
 )
 
 humanData = {
@@ -142,4 +137,3 @@ async def reviewAdded(episode):
         yield reviews[episode][count]
         await asyncio.sleep(1)
         count += 1
-

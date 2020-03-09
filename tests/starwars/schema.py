@@ -1,8 +1,8 @@
 from graphql.type import (GraphQLArgument, GraphQLEnumType, GraphQLEnumValue,
                           GraphQLField, GraphQLInterfaceType, GraphQLList,
                           GraphQLNonNull, GraphQLObjectType, GraphQLSchema,
-                          GraphQLString, GraphQLBoolean, GraphQLInt,
-                          GraphQLInputObjectType, GraphQLInputObjectField)
+                          GraphQLString, GraphQLInt, GraphQLInputObjectType,
+                          GraphQLInputObjectField)
 
 from .fixtures import createReview, getCharacters, getDroid, getFriends, getHero, getHuman, reviewAdded
 
@@ -73,10 +73,6 @@ humanType = GraphQLObjectType(
         'homePlanet': GraphQLField(
             GraphQLString,
             description='The home planet of the human, or null if unknown.',
-        ),
-        'isAlive': GraphQLField(
-            GraphQLBoolean,
-            description='The human is still alive.'
         ),
     },
     interfaces=[characterInterface]

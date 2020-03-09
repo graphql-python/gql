@@ -1,6 +1,7 @@
 from functools import partial
 
 import six
+from graphql import GraphQLInputObjectType, GraphQLInputObjectField
 from graphql.language import ast
 from graphql.language.printer import print_ast
 from graphql.type import (GraphQLEnumType, GraphQLList, GraphQLNonNull)
@@ -130,6 +131,12 @@ def serialize_list(serializer, list_values):
 def get_arg_serializer(arg_type):
     if isinstance(arg_type, GraphQLNonNull):
         return get_arg_serializer(arg_type.of_type)
+    if isinstance(arg_type, GraphQLInputObjectField):
+        return get_arg_serializer(arg_type.type)
+    if isinstance(arg_type, GraphQLInputObjectType):
+        serializers = {k: get_arg_serializer(v) for k, v in arg_type.fields.items()}
+        return lambda value: ast.ObjectValue(
+            fields=[ast.ObjectField(ast.Name(k), serializers[k](v)) for k, v in value.items()])
     if isinstance(arg_type, GraphQLList):
         inner_serializer = get_arg_serializer(arg_type.of_type)
         return partial(serialize_list, inner_serializer)

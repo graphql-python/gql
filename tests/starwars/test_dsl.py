@@ -148,7 +148,7 @@ def test_arg_serializer_list(ds):
 
 def test_arg_serializer_enum(ds):
     result = ds.query(
-        ds.Query.hero.args(episode=5).select(
+        ds.Query.hero.args(episode='EMPIRE').select(
             ds.Character.name
         )
     )
@@ -160,17 +160,23 @@ def test_arg_serializer_enum(ds):
     assert result == expected
 
 
-def test_human_alive_mutation_result(ds):
+def test_create_review_mutation_result(ds):
     result = ds.mutate(
-        ds.Mutation.updateHumanAliveStatus.args(id=1004, status=True).select(
-            ds.Human.name,
-            ds.Human.isAlive
+        ds.Mutation.createReview.args(
+            episode='JEDI',
+            review={
+                'stars': 5,
+                'commentary': 'This is a great movie!'
+            }
+        ).select(
+            ds.Review.stars,
+            ds.Review.commentary
         )
     )
     expected = {
-        'updateHumanAliveStatus': {
-            'name': 'Wilhuff Tarkin',
-            'isAlive': True
+        'createReview': {
+            'stars': 5,
+            'commentary': 'This is a great movie!'
         }
     }
     assert result == expected
