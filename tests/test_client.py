@@ -5,7 +5,29 @@ import mock
 
 from graphql import build_ast_schema, parse
 from gql import Client, gql
-from gql.transport.requests import RequestsHTTPTransport
+from gql.transport.requests import RequestsHTTPTransport, Transport
+
+
+@pytest.fixture
+def http_transport_query():
+    return gql('''
+    query getContinents {
+      continents {
+        code
+        name
+      }
+    }
+    ''')
+
+
+def test_request_transport_not_implemented(http_transport_query):
+    class RandomTransport(Transport):
+        def execute(self):
+            super(RandomTransport, self).execute(http_transport_query)
+
+    with pytest.raises(NotImplementedError) as err:
+        RandomTransport().execute()
+    assert "Any Transport subclass must implement execute method" == str(err.value)
 
 
 @mock.patch('gql.transport.requests.RequestsHTTPTransport.execute')
@@ -39,18 +61,6 @@ def test_no_schema_exception():
         client = Client()
         client.validate('')
     assert "Cannot validate locally the document, you need to pass a schema." in str(exc_info.value)
-
-
-@pytest.fixture
-def http_transport_query():
-    return gql('''
-    query getContinents {
-      continents {
-        code
-        name
-      }
-    }
-    ''')
 
 
 def test_execute_result_error():
