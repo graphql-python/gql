@@ -77,9 +77,9 @@ def validation_errors(client, query):
 
 
 def test_incompatible_request_gql(client):
-    with pytest.raises(Exception) as excInfo:
+    with pytest.raises(Exception) as exc_info:
         gql(123)
-    assert "Received incompatible request" in str(excInfo.value)
+    assert "Received incompatible request" in str(exc_info.value)
 
 
 def test_nested_query_with_fragment(client):

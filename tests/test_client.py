@@ -35,10 +35,10 @@ def test_retries(execute_mock):
 
 
 def test_no_schema_exception():
-    with pytest.raises(Exception) as excInfo:
+    with pytest.raises(Exception) as exc_info:
         client = Client()
         client.validate('')
-    assert "Cannot validate locally the document, you need to pass a schema." in str(excInfo.value)
+    assert "Cannot validate locally the document, you need to pass a schema." in str(exc_info.value)
 
 
 @pytest.fixture
@@ -77,9 +77,9 @@ def test_execute_result_error():
     }
     ''')
 
-    with pytest.raises(Exception) as excInfo:
+    with pytest.raises(Exception) as exc_info:
         client.execute(failing_query)
-    assert "Cannot query field \"id\" on type \"Continent\"." in str(excInfo.value)
+    assert "Cannot query field \"id\" on type \"Continent\"." in str(exc_info.value)
 
 
 def test_http_transport_raise_for_status_error(http_transport_query):
@@ -92,9 +92,9 @@ def test_http_transport_raise_for_status_error(http_transport_query):
         )
     )
 
-    with pytest.raises(Exception) as excInfo:
+    with pytest.raises(Exception) as exc_info:
         client.execute(http_transport_query)
-    assert "400 Client Error: Bad Request for url" in str(excInfo.value)
+    assert "400 Client Error: Bad Request for url" in str(exc_info.value)
 
 
 def test_http_transport_verify_error(http_transport_query):
