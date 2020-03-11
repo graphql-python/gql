@@ -9,10 +9,14 @@ from graphql.language.printer import print_ast
 from requests.auth import AuthBase
 from requests.cookies import RequestsCookieJar
 
-from gql.transport.transport import Transport
+from gql.transport import Transport
 
 
 class RequestsHTTPTransport(Transport):
+    """Transport to execute GraphQL queries on remote servers.
+
+    The transport uses the requests library to send HTTP POST requests.
+    """
     def __init__(
         self,  # type: RequestsHTTPTransport
         url,  # type: str
@@ -24,7 +28,7 @@ class RequestsHTTPTransport(Transport):
         verify=True,  # type: bool
         **kwargs  # type: Any
     ):
-        """Create a HTTPTransport using requests library to execute GraphQL queries on remote servers.
+        """Initialize the transport with the given request parameters.
 
         :param url: The GraphQL server URL.
         :param headers: Dictionary of HTTP Headers to send with the :class:`Request` (Default: None).
@@ -52,8 +56,8 @@ class RequestsHTTPTransport(Transport):
 
     def execute(self, document, variable_values=None, timeout=None):
         # type: (Node, dict, int) -> ExecutionResult
-        """Execute the provided document AST for the provided remote server.
-        This make use of requests library within the POST method to perform http calls to the remote server.
+        """Execute the provided document AST against the configured remote server.
+        This uses the requests library to perform a HTTP POST request to the remote server.
 
         :param document: GraphQL query as AST Node object.
         :param variable_values: Dictionary of input parameters (Default: None).

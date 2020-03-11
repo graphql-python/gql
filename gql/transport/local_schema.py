@@ -5,15 +5,16 @@ from graphql.execution import execute, ExecutionResult
 from graphql.language.ast import Document
 from promise import Promise
 
-from gql.transport.transport import Transport
+from gql.transport import Transport
 
 
 class LocalSchemaTransport(Transport):
+    """A transport for executing GraphQL queries against a local schema."""
     def __init__(
         self,  # type: LocalSchemaTransport
         schema  # type: GraphQLSchema
     ):
-        """Create a HTTPTransport using requests library to execute GraphQL queries on local server.
+        """Initialize the transport with the given local schema.
 
         :param schema: Local schema as GraphQLSchema object
         """
@@ -21,7 +22,7 @@ class LocalSchemaTransport(Transport):
 
     def execute(self, document, *args, **kwargs):
         # type: (Document, Any, Any) -> Union[ExecutionResult, Promise[ExecutionResult]]
-        """Execute the provided document AST for the provided local server.
+        """Execute the given document against the configured local schema.
 
         :param document: GraphQL query as AST Node object.
         :param args: Positional options for execute method from graphql-core library.

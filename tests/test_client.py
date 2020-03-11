@@ -25,9 +25,9 @@ def test_request_transport_not_implemented(http_transport_query):
         def execute(self):
             super(RandomTransport, self).execute(http_transport_query)
 
-    with pytest.raises(NotImplementedError) as err:
+    with pytest.raises(NotImplementedError) as exc_info:
         RandomTransport().execute()
-    assert "Any Transport subclass must implement execute method" == str(err.value)
+    assert "Any Transport subclass must implement execute method" == str(exc_info.value)
 
 
 @mock.patch('gql.transport.requests.RequestsHTTPTransport.execute')
