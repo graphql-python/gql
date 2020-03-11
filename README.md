@@ -34,11 +34,14 @@ The example below shows how you can execute queries against a local schema.
 ```python
 from gql import gql, Client
 
-client = Client(schema=schema)
+from .someSchema import SampleSchema
+
+
+client = Client(schema=SampleSchema)
 query = gql('''
-{
-  hello
-}
+    {
+      hello
+    }
 ''')
 
 client.execute(query)
@@ -50,12 +53,69 @@ If you want to add additional headers when executing the query, you can specify 
 from gql import Client
 from gql.transport.requests import RequestsHTTPTransport
 
+from .someSchema import SampleSchema
+
 client = Client(transport=RequestsHTTPTransport(
-     url='/graphql', headers={'Authorization': 'token'}), schema=schema)
+     url='/graphql', headers={'Authorization': 'token'}), schema=SampleSchema)
 ```
 
+To execute against a graphQL API. (We get the schema by using introspection).
+
+```python
+from gql import gql, Client
+from gql.transport.requests import RequestsHTTPTransport
+
+sample_transport=RequestsHTTPTransport(
+    url='https://countries.trevorblades.com/',
+    use_json=True,
+    headers={
+        "Content-type": "application/json",
+    },
+    verify=False
+)
+
+client = Client(
+    retries=3,
+    transport=sample_transport,
+    fetch_schema_from_transport=True,
+)
+
+query = gql('''
+    query getContinents {
+      continents {
+        code
+        name
+      }
+    }
+''')
+
+client.execute(query)
+```
+
+If you have a local schema stored as a `schema.graphql` file, you can do:
+
+```python
+from graphql import build_ast_schema, parse
+from gql import gql, Client
+
+with open('path/to/schema.graphql') as source:
+    document = parse(source.read())
+
+schema = build_ast_schema(document)
+
+client = Client(schema=schema)
+query = gql('''
+    {
+      hello
+    }
+''')
+
+client.execute(query)
+```
+
+
 ## Contributing
-See [CONTRIBUTING.md](contributing.md)
+See [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ## License
 

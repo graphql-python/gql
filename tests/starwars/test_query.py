@@ -343,12 +343,12 @@ def test_check_type_of_luke(client):
 
 def test_parse_error(client):
     result = None
-    with pytest.raises(Exception) as excinfo:
+    with pytest.raises(Exception) as exc_info:
         query = gql('''
             qeury
         ''')
         result = client.execute(query)
-    error = excinfo.value
+    error = exc_info.value
     formatted_error = format_error(error)
     assert formatted_error['locations'] == [{'column': 13, 'line': 2}]
     assert 'Syntax Error GraphQL request (2:13) Unexpected Name "qeury"' in formatted_error['message']

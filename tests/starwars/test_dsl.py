@@ -14,17 +14,17 @@ def ds():
 
 
 def test_invalid_field_on_type_query(ds):
-    with pytest.raises(KeyError) as excInfo:
+    with pytest.raises(KeyError) as exc_info:
         ds.Query.extras.select(
             ds.Character.name
         )
-    assert "Field extras does not exist in type Query." in str(excInfo.value)
+    assert "Field extras does not exist in type Query." in str(exc_info.value)
 
 
 def test_incompatible_query_field(ds):
-    with pytest.raises(Exception) as excInfo:
+    with pytest.raises(Exception) as exc_info:
         ds.query('hero')
-    assert "Received incompatible query field" in str(excInfo.value)
+    assert "Received incompatible query field" in str(exc_info.value)
 
 
 def test_hero_name_query(ds):
