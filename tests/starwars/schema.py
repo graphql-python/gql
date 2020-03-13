@@ -4,7 +4,7 @@ from graphql.type import (GraphQLArgument, GraphQLEnumType, GraphQLEnumValue,
                           GraphQLString, GraphQLInt, GraphQLInputObjectType,
                           GraphQLInputObjectField)
 
-from .fixtures import createReview, getCharacters, getDroid, getFriends, getHero, getHuman, reviewAdded
+from .fixtures import createReview, getCharacters, getDroid, getFriends, getHero, getHuman
 
 episodeEnum = GraphQLEnumType(
     'Episode',
@@ -209,25 +209,8 @@ mutationType = GraphQLObjectType(
     }
 )
 
-subscriptionType = GraphQLObjectType(
-    'Subscription',
-    fields=lambda: {
-        'reviewAdded': GraphQLField(
-            reviewType,
-            args={
-                'episode': GraphQLArgument(
-                    description='Episode to review',
-                    type=episodeEnum,
-                )
-            },
-            resolver=lambda root, info, **args: reviewAdded(args.get('episode')),
-        )
-    }
-)
-
 StarWarsSchema = GraphQLSchema(
     query=queryType,
     mutation=mutationType,
-    subscription=subscriptionType,
     types=[humanType, droidType, reviewType, reviewInputType]
 )

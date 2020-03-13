@@ -1,4 +1,3 @@
-import asyncio
 from collections import namedtuple
 
 Human = namedtuple('Human', 'id name friends appearsIn homePlanet')
@@ -129,11 +128,3 @@ def createReview(episode, review):
     reviews[episode].append(review)
     review['episode'] = episode
     return review
-
-
-async def reviewAdded(episode):
-    count = 0
-    while count < len(reviews[episode]):
-        yield reviews[episode][count]
-        await asyncio.sleep(1)
-        count += 1

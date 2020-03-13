@@ -1,3 +1,5 @@
+import sys
+
 from setuptools import setup, find_packages
 
 install_requires = [
@@ -11,10 +13,12 @@ tests_require = [
     'coveralls==1.11.1',
     'pytest==4.6.9',
     'pytest-cov==2.8.1',
-    'pytest-asyncio>=0.9.0',
     'mock==3.0.5',
     'vcrpy==3.0.0',
 ]
+
+if sys.version_info > (3, 6):
+    tests_require.append('pytest-asyncio>=0.9.0')
 
 dev_requires = [
     'flake8==3.7.9',
