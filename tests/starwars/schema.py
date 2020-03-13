@@ -11,15 +11,15 @@ episodeEnum = GraphQLEnumType(
     description='One of the films in the Star Wars Trilogy',
     values={
         'NEWHOPE': GraphQLEnumValue(
-            value='NEWHOPE',
+            4,
             description='Released in 1977.',
         ),
         'EMPIRE': GraphQLEnumValue(
-            value='EMPIRE',
+            5,
             description='Released in 1980.',
         ),
         'JEDI': GraphQLEnumValue(
-            value='JEDI',
+            6,
             description='Released in 1983.',
         )
     }

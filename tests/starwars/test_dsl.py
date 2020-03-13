@@ -148,7 +148,7 @@ def test_arg_serializer_list(ds):
 
 def test_arg_serializer_enum(ds):
     result = ds.query(
-        ds.Query.hero.args(episode='EMPIRE').select(
+        ds.Query.hero.args(episode=5).select(
             ds.Character.name
         )
     )
@@ -163,7 +163,7 @@ def test_arg_serializer_enum(ds):
 def test_create_review_mutation_result(ds):
     result = ds.mutate(
         ds.Mutation.createReview.args(
-            episode='JEDI',
+            episode=6,
             review={
                 'stars': 5,
                 'commentary': 'This is a great movie!'
