@@ -10,13 +10,9 @@ python:
   - pypy
   - pypy3
 cache: pip
-install:
-  - pip install -e .[dev]
-script:
-  - flake8 gql tests
-  - pytest --cov-report=term-missing --cov=gql tests
-after_success:
-  - coveralls
+install: pip install coveralls tox
+script: tox
+after_success: coveralls
 deploy:
   provider: pypi
   user: __token__
