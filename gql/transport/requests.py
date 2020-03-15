@@ -1,7 +1,5 @@
 from __future__ import absolute_import
 
-from typing import Any, Dict, Union
-
 import requests
 from graphql.execution import ExecutionResult
 from graphql.language.ast import Node
@@ -10,6 +8,7 @@ from requests.auth import AuthBase
 from requests.cookies import RequestsCookieJar
 
 from gql.transport import Transport
+from typing import Any, Dict, Union
 
 
 class RequestsHTTPTransport(Transport):
@@ -17,6 +16,7 @@ class RequestsHTTPTransport(Transport):
 
     The transport uses the requests library to send HTTP POST requests.
     """
+
     def __init__(
         self,  # type: RequestsHTTPTransport
         url,  # type: str
@@ -66,19 +66,16 @@ class RequestsHTTPTransport(Transport):
             occurred, and is a non-empty array if an error occurred.
         """
         query_str = print_ast(document)
-        payload = {
-            'query': query_str,
-            'variables': variable_values or {}
-        }
+        payload = {"query": query_str, "variables": variable_values or {}}
 
-        data_key = 'json' if self.use_json else 'data'
+        data_key = "json" if self.use_json else "data"
         post_args = {
-            'headers': self.headers,
-            'auth': self.auth,
-            'cookies': self.cookies,
-            'timeout': timeout or self.default_timeout,
-            'verify': self.verify,
-            data_key: payload
+            "headers": self.headers,
+            "auth": self.auth,
+            "cookies": self.cookies,
+            "timeout": timeout or self.default_timeout,
+            "verify": self.verify,
+            data_key: payload,
         }
 
         # Pass kwargs to requests post method
@@ -92,7 +89,9 @@ class RequestsHTTPTransport(Transport):
         except ValueError:
             result = {}
 
-        if 'errors' not in result and 'data' not in result:
+        if "errors" not in result and "data" not in result:
             response.raise_for_status()
-            raise requests.HTTPError("Server did not return a GraphQL result", response=response)
-        return ExecutionResult(errors=result.get('errors'), data=result.get('data'))
+            raise requests.HTTPError(
+                "Server did not return a GraphQL result", response=response
+            )
+        return ExecutionResult(errors=result.get("errors"), data=result.get("data"))

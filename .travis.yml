@@ -9,13 +9,23 @@ python:
   - 3.9-dev
   - pypy
   - pypy3
+matrix:
+  include:
+    - python: 3.6
+      env: TOXENV=flake8
+    - python: 3.6
+      env: TOXENV=black
+    - python: 3.6
+      env: TOXENV=import-order
+    - python: 3.6
+      env: TOXENV=mypy
+    - python: 3.6
+      env: TOXENV=manifest
 cache: pip
-install:
-  - pip install -e .[dev]
-script:
-  - flake8 gql tests
-  - pytest --cov-report=term-missing --cov=gql tests
+install: pip install tox-travis
+script: tox
 after_success:
+  - pip install coveralls
   - coveralls
 deploy:
   provider: pypi

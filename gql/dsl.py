@@ -3,7 +3,13 @@ from functools import partial
 import six
 from graphql.language import ast
 from graphql.language.printer import print_ast
-from graphql.type import (GraphQLEnumType, GraphQLList, GraphQLNonNull)
+from graphql.type import (
+    GraphQLEnumType,
+    GraphQLInputObjectField,
+    GraphQLInputObjectType,
+    GraphQLList,
+    GraphQLNonNull,
+)
 from graphql.utils.ast_from_value import ast_from_value
 
 from .utils import to_camel_case
@@ -30,7 +36,7 @@ class DSLSchema(object):
         return self.execute(query(*args, **kwargs))
 
     def mutate(self, *args, **kwargs):
-        return self.query(*args, operation='mutation', **kwargs)
+        return self.query(*args, operation="mutation", **kwargs)
 
     def execute(self, document):
         return self.client.execute(document)
@@ -53,7 +59,9 @@ class DSLType(object):
         if camel_cased_name in self.type.fields:
             return camel_cased_name, self.type.fields[camel_cased_name]
 
-        raise KeyError('Field {} does not exist in type {}.'.format(name, self.type.name))
+        raise KeyError(
+            "Field {} does not exist in type {}.".format(name, self.type.name)
+        )
 
 
 def selections(*fields):
@@ -62,7 +70,6 @@ def selections(*fields):
 
 
 class DSLField(object):
-
     def __init__(self, name, field):
         self.field = field
         self.ast_field = ast.Field(name=ast.Name(value=name), arguments=[])
@@ -87,10 +94,7 @@ class DSLField(object):
             arg_type_serializer = get_arg_serializer(arg.type)
             serialized_value = arg_type_serializer(value)
             self.ast_field.arguments.append(
-                ast.Argument(
-                    name=ast.Name(value=name),
-                    value=serialized_value
-                )
+                ast.Argument(name=ast.Name(value=name), value=serialized_value)
             )
         return self
 
@@ -110,26 +114,38 @@ def selection_field(field):
 
 
 def query(*fields, **kwargs):
-    if 'operation' not in kwargs:
-        kwargs['operation'] = 'query'
+    if "operation" not in kwargs:
+        kwargs["operation"] = "query"
     return ast.Document(
-        definitions=[ast.OperationDefinition(
-            operation=kwargs['operation'],
-            selection_set=ast.SelectionSet(
-                selections=list(selections(*fields))
+        definitions=[
+            ast.OperationDefinition(
+                operation=kwargs["operation"],
+                selection_set=ast.SelectionSet(selections=list(selections(*fields))),
             )
-        )]
+        ]
     )
 
 
 def serialize_list(serializer, list_values):
-    assert isinstance(list_values, Iterable), 'Expected iterable, received "{}"'.format(repr(list_values))
+    assert isinstance(list_values, Iterable), 'Expected iterable, received "{}"'.format(
+        repr(list_values)
+    )
     return ast.ListValue(values=[serializer(v) for v in list_values])
 
 
 def get_arg_serializer(arg_type):
     if isinstance(arg_type, GraphQLNonNull):
         return get_arg_serializer(arg_type.of_type)
+    if isinstance(arg_type, GraphQLInputObjectField):
+        return get_arg_serializer(arg_type.type)
+    if isinstance(arg_type, GraphQLInputObjectType):
+        serializers = {k: get_arg_serializer(v) for k, v in arg_type.fields.items()}
+        return lambda value: ast.ObjectValue(
+            fields=[
+                ast.ObjectField(ast.Name(k), serializers[k](v))
+                for k, v in value.items()
+            ]
+        )
     if isinstance(arg_type, GraphQLList):
         inner_serializer = get_arg_serializer(arg_type.of_type)
         return partial(serialize_list, inner_serializer)
