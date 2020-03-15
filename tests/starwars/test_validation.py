@@ -6,7 +6,7 @@ from gql import Client, gql
 
 from .schema import StarWarsSchema
 
-introspection = graphql(StarWarsSchema, introspection_query).data
+introspection = graphql(StarWarsSchema, introspection_query).data  # type: ignore
 
 
 @pytest.fixture

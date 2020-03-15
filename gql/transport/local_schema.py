@@ -1,10 +1,11 @@
+from typing import Any, Union
+
 from graphql import GraphQLSchema
 from graphql.execution import ExecutionResult, execute
 from graphql.language.ast import Document
 from promise import Promise
 
 from gql.transport import Transport
-from typing import Any, Union
 
 
 class LocalSchemaTransport(Transport):
@@ -21,7 +22,7 @@ class LocalSchemaTransport(Transport):
         self.schema = schema
 
     def execute(self, document, *args, **kwargs):
-        # type: (Document, Any, Any) -> Union[ExecutionResult, Promise[ExecutionResult]]
+        # type: (Document, *Any, **Any) -> Union[ExecutionResult, Promise[ExecutionResult]]
         """Execute the given document against the configured local schema.
 
         :param document: GraphQL query as AST Node object.

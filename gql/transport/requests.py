@@ -1,14 +1,15 @@
 from __future__ import absolute_import
 
+from typing import Any, Dict, Union
+
 import requests
 from graphql.execution import ExecutionResult
-from graphql.language.ast import Node
+from graphql.language.ast import Document
 from graphql.language.printer import print_ast
 from requests.auth import AuthBase
 from requests.cookies import RequestsCookieJar
 
 from gql.transport import Transport
-from typing import Any, Dict, Union
 
 
 class RequestsHTTPTransport(Transport):
@@ -55,7 +56,7 @@ class RequestsHTTPTransport(Transport):
         self.kwargs = kwargs
 
     def execute(self, document, variable_values=None, timeout=None):
-        # type: (Node, dict, int) -> ExecutionResult
+        # type: (Document, Dict, int) -> ExecutionResult
         """Execute the provided document AST against the configured remote server.
         This uses the requests library to perform a HTTP POST request to the remote server.
 
@@ -81,7 +82,7 @@ class RequestsHTTPTransport(Transport):
         # Pass kwargs to requests post method
         post_args.update(self.kwargs)
 
-        response = requests.post(self.url, **post_args)
+        response = requests.post(self.url, **post_args)  # type: ignore
         try:
             result = response.json()
             if not isinstance(result, dict):

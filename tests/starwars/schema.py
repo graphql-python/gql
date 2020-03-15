@@ -42,16 +42,16 @@ characterInterface = GraphQLInterfaceType(
         ),
         "name": GraphQLField(GraphQLString, description="The name of the character."),
         "friends": GraphQLField(
-            GraphQLList(characterInterface),
+            GraphQLList(characterInterface),  # type: ignore
             description="The friends of the character, or an empty list if they have none.",
         ),
         "appearsIn": GraphQLField(
             GraphQLList(episodeEnum), description="Which movies they appear in."
         ),
     },
-    resolve_type=lambda character, *_: humanType
+    resolve_type=lambda character, *_: humanType  # type: ignore
     if getHuman(character.id)
-    else droidType,
+    else droidType,  # type: ignore
 )
 
 humanType = GraphQLObjectType(
@@ -136,7 +136,7 @@ queryType = GraphQLObjectType(
                 "episode": GraphQLArgument(
                     description="If omitted, returns the hero of the whole saga. If "
                     "provided, returns the hero of that particular episode.",
-                    type=episodeEnum,
+                    type=episodeEnum,  # type: ignore
                 )
             },
             resolver=lambda root, info, **args: getHero(args.get("episode")),
@@ -180,7 +180,8 @@ mutationType = GraphQLObjectType(
             reviewType,
             args={
                 "episode": GraphQLArgument(
-                    description="Episode to create review", type=episodeEnum,
+                    description="Episode to create review",
+                    type=episodeEnum,  # type: ignore
                 ),
                 "review": GraphQLArgument(
                     description="set alive status", type=reviewInputType,
