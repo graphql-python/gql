@@ -31,7 +31,7 @@ virtualenv gql-dev
 Activate the virtualenv and install dependencies by running:
 
 ```console
-python pip install -e ".[test]"
+python pip install -e[dev]
 ```
 
 If you are using Linux or MacOS, you can make use of Makefile command 
@@ -50,7 +50,7 @@ Then activate the environment with `conda activate gql-dev`.
 Proceed to install all dependencies by running:
 
 ```console
-python pip install -e ".[test]"
+pip install -e.[dev]
 ```
 
 And you ready to start development!
