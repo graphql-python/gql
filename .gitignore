@@ -81,3 +81,6 @@ target/
 # Databases
 *.sqlite3
 .DS_Store
+
+### VisualStudioCode ###
+.vscode/*
