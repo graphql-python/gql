@@ -17,4 +17,6 @@ class Transport:
         :param document: GraphQL query as AST Node or Document object.
         :return: Either ExecutionResult or a Promise that resolves to ExecutionResult object.
         """
-        raise NotImplementedError("Any Transport subclass must implement execute method")
+        raise NotImplementedError(
+            "Any Transport subclass must implement execute method"
+        )

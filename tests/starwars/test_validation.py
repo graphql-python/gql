@@ -16,7 +16,8 @@ def local_schema():
 
 @pytest.fixture
 def typedef_schema():
-    return Client(type_def='''
+    return Client(
+        type_def="""
 schema {
   query: Query
 }
@@ -54,7 +55,8 @@ type Query {
   droid(id: String!): Droid
   hero(episode: Episode): Character
   human(id: String!): Human
-}''')
+}"""
+    )
 
 
 @pytest.fixture
@@ -62,7 +64,7 @@ def introspection_schema():
     return Client(introspection=introspection)
 
 
-@pytest.fixture(params=['local_schema', 'typedef_schema', 'introspection_schema'])
+@pytest.fixture(params=["local_schema", "typedef_schema", "introspection_schema"])
 def client(request):
     return request.getfixturevalue(request.param)
 
@@ -83,7 +85,7 @@ def test_incompatible_request_gql(client):
 
 
 def test_nested_query_with_fragment(client):
-    query = '''
+    query = """
         query NestedQueryWithFragment {
           hero {
             ...NameAndAppearances
@@ -99,32 +101,32 @@ def test_nested_query_with_fragment(client):
           name
           appearsIn
         }
-    '''
+    """
     assert not validation_errors(client, query)
 
 
 def test_non_existent_fields(client):
-    query = '''
+    query = """
         query HeroSpaceshipQuery {
           hero {
             favoriteSpaceship
           }
         }
-    '''
+    """
     assert validation_errors(client, query)
 
 
 def test_require_fields_on_object(client):
-    query = '''
+    query = """
         query HeroNoFieldsQuery {
           hero
         }
-    '''
+    """
     assert validation_errors(client, query)
 
 
 def test_disallows_fields_on_scalars(client):
-    query = '''
+    query = """
         query HeroFieldsOnScalarQuery {
           hero {
             name {
@@ -132,24 +134,24 @@ def test_disallows_fields_on_scalars(client):
             }
           }
         }
-    '''
+    """
     assert validation_errors(client, query)
 
 
 def test_disallows_object_fields_on_interfaces(client):
-    query = '''
+    query = """
         query DroidFieldOnCharacter {
           hero {
             name
             primaryFunction
           }
         }
-    '''
+    """
     assert validation_errors(client, query)
 
 
 def test_allows_object_fields_in_fragments(client):
-    query = '''
+    query = """
         query DroidFieldInFragment {
           hero {
             name
@@ -159,12 +161,12 @@ def test_allows_object_fields_in_fragments(client):
         fragment DroidFields on Droid {
           primaryFunction
         }
-    '''
+    """
     assert not validation_errors(client, query)
 
 
 def test_allows_object_fields_in_inline_fragments(client):
-    query = '''
+    query = """
         query DroidFieldInFragment {
           hero {
             name
@@ -173,5 +175,5 @@ def test_allows_object_fields_in_inline_fragments(client):
             }
           }
         }
-    '''
+    """
     assert not validation_errors(client, query)

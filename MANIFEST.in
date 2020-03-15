@@ -10,7 +10,8 @@ include Makefile
 
 include tox.ini
 
-recursive-include tests *.py *.yaml
+recursive-include tests *.py *.yaml *.graphql
+recursive-include tests_py36 *.py
 
 prune gql-checker
 
