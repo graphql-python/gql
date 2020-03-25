@@ -113,6 +113,104 @@ query = gql('''
 client.execute(query)
 ```
 
+## Websockets transport with asyncio
+
+It is possible to use the websockets transport using the `asyncio` library.
+Python3.6 is required for this transport.
+
+The websockets transport uses the apollo protocol described here:
+
+[Apollo websockets transport protocol](https://github.com/apollographql/subscriptions-transport-ws/blob/master/PROTOCOL.md)
+
+This transport allows to do subscriptions !
+
+For the moment, only one request is done for each websocket connection
+
+```python
+import logging
+logging.basicConfig(level=logging.INFO)
+
+from gql import gql, Client
+from gql.transport.websockets import WebsocketsTransport
+import asyncio
+
+async def main()
+
+    sample_transport = WebsocketsTransport(
+        url='wss://countries.trevorblades.com/graphql',
+        ssl=True,
+        headers={'Authorization': 'token'}
+    )
+
+    client = Client(transport=sample_transport)
+
+    # Fetch schema (optional)
+    await client.fetch_schema()
+
+    # Execute single query
+    query = gql('''
+        query getContinents {
+          continents {
+            code
+            name
+          }
+        }
+    ''')
+    result = await client.execute_async(query)
+    print (f'result data = {result.data}, errors = {result.errors}')
+
+    # Request subscription
+    subscription = gql('''
+        subscription {
+            somethingChanged: {
+                id
+            }
+        }
+    ''')
+    async for result in client.subscribe(subscription):
+        print (f'result.data = {result.data}')
+
+asyncio.run(main())
+```
+
+### Websockets SSL
+
+If you need to connect to an ssl encrypted endpoint:
+
+* use _wss_ instead of _ws_ in the url of the transport
+* set the parameter ssl to True
+
+```python
+import ssl
+
+sample_transport = WebsocketsTransport(
+    url='wss://SERVER_URL:SERVER_PORT/graphql',
+    headers={'Authorization': 'token'},
+    ssl=True
+)
+```
+
+If you have a self-signed ssl certificate, you need to provide an ssl_context with the server public certificate:
+
+```python
+import pathlib
+import ssl
+
+ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+localhost_pem = pathlib.Path(__file__).with_name("YOUR_SERVER_PUBLIC_CERTIFICATE.pem")
+ssl_context.load_verify_locations(localhost_pem)
+
+sample_transport = WebsocketsTransport(
+    url='wss://SERVER_URL:SERVER_PORT/graphql',
+    ssl=ssl_context
+)
+```
+
+If you have also need to have a client ssl certificate, add:
+
+```python
+ssl_context.load_cert_chain(certfile='YOUR_CLIENT_CERTIFICATE.pem', keyfile='YOUR_CLIENT_CERTIFICATE_KEY.key')
+```
 
 ## Contributing
 See [CONTRIBUTING.md](CONTRIBUTING.md)

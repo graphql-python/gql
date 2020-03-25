@@ -34,6 +34,10 @@ class Client(object):
             assert (
                 not schema
             ), "Cant fetch the schema from transport if is already provided"
+            if hasattr(transport, 'USING_ASYNCIO'):
+                assert (
+                    not transport.USING_ASYNCIO
+                ), "With an asyncio transport, please use 'await client.fetch_schema()' instead of fetch_schema_from_transport=True"
             introspection = transport.execute(parse(introspection_query)).data
         if introspection:
             assert not schema, "Cant provide introspection and schema at the same time"
@@ -93,3 +97,21 @@ class Client(object):
                 retries_count += 1
 
         raise RetryError(retries_count, last_exception)
+
+    async def subscribe(self, document, *args, **kwargs):
+        if self.schema:
+            self.validate(document)
+
+        async for result in self.transport.subscribe(document, *args, **kwargs):
+            yield result
+
+    async def execute_async(self, document, *args, **kwargs):
+        if self.schema:
+            self.validate(document)
+
+        return await self.transport.single_query(document, *args, **kwargs)
+
+    async def fetch_schema(self):
+        execution_result = await self.transport.single_query(parse(introspection_query))
+        self.introspection = execution_result.data
+        self.schema = build_client_schema(self.introspection)
