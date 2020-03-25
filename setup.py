@@ -7,6 +7,7 @@ install_requires = [
     'graphql-core>=2,<3',
     'promise>=2.0,<3',
     'requests>=2.12,<3',
+    'pathlib',
     'websockets'
 ]
 
