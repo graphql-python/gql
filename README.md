@@ -122,19 +122,17 @@ The websockets transport uses the apollo protocol described here:
 
 [Apollo websockets transport protocol](https://github.com/apollographql/subscriptions-transport-ws/blob/master/PROTOCOL.md)
 
-This transport allows to do subscriptions !
-
-For the moment, only one request is done for each websocket connection
+This transport allows to do multiple queries, mutations and subscriptions on the same websocket connection
 
 ```python
 import logging
 logging.basicConfig(level=logging.INFO)
 
-from gql import gql, Client
+from gql import gql, AsyncClient
 from gql.transport.websockets import WebsocketsTransport
 import asyncio
 
-async def main()
+async def main():
 
     sample_transport = WebsocketsTransport(
         url='wss://countries.trevorblades.com/graphql',
@@ -142,33 +140,33 @@ async def main()
         headers={'Authorization': 'token'}
     )
 
-    client = Client(transport=sample_transport)
+    async with AsyncClient(transport=sample_transport) as client:
 
-    # Fetch schema (optional)
-    await client.fetch_schema()
+        # Fetch schema (optional)
+        await client.fetch_schema()
 
-    # Execute single query
-    query = gql('''
-        query getContinents {
-          continents {
-            code
-            name
-          }
-        }
-    ''')
-    result = await client.execute_async(query)
-    print (f'result data = {result.data}, errors = {result.errors}')
-
-    # Request subscription
-    subscription = gql('''
-        subscription {
-            somethingChanged: {
-                id
+        # Execute single query
+        query = gql('''
+            query getContinents {
+              continents {
+                code
+                name
+              }
             }
-        }
-    ''')
-    async for result in client.subscribe(subscription):
-        print (f'result.data = {result.data}')
+        ''')
+        result = await client.execute(query)
+        print (f'result data = {result.data}, errors = {result.errors}')
+
+        # Request subscription
+        subscription = gql('''
+            subscription {
+                somethingChanged {
+                    id
+                }
+            }
+        ''')
+        async for result in client.subscribe(subscription):
+            print (f'result.data = {result.data}')
 
 asyncio.run(main())
 ```
@@ -210,6 +208,46 @@ If you have also need to have a client ssl certificate, add:
 
 ```python
 ssl_context.load_cert_chain(certfile='YOUR_CLIENT_CERTIFICATE.pem', keyfile='YOUR_CLIENT_CERTIFICATE_KEY.key')
+```
+
+### Websockets advanced usage
+
+It is possible to send multiple GraphQL queries (query, mutation or subscription) in parallel,
+on the same websocket connection, using asyncio tasks
+
+```python
+
+async def execute_query1():
+    result = await client.execute(query1)
+    print (f'result data = {result.data}, errors = {result.errors}')
+
+async def execute_query2():
+    result = await client.execute(query2)
+    print (f'result data = {result.data}, errors = {result.errors}')
+
+async def execute_subscription1():
+    async for result in client.subscribe(subscription1):
+        print (f'result data = {result.data}, errors = {result.errors}')
+
+async def execute_subscription2():
+    async for result in client.subscribe(subscription2):
+        print (f'result data = {result.data}, errors = {result.errors}')
+
+task1 = asyncio.create_task(execute_query1())
+task2 = asyncio.create_task(execute_query2())
+task3 = asyncio.create_task(execute_subscription1())
+task4 = asyncio.create_task(execute_subscription2())
+
+await task1
+await task2
+await task3
+await task4
+```
+
+Subscriptions tasks can be stopped at any time by running
+
+```python
+task.cancel()
 ```
 
 ## Contributing

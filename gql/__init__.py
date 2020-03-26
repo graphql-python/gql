@@ -1,4 +1,4 @@
 from .gql import gql
-from .client import Client
+from .client import Client, AsyncClient
 
-__all__ = ["gql", "Client"]
+__all__ = ["gql", "Client", "AsyncClient"]

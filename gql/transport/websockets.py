@@ -11,11 +11,11 @@ from graphql.execution import ExecutionResult
 from graphql.language.ast import Document
 from graphql.language.printer import print_ast
 
-from gql.transport import Transport
+from gql.transport import AsyncTransport
 
 log = logging.getLogger(__name__)
 
-class WebsocketsTransport(Transport):
+class WebsocketsTransport(AsyncTransport):
     """Transport to execute GraphQL queries on remote servers with a websocket connection.
 
     This transport use asyncio
@@ -23,8 +23,6 @@ class WebsocketsTransport(Transport):
 
     See README.md for Usage
     """
-
-    USING_ASYNCIO = True
 
     def __init__(
         self,
@@ -41,40 +39,46 @@ class WebsocketsTransport(Transport):
         self.url = url
         self.ssl = ssl
         self.headers = headers
-        self.next_query_id = 1
 
-    async def _send_message(self, websocket, message):
+        self.websocket = None
+        self.next_query_id = 1
+        self.listeners = {}
+
+    async def _send(self, message):
         """Send the provided message to the websocket connection and log the message
         """
 
-        await websocket.send(message)
+        if not self.websocket:
+            raise Exception('Transport is not connected')
+
+        await self.websocket.send(message)
         log.info('>>> %s', message)
 
-    async def _wait_answer(self, websocket):
+    async def _receive(self):
         """Wait the next message from the websocket connection and log the answer
         """
 
-        answer = await websocket.recv()
+        answer = await self.websocket.recv()
         log.info('<<< %s', answer)
 
         return answer
 
-    async def _send_init_message_and_wait_ack(self, websocket):
+    async def _send_init_message_and_wait_ack(self):
         """Send an init message to the provided websocket then wait for the connection ack
 
         If the answer is not a connection_ack message, we will return an Exception
         """
 
-        await self._send_message(websocket, '{"type":"connection_init","payload":{}}')
+        await self._send('{"type":"connection_init","payload":{}}')
 
-        init_answer = await self._wait_answer(websocket)
+        init_answer = await self._receive()
 
         answer_type, answer_id, execution_result = self._parse_answer(init_answer)
 
         if answer_type != 'connection_ack':
             raise Exception('Websocket server did not return a connection ack')
 
-    async def _send_stop_message(self, websocket, query_id):
+    async def _send_stop_message(self, query_id):
         """Send a stop message to the provided websocket connection for the provided query_id
 
         The server should afterwards return a 'complete' message
@@ -85,9 +89,21 @@ class WebsocketsTransport(Transport):
             'type': 'stop'
         })
 
-        await self._send_message(websocket, stop_message)
+        await self._send(stop_message)
 
-    async def _send_query(self, websocket, document, variable_values, operation_name):
+    async def _send_connection_terminate_message(self):
+        """Send a connection_terminate message to the provided websocket connection
+
+        This message indicate that the connection will disconnect
+        """
+
+        connection_terminate_message = json.dumps({
+            'type': 'connection_terminate'
+        })
+
+        await self._send(connection_terminate_message)
+
+    async def _send_query(self, document, variable_values, operation_name):
         """Send a query to the provided websocket connection
 
         We use an incremented id to reference the query
@@ -109,7 +125,7 @@ class WebsocketsTransport(Transport):
             }
         })
 
-        await self._send_message(websocket, query_str)
+        await self._send(query_str)
 
         return query_id
 
@@ -163,6 +179,25 @@ class WebsocketsTransport(Transport):
 
         return (answer_type, answer_id, execution_result)
 
+    async def _answer_loop(self):
+
+        while True:
+
+            # Wait the next answer from the websocket server
+            answer = await self._receive()
+
+            # Parse the answer
+            answer_type, answer_id, execution_result = self._parse_answer(answer)
+
+            # Continue if no listener exists for this id
+            if answer_id not in self.listeners:
+                continue
+
+            # Get the related queue
+            queue = self.listeners[answer_id]
+
+            # Put the answer in the queue
+            await queue.put((answer_type, execution_result))
 
     async def subscribe(self, document, variable_values=None, operation_name=None):
         """Send a query and receive the results using a python async generator
@@ -172,49 +207,97 @@ class WebsocketsTransport(Transport):
         The results are sent as an ExecutionResult object
         """
 
-        # Connection to the specified url
-        async with websockets.connect(
-            self.url,
-            ssl=self.ssl,
-            extra_headers=self.headers,
-            subprotocols=['graphql-ws']
-        ) as websocket:
+        # Send the query and receive the id
+        query_id = await self._send_query(document, variable_values, operation_name)
 
-            # Send the init message and wait for the ack from the server
-            await self._send_init_message_and_wait_ack(websocket)
+        # Create a queue to receive the answers for this query_id
+        self.listeners[query_id] = asyncio.Queue()
 
-            # Send the query and receive the id
-            query_id = await self._send_query(websocket, document, variable_values, operation_name)
-
+        try:
             # Loop over the received answers
             while True:
 
-                # Wait the next answer from the websocket server
-                answer = await self._wait_answer(websocket)
+                # Wait for the answer from the queue of this query_id
+                answer_type, execution_result = await self.listeners[query_id].get()
 
-                # Parse the answer
-                answer_type, answer_id, execution_result = self._parse_answer(answer)
+                # Set the task as done in the listeners queue
+                self.listeners[query_id].task_done()
 
-                # If the received answer id corresponds to the query id,
+                # If the received answer contains data,
                 #     Then we will yield the results back as an ExecutionResult object
-                #     If we receive a 'complete' answer from the server,
-                #         Then we will end this async generator output and disconnect from the server
-                if answer_id == query_id:
-                    if execution_result is not None:
-                        yield execution_result
+                if execution_result is not None:
+                    yield execution_result
 
-                    elif answer_type == 'complete':
-                        return
+                # If we receive a 'complete' answer from the server,
+                #     Then we will end this async generator output and disconnect from the server
+                elif answer_type == 'complete':
+                    break
 
-    async def single_query(self, document, variable_values=None, operation_name=None):
+        except asyncio.CancelledError as error:
+            await self._send_stop_message(query_id)
+
+        finally:
+            del self.listeners[query_id]
+
+
+    async def execute(self, document, variable_values=None, operation_name=None):
         """Send a query but close the connection as soon as we have the first answer
 
         The result is sent as an ExecutionResult object
         """
-        async for result in self.subscribe(document, variable_values, operation_name):
-            return result
+        generator = self.subscribe(document, variable_values, operation_name)
 
-    def execute(self, document):
-        raise NotImplementedError(
-            "You should use the async function 'execute_async' for this transport"
-        )
+        async for execution_result in generator:
+            first_result = execution_result
+            generator.aclose()
+
+        return first_result
+
+    async def connect(self):
+        """Coroutine which will:
+
+        - connect to the websocket address
+        - send the init message
+        - wait for the connection acknowledge from the server
+        - create an asyncio task which will be used to receive and parse the websocket answers
+
+        Should be cleaned with a call to the close coroutine
+        """
+
+        if self.websocket == None:
+
+            # Connection to the specified url
+            self.websocket = await websockets.connect(
+                self.url,
+                ssl=self.ssl,
+                extra_headers=self.headers,
+                subprotocols=['graphql-ws']
+            )
+
+            # Send the init message and wait for the ack from the server
+            await self._send_init_message_and_wait_ack()
+
+            # Create a task to listen to the incoming websocket messages
+            self.listen_loop = asyncio.ensure_future(self._answer_loop())
+
+    async def close(self):
+        """Coroutine which will:
+
+        - send the connection terminate message
+        - close the websocket connection
+        - send 'complete' messages to close all the existing subscribe async generators
+        - remove the listen_loop task
+        """
+
+        if self.websocket:
+
+            await self._send_connection_terminate_message()
+
+            await self.websocket.close()
+
+            for query_id in self.listeners:
+                await self.listeners[query_id].put(('complete', None))
+
+            self.websocket = None
+
+            self.listen_loop.cancel()

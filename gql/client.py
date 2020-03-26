@@ -4,6 +4,7 @@ from graphql import build_ast_schema, build_client_schema, introspection_query, 
 from graphql.validation import validate
 
 from .transport.local_schema import LocalSchemaTransport
+from gql.transport import AsyncTransport
 
 log = logging.getLogger(__name__)
 
@@ -34,10 +35,9 @@ class Client(object):
             assert (
                 not schema
             ), "Cant fetch the schema from transport if is already provided"
-            if hasattr(transport, 'USING_ASYNCIO'):
-                assert (
-                    not transport.USING_ASYNCIO
-                ), "With an asyncio transport, please use 'await client.fetch_schema()' instead of fetch_schema_from_transport=True"
+            assert (
+                not isinstance(transport, AsyncTransport)
+            ), "With an asyncio transport, please use 'await client.fetch_schema()' instead of fetch_schema_from_transport=True"
             introspection = transport.execute(parse(introspection_query)).data
         if introspection:
             assert not schema, "Cant provide introspection and schema at the same time"
@@ -98,6 +98,8 @@ class Client(object):
 
         raise RetryError(retries_count, last_exception)
 
+class AsyncClient(Client):
+
     async def subscribe(self, document, *args, **kwargs):
         if self.schema:
             self.validate(document)
@@ -105,13 +107,20 @@ class Client(object):
         async for result in self.transport.subscribe(document, *args, **kwargs):
             yield result
 
-    async def execute_async(self, document, *args, **kwargs):
+    async def execute(self, document, *args, **kwargs):
         if self.schema:
             self.validate(document)
 
-        return await self.transport.single_query(document, *args, **kwargs)
+        return await self.transport.execute(document, *args, **kwargs)
 
     async def fetch_schema(self):
-        execution_result = await self.transport.single_query(parse(introspection_query))
+        execution_result = await self.transport.execute(parse(introspection_query))
         self.introspection = execution_result.data
         self.schema = build_client_schema(self.introspection)
+
+    async def __aenter__(self):
+        await self.transport.connect()
+        return self
+
+    async def __aexit__(self, *args):
+        await self.transport.close()
