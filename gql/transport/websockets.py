@@ -43,6 +43,7 @@ class WebsocketsTransport(AsyncTransport):
         self.websocket = None
         self.next_query_id = 1
         self.listeners = {}
+        self._is_closing = False
 
     async def _send(self, message):
         """Send the provided message to the websocket connection and log the message
@@ -51,15 +52,25 @@ class WebsocketsTransport(AsyncTransport):
         if not self.websocket:
             raise Exception('Transport is not connected')
 
-        await self.websocket.send(message)
-        log.info('>>> %s', message)
+        try:
+            await self.websocket.send(message)
+            log.info('>>> %s', message)
+        except (websockets.exceptions.ConnectionClosedError) as e:
+            await self.close()
+            raise e
 
     async def _receive(self):
         """Wait the next message from the websocket connection and log the answer
         """
 
-        answer = await self.websocket.recv()
-        log.info('<<< %s', answer)
+        answer = None
+
+        try:
+            answer = await self.websocket.recv()
+            log.info('<<< %s', answer)
+        except websockets.exceptions.ConnectionClosedError as e:
+            await self.close()
+            raise e
 
         return answer
 
@@ -233,23 +244,27 @@ class WebsocketsTransport(AsyncTransport):
                 elif answer_type == 'complete':
                     break
 
-        except asyncio.CancelledError as error:
+        except (asyncio.CancelledError, GeneratorExit) as e:
             await self._send_stop_message(query_id)
 
         finally:
             del self.listeners[query_id]
 
-
     async def execute(self, document, variable_values=None, operation_name=None):
-        """Send a query but close the connection as soon as we have the first answer
+        """Send a query but close the async generator as soon as we have the first answer
 
         The result is sent as an ExecutionResult object
         """
         generator = self.subscribe(document, variable_values, operation_name)
 
+        first_result = None
+
         async for execution_result in generator:
             first_result = execution_result
             generator.aclose()
+
+        if first_result is None:
+            raise asyncio.CancelledError
 
         return first_result
 
@@ -274,6 +289,9 @@ class WebsocketsTransport(AsyncTransport):
                 subprotocols=['graphql-ws']
             )
 
+            # Reset the next query id
+            self.next_query_id = 1
+
             # Send the init message and wait for the ack from the server
             await self._send_init_message_and_wait_ack()
 
@@ -289,11 +307,15 @@ class WebsocketsTransport(AsyncTransport):
         - remove the listen_loop task
         """
 
-        if self.websocket:
+        if self.websocket and not self._is_closing:
 
-            await self._send_connection_terminate_message()
+            self._is_closing = True
 
-            await self.websocket.close()
+            try:
+                await self._send_connection_terminate_message()
+                await self.websocket.close()
+            except websockets.exceptions.ConnectionClosedError:
+                pass
 
             for query_id in self.listeners:
                 await self.listeners[query_id].put(('complete', None))

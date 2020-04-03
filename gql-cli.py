@@ -8,7 +8,7 @@ parser.add_argument('server', help='the server websocket url starting with ws://
 args = parser.parse_args()
 
 async def main():
-    
+
     transport = WebsocketsTransport(url=args.server, ssl=args.server.startswith('wss'))
 
     async with AsyncClient(transport=transport) as client:
