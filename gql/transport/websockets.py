@@ -15,6 +15,7 @@ from gql.transport import AsyncTransport
 
 log = logging.getLogger(__name__)
 
+
 class WebsocketsTransport(AsyncTransport):
     """Transport to execute GraphQL queries on remote servers with a websocket connection.
 
@@ -25,10 +26,7 @@ class WebsocketsTransport(AsyncTransport):
     """
 
     def __init__(
-        self,
-        url,
-        headers=None,
-        ssl=False,
+        self, url, headers=None, ssl=False,
     ):
         """Initialize the transport with the given request parameters.
 
@@ -50,11 +48,11 @@ class WebsocketsTransport(AsyncTransport):
         """
 
         if not self.websocket:
-            raise Exception('Transport is not connected')
+            raise Exception("Transport is not connected")
 
         try:
             await self.websocket.send(message)
-            log.info('>>> %s', message)
+            log.info(">>> %s", message)
         except (websockets.exceptions.ConnectionClosedError) as e:
             await self.close()
             raise e
@@ -67,7 +65,7 @@ class WebsocketsTransport(AsyncTransport):
 
         try:
             answer = await self.websocket.recv()
-            log.info('<<< %s', answer)
+            log.info("<<< %s", answer)
         except websockets.exceptions.ConnectionClosedError as e:
             await self.close()
             raise e
@@ -86,8 +84,8 @@ class WebsocketsTransport(AsyncTransport):
 
         answer_type, answer_id, execution_result = self._parse_answer(init_answer)
 
-        if answer_type != 'connection_ack':
-            raise Exception('Websocket server did not return a connection ack')
+        if answer_type != "connection_ack":
+            raise Exception("Websocket server did not return a connection ack")
 
     async def _send_stop_message(self, query_id):
         """Send a stop message to the provided websocket connection for the provided query_id
@@ -95,10 +93,7 @@ class WebsocketsTransport(AsyncTransport):
         The server should afterwards return a 'complete' message
         """
 
-        stop_message = json.dumps({
-            'id': str(query_id),
-            'type': 'stop'
-        })
+        stop_message = json.dumps({"id": str(query_id), "type": "stop"})
 
         await self._send(stop_message)
 
@@ -108,9 +103,7 @@ class WebsocketsTransport(AsyncTransport):
         This message indicate that the connection will disconnect
         """
 
-        connection_terminate_message = json.dumps({
-            'type': 'connection_terminate'
-        })
+        connection_terminate_message = json.dumps({"type": "connection_terminate"})
 
         await self._send(connection_terminate_message)
 
@@ -125,16 +118,18 @@ class WebsocketsTransport(AsyncTransport):
         query_id = self.next_query_id
         self.next_query_id += 1
 
-        query_str = json.dumps({
-            'id': str(query_id),
-            'type': 'start',
-            'payload': {
-                'variables': variable_values or {},
-                #'extensions': {},
-                'operationName': operation_name or '',
-                'query': print_ast(document)
+        query_str = json.dumps(
+            {
+                "id": str(query_id),
+                "type": "start",
+                "payload": {
+                    "variables": variable_values or {},
+                    #'extensions': {},
+                    "operationName": operation_name or "",
+                    "query": print_ast(document),
+                },
             }
-        })
+        )
 
         await self._send(query_str)
 
@@ -159,34 +154,36 @@ class WebsocketsTransport(AsyncTransport):
             if not isinstance(json_answer, dict):
                 raise ValueError
 
-            answer_type = json_answer.get('type')
+            answer_type = json_answer.get("type")
 
-            if answer_type in ['data', 'error', 'complete']:
-                answer_id = int(json_answer.get('id'))
+            if answer_type in ["data", "error", "complete"]:
+                answer_id = int(json_answer.get("id"))
 
-                if answer_type == 'data':
-                    result = json_answer.get('payload')
+                if answer_type == "data":
+                    result = json_answer.get("payload")
 
-                    if 'errors' not in result and 'data' not in result:
+                    if "errors" not in result and "data" not in result:
                         raise ValueError
 
-                    execution_result = ExecutionResult(errors=result.get('errors'), data=result.get('data'))
+                    execution_result = ExecutionResult(
+                        errors=result.get("errors"), data=result.get("data")
+                    )
 
-                elif answer_type == 'error':
-                    raise Exception('Websocket server error')
+                elif answer_type == "error":
+                    raise Exception("Websocket server error")
 
-            elif answer_type == 'ka':
+            elif answer_type == "ka":
                 # KeepAlive message
                 pass
-            elif answer_type == 'connection_ack':
+            elif answer_type == "connection_ack":
                 pass
-            elif answer_type == 'connection_error':
-                raise Exception('Websocket Connection Error')
+            elif answer_type == "connection_error":
+                raise Exception("Websocket Connection Error")
             else:
                 raise ValueError
 
         except ValueError:
-            raise Exception('Websocket server did not return a GraphQL result')
+            raise Exception("Websocket server did not return a GraphQL result")
 
         return (answer_type, answer_id, execution_result)
 
@@ -241,7 +238,7 @@ class WebsocketsTransport(AsyncTransport):
 
                 # If we receive a 'complete' answer from the server,
                 #     Then we will end this async generator output and disconnect from the server
-                elif answer_type == 'complete':
+                elif answer_type == "complete":
                     break
 
         except (asyncio.CancelledError, GeneratorExit) as e:
@@ -286,7 +283,7 @@ class WebsocketsTransport(AsyncTransport):
                 self.url,
                 ssl=self.ssl,
                 extra_headers=self.headers,
-                subprotocols=['graphql-ws']
+                subprotocols=["graphql-ws"],
             )
 
             # Reset the next query id
@@ -318,7 +315,7 @@ class WebsocketsTransport(AsyncTransport):
                 pass
 
             for query_id in self.listeners:
-                await self.listeners[query_id].put(('complete', None))
+                await self.listeners[query_id].put(("complete", None))
 
             self.websocket = None
 

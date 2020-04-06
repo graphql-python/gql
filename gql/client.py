@@ -35,8 +35,8 @@ class Client(object):
             assert (
                 not schema
             ), "Cant fetch the schema from transport if is already provided"
-            assert (
-                not isinstance(transport, AsyncTransport)
+            assert not isinstance(
+                transport, AsyncTransport
             ), "With an asyncio transport, please use 'await client.fetch_schema()' instead of fetch_schema_from_transport=True"
             introspection = transport.execute(parse(introspection_query)).data
         if introspection:
@@ -98,8 +98,8 @@ class Client(object):
 
         raise RetryError(retries_count, last_exception)
 
-class AsyncClient(Client):
 
+class AsyncClient(Client):
     async def subscribe(self, document, *args, **kwargs):
         if self.schema:
             self.validate(document)

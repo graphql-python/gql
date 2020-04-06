@@ -21,9 +21,9 @@ class Transport:
             "Any Transport subclass must implement execute method"
         )
 
+
 @six.add_metaclass(abc.ABCMeta)
 class AsyncTransport(Transport):
-
     @abc.abstractmethod
     async def connect(self):
         """Coroutine used to create a connection to the specified address
