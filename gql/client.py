@@ -37,7 +37,7 @@ class Client(object):
             ), "Cant fetch the schema from transport if is already provided"
             assert not isinstance(
                 transport, AsyncTransport
-            ), "With an asyncio transport, please use 'await client.fetch_schema()' instead of fetch_schema_from_transport=True"
+            ), "With an asyncio transport, please use the AsyncClient class"
             introspection = transport.execute(parse(introspection_query)).data
         if introspection:
             assert not schema, "Cant provide introspection and schema at the same time"

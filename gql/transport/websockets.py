@@ -1,14 +1,11 @@
 from __future__ import absolute_import
 
-from typing import Any, Dict, Union
-
 import websockets
 import asyncio
 import json
 import logging
 
 from graphql.execution import ExecutionResult
-from graphql.language.ast import Document
 from graphql.language.printer import print_ast
 
 from gql.transport import AsyncTransport
@@ -124,7 +121,6 @@ class WebsocketsTransport(AsyncTransport):
                 "type": "start",
                 "payload": {
                     "variables": variable_values or {},
-                    #'extensions': {},
                     "operationName": operation_name or "",
                     "query": print_ast(document),
                 },
@@ -241,7 +237,7 @@ class WebsocketsTransport(AsyncTransport):
                 elif answer_type == "complete":
                     break
 
-        except (asyncio.CancelledError, GeneratorExit) as e:
+        except (asyncio.CancelledError, GeneratorExit):
             await self._send_stop_message(query_id)
 
         finally:
@@ -276,7 +272,7 @@ class WebsocketsTransport(AsyncTransport):
         Should be cleaned with a call to the close coroutine
         """
 
-        if self.websocket == None:
+        if self.websocket is None:
 
             # Connection to the specified url
             self.websocket = await websockets.connect(
