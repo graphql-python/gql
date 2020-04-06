@@ -2,6 +2,10 @@ import logging
 
 from graphql import build_ast_schema, build_client_schema, introspection_query, parse
 from graphql.validation import validate
+from graphql.execution import ExecutionResult
+from graphql.language.ast import Document
+
+from typing import AsyncGenerator
 
 from .transport.local_schema import LocalSchemaTransport
 from gql.transport import AsyncTransport
@@ -100,20 +104,22 @@ class Client(object):
 
 
 class AsyncClient(Client):
-    async def subscribe(self, document, *args, **kwargs):
+    async def subscribe(
+        self, document: Document, *args, **kwargs
+    ) -> AsyncGenerator[ExecutionResult, None]:
         if self.schema:
             self.validate(document)
 
         async for result in self.transport.subscribe(document, *args, **kwargs):
             yield result
 
-    async def execute(self, document, *args, **kwargs):
+    async def execute(self, document: Document, *args, **kwargs) -> ExecutionResult:
         if self.schema:
             self.validate(document)
 
         return await self.transport.execute(document, *args, **kwargs)
 
-    async def fetch_schema(self):
+    async def fetch_schema(self) -> None:
         execution_result = await self.transport.execute(parse(introspection_query))
         self.introspection = execution_result.data
         self.schema = build_client_schema(self.introspection)
