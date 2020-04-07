@@ -17,9 +17,13 @@ tests_require = [
     'vcrpy==3.0.0',
 ]
 
+scripts = []
+
 if sys.version_info > (3, 6):
     tests_require.append('pytest-asyncio>=0.9.0')
     install_requires.append('websockets>=8.1,<9')
+    scripts.append['scripts/gql-cli']
+
 
 dev_requires = [
     'flake8==3.7.9',
@@ -63,5 +67,5 @@ setup(
     include_package_data=True,
     zip_safe=False,
     platforms="any",
-    scripts=['scripts/gql-cli'],
+    scripts=scripts,
 )

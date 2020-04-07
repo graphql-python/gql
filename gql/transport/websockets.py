@@ -12,7 +12,7 @@ import asyncio
 import json
 import logging
 
-from typing import cast, Dict, Optional, Tuple, Union, NoReturn, AsyncGenerator
+from typing import cast, Dict, Optional, Tuple, Union, AsyncGenerator
 
 from graphql.execution import ExecutionResult
 from graphql.language.ast import Document
@@ -217,7 +217,8 @@ class WebsocketsTransport(AsyncTransport):
 
         return (answer_type, answer_id, execution_result)
 
-    async def _answer_loop(self) -> NoReturn:
+    async def _answer_loop(self):
+        # Note: the return type here is NoReturn but NoReturn is not yet supported in python 3.6
 
         while True:
 

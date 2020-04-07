@@ -2,13 +2,9 @@ import logging
 
 from graphql import build_ast_schema, build_client_schema, introspection_query, parse
 from graphql.validation import validate
-from graphql.execution import ExecutionResult
-from graphql.language.ast import Document
-
-from typing import AsyncGenerator
 
 from .transport.local_schema import LocalSchemaTransport
-from gql.transport import AsyncTransport
+from .transport import Transport
 
 log = logging.getLogger(__name__)
 
@@ -39,8 +35,8 @@ class Client(object):
             assert (
                 not schema
             ), "Cant fetch the schema from transport if is already provided"
-            assert not isinstance(
-                transport, AsyncTransport
+            assert isinstance(
+                transport, Transport
             ), "With an asyncio transport, please use the AsyncClient class"
             introspection = transport.execute(parse(introspection_query)).data
         if introspection:
@@ -101,32 +97,3 @@ class Client(object):
                 retries_count += 1
 
         raise RetryError(retries_count, last_exception)
-
-
-class AsyncClient(Client):
-    async def subscribe(
-        self, document: Document, *args, **kwargs
-    ) -> AsyncGenerator[ExecutionResult, None]:
-        if self.schema:
-            self.validate(document)
-
-        async for result in self.transport.subscribe(document, *args, **kwargs):
-            yield result
-
-    async def execute(self, document: Document, *args, **kwargs) -> ExecutionResult:
-        if self.schema:
-            self.validate(document)
-
-        return await self.transport.execute(document, *args, **kwargs)
-
-    async def fetch_schema(self) -> None:
-        execution_result = await self.transport.execute(parse(introspection_query))
-        self.introspection = execution_result.data
-        self.schema = build_client_schema(self.introspection)
-
-    async def __aenter__(self):
-        await self.transport.connect()
-        return self
-
-    async def __aexit__(self, *args):
-        await self.transport.close()
