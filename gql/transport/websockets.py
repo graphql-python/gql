@@ -18,7 +18,7 @@ from graphql.execution import ExecutionResult
 from graphql.language.ast import Document
 from graphql.language.printer import print_ast
 
-from gql.transport import AsyncTransport
+from .async_transport import AsyncTransport
 
 log = logging.getLogger(__name__)
 

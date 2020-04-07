@@ -4,8 +4,8 @@ from graphql.language.ast import Document
 
 from typing import AsyncGenerator
 
-from gql.transport import AsyncTransport
-from gql import Client
+from .transport import AsyncTransport
+from .client import Client
 
 
 class AsyncClient(Client):
