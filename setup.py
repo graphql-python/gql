@@ -6,8 +6,7 @@ install_requires = [
     'six>=1.10.0',
     'graphql-core>=2,<3',
     'promise>=2.0,<3',
-    'requests>=2.12,<3',
-    'websockets>=8.1,<9'
+    'requests>=2.12,<3'
 ]
 
 tests_require = [
@@ -20,6 +19,7 @@ tests_require = [
 
 if sys.version_info > (3, 6):
     tests_require.append('pytest-asyncio>=0.9.0')
+    install_requires.append('websockets>=8.1,<9')
 
 dev_requires = [
     'flake8==3.7.9',
