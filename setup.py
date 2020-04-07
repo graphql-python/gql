@@ -22,7 +22,7 @@ scripts = []
 if sys.version_info > (3, 6):
     tests_require.append('pytest-asyncio>=0.9.0')
     install_requires.append('websockets>=8.1,<9')
-    scripts.append['scripts/gql-cli']
+    scripts.append('scripts/gql-cli')
 
 
 dev_requires = [
