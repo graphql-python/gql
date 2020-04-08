@@ -4,7 +4,7 @@ import websockets
 from websockets.http import HeadersLike
 from websockets.typing import Data, Subprotocol
 from websockets.client import WebSocketClientProtocol
-from websockets.exceptions import ConnectionClosedError
+from websockets.exceptions import ConnectionClosedOK, ConnectionClosed
 
 from ssl import SSLContext
 
@@ -21,6 +21,52 @@ from graphql.language.printer import print_ast
 from .async_transport import AsyncTransport
 
 log = logging.getLogger(__name__)
+
+ParsedAnswer = Tuple[str, Optional[ExecutionResult]]
+
+
+class ListenerQueue:
+    """Special queue used for each query waiting for server answers
+
+    If the server is stopped while the listener is still waiting,
+    Then we send an exception to the queue and this exception will be raised
+    to the consumer once all the previous messages have been consumed from the queue
+    """
+
+    def __init__(self, query_id: int, send_stop: bool) -> None:
+        self.query_id: int = query_id
+        self.send_stop: bool = send_stop
+        self._queue: asyncio.Queue = asyncio.Queue()
+        self._closed: bool = False
+
+    async def get(self) -> ParsedAnswer:
+
+        item = await self._queue.get()
+        self._queue.task_done()
+
+        # If we receive an exception when reading the queue, we raise it
+        if isinstance(item, Exception):
+            self._closed = True
+            raise item
+
+        # Don't need to save new answers or
+        # send the stop message if we already received the complete message
+        answer_type, execution_result = item
+        if answer_type == "complete":
+            self.send_stop = False
+            self._closed = True
+
+        return item
+
+    async def put(self, item: ParsedAnswer) -> None:
+
+        if not self._closed:
+            await self._queue.put(item)
+
+    async def set_exception(self, exception: Exception) -> None:
+
+        # Put the exception in the queue
+        await self._queue.put(exception)
 
 
 class WebsocketsTransport(AsyncTransport):
@@ -50,8 +96,9 @@ class WebsocketsTransport(AsyncTransport):
 
         self.websocket: Optional[WebSocketClientProtocol] = None
         self.next_query_id: int = 1
-        self.listeners: Dict[int, asyncio.Queue] = {}
+        self.listeners: Dict[int, ListenerQueue] = {}
         self._is_closing: bool = False
+        self._no_more_listeners: asyncio.Event = asyncio.Event()
 
     async def _send(self, message: str) -> None:
         """Send the provided message to the websocket connection and log the message
@@ -63,8 +110,8 @@ class WebsocketsTransport(AsyncTransport):
         try:
             await self.websocket.send(message)
             log.info(">>> %s", message)
-        except (ConnectionClosedError) as e:
-            await self.close()
+        except (ConnectionClosed) as e:
+            await self._close_with_exception(e)
             raise e
 
     async def _receive(self) -> str:
@@ -87,8 +134,8 @@ class WebsocketsTransport(AsyncTransport):
             answer = data
 
             log.info("<<< %s", answer)
-        except ConnectionClosedError as e:
-            await self.close()
+        except ConnectionClosed as e:
+            await self._close_with_exception(e)
             raise e
 
         return answer
@@ -217,13 +264,15 @@ class WebsocketsTransport(AsyncTransport):
 
         return (answer_type, answer_id, execution_result)
 
-    async def _answer_loop(self):
-        # Note: the return type here is NoReturn but NoReturn is not yet supported in python 3.6
+    async def _answer_loop(self) -> None:
 
         while True:
 
             # Wait the next answer from the websocket server
-            answer = await self._receive()
+            try:
+                answer = await self._receive()
+            except ConnectionClosed:
+                return
 
             # Parse the answer
             answer_type, answer_id, execution_result = self._parse_answer(answer)
@@ -232,17 +281,15 @@ class WebsocketsTransport(AsyncTransport):
             if answer_id not in self.listeners:
                 continue
 
-            # Get the related queue
-            queue = self.listeners[answer_id]
-
             # Put the answer in the queue
-            await queue.put((answer_type, execution_result))
+            await self.listeners[answer_id].put((answer_type, execution_result))
 
     async def subscribe(
         self,
         document: Document,
         variable_values: Optional[Dict[str, str]] = None,
         operation_name: Optional[str] = None,
+        send_stop: Optional[bool] = True,
     ) -> AsyncGenerator[ExecutionResult, None]:
         """Send a query and receive the results using a python async generator
 
@@ -257,17 +304,15 @@ class WebsocketsTransport(AsyncTransport):
         )
 
         # Create a queue to receive the answers for this query_id
-        self.listeners[query_id] = asyncio.Queue()
+        listener = ListenerQueue(query_id, send_stop=(send_stop is True))
+        self.listeners[query_id] = listener
 
         try:
             # Loop over the received answers
             while True:
 
                 # Wait for the answer from the queue of this query_id
-                answer_type, execution_result = await self.listeners[query_id].get()
-
-                # Set the task as done in the listeners queue
-                self.listeners[query_id].task_done()
+                answer_type, execution_result = await listener.get()
 
                 # If the received answer contains data,
                 #     Then we will yield the results back as an ExecutionResult object
@@ -277,13 +322,21 @@ class WebsocketsTransport(AsyncTransport):
                 # If we receive a 'complete' answer from the server,
                 #     Then we will end this async generator output and disconnect from the server
                 elif answer_type == "complete":
+                    log.debug(
+                        f"Complete received for query {query_id} --> exit without error"
+                    )
                     break
 
-        except (asyncio.CancelledError, GeneratorExit):
-            await self._send_stop_message(query_id)
+        except (asyncio.CancelledError, GeneratorExit) as e:
+            log.debug("Exception in subscribe: " + repr(e))
+            if listener.send_stop:
+                await self._send_stop_message(query_id)
+                listener.send_stop = False
 
         finally:
             del self.listeners[query_id]
+            if len(self.listeners) == 0:
+                self._no_more_listeners.set()
 
     async def execute(
         self,
@@ -295,16 +348,10 @@ class WebsocketsTransport(AsyncTransport):
 
         The result is sent as an ExecutionResult object
         """
-        generator = self.subscribe(document, variable_values, operation_name)
-
-        first_result = None
-
-        async for execution_result in generator:
-            first_result = execution_result
-            generator.aclose()
-
-        if first_result is None:
-            raise asyncio.CancelledError
+        async for result in self.subscribe(
+            document, variable_values, operation_name, send_stop=False
+        ):
+            first_result = result
 
         return first_result
 
@@ -326,7 +373,7 @@ class WebsocketsTransport(AsyncTransport):
             # Connection to the specified url
             self.websocket = await websockets.connect(
                 self.url,
-                ssl=self.ssl,
+                ssl=self.ssl if self.ssl else None,
                 extra_headers=self.headers,
                 subprotocols=[GRAPHQLWS_SUBPROTOCOL],
             )
@@ -343,24 +390,49 @@ class WebsocketsTransport(AsyncTransport):
     async def close(self) -> None:
         """Coroutine which will:
 
+        - send stop messages for each active query to the server
         - send the connection terminate message
         - close the websocket connection
-        - send 'complete' messages to close all the existing subscribe async generators
+
+        - send the exceptions to all current listeners
         - remove the listen_loop task
         """
+        if self.websocket and not self._is_closing:
 
+            # Send stop message for all current queries
+            for query_id, listener in self.listeners.items():
+
+                if listener.send_stop:
+                    await self._send_stop_message(query_id)
+                    listener.send_stop = False
+
+            # Wait that there is no more listeners (we received 'complete' for all queries)
+            await asyncio.wait_for(self._no_more_listeners.wait(), timeout=5)
+
+            await self._send_connection_terminate_message()
+
+            await self.websocket.close()
+
+            await self._close_with_exception(
+                ConnectionClosedOK(
+                    code=1000, reason="Websocket GraphQL transport closed by user"
+                )
+            )
+
+    async def _close_with_exception(self, e: Exception) -> None:
+        """Coroutine called to close the transport if the underlaying websocket transport
+        has closed itself
+
+        - send the exceptions to all current listeners
+        - remove the listen_loop task
+        """
         if self.websocket and not self._is_closing:
 
             self._is_closing = True
 
-            try:
-                await self._send_connection_terminate_message()
-                await self.websocket.close()
-            except ConnectionClosedError:
-                pass
+            for query_id, listener in self.listeners.items():
 
-            for query_id in self.listeners:
-                await self.listeners[query_id].put(("complete", None))
+                await listener.set_exception(e)
 
             self.websocket = None
 
