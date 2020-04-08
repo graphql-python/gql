@@ -407,7 +407,7 @@ class WebsocketsTransport(AsyncTransport):
                     listener.send_stop = False
 
             # Wait that there is no more listeners (we received 'complete' for all queries)
-            await asyncio.wait_for(self._no_more_listeners.wait(), timeout=5)
+            await asyncio.wait_for(self._no_more_listeners.wait(), 10)
 
             await self._send_connection_terminate_message()
 
