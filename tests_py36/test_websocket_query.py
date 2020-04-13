@@ -2,9 +2,10 @@ import asyncio
 import pytest
 import websockets
 
-from .websocket_fixtures import server, client_and_server, TestServer
+from .websocket_fixtures import MS, server, client_and_server, TestServer
 from graphql.execution import ExecutionResult
 from gql.transport.websockets import WebsocketsTransport
+from gql.transport.exceptions import TransportClosed, TransportQueryError
 from gql import gql, AsyncClient
 from typing import Dict
 
@@ -25,19 +26,13 @@ query1_server_answer = (
     '{{"code":"SA","name":"South America"}}]}}}}}}'
 )
 
-
-async def server1(ws, path):
-    await TestServer.send_connection_ack(ws)
-    result = await ws.recv()
-    print(f"Server received: {result}")
-    await ws.send(query1_server_answer.format(query_id=1))
-    await TestServer.send_complete(ws, 1)
-    await TestServer.wait_connection_terminate(ws)
-    await ws.wait_closed()
+server1_answers = [
+    query1_server_answer,
+]
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("server", [server1], indirect=True)
+@pytest.mark.parametrize("server", [server1_answers,], indirect=True)
 async def test_websocket_starting_client_in_context_manager(server):
 
     url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
@@ -73,7 +68,7 @@ async def test_websocket_starting_client_in_context_manager(server):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("server", [server1], indirect=True)
+@pytest.mark.parametrize("server", [server1_answers,], indirect=True)
 @pytest.mark.parametrize("query_str", [query1_str])
 async def test_websocket_simple_query(client_and_server, query_str):
 
@@ -86,22 +81,14 @@ async def test_websocket_simple_query(client_and_server, query_str):
     print("Client received: " + str(result.data))
 
 
-async def server1_two_queries_in_series(ws, path):
-    await TestServer.send_connection_ack(ws)
-    result = await ws.recv()
-    print(f"Server received: {result}")
-    await ws.send(query1_server_answer.format(query_id=1))
-    await TestServer.send_complete(ws, 1)
-    result = await ws.recv()
-    print(f"Server received: {result}")
-    await ws.send(query1_server_answer.format(query_id=2))
-    await TestServer.send_complete(ws, 2)
-    await TestServer.wait_connection_terminate(ws)
-    await ws.wait_closed()
+server1_two_answers_in_series = [
+    query1_server_answer,
+    query1_server_answer,
+]
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("server", [server1_two_queries_in_series], indirect=True)
+@pytest.mark.parametrize("server", [server1_two_answers_in_series,], indirect=True)
 @pytest.mark.parametrize("query_str", [query1_str])
 async def test_websocket_two_queries_in_series(client_and_server, query_str):
 
@@ -163,3 +150,73 @@ async def test_websocket_two_queries_in_parallel(client_and_server, query_str):
     print("Query2 received: " + str(result2.data))
 
     assert str(result1.data) == str(result2.data)
+
+
+async def server_closing_while_we_are_doing_something_else(ws, path):
+    await TestServer.send_connection_ack(ws)
+    result = await ws.recv()
+    print(f"Server received: {result}")
+    await ws.send(query1_server_answer.format(query_id=1))
+    await TestServer.send_complete(ws, 1)
+    await asyncio.sleep(1 * MS)
+
+    # Closing server after first query
+    await ws.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "server", [server_closing_while_we_are_doing_something_else,], indirect=True
+)
+@pytest.mark.parametrize("query_str", [query1_str])
+async def test_websocket_server_closing_after_first_query(client_and_server, query_str):
+
+    client, server = client_and_server
+
+    query = gql(query_str)
+
+    # First query is working
+    result = await client.execute(query)
+
+    assert isinstance(result, ExecutionResult)
+    assert result.data is not None
+    assert result.errors is None
+
+    # Then we do other things
+    await asyncio.sleep(2 * MS)
+    await asyncio.sleep(2 * MS)
+    await asyncio.sleep(2 * MS)
+
+    # Now the server is closed but we don't know it yet, we have to send a query
+    # to notice it and to receive the exception
+    with pytest.raises(TransportClosed):
+        result = await client.execute(query)
+
+
+ignore_invalid_id_answers = [
+    query1_server_answer,
+    '{"type":"complete","id": "55"}',
+    query1_server_answer,
+]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("server", [ignore_invalid_id_answers,], indirect=True)
+@pytest.mark.parametrize("query_str", [query1_str])
+async def test_websocket_ignore_invalid_id(client_and_server, query_str):
+
+    client, server = client_and_server
+
+    query = gql(query_str)
+
+    # First query is working
+    result = await client.execute(query)
+    assert isinstance(result, ExecutionResult)
+
+    # Second query gets no answer -> raises
+    with pytest.raises(TransportQueryError):
+        result = await client.execute(query)
+
+    # Third query is working
+    result = await client.execute(query)
+    assert isinstance(result, ExecutionResult)

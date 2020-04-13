@@ -13,10 +13,15 @@ countdown_server_answer = (
     '{{"type":"data","id":"{query_id}","payload":{{"data":{{"number":{number}}}}}}}'
 )
 
+WITH_KEEPALIVE = False
+
 
 async def server_countdown(ws, path):
+    global WITH_KEEPALIVE
     try:
         await TestServer.send_connection_ack(ws)
+        if WITH_KEEPALIVE:
+            await TestServer.send_keepalive(ws)
 
         result = await ws.recv()
         json_result = json.loads(result)
@@ -49,7 +54,13 @@ async def server_countdown(ws, path):
                     print("Cancelling counting task now")
                     counting_task.cancel()
 
+        async def keepalive_coro():
+            while True:
+                await asyncio.sleep(5 * MS)
+                await TestServer.send_keepalive(ws)
+
         stopping_task = asyncio.ensure_future(stopping_coro())
+        keepalive_task = asyncio.ensure_future(keepalive_coro())
 
         try:
             await counting_task
@@ -62,6 +73,13 @@ async def server_countdown(ws, path):
             await stopping_task
         except asyncio.CancelledError:
             print("Now stopping task is cancelled")
+
+        if WITH_KEEPALIVE:
+            keepalive_task.cancel()
+            try:
+                await keepalive_task
+            except asyncio.CancelledError:
+                print("Now keepalive task is cancelled")
 
         await TestServer.send_complete(ws, query_id)
         await TestServer.wait_connection_terminate(ws)
@@ -124,8 +142,6 @@ async def test_websocket_subscription_break(client_and_server, subscription_str)
             break
 
         count -= 1
-
-    #await asyncio.sleep(1)
 
     assert count == 5
 
@@ -263,9 +279,7 @@ async def test_websocket_subscription_server_connection_closed(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(
-    "server", [server_countdown], indirect=True
-)
+@pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_websocket_subscription_slow_consumer(
     client_and_server, subscription_str
@@ -289,3 +303,29 @@ async def test_websocket_subscription_slow_consumer(
 
     assert count == -1
 
+
+WITH_KEEPALIVE = True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("server", [server_countdown], indirect=True)
+@pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
+async def test_websocket_subscription_with_keepalive(
+    client_and_server, subscription_str
+):
+
+    client, server = client_and_server
+
+    count = 10
+    subscription = gql(subscription_str.format(count=count))
+
+    async for result in client.subscribe(subscription):
+        assert isinstance(result, ExecutionResult)
+
+        number = result.data["number"]
+        print(f"Number received: {number}")
+
+        assert number == count
+        count -= 1
+
+    assert count == -1

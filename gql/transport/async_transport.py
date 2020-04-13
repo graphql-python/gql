@@ -15,7 +15,7 @@ class AsyncTransport:
         """
         raise NotImplementedError(
             "Any AsyncTransport subclass must implement execute method"
-        )
+        )  # pragma: no cover
 
     @abc.abstractmethod
     async def close(self):
@@ -23,7 +23,7 @@ class AsyncTransport:
         """
         raise NotImplementedError(
             "Any AsyncTransport subclass must implement execute method"
-        )
+        )  # pragma: no cover
 
     @abc.abstractmethod
     async def execute(
@@ -36,7 +36,7 @@ class AsyncTransport:
         """
         raise NotImplementedError(
             "Any AsyncTransport subclass must implement execute method"
-        )
+        )  # pragma: no cover
 
     @abc.abstractmethod
     def subscribe(
@@ -53,4 +53,4 @@ class AsyncTransport:
         """
         raise NotImplementedError(
             "Any AsyncTransport subclass must implement execute method"
-        )
+        )  # pragma: no cover

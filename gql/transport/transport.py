@@ -19,4 +19,4 @@ class Transport:
         """
         raise NotImplementedError(
             "Any Transport subclass must implement execute method"
-        )
+        )  # pragma: no cover

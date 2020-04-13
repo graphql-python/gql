@@ -4,8 +4,10 @@ import json
 import os
 import pytest
 import logging
+import types
 
 from gql.transport.websockets import WebsocketsTransport
+from websockets.exceptions import ConnectionClosed
 from gql import AsyncClient
 
 # Adding debug logs to websocket tests
@@ -18,6 +20,7 @@ for name in ["websockets.server", "gql.transport.websockets"]:
 
 # Unit for timeouts. May be increased on slow machines by setting the
 # WEBSOCKETS_TESTS_TIMEOUT_FACTOR environment variable.
+# Copied from websockets source
 MS = 0.001 * int(os.environ.get("WEBSOCKETS_TESTS_TIMEOUT_FACTOR", 1))
 
 
@@ -62,6 +65,10 @@ class TestServer:
         await ws.send(f'{{"type":"complete","id":"{query_id}","payload":null}}')
 
     @staticmethod
+    async def send_keepalive(ws):
+        await ws.send('{"type":"ka"}')
+
+    @staticmethod
     async def send_connection_ack(ws):
 
         # Line return for easy debugging
@@ -84,11 +91,51 @@ class TestServer:
 
 @pytest.fixture
 async def server(request):
+    """server is a fixture used to start a dummy server to test the client behaviour.
+
+    It can take as argument either a handler function for the websocket server for complete control
+    OR an array of answers to be sent by the default server handler
+    """
+
+    if isinstance(request.param, types.FunctionType):
+        server_handler = request.param
+
+    else:
+        answers = request.param
+
+        async def default_server_handler(ws, path):
+
+            try:
+                await TestServer.send_connection_ack(ws)
+                query_id = 1
+
+                for answer in answers:
+                    result = await ws.recv()
+                    print(f"Server received: {result}")
+
+                    if isinstance(answer, str) and "{query_id}" in answer:
+                        answer_format_params = {}
+                        answer_format_params["query_id"] = query_id
+                        formatted_answer = answer.format(**answer_format_params)
+                    else:
+                        formatted_answer = answer
+
+                    await ws.send(formatted_answer)
+                    await TestServer.send_complete(ws, query_id)
+                    query_id += 1
+
+                await TestServer.wait_connection_terminate(ws)
+                await ws.wait_closed()
+            except ConnectionClosed:
+                pass
+
+        server_handler = default_server_handler
+
     try:
         test_server = TestServer()
 
         # Starting the server with the fixture param as the handler function
-        await test_server.start(request.param)
+        await test_server.start(server_handler)
 
         yield test_server
     except Exception as e:
@@ -99,6 +146,7 @@ async def server(request):
 
 @pytest.fixture
 async def client_and_server(server):
+    """client_and_server is a helper fixture to start a server and a client connected to its port"""
 
     # Generate transport to connect to the server fixture
     path = "/graphql"

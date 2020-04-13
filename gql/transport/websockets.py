@@ -4,7 +4,7 @@ import websockets
 from websockets.http import HeadersLike
 from websockets.typing import Data, Subprotocol
 from websockets.client import WebSocketClientProtocol
-from websockets.exceptions import ConnectionClosedOK, ConnectionClosed
+from websockets.exceptions import ConnectionClosed
 
 from ssl import SSLContext
 
@@ -19,6 +19,12 @@ from graphql.language.ast import Document
 from graphql.language.printer import print_ast
 
 from .async_transport import AsyncTransport
+from .exceptions import (
+    TransportProtocolError,
+    TransportQueryError,
+    TransportServerError,
+    TransportClosed,
+)
 
 log = logging.getLogger(__name__)
 
@@ -98,45 +104,48 @@ class WebsocketsTransport(AsyncTransport):
         self.next_query_id: int = 1
         self.listeners: Dict[int, ListenerQueue] = {}
         self._is_closing: bool = False
+
+        self.listen_loop: Optional[asyncio.Future] = None
+
         self._no_more_listeners: asyncio.Event = asyncio.Event()
+        self._no_more_listeners.set()
+
+        self.close_exception: Optional[Exception] = None
 
     async def _send(self, message: str) -> None:
         """Send the provided message to the websocket connection and log the message
         """
 
         if not self.websocket:
-            raise Exception("Transport is not connected")
+            raise TransportClosed(
+                "Transport is not connected"
+            ) from self.close_exception
 
         try:
             await self.websocket.send(message)
             log.info(">>> %s", message)
         except (ConnectionClosed) as e:
-            await self._close_with_exception(e)
+            await self._close(e, clean_close=False)
             raise e
 
     async def _receive(self) -> str:
         """Wait the next message from the websocket connection and log the answer
         """
 
-        answer: Optional[str] = None
+        # We should always have an active websocket connection here
+        assert self.websocket is not None
 
-        if not self.websocket:
-            raise Exception("Transport is not connected")
+        # Wait for the next websocket frame. Can raise ConnectionClosed
+        data: Data = await self.websocket.recv()
 
-        try:
-            data: Data = await self.websocket.recv()
+        # websocket.recv() can return either str or bytes
+        # In our case, we should receive only str here
+        if not isinstance(data, str):
+            raise TransportProtocolError("Binary data received in the websocket")
 
-            # websocket.recv() can return either str or bytes
-            # In our case, we should receive only str here
-            if not isinstance(data, str):
-                raise Exception("Binary data received in the websocket")
+        answer: str = data
 
-            answer = data
-
-            log.info("<<< %s", answer)
-        except ConnectionClosed as e:
-            await self._close_with_exception(e)
-            raise e
+        log.info("<<< %s", answer)
 
         return answer
 
@@ -153,7 +162,9 @@ class WebsocketsTransport(AsyncTransport):
         answer_type, answer_id, execution_result = self._parse_answer(init_answer)
 
         if answer_type != "connection_ack":
-            raise Exception("Websocket server did not return a connection ack")
+            raise TransportProtocolError(
+                "Websocket server did not return a connection ack"
+            )
 
     async def _send_stop_message(self, query_id: int) -> None:
         """Send a stop message to the provided websocket connection for the provided query_id
@@ -225,29 +236,32 @@ class WebsocketsTransport(AsyncTransport):
         try:
             json_answer = json.loads(answer)
 
-            if not isinstance(json_answer, dict):
-                raise ValueError
-
             answer_type = str(json_answer.get("type"))
 
             if answer_type in ["data", "error", "complete"]:
                 answer_id = int(str(json_answer.get("id")))
 
-                if answer_type == "data":
-                    result = json_answer.get("payload")
+                if answer_type == "data" or answer_type == "error":
 
-                    if not isinstance(result, Dict):
-                        raise ValueError
+                    payload = json_answer.get("payload")
 
-                    if "errors" not in result and "data" not in result:
-                        raise ValueError
+                    if not isinstance(payload, dict):
+                        raise ValueError("payload is not a dict")
 
-                    execution_result = ExecutionResult(
-                        errors=result.get("errors"), data=result.get("data")
-                    )
+                    if answer_type == "data":
 
-                elif answer_type == "error":
-                    raise Exception("Websocket server error")
+                        if "errors" not in payload and "data" not in payload:
+                            raise ValueError(
+                                "payload does not contain 'data' or 'errors' fields"
+                            )
+
+                        execution_result = ExecutionResult(
+                            errors=payload.get("errors"), data=payload.get("data")
+                        )
+
+                    elif answer_type == "error":
+
+                        raise TransportQueryError(str(payload), query_id=answer_id)
 
             elif answer_type == "ka":
                 # KeepAlive message
@@ -255,34 +269,66 @@ class WebsocketsTransport(AsyncTransport):
             elif answer_type == "connection_ack":
                 pass
             elif answer_type == "connection_error":
-                raise Exception("Websocket Connection Error")
+                error_payload = json_answer.get("payload")
+                raise TransportServerError(f"Server error: '{repr(error_payload)}'")
             else:
                 raise ValueError
 
-        except ValueError:
-            raise Exception("Websocket server did not return a GraphQL result")
+        except ValueError as e:
+            raise TransportProtocolError(
+                "Server did not return a GraphQL result"
+            ) from e
 
         return (answer_type, answer_id, execution_result)
 
     async def _answer_loop(self) -> None:
 
-        while True:
+        try:
+            while True:
 
-            # Wait the next answer from the websocket server
-            try:
-                answer = await self._receive()
-            except ConnectionClosed:
-                return
+                # Wait the next answer from the websocket server
+                try:
+                    answer = await self._receive()
+                except (ConnectionClosed, TransportProtocolError) as e:
+                    await self._close(e, clean_close=False)
+                    break
 
-            # Parse the answer
-            answer_type, answer_id, execution_result = self._parse_answer(answer)
+                # Parse the answer
+                try:
+                    answer_type, answer_id, execution_result = self._parse_answer(
+                        answer
+                    )
+                except TransportQueryError as e:
+                    # Received an exception for a specific query
+                    # ==> Add an exception to this query queue
+                    # The exception is raised for this specific query but the transport is not closed
+                    try:
+                        await self.listeners[e.query_id].set_exception(e)
+                    except KeyError:
+                        # Do nothing if no one is listening to this query_id
+                        pass
 
-            # Continue if no listener exists for this id
-            if answer_id not in self.listeners:
-                continue
+                    continue
 
-            # Put the answer in the queue
-            await self.listeners[answer_id].put((answer_type, execution_result))
+                except (TransportServerError, TransportProtocolError) as e:
+                    # Received a global exception for this transport
+                    # ==> close the transport
+                    # The exception will be raised for all current queries
+                    await self._close(e, clean_close=False)
+                    break
+
+                try:
+                    # Put the answer in the queue
+                    if answer_id is not None:
+                        await self.listeners[answer_id].put(
+                            (answer_type, execution_result)
+                        )
+                except KeyError:
+                    # Do nothing if no one is listening to this query_id
+                    pass
+
+        finally:
+            log.debug("Exiting _answer_loop()")
 
     async def subscribe(
         self,
@@ -307,11 +353,15 @@ class WebsocketsTransport(AsyncTransport):
         listener = ListenerQueue(query_id, send_stop=(send_stop is True))
         self.listeners[query_id] = listener
 
+        # We will need to wait at close for this query to clean properly
+        self._no_more_listeners.clear()
+
         try:
             # Loop over the received answers
             while True:
 
                 # Wait for the answer from the queue of this query_id
+                # This can raise a TransportError exception or a ConnectionClosed exception
                 answer_type, execution_result = await listener.get()
 
                 # If the received answer contains data,
@@ -348,10 +398,18 @@ class WebsocketsTransport(AsyncTransport):
 
         The result is sent as an ExecutionResult object
         """
+        first_result = None
+
         async for result in self.subscribe(
             document, variable_values, operation_name, send_stop=False
         ):
             first_result = result
+            break
+
+        if first_result is None:
+            raise TransportQueryError(
+                "Query completed without any answer received from the server"
+            )
 
         return first_result
 
@@ -378,65 +436,70 @@ class WebsocketsTransport(AsyncTransport):
                 subprotocols=[GRAPHQLWS_SUBPROTOCOL],
             )
 
-            # Reset the next query id
             self.next_query_id = 1
+            self.close_exception = None
 
             # Send the init message and wait for the ack from the server
-            await self._send_init_message_and_wait_ack()
+            try:
+                await self._send_init_message_and_wait_ack()
+            except ConnectionClosed as e:
+                raise e
+            except TransportProtocolError as e:
+                await self._close(e, clean_close=False)
+                raise e
 
             # Create a task to listen to the incoming websocket messages
             self.listen_loop = asyncio.ensure_future(self._answer_loop())
 
-    async def close(self) -> None:
+    async def _clean_close(self, e: Exception) -> None:
         """Coroutine which will:
 
-        - send stop messages for each active query to the server
+        - send stop messages for each active subscription to the server
         - send the connection terminate message
-        - close the websocket connection
-
-        - send the exceptions to all current listeners
-        - remove the listen_loop task
         """
-        if self.websocket and not self._is_closing:
 
-            # Send stop message for all current queries
-            for query_id, listener in self.listeners.items():
+        # Send stop message for all current queries
+        for query_id, listener in self.listeners.items():
 
-                if listener.send_stop:
-                    await self._send_stop_message(query_id)
-                    listener.send_stop = False
+            if listener.send_stop:
+                await self._send_stop_message(query_id)
+                listener.send_stop = False
 
-            # Wait that there is no more listeners (we received 'complete' for all queries)
-            try:
-                await asyncio.wait_for(self._no_more_listeners.wait(), 10)
-            except asyncio.TimeoutError:
-                pass
+        # Wait that there is no more listeners (we received 'complete' for all queries)
+        try:
+            await asyncio.wait_for(self._no_more_listeners.wait(), 10)
+        except asyncio.TimeoutError:  # pragma: no cover
+            pass
 
-            await self._send_connection_terminate_message()
+        await self._send_connection_terminate_message()
 
-            await self.websocket.close()
+    async def _close(self, e: Exception, clean_close: bool = True) -> None:
+        """Coroutine which will:
 
-            await self._close_with_exception(
-                ConnectionClosedOK(
-                    code=1000, reason="Websocket GraphQL transport closed by user"
-                )
-            )
-
-    async def _close_with_exception(self, e: Exception) -> None:
-        """Coroutine called to close the transport if the underlaying websocket transport
-        has closed itself
-
-        - send the exceptions to all current listeners
-        - remove the listen_loop task
+        - do a clean_close if possible:
+            - send stop messages for each active query to the server
+            - send the connection terminate message
+        - close the websocket connection
+        - send the exception to all the remaining listeners
         """
         if self.websocket and not self._is_closing:
 
             self._is_closing = True
 
-            for query_id, listener in self.listeners.items():
+            # Saving exception to raise it later if trying to use the transport after it has closed
+            self.close_exception = e
 
+            if clean_close:
+                await self._clean_close(e)
+
+            # Send an exception to all remaining listeners
+            for query_id, listener in self.listeners.items():
                 await listener.set_exception(e)
+
+            await self.websocket.close()
 
             self.websocket = None
 
-            self.listen_loop.cancel()
+    async def close(self) -> None:
+
+        await self._close(TransportClosed("Websocket GraphQL transport closed by user"))
