@@ -24,6 +24,7 @@ from .exceptions import (
     TransportQueryError,
     TransportServerError,
     TransportClosed,
+    TransportAlreadyConnected,
 )
 
 log = logging.getLogger(__name__)
@@ -103,9 +104,12 @@ class WebsocketsTransport(AsyncTransport):
         self.websocket: Optional[WebSocketClientProtocol] = None
         self.next_query_id: int = 1
         self.listeners: Dict[int, ListenerQueue] = {}
-        self._is_closing: bool = False
 
-        self.listen_loop: Optional[asyncio.Future] = None
+        self.receive_data_task: Optional[asyncio.Future] = None
+        self.close_task: Optional[asyncio.Future] = None
+
+        self._wait_closed: asyncio.Event = asyncio.Event()
+        self._wait_closed.set()
 
         self._no_more_listeners: asyncio.Event = asyncio.Event()
         self._no_more_listeners.set()
@@ -125,7 +129,7 @@ class WebsocketsTransport(AsyncTransport):
             await self.websocket.send(message)
             log.info(">>> %s", message)
         except (ConnectionClosed) as e:
-            await self._close(e, clean_close=False)
+            await self._fail(e, clean_close=False)
             raise e
 
     async def _receive(self) -> str:
@@ -281,7 +285,7 @@ class WebsocketsTransport(AsyncTransport):
 
         return (answer_type, answer_id, execution_result)
 
-    async def _answer_loop(self) -> None:
+    async def _receive_data_loop(self) -> None:
 
         try:
             while True:
@@ -290,7 +294,7 @@ class WebsocketsTransport(AsyncTransport):
                 try:
                     answer = await self._receive()
                 except (ConnectionClosed, TransportProtocolError) as e:
-                    await self._close(e, clean_close=False)
+                    await self._fail(e, clean_close=False)
                     break
 
                 # Parse the answer
@@ -314,7 +318,7 @@ class WebsocketsTransport(AsyncTransport):
                     # Received a global exception for this transport
                     # ==> close the transport
                     # The exception will be raised for all current queries
-                    await self._close(e, clean_close=False)
+                    await self._fail(e, clean_close=False)
                     break
 
                 try:
@@ -328,7 +332,7 @@ class WebsocketsTransport(AsyncTransport):
                     pass
 
         finally:
-            log.debug("Exiting _answer_loop()")
+            log.debug("Exiting _receive_data_loop()")
 
     async def subscribe(
         self,
@@ -365,12 +369,12 @@ class WebsocketsTransport(AsyncTransport):
                 answer_type, execution_result = await listener.get()
 
                 # If the received answer contains data,
-                #     Then we will yield the results back as an ExecutionResult object
+                # Then we will yield the results back as an ExecutionResult object
                 if execution_result is not None:
                     yield execution_result
 
                 # If we receive a 'complete' answer from the server,
-                #     Then we will end this async generator output and disconnect from the server
+                # Then we will end this async generator output without errors
                 elif answer_type == "complete":
                     log.debug(
                         f"Complete received for query {query_id} --> exit without error"
@@ -438,6 +442,7 @@ class WebsocketsTransport(AsyncTransport):
 
             self.next_query_id = 1
             self.close_exception = None
+            self._wait_closed.clear()
 
             # Send the init message and wait for the ack from the server
             try:
@@ -445,11 +450,14 @@ class WebsocketsTransport(AsyncTransport):
             except ConnectionClosed as e:
                 raise e
             except TransportProtocolError as e:
-                await self._close(e, clean_close=False)
+                await self._fail(e, clean_close=False)
                 raise e
 
             # Create a task to listen to the incoming websocket messages
-            self.listen_loop = asyncio.ensure_future(self._answer_loop())
+            self.receive_data_task = asyncio.ensure_future(self._receive_data_loop())
+
+        else:
+            raise TransportAlreadyConnected("Transport is already connected")
 
     async def _clean_close(self, e: Exception) -> None:
         """Coroutine which will:
@@ -458,7 +466,7 @@ class WebsocketsTransport(AsyncTransport):
         - send the connection terminate message
         """
 
-        # Send stop message for all current queries
+        # Send 'stop' message for all current queries
         for query_id, listener in self.listeners.items():
 
             if listener.send_stop:
@@ -471,9 +479,10 @@ class WebsocketsTransport(AsyncTransport):
         except asyncio.TimeoutError:  # pragma: no cover
             pass
 
+        # Finally send the 'connection_terminate' message
         await self._send_connection_terminate_message()
 
-    async def _close(self, e: Exception, clean_close: bool = True) -> None:
+    async def _close_coro(self, e: Exception, clean_close: bool = True) -> None:
         """Coroutine which will:
 
         - do a clean_close if possible:
@@ -482,9 +491,7 @@ class WebsocketsTransport(AsyncTransport):
         - close the websocket connection
         - send the exception to all the remaining listeners
         """
-        if self.websocket and not self._is_closing:
-
-            self._is_closing = True
+        if self.websocket:
 
             # Saving exception to raise it later if trying to use the transport after it has closed
             self.close_exception = e
@@ -500,6 +507,18 @@ class WebsocketsTransport(AsyncTransport):
 
             self.websocket = None
 
-    async def close(self) -> None:
+            self.close_task = None
+            self._wait_closed.set()
 
-        await self._close(TransportClosed("Websocket GraphQL transport closed by user"))
+    async def _fail(self, e: Exception, clean_close: bool = True) -> None:
+        if self.close_task is None:
+            self.close_task = asyncio.shield(
+                asyncio.ensure_future(self._close_coro(e, clean_close=clean_close))
+            )
+
+    async def close(self) -> None:
+        await self._fail(TransportClosed("Websocket GraphQL transport closed by user"))
+        await self.wait_closed()
+
+    async def wait_closed(self) -> None:
+        await self._wait_closed.wait()

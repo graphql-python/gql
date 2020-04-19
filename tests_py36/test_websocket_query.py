@@ -5,7 +5,11 @@ import websockets
 from .websocket_fixtures import MS, server, client_and_server, TestServer
 from graphql.execution import ExecutionResult
 from gql.transport.websockets import WebsocketsTransport
-from gql.transport.exceptions import TransportClosed, TransportQueryError
+from gql.transport.exceptions import (
+    TransportClosed,
+    TransportQueryError,
+    TransportAlreadyConnected,
+)
 from gql import gql, AsyncClient
 from typing import Dict
 
@@ -220,3 +224,78 @@ async def test_websocket_ignore_invalid_id(client_and_server, query_str):
     # Third query is working
     result = await client.execute(query)
     assert isinstance(result, ExecutionResult)
+
+
+async def assert_client_is_working(client):
+    query1 = gql(query1_str)
+
+    result = await client.execute(query1)
+
+    assert isinstance(result, ExecutionResult)
+
+    print("Client received: " + str(result.data))
+
+    # Verify result
+    assert result.errors is None
+    assert isinstance(result.data, Dict)
+
+    continents = result.data["continents"]
+    africa = continents[0]
+
+    assert africa["code"] == "AF"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("server", [server1_answers,], indirect=True)
+async def test_websocket_multiple_connections_in_series(server):
+
+    url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
+    print(f"url = {url}")
+
+    sample_transport = WebsocketsTransport(url=url)
+
+    async with AsyncClient(transport=sample_transport) as client:
+        await assert_client_is_working(client)
+
+    # Check client is disconnect here
+    assert sample_transport.websocket is None
+
+    async with AsyncClient(transport=sample_transport) as client:
+        await assert_client_is_working(client)
+
+    # Check client is disconnect here
+    assert sample_transport.websocket is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("server", [server1_answers,], indirect=True)
+async def test_websocket_multiple_connections_in_parallel(server):
+
+    url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
+    print(f"url = {url}")
+
+    async def task_coro():
+        sample_transport = WebsocketsTransport(url=url)
+        async with AsyncClient(transport=sample_transport) as client:
+            await assert_client_is_working(client)
+
+    task1 = asyncio.ensure_future(task_coro())
+    task2 = asyncio.ensure_future(task_coro())
+
+    await asyncio.gather(task1, task2)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("server", [server1_answers,], indirect=True)
+async def test_websocket_trying_to_connect_to_already_connected_transport(server):
+
+    url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
+    print(f"url = {url}")
+
+    sample_transport = WebsocketsTransport(url=url)
+    async with AsyncClient(transport=sample_transport) as client:
+        await assert_client_is_working(client)
+
+        with pytest.raises(TransportAlreadyConnected):
+            async with AsyncClient(transport=sample_transport) as client2:
+                pass

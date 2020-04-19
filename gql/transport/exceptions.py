@@ -27,3 +27,8 @@ class TransportQueryError(Exception):
 class TransportClosed(TransportError):
     """ Exception generated when the client is trying to use the transport
     while the transport was previously closed """
+
+
+class TransportAlreadyConnected(TransportError):
+    """ Exception generated when the client is trying to connect to the transport
+    while the transport is already connected """

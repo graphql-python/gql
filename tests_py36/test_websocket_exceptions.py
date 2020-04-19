@@ -228,5 +228,7 @@ async def test_websocket_server_closing_after_ack(client_and_server):
     with pytest.raises(websockets.exceptions.ConnectionClosed):
         result = await client.execute(query)
 
+    await client.transport.wait_closed()
+
     with pytest.raises(TransportClosed):
         result = await client.execute(query)
