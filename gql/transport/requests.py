@@ -60,7 +60,7 @@ class RequestsHTTPTransport(Transport):
         # Creating a session that can later be re-use to configure custom mechanisms
         self.session = requests.Session()
 
-        # If we specified a retry
+        # If we specified some retries, we provide a predefined retry-logic
         if retries > 0:
             adapter = HTTPAdapter(
                 max_retries=Retry(
