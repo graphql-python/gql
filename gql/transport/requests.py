@@ -6,6 +6,7 @@ import requests
 from graphql.execution import ExecutionResult
 from graphql.language.ast import Document
 from graphql.language.printer import print_ast
+from requests.adapters import HTTPAdapter, Retry
 from requests.auth import AuthBase
 from requests.cookies import RequestsCookieJar
 
@@ -27,6 +28,7 @@ class RequestsHTTPTransport(Transport):
         use_json=False,  # type: bool
         timeout=None,  # type: int
         verify=True,  # type: bool
+        retries=0,  # type: int
         **kwargs  # type: Any
     ):
         """Initialize the transport with the given request parameters.
@@ -55,6 +57,21 @@ class RequestsHTTPTransport(Transport):
         self.verify = verify
         self.kwargs = kwargs
 
+        # Creating a session that can later be re-use to configure custom mechanisms
+        self.session = requests.Session()
+
+        # If we specified a retry
+        if retries > 0:
+            adapter = HTTPAdapter(
+                max_retries=Retry(
+                    total=retries,
+                    backoff_factor=0.1,
+                    status_forcelist=[500, 502, 503, 504]
+                )
+            )
+            for prefix in 'http://', 'https://':
+                self.session.mount(prefix, adapter)
+
     def execute(self, document, variable_values=None, timeout=None):
         # type: (Document, Dict, int) -> ExecutionResult
         """Execute the provided document AST against the configured remote server.
@@ -82,7 +99,8 @@ class RequestsHTTPTransport(Transport):
         # Pass kwargs to requests post method
         post_args.update(self.kwargs)
 
-        response = requests.post(self.url, **post_args)  # type: ignore
+        # Using the created session to perform requests
+        response = self.session.post(self.url, **post_args)  # type: ignore
         try:
             result = response.json()
             if not isinstance(result, dict):

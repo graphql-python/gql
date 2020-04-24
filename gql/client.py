@@ -25,7 +25,7 @@ class Client(object):
         type_def=None,
         transport=None,
         fetch_schema_from_transport=False,
-        retries=0,
+        retries=0,  # We should remove this parameter and let the transport level handle it
     ):
         assert not (
             type_def and introspection
