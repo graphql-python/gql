@@ -3,9 +3,7 @@ import pytest
 import json
 import websockets
 import types
-import gql
 
-from parse import search
 from .websocket_fixtures import MS, server, client_and_server, TestServer
 from graphql.execution import ExecutionResult
 from gql import gql, AsyncClient
@@ -13,7 +11,6 @@ from gql.transport.websockets import WebsocketsTransport
 from gql.transport.exceptions import (
     TransportProtocolError,
     TransportQueryError,
-    TransportServerError,
     TransportClosed,
 )
 
@@ -39,7 +36,7 @@ invalid_query1_server = [
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("server", [invalid_query1_server,], indirect=True)
+@pytest.mark.parametrize("server", [invalid_query1_server], indirect=True)
 @pytest.mark.parametrize("query_str", [invalid_query_str])
 async def test_websocket_invalid_query(client_and_server, query_str):
 
@@ -117,7 +114,7 @@ async def test_websocket_sending_invalid_payload(client_and_server, query_str):
         self.next_query_id += 1
 
         query_str = json.dumps(
-            {"id": str(query_id), "type": "start", "payload": "BLAHBLAH",}
+            {"id": str(query_id), "type": "start", "payload": "BLAHBLAH"}
         )
 
         await self._send(query_str)
@@ -130,7 +127,7 @@ async def test_websocket_sending_invalid_payload(client_and_server, query_str):
     query = gql(query_str)
 
     with pytest.raises(TransportQueryError):
-        result = await client.execute(query)
+        await client.execute(query)
 
 
 not_json_answer = ["BLAHBLAH"]
@@ -169,7 +166,7 @@ async def test_websocket_transport_protocol_errors(client_and_server):
     query = gql("query { hello }")
 
     with pytest.raises(TransportProtocolError):
-        result = await client.execute(query)
+        await client.execute(query)
 
 
 async def server_without_ack(ws, path):
@@ -179,7 +176,7 @@ async def server_without_ack(ws, path):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("server", [server_without_ack,], indirect=True)
+@pytest.mark.parametrize("server", [server_without_ack], indirect=True)
 async def test_websocket_server_does_not_ack(server):
 
     url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
@@ -188,8 +185,7 @@ async def test_websocket_server_does_not_ack(server):
     sample_transport = WebsocketsTransport(url=url)
 
     with pytest.raises(TransportProtocolError):
-        async with AsyncClient(transport=sample_transport) as client:
-
+        async with AsyncClient(transport=sample_transport):
             pass
 
 
@@ -198,7 +194,7 @@ async def server_closing_directly(ws, path):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("server", [server_closing_directly,], indirect=True)
+@pytest.mark.parametrize("server", [server_closing_directly], indirect=True)
 async def test_websocket_server_closing_directly(server):
 
     url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
@@ -207,8 +203,7 @@ async def test_websocket_server_closing_directly(server):
     sample_transport = WebsocketsTransport(url=url)
 
     with pytest.raises(websockets.exceptions.ConnectionClosed):
-        async with AsyncClient(transport=sample_transport) as client:
-
+        async with AsyncClient(transport=sample_transport):
             pass
 
 
@@ -218,7 +213,7 @@ async def server_closing_after_ack(ws, path):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("server", [server_closing_after_ack,], indirect=True)
+@pytest.mark.parametrize("server", [server_closing_after_ack], indirect=True)
 async def test_websocket_server_closing_after_ack(client_and_server):
 
     client, server = client_and_server
@@ -226,9 +221,9 @@ async def test_websocket_server_closing_after_ack(client_and_server):
     query = gql("query { hello }")
 
     with pytest.raises(websockets.exceptions.ConnectionClosed):
-        result = await client.execute(query)
+        await client.execute(query)
 
     await client.transport.wait_closed()
 
     with pytest.raises(TransportClosed):
-        result = await client.execute(query)
+        await client.execute(query)

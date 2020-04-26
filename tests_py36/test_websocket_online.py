@@ -135,7 +135,7 @@ async def test_websocket_sending_invalid_payload():
     )
 
     # Instanciate client
-    async with AsyncClient(transport=sample_transport) as client:
+    async with AsyncClient(transport=sample_transport):
 
         invalid_payload = '{"id": "1", "type": "start", "payload": "BLAHBLAH"}'
 

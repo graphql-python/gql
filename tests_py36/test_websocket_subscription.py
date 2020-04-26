@@ -219,7 +219,6 @@ async def test_websocket_subscription_close_transport(
 
     close_transport_task = asyncio.ensure_future(close_transport_task_coro())
 
-    # with pytest.raises(websockets.exceptions.ConnectionClosedOK):
     await asyncio.gather(task, close_transport_task)
 
     assert count > 0

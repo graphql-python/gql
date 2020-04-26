@@ -36,7 +36,7 @@ server1_answers = [
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("server", [server1_answers,], indirect=True)
+@pytest.mark.parametrize("server", [server1_answers], indirect=True)
 async def test_websocket_starting_client_in_context_manager(server):
 
     url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
@@ -72,7 +72,7 @@ async def test_websocket_starting_client_in_context_manager(server):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("server", [server1_answers,], indirect=True)
+@pytest.mark.parametrize("server", [server1_answers], indirect=True)
 @pytest.mark.parametrize("query_str", [query1_str])
 async def test_websocket_simple_query(client_and_server, query_str):
 
@@ -92,7 +92,7 @@ server1_two_answers_in_series = [
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("server", [server1_two_answers_in_series,], indirect=True)
+@pytest.mark.parametrize("server", [server1_two_answers_in_series], indirect=True)
 @pytest.mark.parametrize("query_str", [query1_str])
 async def test_websocket_two_queries_in_series(client_and_server, query_str):
 
@@ -170,7 +170,7 @@ async def server_closing_while_we_are_doing_something_else(ws, path):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "server", [server_closing_while_we_are_doing_something_else,], indirect=True
+    "server", [server_closing_while_we_are_doing_something_else], indirect=True
 )
 @pytest.mark.parametrize("query_str", [query1_str])
 async def test_websocket_server_closing_after_first_query(client_and_server, query_str):
@@ -205,7 +205,7 @@ ignore_invalid_id_answers = [
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("server", [ignore_invalid_id_answers,], indirect=True)
+@pytest.mark.parametrize("server", [ignore_invalid_id_answers], indirect=True)
 @pytest.mark.parametrize("query_str", [query1_str])
 async def test_websocket_ignore_invalid_id(client_and_server, query_str):
 
@@ -246,7 +246,7 @@ async def assert_client_is_working(client):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("server", [server1_answers,], indirect=True)
+@pytest.mark.parametrize("server", [server1_answers], indirect=True)
 async def test_websocket_multiple_connections_in_series(server):
 
     url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
@@ -268,7 +268,7 @@ async def test_websocket_multiple_connections_in_series(server):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("server", [server1_answers,], indirect=True)
+@pytest.mark.parametrize("server", [server1_answers], indirect=True)
 async def test_websocket_multiple_connections_in_parallel(server):
 
     url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
@@ -286,7 +286,7 @@ async def test_websocket_multiple_connections_in_parallel(server):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("server", [server1_answers,], indirect=True)
+@pytest.mark.parametrize("server", [server1_answers], indirect=True)
 async def test_websocket_trying_to_connect_to_already_connected_transport(server):
 
     url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
@@ -297,5 +297,5 @@ async def test_websocket_trying_to_connect_to_already_connected_transport(server
         await assert_client_is_working(client)
 
         with pytest.raises(TransportAlreadyConnected):
-            async with AsyncClient(transport=sample_transport) as client2:
+            async with AsyncClient(transport=sample_transport):
                 pass
