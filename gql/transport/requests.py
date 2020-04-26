@@ -66,10 +66,10 @@ class RequestsHTTPTransport(Transport):
                 max_retries=Retry(
                     total=retries,
                     backoff_factor=0.1,
-                    status_forcelist=[500, 502, 503, 504]
+                    status_forcelist=[500, 502, 503, 504],
                 )
             )
-            for prefix in 'http://', 'https://':
+            for prefix in "http://", "https://":
                 self.session.mount(prefix, adapter)
 
     def execute(self, document, variable_values=None, timeout=None):
