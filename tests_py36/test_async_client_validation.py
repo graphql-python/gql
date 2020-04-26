@@ -82,7 +82,7 @@ starwars_invalid_subscription_str = """
         {"type_def": StarWarsTypeDef},
     ],
 )
-async def test_async_client_validation(server, subscription_str, client_params):
+async def test_async_client_validation(event_loop, server, subscription_str, client_params):
 
     url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
 
@@ -126,7 +126,7 @@ async def test_async_client_validation(server, subscription_str, client_params):
     ],
 )
 async def test_async_client_validation_invalid_query(
-    server, subscription_str, client_params
+    event_loop, server, subscription_str, client_params
 ):
 
     url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
@@ -158,7 +158,7 @@ async def test_async_client_validation_invalid_query(
     ],
 )
 async def test_async_client_validation_different_schemas_parameters_forbidden(
-    server, subscription_str, client_params
+    event_loop, server, subscription_str, client_params
 ):
 
     url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"

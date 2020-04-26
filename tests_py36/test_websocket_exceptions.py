@@ -38,7 +38,7 @@ invalid_query1_server = [
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [invalid_query1_server], indirect=True)
 @pytest.mark.parametrize("query_str", [invalid_query_str])
-async def test_websocket_invalid_query(client_and_server, query_str):
+async def test_websocket_invalid_query(event_loop, client_and_server, query_str):
 
     client, server = client_and_server
 
@@ -73,7 +73,7 @@ async def server_connection_error(ws, path):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_connection_error], indirect=True)
 @pytest.mark.parametrize("query_str", [invalid_query_str])
-async def test_websocket_sending_invalid_data(client_and_server, query_str):
+async def test_websocket_sending_invalid_data(event_loop, client_and_server, query_str):
 
     client, server = client_and_server
 
@@ -101,7 +101,7 @@ async def server_invalid_payload(ws, path):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_invalid_payload], indirect=True)
 @pytest.mark.parametrize("query_str", [invalid_query_str])
-async def test_websocket_sending_invalid_payload(client_and_server, query_str):
+async def test_websocket_sending_invalid_payload(event_loop, client_and_server, query_str):
 
     client, server = client_and_server
 
@@ -159,7 +159,7 @@ sending_bytes = [b"\x01\x02\x03"]
     ],
     indirect=True,
 )
-async def test_websocket_transport_protocol_errors(client_and_server):
+async def test_websocket_transport_protocol_errors(event_loop, client_and_server):
 
     client, server = client_and_server
 
@@ -177,7 +177,7 @@ async def server_without_ack(ws, path):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_without_ack], indirect=True)
-async def test_websocket_server_does_not_ack(server):
+async def test_websocket_server_does_not_ack(event_loop, server):
 
     url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
     print(f"url = {url}")
@@ -195,7 +195,7 @@ async def server_closing_directly(ws, path):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_closing_directly], indirect=True)
-async def test_websocket_server_closing_directly(server):
+async def test_websocket_server_closing_directly(event_loop, server):
 
     url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
     print(f"url = {url}")
@@ -214,7 +214,7 @@ async def server_closing_after_ack(ws, path):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_closing_after_ack], indirect=True)
-async def test_websocket_server_closing_after_ack(client_and_server):
+async def test_websocket_server_closing_after_ack(event_loop, client_and_server):
 
     client, server = client_and_server
 
