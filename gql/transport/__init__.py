@@ -20,3 +20,17 @@ class Transport:
         raise NotImplementedError(
             "Any Transport subclass must implement execute method"
         )
+
+    def close(self):
+        """Close the transport
+
+        This method doesn't have to be implemented unless the transport would benefit from it,
+        for example any long-lived TCP Connection like HTTP Keep-Alive or Websocket.
+        """
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.close()

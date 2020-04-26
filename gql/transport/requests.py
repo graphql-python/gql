@@ -42,6 +42,7 @@ class RequestsHTTPTransport(Transport):
         :param verify: Either a boolean, in which case it controls whether we verify
             the server's TLS certificate, or a string, in which case it must be a path
             to a CA bundle to use. (Default: True).
+        :param retries: Pre-setup of the requests' Session for performing retries
         :param kwargs: Optional arguments that ``request`` takes. These can be seen at the :requests_: source code
             or the official :docs_:
 
@@ -114,3 +115,7 @@ class RequestsHTTPTransport(Transport):
                 "Server did not return a GraphQL result", response=response
             )
         return ExecutionResult(errors=result.get("errors"), data=result.get("data"))
+
+    def close(self):
+        """Closing the transport by closing the inner session"""
+        self.session.close()

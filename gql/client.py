@@ -93,3 +93,13 @@ class Client(object):
                 retries_count += 1
 
         raise RetryError(retries_count, last_exception)
+
+    def close(self):
+        """Close the client and it's underlying transport"""
+        self.transport.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.close()

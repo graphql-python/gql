@@ -56,7 +56,7 @@ def test_retries(execute_mock):
 
     with pytest.raises(Exception):
         client.execute(query)
-
+    client.close()
     assert execute_mock.call_count == expected_retries
 
 
@@ -95,6 +95,7 @@ def test_execute_result_error():
 
     with pytest.raises(Exception) as exc_info:
         client.execute(failing_query)
+    client.close()
     assert 'Cannot query field "id" on type "Continent".' in str(exc_info.value)
 
 
@@ -108,6 +109,7 @@ def test_http_transport_raise_for_status_error(http_transport_query):
 
     with pytest.raises(Exception) as exc_info:
         client.execute(http_transport_query)
+    client.close()
     assert "400 Client Error: Bad Request for url" in str(exc_info.value)
 
 
@@ -122,6 +124,7 @@ def test_http_transport_verify_error(http_transport_query):
     )
     with pytest.warns(Warning) as record:
         client.execute(http_transport_query)
+    client.close()  # We could have written `with client:` on top of the `with pytest...` instead
     assert len(record) == 1
     assert "Unverified HTTPS request is being made to host" in str(record[0].message)
 
@@ -150,4 +153,5 @@ def test_gql():
     """
     )
     result = client.execute(query)
+    client.close()
     assert result["user"] is None
