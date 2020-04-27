@@ -2,6 +2,8 @@ import os
 
 import mock
 import pytest
+from urllib3.exceptions import NewConnectionError
+
 from graphql import build_ast_schema, parse
 
 from gql import Client, gql
@@ -58,6 +60,41 @@ def test_retries(execute_mock):
         client.execute(query)
     client.close()
     assert execute_mock.call_count == expected_retries
+
+
+@mock.patch("urllib3.connection.HTTPConnection._new_conn")
+def test_retries_on_transport(execute_mock):
+    """Testing retries on the transport level
+
+    This forces us to override low-level APIs because the retry mechanism on the urllib3 (which
+    uses requests) is pretty low-level itself.
+    """
+    expected_retries = 3
+    execute_mock.side_effect = NewConnectionError("Should be HTTPConnection", "Fake connection error")
+    transport = RequestsHTTPTransport(
+        url="http://localhost:9999",
+        retries=expected_retries,
+    )
+    client = Client(transport=transport)
+
+    query = gql(
+        """
+    {
+      myFavoriteFilm: film(id:"RmlsbToz") {
+        id
+        title
+        episodeId
+      }
+    }
+    """
+    )
+    with client:  # We're using the client as context manager
+        with pytest.raises(Exception):
+            client.execute(query)
+
+    # This might look strange compared to the previous test, but making 3 retries
+    # means you're actually doing 4 calls.
+    assert execute_mock.call_count == expected_retries + 1
 
 
 def test_no_schema_exception():
