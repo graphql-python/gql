@@ -28,9 +28,3 @@ class Transport:
         for example any long-lived TCP Connection like HTTP Keep-Alive or Websocket.
         """
         pass
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *args):
-        self.close()
