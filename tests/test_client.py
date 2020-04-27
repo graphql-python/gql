@@ -70,10 +70,11 @@ def test_retries_on_transport(execute_mock):
     uses requests) is pretty low-level itself.
     """
     expected_retries = 3
-    execute_mock.side_effect = NewConnectionError("Should be HTTPConnection", "Fake connection error")
+    execute_mock.side_effect = NewConnectionError(
+        "Should be HTTPConnection", "Fake connection error"
+    )
     transport = RequestsHTTPTransport(
-        url="http://localhost:9999",
-        retries=expected_retries,
+        url="http://localhost:9999", retries=expected_retries,
     )
     client = Client(transport=transport)
 
