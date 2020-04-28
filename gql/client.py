@@ -25,7 +25,7 @@ class Client(object):
         type_def=None,
         transport=None,
         fetch_schema_from_transport=False,
-        retries=0,
+        retries=0,  # We should remove this parameter and let the transport level handle it
     ):
         assert not (
             type_def and introspection
@@ -93,3 +93,13 @@ class Client(object):
                 retries_count += 1
 
         raise RetryError(retries_count, last_exception)
+
+    def close(self):
+        """Close the client and it's underlying transport"""
+        self.transport.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.close()
