@@ -101,7 +101,9 @@ async def server_invalid_payload(ws, path):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_invalid_payload], indirect=True)
 @pytest.mark.parametrize("query_str", [invalid_query_str])
-async def test_websocket_sending_invalid_payload(event_loop, client_and_server, query_str):
+async def test_websocket_sending_invalid_payload(
+    event_loop, client_and_server, query_str
+):
 
     client, server = client_and_server
 

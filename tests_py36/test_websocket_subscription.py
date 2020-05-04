@@ -123,7 +123,9 @@ async def test_websocket_subscription(event_loop, client_and_server, subscriptio
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
-async def test_websocket_subscription_break(event_loop, client_and_server, subscription_str):
+async def test_websocket_subscription_break(
+    event_loop, client_and_server, subscription_str
+):
 
     client, server = client_and_server
 
@@ -149,7 +151,9 @@ async def test_websocket_subscription_break(event_loop, client_and_server, subsc
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
-async def test_websocket_subscription_task_cancel(event_loop, client_and_server, subscription_str):
+async def test_websocket_subscription_task_cancel(
+    event_loop, client_and_server, subscription_str
+):
 
     client, server = client_and_server
 

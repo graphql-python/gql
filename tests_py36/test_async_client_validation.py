@@ -82,7 +82,9 @@ starwars_invalid_subscription_str = """
         {"type_def": StarWarsTypeDef},
     ],
 )
-async def test_async_client_validation(event_loop, server, subscription_str, client_params):
+async def test_async_client_validation(
+    event_loop, server, subscription_str, client_params
+):
 
     url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
 

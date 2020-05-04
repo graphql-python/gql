@@ -1,6 +1,7 @@
 import asyncio
 import pytest
 import websockets
+import json
 
 from .websocket_fixtures import MS, server, client_and_server, TestServer
 from graphql.execution import ExecutionResult
@@ -8,6 +9,7 @@ from gql.transport.websockets import WebsocketsTransport
 from gql.transport.exceptions import (
     TransportClosed,
     TransportQueryError,
+    TransportServerError,
     TransportAlreadyConnected,
 )
 from gql import gql, AsyncClient
@@ -37,7 +39,7 @@ server1_answers = [
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server1_answers], indirect=True)
-async def test_websocket_starting_client_in_context_manager(event_loop,  server):
+async def test_websocket_starting_client_in_context_manager(event_loop, server):
 
     url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
     print(f"url = {url}")
@@ -94,7 +96,9 @@ server1_two_answers_in_series = [
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server1_two_answers_in_series], indirect=True)
 @pytest.mark.parametrize("query_str", [query1_str])
-async def test_websocket_two_queries_in_series(event_loop, client_and_server, query_str):
+async def test_websocket_two_queries_in_series(
+    event_loop, client_and_server, query_str
+):
 
     client, server = client_and_server
 
@@ -128,7 +132,9 @@ async def server1_two_queries_in_parallel(ws, path):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server1_two_queries_in_parallel], indirect=True)
 @pytest.mark.parametrize("query_str", [query1_str])
-async def test_websocket_two_queries_in_parallel(event_loop, client_and_server, query_str):
+async def test_websocket_two_queries_in_parallel(
+    event_loop, client_and_server, query_str
+):
 
     client, server = client_and_server
 
@@ -173,7 +179,9 @@ async def server_closing_while_we_are_doing_something_else(ws, path):
     "server", [server_closing_while_we_are_doing_something_else], indirect=True
 )
 @pytest.mark.parametrize("query_str", [query1_str])
-async def test_websocket_server_closing_after_first_query(event_loop, client_and_server, query_str):
+async def test_websocket_server_closing_after_first_query(
+    event_loop, client_and_server, query_str
+):
 
     client, server = client_and_server
 
@@ -287,7 +295,9 @@ async def test_websocket_multiple_connections_in_parallel(event_loop, server):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server1_answers], indirect=True)
-async def test_websocket_trying_to_connect_to_already_connected_transport(event_loop, server):
+async def test_websocket_trying_to_connect_to_already_connected_transport(
+    event_loop, server
+):
 
     url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
     print(f"url = {url}")
@@ -299,3 +309,85 @@ async def test_websocket_trying_to_connect_to_already_connected_transport(event_
         with pytest.raises(TransportAlreadyConnected):
             async with AsyncClient(transport=sample_transport):
                 pass
+
+
+async def server_with_authentication_in_connection_init_payload(ws, path):
+    # Wait the connection_init message
+    init_message_str = await ws.recv()
+    init_message = json.loads(init_message_str)
+    payload = init_message["payload"]
+
+    if "Authorization" in payload and payload["Authorization"] == 12345:
+
+        await ws.send('{"type":"connection_ack"}')
+
+        result = await ws.recv()
+        print(f"Server received: {result}")
+        await ws.send(query1_server_answer.format(query_id=1))
+        await TestServer.send_complete(ws, 1)
+        await asyncio.sleep(1 * MS)
+
+    else:
+        await ws.send(
+            '{"type":"connection_error", "payload": "Invalid Authorization token"}'
+        )
+
+    await ws.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "server", [server_with_authentication_in_connection_init_payload], indirect=True
+)
+@pytest.mark.parametrize("query_str", [query1_str])
+async def test_websocket_connect_success_with_authentication_in_connection_init(
+    event_loop, server, query_str
+):
+
+    url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
+    print(f"url = {url}")
+
+    init_payload = {"Authorization": 12345}
+
+    sample_transport = WebsocketsTransport(url=url, init_payload=init_payload)
+
+    async with AsyncClient(transport=sample_transport) as client:
+
+        query1 = gql(query_str)
+
+        result = await client.execute(query1)
+
+        assert isinstance(result, ExecutionResult)
+
+        print("Client received: " + str(result.data))
+
+        # Verify result
+        assert result.errors is None
+        assert isinstance(result.data, Dict)
+
+        continents = result.data["continents"]
+        africa = continents[0]
+
+        assert africa["code"] == "AF"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "server", [server_with_authentication_in_connection_init_payload], indirect=True
+)
+@pytest.mark.parametrize("query_str", [query1_str])
+@pytest.mark.parametrize("init_payload", [{}, {"Authorization": "invalid_code"}])
+async def test_websocket_connect_failed_with_authentication_in_connection_init(
+    event_loop, server, query_str, init_payload
+):
+
+    url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
+    print(f"url = {url}")
+
+    sample_transport = WebsocketsTransport(url=url, init_payload=init_payload)
+
+    with pytest.raises(TransportServerError):
+        async with AsyncClient(transport=sample_transport) as client:
+            query1 = gql(query_str)
+
+            await client.execute(query1)

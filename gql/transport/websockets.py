@@ -12,7 +12,7 @@ import asyncio
 import json
 import logging
 
-from typing import cast, Dict, Optional, Tuple, Union, AsyncGenerator
+from typing import cast, Dict, Optional, Tuple, Union, AsyncGenerator, Any
 
 from graphql.execution import ExecutionResult
 from graphql.language.ast import Document
@@ -90,16 +90,19 @@ class WebsocketsTransport(AsyncTransport):
         url: str,
         headers: Optional[HeadersLike] = None,
         ssl: Union[SSLContext, bool] = False,
+        init_payload: Dict[str, Any] = {},
     ) -> None:
         """Initialize the transport with the given request parameters.
 
         :param url: The GraphQL server URL. Example: 'wss://server.com:PORT/graphql'.
         :param headers: Dict of HTTP Headers.
         :param ssl: ssl_context of the connection. Use ssl=False to disable encryption
+        :param init_payload: Dict of the payload sent in the connection_init message.
         """
         self.url: str = url
         self.ssl: Union[SSLContext, bool] = ssl
         self.headers: Optional[HeadersLike] = headers
+        self.init_payload: Dict[str, Any] = init_payload
 
         self.websocket: Optional[WebSocketClientProtocol] = None
         self.next_query_id: int = 1
@@ -159,7 +162,11 @@ class WebsocketsTransport(AsyncTransport):
         If the answer is not a connection_ack message, we will return an Exception
         """
 
-        await self._send('{"type":"connection_init","payload":{}}')
+        init_message = json.dumps(
+            {"type": "connection_init", "payload": self.init_payload}
+        )
+
+        await self._send(init_message)
 
         init_answer = await self._receive()
 

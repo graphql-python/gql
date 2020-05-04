@@ -210,6 +210,30 @@ If you have also need to have a client ssl certificate, add:
 ssl_context.load_cert_chain(certfile='YOUR_CLIENT_CERTIFICATE.pem', keyfile='YOUR_CLIENT_CERTIFICATE_KEY.key')
 ```
 
+### Websockets authentication
+
+There are two ways to send authentication tokens with websockets depending on the server configuration.
+
+1. Using HTTP Headers
+
+```python
+sample_transport = WebsocketsTransport(
+    url='wss://SERVER_URL:SERVER_PORT/graphql',
+    headers={'Authorization': 'token'},
+    ssl=True
+)
+```
+
+2. With a payload in the connection_init websocket message
+
+```python
+sample_transport = WebsocketsTransport(
+    url='wss://SERVER_URL:SERVER_PORT/graphql',
+    init_payload={'Authorization': 'token'},
+    ssl=True
+)
+```
+
 ### Websockets advanced usage
 
 It is possible to send multiple GraphQL queries (query, mutation or subscription) in parallel,
