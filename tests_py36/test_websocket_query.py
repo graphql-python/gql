@@ -317,22 +317,24 @@ async def server_with_authentication_in_connection_init_payload(ws, path):
     init_message = json.loads(init_message_str)
     payload = init_message["payload"]
 
-    if "Authorization" in payload and payload["Authorization"] == 12345:
+    if "Authorization" in payload:
+        if payload["Authorization"] == 12345:
+            await ws.send('{"type":"connection_ack"}')
 
-        await ws.send('{"type":"connection_ack"}')
-
-        result = await ws.recv()
-        print(f"Server received: {result}")
-        await ws.send(query1_server_answer.format(query_id=1))
-        await TestServer.send_complete(ws, 1)
-        await asyncio.sleep(1 * MS)
-
+            result = await ws.recv()
+            print(f"Server received: {result}")
+            await ws.send(query1_server_answer.format(query_id=1))
+            await TestServer.send_complete(ws, 1)
+        else:
+            await ws.send(
+                '{"type":"connection_error", "payload": "Invalid Authorization token"}'
+            )
     else:
         await ws.send(
-            '{"type":"connection_error", "payload": "Invalid Authorization token"}'
+            '{"type":"connection_error", "payload": "No Authorization token"}'
         )
 
-    await ws.close()
+    await ws.wait_closed()
 
 
 @pytest.mark.asyncio
