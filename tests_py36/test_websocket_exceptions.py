@@ -229,3 +229,23 @@ async def test_websocket_server_closing_after_ack(event_loop, client_and_server)
 
     with pytest.raises(TransportClosed):
         await client.execute(query)
+
+
+async def server_sending_invalid_query_errors(ws, path):
+    await TestServer.send_connection_ack(ws)
+    invalid_error = '{"type":"error","id":"404","payload":{"message":"error for no good reason on non existing query"}}'
+    await ws.send(invalid_error)
+    await ws.wait_closed()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("server", [server_sending_invalid_query_errors], indirect=True)
+async def test_websocket_server_sending_invalid_query_errors(event_loop, server):
+    url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
+    print(f"url = {url}")
+
+    sample_transport = WebsocketsTransport(url=url)
+
+    # Invalid server message is ignored
+    async with AsyncClient(transport=sample_transport):
+        await asyncio.sleep(2 * MS)

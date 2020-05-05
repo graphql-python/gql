@@ -13,6 +13,7 @@ from .websocket_fixtures import MS
 logging.basicConfig(level=logging.INFO)
 
 
+@pytest.mark.online
 @pytest.mark.asyncio
 async def test_websocket_simple_query():
 
@@ -54,6 +55,7 @@ async def test_websocket_simple_query():
         assert africa["code"] == "AF"
 
 
+@pytest.mark.online
 @pytest.mark.asyncio
 async def test_websocket_invalid_query():
 
@@ -88,6 +90,7 @@ async def test_websocket_invalid_query():
         assert result.errors is not None
 
 
+@pytest.mark.online
 @pytest.mark.asyncio
 async def test_websocket_sending_invalid_data():
 
@@ -126,6 +129,7 @@ async def test_websocket_sending_invalid_data():
         await asyncio.sleep(2)
 
 
+@pytest.mark.online
 @pytest.mark.asyncio
 async def test_websocket_sending_invalid_payload():
 
@@ -145,6 +149,7 @@ async def test_websocket_sending_invalid_payload():
         await asyncio.sleep(2)
 
 
+@pytest.mark.online
 @pytest.mark.skipif(sys.version_info < (3, 8), reason="requires python3.8 or higher")
 @pytest.mark.asyncio
 async def test_websocket_sending_invalid_data_while_other_query_is_running():
@@ -197,6 +202,7 @@ async def test_websocket_sending_invalid_data_while_other_query_is_running():
         await asyncio.gather(task1, task2)
 
 
+@pytest.mark.online
 @pytest.mark.skipif(sys.version_info < (3, 8), reason="requires python3.8 or higher")
 @pytest.mark.asyncio
 async def test_websocket_two_queries_in_parallel_using_two_tasks():

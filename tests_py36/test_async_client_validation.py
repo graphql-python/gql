@@ -4,7 +4,7 @@ import json
 import websockets
 import graphql
 
-from .websocket_fixtures import MS, server, TestServer
+from .websocket_fixtures import MS, server, client_and_server, TestServer
 from graphql.execution import ExecutionResult
 from gql import gql, AsyncClient
 from gql.transport.websockets import WebsocketsTransport
@@ -170,3 +170,70 @@ async def test_async_client_validation_different_schemas_parameters_forbidden(
     with pytest.raises(AssertionError):
         async with AsyncClient(transport=sample_transport, **client_params):
             pass
+
+
+hero_server_answers = (
+    f'{{"type":"data","id":"1","payload":{{"data":{json.dumps(StarWarsIntrospection)}}}}}',
+    '{"type":"data","id":"2","payload":{"data":{"hero":{"name": "R2-D2"}}}}',
+)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("server", [hero_server_answers], indirect=True)
+async def test_async_client_validation_fetch_schema_from_server_valid_query(
+    event_loop, client_and_server
+):
+    client, server = client_and_server
+
+    # No schema in the client at the beginning
+    assert client.introspection is None
+    assert client.schema is None
+
+    # Fetch schema from server
+    await client.fetch_schema()
+
+    # Check that the async client correctly recreated the schema
+    assert client.introspection == StarWarsIntrospection
+    assert client.schema is not None
+
+    query = gql(
+        """
+        query HeroNameQuery {
+          hero {
+            name
+          }
+        }
+    """
+    )
+
+    result = await client.execute(query)
+
+    print("Client received: " + str(result.data))
+    expected = {"hero": {"name": "R2-D2"}}
+
+    assert result.data == expected
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("server", [hero_server_answers], indirect=True)
+async def test_async_client_validation_fetch_schema_from_server_invalid_query(
+    event_loop, client_and_server
+):
+    client, server = client_and_server
+
+    # Fetch schema from server
+    await client.fetch_schema()
+
+    query = gql(
+        """
+        query HeroNameQuery {
+          hero {
+            name
+            sldkfjqlmsdkjfqlskjfmlqkjsfmkjqsdf
+          }
+        }
+    """
+    )
+
+    with pytest.raises(graphql.error.base.GraphQLError):
+        await client.execute(query)
