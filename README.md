@@ -71,11 +71,11 @@ sample_transport=RequestsHTTPTransport(
     headers={
         "Content-type": "application/json",
     },
-    verify=False
+    verify=False,
+    retries=3,
 )
 
 client = Client(
-    retries=3,
     transport=sample_transport,
     fetch_schema_from_transport=True,
 )
