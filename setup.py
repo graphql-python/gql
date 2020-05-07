@@ -25,6 +25,7 @@ if sys.version_info > (3, 6):
         'parse>=1.6.0',
     ])
     install_requires.append('websockets>=8.1,<9')
+    install_requires.append('aiohttp==3.6.2')
     scripts.append('scripts/gql-cli')
 else:
     tests_require.append([

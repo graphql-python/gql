@@ -113,10 +113,53 @@ query = gql('''
 client.execute(query)
 ```
 
-## Websockets transport with asyncio
+# Async clients and transports
 
-It is possible to use the websockets transport using the `asyncio` library.
-Python3.6 is required for this transport.
+It is possible to use async clients and transports using [asyncio](https://docs.python.org/3/library/asyncio.html).
+Python3.6 is required for async clients and transports
+
+## HTTP async transport
+
+This transport uses the [aiohttp library](https://docs.aiohttp.org)
+
+GraphQL subscriptions are not supported on this HTTP transport.
+For subscriptions you should use the websockets transport.
+
+```python
+from gql import gql, AsyncClient
+from gql.transport.aiohttp import AIOHTTPTransport
+import asyncio
+
+async def main():
+
+    sample_transport = AIOHTTPTransport(
+        url='https://countries.trevorblades.com/graphql',
+        headers={'Authorization': 'token'}
+    )
+
+    async with AsyncClient(transport=sample_transport) as client:
+
+        # Fetch schema (optional)
+        await client.fetch_schema()
+
+        # Execute single query
+        query = gql('''
+            query getContinents {
+              continents {
+                code
+                name
+              }
+            }
+        ''')
+
+        result = await client.execute(query)
+
+        print (f'result data = {result.data}, errors = {result.errors}')
+
+asyncio.run(main())
+```
+
+## Websockets async transport
 
 The websockets transport uses the apollo protocol described here:
 
