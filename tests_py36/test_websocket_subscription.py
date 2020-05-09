@@ -5,7 +5,6 @@ import websockets
 
 from parse import search
 from .websocket_fixtures import MS, server, client_and_server, TestServer
-from graphql.execution import ExecutionResult
 from gql import gql
 
 
@@ -103,15 +102,14 @@ countdown_subscription_str = """
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_websocket_subscription(event_loop, client_and_server, subscription_str):
 
-    client, server = client_and_server
+    session, server = client_and_server
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
 
-    async for result in client.subscribe(subscription):
-        assert isinstance(result, ExecutionResult)
+    async for result in session.subscribe(subscription):
 
-        number = result.data["number"]
+        number = result["number"]
         print(f"Number received: {number}")
 
         assert number == count
@@ -127,15 +125,14 @@ async def test_websocket_subscription_break(
     event_loop, client_and_server, subscription_str
 ):
 
-    client, server = client_and_server
+    session, server = client_and_server
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
 
-    async for result in client.subscribe(subscription):
-        assert isinstance(result, ExecutionResult)
+    async for result in session.subscribe(subscription):
 
-        number = result.data["number"]
+        number = result["number"]
         print(f"Number received: {number}")
 
         assert number == count
@@ -155,17 +152,16 @@ async def test_websocket_subscription_task_cancel(
     event_loop, client_and_server, subscription_str
 ):
 
-    client, server = client_and_server
+    session, server = client_and_server
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
 
     async def task_coro():
         nonlocal count
-        async for result in client.subscribe(subscription):
-            assert isinstance(result, ExecutionResult)
+        async for result in session.subscribe(subscription):
 
-            number = result.data["number"]
+            number = result["number"]
             print(f"Number received: {number}")
 
             assert number == count
@@ -195,17 +191,16 @@ async def test_websocket_subscription_close_transport(
     event_loop, client_and_server, subscription_str
 ):
 
-    client, server = client_and_server
+    session, server = client_and_server
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
 
     async def task_coro():
         nonlocal count
-        async for result in client.subscribe(subscription):
-            assert isinstance(result, ExecutionResult)
+        async for result in session.subscribe(subscription):
 
-            number = result.data["number"]
+            number = result["number"]
             print(f"Number received: {number}")
 
             assert number == count
@@ -219,7 +214,7 @@ async def test_websocket_subscription_close_transport(
 
         await asyncio.sleep(11 * MS)
 
-        await client.transport.close()
+        await session.transport.close()
 
     close_transport_task = asyncio.ensure_future(close_transport_task_coro())
 
@@ -261,24 +256,21 @@ async def test_websocket_subscription_server_connection_closed(
     event_loop, client_and_server, subscription_str
 ):
 
-    client, server = client_and_server
+    session, server = client_and_server
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
 
     with pytest.raises(websockets.exceptions.ConnectionClosedOK):
 
-        async for result in client.subscribe(subscription):
-            assert isinstance(result, ExecutionResult)
+        async for result in session.subscribe(subscription):
 
-            number = result.data["number"]
+            number = result["number"]
             print(f"Number received: {number}")
 
             assert number == count
 
             count -= 1
-
-        assert count > 0
 
 
 @pytest.mark.asyncio
@@ -288,16 +280,15 @@ async def test_websocket_subscription_slow_consumer(
     event_loop, client_and_server, subscription_str
 ):
 
-    client, server = client_and_server
+    session, server = client_and_server
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
 
-    async for result in client.subscribe(subscription):
+    async for result in session.subscribe(subscription):
         await asyncio.sleep(10 * MS)
-        assert isinstance(result, ExecutionResult)
 
-        number = result.data["number"]
+        number = result["number"]
         print(f"Number received: {number}")
 
         assert number == count
@@ -317,15 +308,14 @@ async def test_websocket_subscription_with_keepalive(
     event_loop, client_and_server, subscription_str
 ):
 
-    client, server = client_and_server
+    session, server = client_and_server
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
 
-    async for result in client.subscribe(subscription):
-        assert isinstance(result, ExecutionResult)
+    async for result in session.subscribe(subscription):
 
-        number = result.data["number"]
+        number = result["number"]
         print(f"Number received: {number}")
 
         assert number == count

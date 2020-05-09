@@ -4,7 +4,7 @@ import sys
 
 from gql import gql, AsyncClient
 from gql.transport.aiohttp import AIOHTTPTransport
-from graphql.execution import ExecutionResult
+from gql.transport.exceptions import TransportQueryError
 from typing import Dict
 
 
@@ -20,7 +20,7 @@ async def test_aiohttp_simple_query(event_loop, protocol):
     sample_transport = AIOHTTPTransport(url=url)
 
     # Instanciate client
-    async with AsyncClient(transport=sample_transport) as client:
+    async with AsyncClient(transport=sample_transport) as session:
 
         query = gql(
             """
@@ -34,20 +34,17 @@ async def test_aiohttp_simple_query(event_loop, protocol):
         )
 
         # Fetch schema
-        await client.fetch_schema()
+        await session.fetch_schema()
 
         # Execute query
-        result = await client.execute(query)
+        result = await session.execute(query)
 
         # Verify result
-        assert isinstance(result, ExecutionResult)
-        assert result.errors is None
+        assert isinstance(result, Dict)
 
-        assert isinstance(result.data, Dict)
+        print(result)
 
-        print(result.data)
-
-        continents = result.data["continents"]
+        continents = result["continents"]
 
         africa = continents[0]
 
@@ -62,7 +59,7 @@ async def test_aiohttp_invalid_query(event_loop):
         url="https://countries.trevorblades.com/graphql"
     )
 
-    async with AsyncClient(transport=sample_transport) as client:
+    async with AsyncClient(transport=sample_transport) as session:
 
         query = gql(
             """
@@ -75,14 +72,8 @@ async def test_aiohttp_invalid_query(event_loop):
         """
         )
 
-        result = await client.execute(query)
-
-        assert isinstance(result, ExecutionResult)
-
-        assert result.data is None
-
-        print(f"result = {repr(result.data)}, {repr(result.errors)}")
-        assert result.errors is not None
+        with pytest.raises(TransportQueryError):
+            await session.execute(query)
 
 
 @pytest.mark.online
@@ -95,7 +86,7 @@ async def test_aiohttp_two_queries_in_parallel_using_two_tasks(event_loop):
     )
 
     # Instanciate client
-    async with AsyncClient(transport=sample_transport) as client:
+    async with AsyncClient(transport=sample_transport) as session:
 
         query1 = gql(
             """
@@ -118,31 +109,25 @@ async def test_aiohttp_two_queries_in_parallel_using_two_tasks(event_loop):
         )
 
         async def query_task1():
-            result = await client.execute(query1)
+            result = await session.execute(query1)
 
-            assert isinstance(result, ExecutionResult)
-            assert result.errors is None
+            assert isinstance(result, Dict)
 
-            assert isinstance(result.data, Dict)
+            print(result)
 
-            print(result.data)
-
-            continents = result.data["continents"]
+            continents = result["continents"]
 
             africa = continents[0]
             assert africa["code"] == "AF"
 
         async def query_task2():
-            result = await client.execute(query2)
+            result = await session.execute(query2)
 
-            assert isinstance(result, ExecutionResult)
-            assert result.errors is None
+            assert isinstance(result, Dict)
 
-            assert isinstance(result.data, Dict)
+            print(result)
 
-            print(result.data)
-
-            continents = result.data["continents"]
+            continents = result["continents"]
 
             africa = continents[0]
             assert africa["name"] == "Africa"

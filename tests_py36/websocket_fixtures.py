@@ -153,7 +153,7 @@ async def client_and_server(server):
     url = "ws://" + server.hostname + ":" + str(server.port) + path
     sample_transport = WebsocketsTransport(url=url)
 
-    async with AsyncClient(transport=sample_transport) as client:
+    async with AsyncClient(transport=sample_transport) as session:
 
-        # Yield both client and server
-        yield (client, server)
+        # Yield both client session and server
+        yield (session, server)

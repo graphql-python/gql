@@ -5,8 +5,7 @@ import sys
 
 from gql import gql, AsyncClient
 from gql.transport.websockets import WebsocketsTransport
-from gql.transport.exceptions import TransportError
-from graphql.execution import ExecutionResult
+from gql.transport.exceptions import TransportError, TransportQueryError
 from typing import Dict
 from .websocket_fixtures import MS
 
@@ -23,7 +22,7 @@ async def test_websocket_simple_query():
     )
 
     # Instanciate client
-    async with AsyncClient(transport=sample_transport) as client:
+    async with AsyncClient(transport=sample_transport) as session:
 
         query = gql(
             """
@@ -37,18 +36,15 @@ async def test_websocket_simple_query():
         )
 
         # Fetch schema
-        await client.fetch_schema()
+        await session.fetch_schema()
 
         # Execute query
-        result = await client.execute(query)
+        result = await session.execute(query)
 
         # Verify result
-        assert isinstance(result, ExecutionResult)
-        assert result.errors is None
+        assert isinstance(result, Dict)
 
-        assert isinstance(result.data, Dict)
-
-        continents = result.data["continents"]
+        continents = result["continents"]
 
         africa = continents[0]
 
@@ -65,7 +61,7 @@ async def test_websocket_invalid_query():
     )
 
     # Instanciate client
-    async with AsyncClient(transport=sample_transport) as client:
+    async with AsyncClient(transport=sample_transport) as session:
 
         query = gql(
             """
@@ -79,15 +75,8 @@ async def test_websocket_invalid_query():
         )
 
         # Execute query
-        result = await client.execute(query)
-
-        # Verify result
-        assert isinstance(result, ExecutionResult)
-
-        assert result.data is None
-
-        print(f"result = {repr(result.data)}, {repr(result.errors)}")
-        assert result.errors is not None
+        with pytest.raises(TransportQueryError):
+            await session.execute(query)
 
 
 @pytest.mark.online
@@ -100,7 +89,7 @@ async def test_websocket_sending_invalid_data():
     )
 
     # Instanciate client
-    async with AsyncClient(transport=sample_transport) as client:
+    async with AsyncClient(transport=sample_transport) as session:
 
         query = gql(
             """
@@ -113,14 +102,9 @@ async def test_websocket_sending_invalid_data():
         )
 
         # Execute query
-        result = await client.execute(query)
+        result = await session.execute(query)
 
-        # Verify result
-        assert isinstance(result, ExecutionResult)
-
-        print(f"result = {repr(result.data)}, {repr(result.errors)}")
-
-        assert result.errors is None
+        print(f"result = {result!r}")
 
         invalid_data = "QSDF"
         print(f">>> {invalid_data}")
@@ -160,7 +144,7 @@ async def test_websocket_sending_invalid_data_while_other_query_is_running():
     )
 
     # Instanciate client
-    async with AsyncClient(transport=sample_transport) as client:
+    async with AsyncClient(transport=sample_transport) as session:
 
         query = gql(
             """
@@ -176,14 +160,11 @@ async def test_websocket_sending_invalid_data_while_other_query_is_running():
             await asyncio.sleep(2 * MS)
 
             with pytest.raises(TransportError):
-                result = await client.execute(query)
+                result = await session.execute(query)
 
-                assert isinstance(result, ExecutionResult)
-                assert result.errors is None
+                assert isinstance(result, Dict)
 
-                assert isinstance(result.data, Dict)
-
-                continents = result.data["continents"]
+                continents = result["continents"]
 
                 africa = continents[0]
                 assert africa["code"] == "AF"
@@ -213,7 +194,7 @@ async def test_websocket_two_queries_in_parallel_using_two_tasks():
     )
 
     # Instanciate client
-    async with AsyncClient(transport=sample_transport) as client:
+    async with AsyncClient(transport=sample_transport) as session:
 
         query1 = gql(
             """
@@ -236,27 +217,21 @@ async def test_websocket_two_queries_in_parallel_using_two_tasks():
         )
 
         async def query_task1():
-            result = await client.execute(query1)
+            result = await session.execute(query1)
 
-            assert isinstance(result, ExecutionResult)
-            assert result.errors is None
+            assert isinstance(result, Dict)
 
-            assert isinstance(result.data, Dict)
-
-            continents = result.data["continents"]
+            continents = result["continents"]
 
             africa = continents[0]
             assert africa["code"] == "AF"
 
         async def query_task2():
-            result = await client.execute(query2)
+            result = await session.execute(query2)
 
-            assert isinstance(result, ExecutionResult)
-            assert result.errors is None
+            assert isinstance(result, Dict)
 
-            assert isinstance(result.data, Dict)
-
-            continents = result.data["continents"]
+            continents = result["continents"]
 
             africa = continents[0]
             assert africa["name"] == "Africa"

@@ -113,10 +113,21 @@ query = gql('''
 client.execute(query)
 ```
 
-# Async clients and transports
+# Async usage with asyncio and subscriptions
 
-It is possible to use async clients and transports using [asyncio](https://docs.python.org/3/library/asyncio.html).
-Python3.6 is required for async clients and transports
+When using the `execute` function directly on the client, the execution is synchronous.
+It means that we are blocked until we receive an answer from the server and
+we cannot do anything else while waiting for this answer.
+
+It is now possible to use this library asynchronously using [asyncio](https://docs.python.org/3/library/asyncio.html).
+
+Async Features:
+* Execute GraphQL subscriptions (See [using the websockets transport](#Websockets-async-transport))
+* Execute GraphQL queries and subscriptions in parallel
+
+To use the async features, you need to use an async transport:
+* [AIOHTTPTransport](#HTTP-async-transport) for the HTTP(s) protocols
+* [WebsocketsTransport](#Websockets-async-transport) for the ws(s) protocols
 
 ## HTTP async transport
 
@@ -137,10 +148,10 @@ async def main():
         headers={'Authorization': 'token'}
     )
 
-    async with AsyncClient(transport=sample_transport) as client:
-
-        # Fetch schema (optional)
-        await client.fetch_schema()
+    async with AsyncClient(
+        transport=sample_transport,
+        fetch_schema_from_transport=True,
+        ) as session:
 
         # Execute single query
         query = gql('''
@@ -152,9 +163,9 @@ async def main():
             }
         ''')
 
-        result = await client.execute(query)
+        result = await session.execute(query)
 
-        print (f'result data = {result.data}, errors = {result.errors}')
+        print(result)
 
 asyncio.run(main())
 ```
@@ -183,10 +194,10 @@ async def main():
         headers={'Authorization': 'token'}
     )
 
-    async with AsyncClient(transport=sample_transport) as client:
-
-        # Fetch schema (optional)
-        await client.fetch_schema()
+    async with AsyncClient(
+        transport=sample_transport,
+        fetch_schema_from_transport=True,
+        ) as session:
 
         # Execute single query
         query = gql('''
@@ -197,8 +208,8 @@ async def main():
               }
             }
         ''')
-        result = await client.execute(query)
-        print (f'result data = {result.data}, errors = {result.errors}')
+        result = await session.execute(query)
+        print(result)
 
         # Request subscription
         subscription = gql('''
@@ -208,8 +219,8 @@ async def main():
                 }
             }
         ''')
-        async for result in client.subscribe(subscription):
-            print (f'result.data = {result.data}')
+        async for result in session.subscribe(subscription):
+            print(result)
 
 asyncio.run(main())
 ```
@@ -285,20 +296,20 @@ on the same websocket connection, using asyncio tasks
 ```python
 
 async def execute_query1():
-    result = await client.execute(query1)
-    print (f'result data = {result.data}, errors = {result.errors}')
+    result = await session.execute(query1)
+    print(result)
 
 async def execute_query2():
-    result = await client.execute(query2)
-    print (f'result data = {result.data}, errors = {result.errors}')
+    result = await session.execute(query2)
+    print(result)
 
 async def execute_subscription1():
-    async for result in client.subscribe(subscription1):
-        print (f'result data = {result.data}, errors = {result.errors}')
+    async for result in session.subscribe(subscription1):
+        print(result)
 
 async def execute_subscription2():
-    async for result in client.subscribe(subscription2):
-        print (f'result data = {result.data}, errors = {result.errors}')
+    async for result in session.subscribe(subscription2):
+        print(result)
 
 task1 = asyncio.create_task(execute_query1())
 task2 = asyncio.create_task(execute_query2())

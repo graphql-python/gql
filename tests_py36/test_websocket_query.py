@@ -4,7 +4,6 @@ import websockets
 import json
 
 from .websocket_fixtures import MS, server, client_and_server, TestServer
-from graphql.execution import ExecutionResult
 from gql.transport.websockets import WebsocketsTransport
 from gql.transport.exceptions import (
     TransportClosed,
@@ -46,7 +45,7 @@ async def test_websocket_starting_client_in_context_manager(event_loop, server):
 
     sample_transport = WebsocketsTransport(url=url)
 
-    async with AsyncClient(transport=sample_transport) as client:
+    async with AsyncClient(transport=sample_transport) as session:
 
         assert isinstance(
             sample_transport.websocket, websockets.client.WebSocketClientProtocol
@@ -54,17 +53,14 @@ async def test_websocket_starting_client_in_context_manager(event_loop, server):
 
         query1 = gql(query1_str)
 
-        result = await client.execute(query1)
+        result = await session.execute(query1)
 
-        assert isinstance(result, ExecutionResult)
-
-        print("Client received: " + str(result.data))
+        print("Client received: " + str(result))
 
         # Verify result
-        assert result.errors is None
-        assert isinstance(result.data, Dict)
+        assert isinstance(result, Dict)
 
-        continents = result.data["continents"]
+        continents = result["continents"]
         africa = continents[0]
 
         assert africa["code"] == "AF"
@@ -78,13 +74,13 @@ async def test_websocket_starting_client_in_context_manager(event_loop, server):
 @pytest.mark.parametrize("query_str", [query1_str])
 async def test_websocket_simple_query(event_loop, client_and_server, query_str):
 
-    client, server = client_and_server
+    session, server = client_and_server
 
     query = gql(query_str)
 
-    result = await client.execute(query)
+    result = await session.execute(query)
 
-    print("Client received: " + str(result.data))
+    print("Client received: " + str(result))
 
 
 server1_two_answers_in_series = [
@@ -100,19 +96,19 @@ async def test_websocket_two_queries_in_series(
     event_loop, client_and_server, query_str
 ):
 
-    client, server = client_and_server
+    session, server = client_and_server
 
     query = gql(query_str)
 
-    result1 = await client.execute(query)
+    result1 = await session.execute(query)
 
-    print("Query1 received: " + str(result1.data))
+    print("Query1 received: " + str(result1))
 
-    result2 = await client.execute(query)
+    result2 = await session.execute(query)
 
-    print("Query2 received: " + str(result2.data))
+    print("Query2 received: " + str(result2))
 
-    assert str(result1.data) == str(result2.data)
+    assert result1 == result2
 
 
 async def server1_two_queries_in_parallel(ws, path):
@@ -136,7 +132,7 @@ async def test_websocket_two_queries_in_parallel(
     event_loop, client_and_server, query_str
 ):
 
-    client, server = client_and_server
+    session, server = client_and_server
 
     query = gql(query_str)
 
@@ -145,21 +141,21 @@ async def test_websocket_two_queries_in_parallel(
 
     async def task1_coro():
         nonlocal result1
-        result1 = await client.execute(query)
+        result1 = await session.execute(query)
 
     async def task2_coro():
         nonlocal result2
-        result2 = await client.execute(query)
+        result2 = await session.execute(query)
 
     task1 = asyncio.ensure_future(task1_coro())
     task2 = asyncio.ensure_future(task2_coro())
 
     await asyncio.gather(task1, task2)
 
-    print("Query1 received: " + str(result1.data))
-    print("Query2 received: " + str(result2.data))
+    print("Query1 received: " + str(result1))
+    print("Query2 received: " + str(result2))
 
-    assert str(result1.data) == str(result2.data)
+    assert result1 == result2
 
 
 async def server_closing_while_we_are_doing_something_else(ws, path):
@@ -183,16 +179,12 @@ async def test_websocket_server_closing_after_first_query(
     event_loop, client_and_server, query_str
 ):
 
-    client, server = client_and_server
+    session, server = client_and_server
 
     query = gql(query_str)
 
     # First query is working
-    result = await client.execute(query)
-
-    assert isinstance(result, ExecutionResult)
-    assert result.data is not None
-    assert result.errors is None
+    await session.execute(query)
 
     # Then we do other things
     await asyncio.sleep(2 * MS)
@@ -202,7 +194,7 @@ async def test_websocket_server_closing_after_first_query(
     # Now the server is closed but we don't know it yet, we have to send a query
     # to notice it and to receive the exception
     with pytest.raises(TransportClosed):
-        result = await client.execute(query)
+        await session.execute(query)
 
 
 ignore_invalid_id_answers = [
@@ -217,37 +209,32 @@ ignore_invalid_id_answers = [
 @pytest.mark.parametrize("query_str", [query1_str])
 async def test_websocket_ignore_invalid_id(event_loop, client_and_server, query_str):
 
-    client, server = client_and_server
+    session, server = client_and_server
 
     query = gql(query_str)
 
     # First query is working
-    result = await client.execute(query)
-    assert isinstance(result, ExecutionResult)
+    await session.execute(query)
 
     # Second query gets no answer -> raises
     with pytest.raises(TransportQueryError):
-        result = await client.execute(query)
+        await session.execute(query)
 
     # Third query is working
-    result = await client.execute(query)
-    assert isinstance(result, ExecutionResult)
+    await session.execute(query)
 
 
-async def assert_client_is_working(client):
+async def assert_client_is_working(session):
     query1 = gql(query1_str)
 
-    result = await client.execute(query1)
+    result = await session.execute(query1)
 
-    assert isinstance(result, ExecutionResult)
-
-    print("Client received: " + str(result.data))
+    print("Client received: " + str(result))
 
     # Verify result
-    assert result.errors is None
-    assert isinstance(result.data, Dict)
+    assert isinstance(result, Dict)
 
-    continents = result.data["continents"]
+    continents = result["continents"]
     africa = continents[0]
 
     assert africa["code"] == "AF"
@@ -262,14 +249,14 @@ async def test_websocket_multiple_connections_in_series(event_loop, server):
 
     sample_transport = WebsocketsTransport(url=url)
 
-    async with AsyncClient(transport=sample_transport) as client:
-        await assert_client_is_working(client)
+    async with AsyncClient(transport=sample_transport) as session:
+        await assert_client_is_working(session)
 
     # Check client is disconnect here
     assert sample_transport.websocket is None
 
-    async with AsyncClient(transport=sample_transport) as client:
-        await assert_client_is_working(client)
+    async with AsyncClient(transport=sample_transport) as session:
+        await assert_client_is_working(session)
 
     # Check client is disconnect here
     assert sample_transport.websocket is None
@@ -284,8 +271,8 @@ async def test_websocket_multiple_connections_in_parallel(event_loop, server):
 
     async def task_coro():
         sample_transport = WebsocketsTransport(url=url)
-        async with AsyncClient(transport=sample_transport) as client:
-            await assert_client_is_working(client)
+        async with AsyncClient(transport=sample_transport) as session:
+            await assert_client_is_working(session)
 
     task1 = asyncio.ensure_future(task_coro())
     task2 = asyncio.ensure_future(task_coro())
@@ -303,8 +290,8 @@ async def test_websocket_trying_to_connect_to_already_connected_transport(
     print(f"url = {url}")
 
     sample_transport = WebsocketsTransport(url=url)
-    async with AsyncClient(transport=sample_transport) as client:
-        await assert_client_is_working(client)
+    async with AsyncClient(transport=sample_transport) as session:
+        await assert_client_is_working(session)
 
         with pytest.raises(TransportAlreadyConnected):
             async with AsyncClient(transport=sample_transport):
@@ -353,21 +340,18 @@ async def test_websocket_connect_success_with_authentication_in_connection_init(
 
     sample_transport = WebsocketsTransport(url=url, init_payload=init_payload)
 
-    async with AsyncClient(transport=sample_transport) as client:
+    async with AsyncClient(transport=sample_transport) as session:
 
         query1 = gql(query_str)
 
-        result = await client.execute(query1)
+        result = await session.execute(query1)
 
-        assert isinstance(result, ExecutionResult)
-
-        print("Client received: " + str(result.data))
+        print("Client received: " + str(result))
 
         # Verify result
-        assert result.errors is None
-        assert isinstance(result.data, Dict)
+        assert isinstance(result, Dict)
 
-        continents = result.data["continents"]
+        continents = result["continents"]
         africa = continents[0]
 
         assert africa["code"] == "AF"
@@ -389,7 +373,7 @@ async def test_websocket_connect_failed_with_authentication_in_connection_init(
     sample_transport = WebsocketsTransport(url=url, init_payload=init_payload)
 
     with pytest.raises(TransportServerError):
-        async with AsyncClient(transport=sample_transport) as client:
+        async with AsyncClient(transport=sample_transport) as session:
             query1 = gql(query_str)
 
-            await client.execute(query1)
+            await session.execute(query1)

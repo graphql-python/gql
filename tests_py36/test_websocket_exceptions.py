@@ -5,7 +5,6 @@ import websockets
 import types
 
 from .websocket_fixtures import MS, server, client_and_server, TestServer
-from graphql.execution import ExecutionResult
 from gql import gql, AsyncClient
 from gql.transport.websockets import WebsocketsTransport
 from gql.transport.exceptions import (
@@ -40,20 +39,12 @@ invalid_query1_server = [
 @pytest.mark.parametrize("query_str", [invalid_query_str])
 async def test_websocket_invalid_query(event_loop, client_and_server, query_str):
 
-    client, server = client_and_server
+    session, server = client_and_server
 
     query = gql(query_str)
 
-    result = await client.execute(query)
-
-    print("Client received: " + str(result.data))
-
-    assert isinstance(result, ExecutionResult)
-
-    print(f"result = {repr(result.data)}, {repr(result.errors)}")
-
-    assert result.data is None
-    assert result.errors is not None
+    with pytest.raises(TransportQueryError):
+        await session.execute(query)
 
 
 connection_error_server_answer = (
@@ -75,11 +66,11 @@ async def server_connection_error(ws, path):
 @pytest.mark.parametrize("query_str", [invalid_query_str])
 async def test_websocket_sending_invalid_data(event_loop, client_and_server, query_str):
 
-    client, server = client_and_server
+    session, server = client_and_server
 
     invalid_data = "QSDF"
     print(f">>> {invalid_data}")
-    await client.transport.websocket.send(invalid_data)
+    await session.transport.websocket.send(invalid_data)
 
     await asyncio.sleep(2 * MS)
 
@@ -105,7 +96,7 @@ async def test_websocket_sending_invalid_payload(
     event_loop, client_and_server, query_str
 ):
 
-    client, server = client_and_server
+    session, server = client_and_server
 
     # Monkey patching the _send_query method to send an invalid payload
 
@@ -122,14 +113,14 @@ async def test_websocket_sending_invalid_payload(
         await self._send(query_str)
         return query_id
 
-    client.transport._send_query = types.MethodType(
-        monkey_patch_send_query, client.transport
+    session.transport._send_query = types.MethodType(
+        monkey_patch_send_query, session.transport
     )
 
     query = gql(query_str)
 
     with pytest.raises(TransportQueryError):
-        await client.execute(query)
+        await session.execute(query)
 
 
 not_json_answer = ["BLAHBLAH"]
@@ -163,12 +154,12 @@ sending_bytes = [b"\x01\x02\x03"]
 )
 async def test_websocket_transport_protocol_errors(event_loop, client_and_server):
 
-    client, server = client_and_server
+    session, server = client_and_server
 
     query = gql("query { hello }")
 
     with pytest.raises(TransportProtocolError):
-        await client.execute(query)
+        await session.execute(query)
 
 
 async def server_without_ack(ws, path):
@@ -218,17 +209,17 @@ async def server_closing_after_ack(ws, path):
 @pytest.mark.parametrize("server", [server_closing_after_ack], indirect=True)
 async def test_websocket_server_closing_after_ack(event_loop, client_and_server):
 
-    client, server = client_and_server
+    session, server = client_and_server
 
     query = gql("query { hello }")
 
     with pytest.raises(websockets.exceptions.ConnectionClosed):
-        await client.execute(query)
+        await session.execute(query)
 
-    await client.transport.wait_closed()
+    await session.transport.wait_closed()
 
     with pytest.raises(TransportClosed):
-        await client.execute(query)
+        await session.execute(query)
 
 
 async def server_sending_invalid_query_errors(ws, path):

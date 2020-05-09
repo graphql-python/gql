@@ -5,7 +5,6 @@ import websockets
 import graphql
 
 from .websocket_fixtures import MS, server, client_and_server, TestServer
-from graphql.execution import ExecutionResult
 from gql import gql, AsyncClient
 from gql.transport.websockets import WebsocketsTransport
 from tests_py36.schema import StarWarsSchema, StarWarsTypeDef, StarWarsIntrospection
@@ -90,7 +89,7 @@ async def test_async_client_validation(
 
     sample_transport = WebsocketsTransport(url=url)
 
-    async with AsyncClient(transport=sample_transport, **client_params) as client:
+    async with AsyncClient(transport=sample_transport, **client_params) as session:
 
         variable_values = {"ep": "JEDI"}
 
@@ -98,14 +97,11 @@ async def test_async_client_validation(
 
         expected = []
 
-        async for result in client.subscribe(
+        async for result in session.subscribe(
             subscription, variable_values=variable_values
         ):
 
-            assert isinstance(result, ExecutionResult)
-            assert result.errors is None
-
-            review = result.data["reviewAdded"]
+            review = result["reviewAdded"]
             expected.append(review)
 
             assert "stars" in review
@@ -135,14 +131,14 @@ async def test_async_client_validation_invalid_query(
 
     sample_transport = WebsocketsTransport(url=url)
 
-    async with AsyncClient(transport=sample_transport, **client_params) as client:
+    async with AsyncClient(transport=sample_transport, **client_params) as session:
 
         variable_values = {"ep": "JEDI"}
 
         subscription = gql(subscription_str)
 
         with pytest.raises(graphql.error.base.GraphQLError):
-            async for result in client.subscribe(
+            async for result in session.subscribe(
                 subscription, variable_values=variable_values
             ):
                 pass
@@ -183,14 +179,15 @@ hero_server_answers = (
 async def test_async_client_validation_fetch_schema_from_server_valid_query(
     event_loop, client_and_server
 ):
-    client, server = client_and_server
+    session, server = client_and_server
+    client = session.client
 
     # No schema in the client at the beginning
     assert client.introspection is None
     assert client.schema is None
 
     # Fetch schema from server
-    await client.fetch_schema()
+    await session.fetch_schema()
 
     # Check that the async client correctly recreated the schema
     assert client.introspection == StarWarsIntrospection
@@ -206,12 +203,12 @@ async def test_async_client_validation_fetch_schema_from_server_valid_query(
     """
     )
 
-    result = await client.execute(query)
+    result = await session.execute(query)
 
-    print("Client received: " + str(result.data))
+    print("Client received: " + str(result))
     expected = {"hero": {"name": "R2-D2"}}
 
-    assert result.data == expected
+    assert result == expected
 
 
 @pytest.mark.asyncio
@@ -219,10 +216,10 @@ async def test_async_client_validation_fetch_schema_from_server_valid_query(
 async def test_async_client_validation_fetch_schema_from_server_invalid_query(
     event_loop, client_and_server
 ):
-    client, server = client_and_server
+    session, server = client_and_server
 
     # Fetch schema from server
-    await client.fetch_schema()
+    await session.fetch_schema()
 
     query = gql(
         """
@@ -236,4 +233,32 @@ async def test_async_client_validation_fetch_schema_from_server_invalid_query(
     )
 
     with pytest.raises(graphql.error.base.GraphQLError):
-        await client.execute(query)
+        await session.execute(query)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("server", [hero_server_answers], indirect=True)
+async def test_async_client_validation_fetch_schema_from_server_with_client_argument(
+    event_loop, server
+):
+    url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
+
+    sample_transport = WebsocketsTransport(url=url)
+
+    async with AsyncClient(
+        transport=sample_transport, fetch_schema_from_transport=True,
+    ) as session:
+
+        query = gql(
+            """
+            query HeroNameQuery {
+              hero {
+                name
+                sldkfjqlmsdkjfqlskjfmlqkjsfmkjqsdf
+              }
+            }
+        """
+        )
+
+        with pytest.raises(graphql.error.base.GraphQLError):
+            await session.execute(query)
