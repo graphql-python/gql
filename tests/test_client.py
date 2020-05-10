@@ -167,6 +167,37 @@ def test_http_transport_verify_error(http_transport_query):
     assert "Unverified HTTPS request is being made to host" in str(record[0].message)
 
 
+def test_http_transport_specify_method_valid(http_transport_query):
+    client = Client(
+        transport=RequestsHTTPTransport(
+            url="https://countries.trevorblades.com/",
+            use_json=True,
+            headers={"Content-type": "application/json"},
+            method="POST",
+        )
+    )
+
+    result = client.execute(http_transport_query)
+    client.close()
+    assert result is not None
+
+
+def test_http_transport_specify_method_invalid(http_transport_query):
+    client = Client(
+        transport=RequestsHTTPTransport(
+            url="https://countries.trevorblades.com/",
+            use_json=True,
+            headers={"Content-type": "application/json"},
+            method="GET",
+        )
+    )
+
+    with pytest.raises(Exception) as exc_info:
+        client.execute(http_transport_query)
+    client.close()
+    assert "400 Client Error: Bad Request for url" in str(exc_info.value)
+
+
 def test_gql():
     sample_path = os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
