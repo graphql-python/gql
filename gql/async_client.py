@@ -65,7 +65,12 @@ class AsyncClient(Client):
 
             loop = asyncio.get_event_loop()
 
+            assert (
+                not loop.is_running()
+            ), "Cannot run client.execute if an asyncio loop is running. Use execute_async instead"
+
             timeout = kwargs.get("timeout", 10)
+
             data: Dict[Any, Any] = loop.run_until_complete(
                 asyncio.wait_for(self.execute_async(document, *args, **kwargs), timeout)
             )
@@ -103,6 +108,10 @@ class AsyncClient(Client):
         async_generator = self.subscribe_async(document, *args, **kwargs)
 
         loop = asyncio.get_event_loop()
+
+        assert (
+            not loop.is_running()
+        ), "Cannot run client.subscribe if an asyncio loop is running. Use subscribe_async instead"
 
         try:
             while True:

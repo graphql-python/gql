@@ -3,6 +3,7 @@ import aiohttp
 from aiohttp.typedefs import LooseCookies, LooseHeaders
 from aiohttp.helpers import BasicAuth
 from aiohttp.client_reqrep import Fingerprint
+from aiohttp.client_exceptions import ClientResponseError
 
 from ssl import SSLContext
 
@@ -15,6 +16,7 @@ from graphql.language.printer import print_ast
 from .async_transport import AsyncTransport
 from .exceptions import (
     TransportProtocolError,
+    TransportServerError,
     TransportClosed,
     TransportAlreadyConnected,
 )
@@ -124,13 +126,20 @@ class AIOHTTPTransport(AsyncTransport):
         async with self.session.post(self.url, ssl=self.ssl, **post_args) as resp:
             try:
                 result = await resp.json()
-                if not isinstance(result, dict):
-                    raise ValueError
-            except ValueError:
-                result = {}
+            except Exception:
+                # We raise a TransportServerError if the status code is 400 or higher
+                # We raise a TransportProtocolError in the other cases
+
+                try:
+                    # Raise a ClientResponseError if the response status is 400 or higher
+                    resp.raise_for_status()
+
+                except ClientResponseError as e:
+                    raise TransportServerError from e
+
+                raise TransportProtocolError("Server did not return a GraphQL result")
 
             if "errors" not in result and "data" not in result:
-                resp.raise_for_status()
                 raise TransportProtocolError("Server did not return a GraphQL result")
 
             return ExecutionResult(errors=result.get("errors"), data=result.get("data"))

@@ -14,7 +14,6 @@ from gql.transport.exceptions import (
 from gql import gql, Client
 from typing import Dict
 
-
 query1_str = """
     query getContinents {
       continents {
@@ -377,3 +376,45 @@ async def test_websocket_connect_failed_with_authentication_in_connection_init(
             query1 = gql(query_str)
 
             await session.execute(query1)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("server", [server1_answers], indirect=True)
+def test_websocket_execute_sync(event_loop, server):
+
+    url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
+    print(f"url = {url}")
+
+    sample_transport = WebsocketsTransport(url=url)
+
+    client = Client(transport=sample_transport)
+
+    query1 = gql(query1_str)
+
+    result = client.execute(query1)
+
+    print("Client received: " + str(result))
+
+    # Verify result
+    assert isinstance(result, Dict)
+
+    continents = result["continents"]
+    africa = continents[0]
+
+    assert africa["code"] == "AF"
+
+    # Execute sync a second time
+    result = client.execute(query1)
+
+    print("Client received: " + str(result))
+
+    # Verify result
+    assert isinstance(result, Dict)
+
+    continents = result["continents"]
+    africa = continents[0]
+
+    assert africa["code"] == "AF"
+
+    # Check client is disconnect here
+    assert sample_transport.websocket is None

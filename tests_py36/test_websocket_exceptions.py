@@ -47,6 +47,30 @@ async def test_websocket_invalid_query(event_loop, client_and_server, query_str)
         await session.execute(query)
 
 
+invalid_subscription_str = """
+    subscription getContinents {
+      continents {
+        code
+        bloh
+      }
+    }
+"""
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("server", [invalid_query1_server], indirect=True)
+@pytest.mark.parametrize("query_str", [invalid_subscription_str])
+async def test_websocket_invalid_subscription(event_loop, client_and_server, query_str):
+
+    session, server = client_and_server
+
+    query = gql(query_str)
+
+    with pytest.raises(TransportQueryError):
+        async for result in session.subscribe(query):
+            pass
+
+
 connection_error_server_answer = (
     '{"type":"connection_error","id":null,'
     '"payload":{"message":"Unexpected token Q in JSON at position 0"}}'
