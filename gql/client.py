@@ -52,6 +52,12 @@ class Client(object):
         self.transport = transport
         self.retries = retries
 
+        if self.retries:
+            log.warning(
+                "The retries parameter on the Client class is deprecated."
+                "You can pass it to the RequestsHTTPTransport."
+            )
+
     def validate(self, document):
         if not self.schema:
             raise Exception(
