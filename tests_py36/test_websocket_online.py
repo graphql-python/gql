@@ -3,7 +3,7 @@ import asyncio
 import pytest
 import sys
 
-from gql import gql, AsyncClient
+from gql import gql, Client
 from gql.transport.websockets import WebsocketsTransport
 from gql.transport.exceptions import TransportError, TransportQueryError
 from typing import Dict
@@ -22,7 +22,7 @@ async def test_websocket_simple_query():
     )
 
     # Instanciate client
-    async with AsyncClient(transport=sample_transport) as session:
+    async with Client(transport=sample_transport) as session:
 
         query = gql(
             """
@@ -61,7 +61,7 @@ async def test_websocket_invalid_query():
     )
 
     # Instanciate client
-    async with AsyncClient(transport=sample_transport) as session:
+    async with Client(transport=sample_transport) as session:
 
         query = gql(
             """
@@ -89,7 +89,7 @@ async def test_websocket_sending_invalid_data():
     )
 
     # Instanciate client
-    async with AsyncClient(transport=sample_transport) as session:
+    async with Client(transport=sample_transport) as session:
 
         query = gql(
             """
@@ -123,7 +123,7 @@ async def test_websocket_sending_invalid_payload():
     )
 
     # Instanciate client
-    async with AsyncClient(transport=sample_transport):
+    async with Client(transport=sample_transport):
 
         invalid_payload = '{"id": "1", "type": "start", "payload": "BLAHBLAH"}'
 
@@ -144,7 +144,7 @@ async def test_websocket_sending_invalid_data_while_other_query_is_running():
     )
 
     # Instanciate client
-    async with AsyncClient(transport=sample_transport) as session:
+    async with Client(transport=sample_transport) as session:
 
         query = gql(
             """
@@ -194,7 +194,7 @@ async def test_websocket_two_queries_in_parallel_using_two_tasks():
     )
 
     # Instanciate client
-    async with AsyncClient(transport=sample_transport) as session:
+    async with Client(transport=sample_transport) as session:
 
         query1 = gql(
             """

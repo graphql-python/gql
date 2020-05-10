@@ -5,7 +5,7 @@ import websockets
 import graphql
 
 from .websocket_fixtures import MS, server, client_and_server, TestServer
-from gql import gql, AsyncClient
+from gql import gql, Client
 from gql.transport.websockets import WebsocketsTransport
 from tests_py36.schema import StarWarsSchema, StarWarsTypeDef, StarWarsIntrospection
 
@@ -89,7 +89,7 @@ async def test_async_client_validation(
 
     sample_transport = WebsocketsTransport(url=url)
 
-    async with AsyncClient(transport=sample_transport, **client_params) as session:
+    async with Client(transport=sample_transport, **client_params) as session:
 
         variable_values = {"ep": "JEDI"}
 
@@ -131,7 +131,7 @@ async def test_async_client_validation_invalid_query(
 
     sample_transport = WebsocketsTransport(url=url)
 
-    async with AsyncClient(transport=sample_transport, **client_params) as session:
+    async with Client(transport=sample_transport, **client_params) as session:
 
         variable_values = {"ep": "JEDI"}
 
@@ -164,7 +164,7 @@ async def test_async_client_validation_different_schemas_parameters_forbidden(
     sample_transport = WebsocketsTransport(url=url)
 
     with pytest.raises(AssertionError):
-        async with AsyncClient(transport=sample_transport, **client_params):
+        async with Client(transport=sample_transport, **client_params):
             pass
 
 
@@ -245,7 +245,7 @@ async def test_async_client_validation_fetch_schema_from_server_with_client_argu
 
     sample_transport = WebsocketsTransport(url=url)
 
-    async with AsyncClient(
+    async with Client(
         transport=sample_transport, fetch_schema_from_transport=True,
     ) as session:
 

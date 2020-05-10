@@ -8,7 +8,7 @@ import types
 
 from gql.transport.websockets import WebsocketsTransport
 from websockets.exceptions import ConnectionClosed
-from gql import AsyncClient
+from gql import Client
 
 # Adding debug logs to websocket tests
 for name in ["websockets.server", "gql.transport.websockets"]:
@@ -153,7 +153,7 @@ async def client_and_server(server):
     url = "ws://" + server.hostname + ":" + str(server.port) + path
     sample_transport = WebsocketsTransport(url=url)
 
-    async with AsyncClient(transport=sample_transport) as session:
+    async with Client(transport=sample_transport) as session:
 
         # Yield both client session and server
         yield (session, server)

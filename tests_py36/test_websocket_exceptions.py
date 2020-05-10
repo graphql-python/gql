@@ -5,7 +5,7 @@ import websockets
 import types
 
 from .websocket_fixtures import MS, server, client_and_server, TestServer
-from gql import gql, AsyncClient
+from gql import gql, Client
 from gql.transport.websockets import WebsocketsTransport
 from gql.transport.exceptions import (
     TransportProtocolError,
@@ -178,7 +178,7 @@ async def test_websocket_server_does_not_ack(event_loop, server):
     sample_transport = WebsocketsTransport(url=url)
 
     with pytest.raises(TransportProtocolError):
-        async with AsyncClient(transport=sample_transport):
+        async with Client(transport=sample_transport):
             pass
 
 
@@ -196,7 +196,7 @@ async def test_websocket_server_closing_directly(event_loop, server):
     sample_transport = WebsocketsTransport(url=url)
 
     with pytest.raises(websockets.exceptions.ConnectionClosed):
-        async with AsyncClient(transport=sample_transport):
+        async with Client(transport=sample_transport):
             pass
 
 
@@ -238,5 +238,5 @@ async def test_websocket_server_sending_invalid_query_errors(event_loop, server)
     sample_transport = WebsocketsTransport(url=url)
 
     # Invalid server message is ignored
-    async with AsyncClient(transport=sample_transport):
+    async with Client(transport=sample_transport):
         await asyncio.sleep(2 * MS)

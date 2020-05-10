@@ -2,7 +2,7 @@ import asyncio
 import pytest
 import sys
 
-from gql import gql, AsyncClient
+from gql import gql, Client
 from gql.transport.aiohttp import AIOHTTPTransport
 from gql.transport.exceptions import TransportQueryError
 from typing import Dict
@@ -20,7 +20,7 @@ async def test_aiohttp_simple_query(event_loop, protocol):
     sample_transport = AIOHTTPTransport(url=url)
 
     # Instanciate client
-    async with AsyncClient(transport=sample_transport) as session:
+    async with Client(transport=sample_transport) as session:
 
         query = gql(
             """
@@ -59,7 +59,7 @@ async def test_aiohttp_invalid_query(event_loop):
         url="https://countries.trevorblades.com/graphql"
     )
 
-    async with AsyncClient(transport=sample_transport) as session:
+    async with Client(transport=sample_transport) as session:
 
         query = gql(
             """
@@ -86,7 +86,7 @@ async def test_aiohttp_two_queries_in_parallel_using_two_tasks(event_loop):
     )
 
     # Instanciate client
-    async with AsyncClient(transport=sample_transport) as session:
+    async with Client(transport=sample_transport) as session:
 
         query1 = gql(
             """

@@ -11,7 +11,7 @@ from gql.transport.exceptions import (
     TransportServerError,
     TransportAlreadyConnected,
 )
-from gql import gql, AsyncClient
+from gql import gql, Client
 from typing import Dict
 
 
@@ -45,7 +45,7 @@ async def test_websocket_starting_client_in_context_manager(event_loop, server):
 
     sample_transport = WebsocketsTransport(url=url)
 
-    async with AsyncClient(transport=sample_transport) as session:
+    async with Client(transport=sample_transport) as session:
 
         assert isinstance(
             sample_transport.websocket, websockets.client.WebSocketClientProtocol
@@ -249,13 +249,13 @@ async def test_websocket_multiple_connections_in_series(event_loop, server):
 
     sample_transport = WebsocketsTransport(url=url)
 
-    async with AsyncClient(transport=sample_transport) as session:
+    async with Client(transport=sample_transport) as session:
         await assert_client_is_working(session)
 
     # Check client is disconnect here
     assert sample_transport.websocket is None
 
-    async with AsyncClient(transport=sample_transport) as session:
+    async with Client(transport=sample_transport) as session:
         await assert_client_is_working(session)
 
     # Check client is disconnect here
@@ -271,7 +271,7 @@ async def test_websocket_multiple_connections_in_parallel(event_loop, server):
 
     async def task_coro():
         sample_transport = WebsocketsTransport(url=url)
-        async with AsyncClient(transport=sample_transport) as session:
+        async with Client(transport=sample_transport) as session:
             await assert_client_is_working(session)
 
     task1 = asyncio.ensure_future(task_coro())
@@ -290,11 +290,11 @@ async def test_websocket_trying_to_connect_to_already_connected_transport(
     print(f"url = {url}")
 
     sample_transport = WebsocketsTransport(url=url)
-    async with AsyncClient(transport=sample_transport) as session:
+    async with Client(transport=sample_transport) as session:
         await assert_client_is_working(session)
 
         with pytest.raises(TransportAlreadyConnected):
-            async with AsyncClient(transport=sample_transport):
+            async with Client(transport=sample_transport):
                 pass
 
 
@@ -340,7 +340,7 @@ async def test_websocket_connect_success_with_authentication_in_connection_init(
 
     sample_transport = WebsocketsTransport(url=url, init_payload=init_payload)
 
-    async with AsyncClient(transport=sample_transport) as session:
+    async with Client(transport=sample_transport) as session:
 
         query1 = gql(query_str)
 
@@ -373,7 +373,7 @@ async def test_websocket_connect_failed_with_authentication_in_connection_init(
     sample_transport = WebsocketsTransport(url=url, init_payload=init_payload)
 
     with pytest.raises(TransportServerError):
-        async with AsyncClient(transport=sample_transport) as session:
+        async with Client(transport=sample_transport) as session:
             query1 = gql(query_str)
 
             await session.execute(query1)

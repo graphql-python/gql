@@ -5,7 +5,7 @@ import websockets
 
 from parse import search
 from .websocket_fixtures import MS, server, client_and_server, TestServer
-from gql import gql, AsyncClient
+from gql import gql, Client
 from gql.transport.websockets import WebsocketsTransport
 
 
@@ -334,7 +334,7 @@ def test_websocket_subscription_sync(server, subscription_str):
 
     sample_transport = WebsocketsTransport(url=url)
 
-    client = AsyncClient(transport=sample_transport)
+    client = Client(transport=sample_transport)
 
     count = 10
     subscription = gql(subscription_str.format(count=count))

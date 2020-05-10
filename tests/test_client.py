@@ -1,4 +1,5 @@
 import os
+import sys
 
 import mock
 import pytest
@@ -34,6 +35,9 @@ def test_request_transport_not_implemented(http_transport_query):
     assert "Any Transport subclass must implement execute method" == str(exc_info.value)
 
 
+@pytest.mark.skipif(
+    sys.version_info > (3, 6), reason="retries on client deprecated in latest versions"
+)
 @mock.patch("gql.transport.requests.RequestsHTTPTransport.execute")
 def test_retries(execute_mock):
     expected_retries = 3
@@ -108,10 +112,8 @@ def test_no_schema_exception():
 
 
 def test_execute_result_error():
-    expected_retries = 3
 
     client = Client(
-        retries=expected_retries,
         transport=RequestsHTTPTransport(
             url="https://countries.trevorblades.com/",
             use_json=True,

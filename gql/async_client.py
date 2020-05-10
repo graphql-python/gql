@@ -6,6 +6,7 @@ from graphql.language.ast import Document
 
 from typing import Generator, AsyncGenerator, Dict, Any, cast
 
+from .transport.local_schema import LocalSchemaTransport
 from .transport.async_transport import AsyncTransport
 from .transport.exceptions import TransportQueryError
 from .client import Client
@@ -39,6 +40,8 @@ class AsyncClient(Client):
             ), "Cant provide Type definition and schema at the same time"
             type_def_ast = parse(type_def)
             schema = build_ast_schema(type_def_ast)
+        elif schema and not transport:
+            transport = LocalSchemaTransport(schema)
 
         self.schema = schema
         self.introspection = introspection
@@ -125,6 +128,20 @@ class AsyncClient(Client):
     async def __aexit__(self, *args):
 
         await self.transport.close()
+
+    def close(self):
+        """Close the client and it's underlying transport (only for Sync transports)"""
+        if not isinstance(self.transport, AsyncTransport):
+            self.transport.close()
+
+    def __enter__(self):
+        assert not isinstance(
+            self.transport, AsyncTransport
+        ), "Only a sync transport can be use. Use 'async with Client(...)' instead"
+        return self
+
+    def __exit__(self, *args):
+        self.close()
 
 
 class AsyncClientSession:
