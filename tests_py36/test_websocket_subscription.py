@@ -5,7 +5,8 @@ import websockets
 
 from parse import search
 from .websocket_fixtures import MS, server, client_and_server, TestServer
-from gql import gql
+from gql import gql, AsyncClient
+from gql.transport.websockets import WebsocketsTransport
 
 
 countdown_server_answer = (
@@ -314,6 +315,31 @@ async def test_websocket_subscription_with_keepalive(
     subscription = gql(subscription_str.format(count=count))
 
     async for result in session.subscribe(subscription):
+
+        number = result["number"]
+        print(f"Number received: {number}")
+
+        assert number == count
+        count -= 1
+
+    assert count == -1
+
+
+@pytest.mark.parametrize("server", [server_countdown], indirect=True)
+@pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
+def test_websocket_subscription_sync(server, subscription_str):
+
+    url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
+    print(f"url = {url}")
+
+    sample_transport = WebsocketsTransport(url=url)
+
+    client = AsyncClient(transport=sample_transport)
+
+    count = 10
+    subscription = gql(subscription_str.format(count=count))
+
+    for result in client.subscribe(subscription):
 
         number = result["number"]
         print(f"Number received: {number}")

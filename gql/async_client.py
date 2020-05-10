@@ -1,9 +1,10 @@
 import asyncio
 
 from graphql import build_ast_schema, build_client_schema, introspection_query, parse
+from graphql.execution import ExecutionResult
 from graphql.language.ast import Document
 
-from typing import AsyncGenerator, Dict
+from typing import Generator, AsyncGenerator, Dict, Any, cast
 
 from .transport.async_transport import AsyncTransport
 from .transport.exceptions import TransportQueryError
@@ -44,47 +45,69 @@ class AsyncClient(Client):
         self.transport = transport
         self.fetch_schema_from_transport = fetch_schema_from_transport
 
-    async def _execute_in_async_session(self, document: Document, *args, **kwargs):
+    async def execute_async(self, document: Document, *args, **kwargs) -> Dict:
         async with self as session:
             return await session.execute(document, *args, **kwargs)
 
     def execute(self, document: Document, *args, **kwargs) -> Dict:
         """Execute the provided document AST against the configured remote server.
 
-        This function is synchronous and WILL BLOCK until the result is received from the server.
+        This function WILL BLOCK until the result is received from the server.
 
-        Either the transport is sync and we execute the query directly
-        OR the transport is async and we will create a new asyncio event loop to
-        execute the query in a synchronous way (blocking here until answer)
+        Either the transport is sync and we execute the query synchronously directly
+        OR the transport is async and we execute the query in the asyncio loop (blocking here until answer)
         """
 
         if isinstance(self.transport, AsyncTransport):
 
-            loop = asyncio.new_event_loop()
+            loop = asyncio.get_event_loop()
 
             timeout = kwargs.get("timeout", 10)
-            result = loop.run_until_complete(
-                asyncio.wait_for(
-                    self._execute_in_async_session(document, *args, **kwargs), timeout
-                )
+            data: Dict[Any, Any] = loop.run_until_complete(
+                asyncio.wait_for(self.execute_async(document, *args, **kwargs), timeout)
             )
 
-            loop.stop()
-            loop.close()
-
-            return result
+            return data
 
         else:  # Sync transports
 
             if self.schema:
                 self.validate(document)
 
-            result = self.transport.execute(document, *args, **kwargs)
+            result: ExecutionResult = self.transport.execute(document, *args, **kwargs)
 
             if result.errors:
                 raise TransportQueryError(str(result.errors[0]))
 
-            return result.data
+            # Running cast to make mypy happy. result.data should never be None here
+            return cast(Dict[Any, Any], result.data)
+
+    async def subscribe_async(
+        self, document: Document, *args, **kwargs
+    ) -> AsyncGenerator[Dict, None]:
+        async with self as session:
+            async for result in session.subscribe(document, *args, **kwargs):
+                yield result
+
+    def subscribe(
+        self, document: Document, *args, **kwargs
+    ) -> Generator[Dict, None, None]:
+        """Execute a GraphQL subscription with a python generator.
+
+        We need an async transport for this functionality.
+        """
+
+        async_generator = self.subscribe_async(document, *args, **kwargs)
+
+        loop = asyncio.get_event_loop()
+
+        try:
+            while True:
+                result = loop.run_until_complete(async_generator.__anext__())
+                yield result
+
+        except StopAsyncIteration:
+            pass
 
     async def __aenter__(self):
 
