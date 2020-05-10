@@ -1,19 +1,35 @@
 #!/usr/bin/env python3
 
-from gql import gql, AsyncClient
+from gql import gql, Client
 from gql.transport.websockets import WebsocketsTransport
+from gql.transport.aiohttp import AIOHTTPTransport
+from yarl import URL
 import asyncio
 import argparse
 
-parser = argparse.ArgumentParser(description='Send GraphQL queries from command line to a websocket endpoint')
-parser.add_argument('server', help='the server websocket url starting with ws:// or wss://')
+parser = argparse.ArgumentParser(
+    description="Send GraphQL queries from command line using http(s) or websockets"
+)
+parser.add_argument(
+    "server", help="the server url starting with http://, https://, ws:// or wss://"
+)
 args = parser.parse_args()
+
 
 async def main():
 
-    transport = WebsocketsTransport(url=args.server, ssl=args.server.startswith('wss'))
+    url = URL(args.server)
 
-    async with AsyncClient(transport=transport) as client:
+    scheme = url.scheme
+
+    if scheme in ["ws", "wss"]:
+        transport = WebsocketsTransport(url=args.server, ssl=(scheme == "wss"))
+    elif scheme in ["http", "https"]:
+        transport = AIOHTTPTransport(url=args.server)
+    else:
+        raise Exception("URL protocol should be one of: http, https, ws, wss")
+
+    async with Client(transport=transport) as session:
 
         while True:
             try:
@@ -23,8 +39,12 @@ async def main():
 
             query = gql(query_str)
 
-            async for result in client.subscribe(query):
+            if scheme in ["ws", "wss"]:
+                async for result in session.subscribe(query):
+                    print(result)
+            else:
+                result = await session.execute(query)
+                print(result)
 
-                print (result.data)
 
 asyncio.run(main())

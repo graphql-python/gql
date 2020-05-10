@@ -24,8 +24,11 @@ if sys.version_info > (3, 6):
         'pytest-asyncio==0.11.0',
         'parse>=1.6.0',
     ])
-    install_requires.append('websockets>=8.1,<9')
-    install_requires.append('aiohttp==3.6.2')
+    install_requires.append([
+        'websockets>=8.1,<9',
+        'aiohttp==3.6.2',
+        'yarl>=1.0,<2.0',
+    ])
     scripts.append('scripts/gql-cli')
 else:
     tests_require.append([
