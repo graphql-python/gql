@@ -1,24 +1,21 @@
-import aiohttp
-
-from aiohttp.typedefs import LooseCookies, LooseHeaders
-from aiohttp.helpers import BasicAuth
-from aiohttp.client_reqrep import Fingerprint
-from aiohttp.client_exceptions import ClientResponseError
-
 from ssl import SSLContext
+from typing import Any, AsyncGenerator, Dict, Optional, Union
 
-from typing import Dict, Optional, Union, AsyncGenerator, Any
-
+import aiohttp
+from aiohttp.client_exceptions import ClientResponseError
+from aiohttp.client_reqrep import Fingerprint
+from aiohttp.helpers import BasicAuth
+from aiohttp.typedefs import LooseCookies, LooseHeaders
 from graphql.execution import ExecutionResult
 from graphql.language.ast import Document
 from graphql.language.printer import print_ast
 
 from .async_transport import AsyncTransport
 from .exceptions import (
+    TransportAlreadyConnected,
+    TransportClosed,
     TransportProtocolError,
     TransportServerError,
-    TransportClosed,
-    TransportAlreadyConnected,
 )
 
 

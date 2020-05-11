@@ -37,7 +37,7 @@ else:
 
 dev_requires = [
     'flake8==3.7.9',
-    'isort<4.0.0',
+    'isort==4.2.8',
     'black==19.10b0',
     'mypy==0.761',
     'check-manifest>=0.40,<1',

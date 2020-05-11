@@ -1,18 +1,19 @@
 import asyncio
-import pytest
 import json
-import websockets
 import types
 
-from .websocket_fixtures import MS, server, client_and_server, TestServer
-from gql import gql, Client
-from gql.transport.websockets import WebsocketsTransport
+import pytest
+import websockets
+
+from gql import Client, gql
 from gql.transport.exceptions import (
+    TransportClosed,
     TransportProtocolError,
     TransportQueryError,
-    TransportClosed,
 )
+from gql.transport.websockets import WebsocketsTransport
 
+from .websocket_fixtures import MS, TestServer, client_and_server, server
 
 invalid_query_str = """
     query getContinents {

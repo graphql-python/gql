@@ -3,8 +3,8 @@ import logging
 from graphql import build_ast_schema, build_client_schema, introspection_query, parse
 from graphql.validation import validate
 
-from .transport.local_schema import LocalSchemaTransport
 from .transport import Transport
+from .transport.local_schema import LocalSchemaTransport
 
 log = logging.getLogger(__name__)
 

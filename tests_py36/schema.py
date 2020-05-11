@@ -1,21 +1,21 @@
 from graphql import (
-    graphql,
-    print_schema,
-    GraphQLField,
     GraphQLArgument,
+    GraphQLField,
     GraphQLObjectType,
     GraphQLSchema,
+    graphql,
+    print_schema,
 )
 from graphql.utils.introspection_query import introspection_query
 
 from tests.starwars.schema import (
-    reviewType,
-    episodeEnum,
-    queryType,
-    mutationType,
-    humanType,
     droidType,
+    episodeEnum,
+    humanType,
+    mutationType,
+    queryType,
     reviewInputType,
+    reviewType,
 )
 from tests_py36.fixtures import reviewAdded
 

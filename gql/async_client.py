@@ -1,15 +1,14 @@
 import asyncio
+from typing import Any, AsyncGenerator, Dict, Generator, cast
 
 from graphql import build_ast_schema, build_client_schema, introspection_query, parse
 from graphql.execution import ExecutionResult
 from graphql.language.ast import Document
 
-from typing import Generator, AsyncGenerator, Dict, Any, cast
-
-from .transport.local_schema import LocalSchemaTransport
+from .client import Client
 from .transport.async_transport import AsyncTransport
 from .transport.exceptions import TransportQueryError
-from .client import Client
+from .transport.local_schema import LocalSchemaTransport
 
 
 class AsyncClient(Client):

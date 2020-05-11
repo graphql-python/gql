@@ -3,9 +3,8 @@ import sys
 
 import mock
 import pytest
-from urllib3.exceptions import NewConnectionError
-
 from graphql import build_ast_schema, parse
+from urllib3.exceptions import NewConnectionError
 
 from gql import Client, gql
 from gql.transport.requests import RequestsHTTPTransport, Transport

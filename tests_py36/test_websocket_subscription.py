@@ -1,13 +1,14 @@
 import asyncio
-import pytest
 import json
-import websockets
 
+import pytest
+import websockets
 from parse import search
-from .websocket_fixtures import MS, server, client_and_server, TestServer
-from gql import gql, Client
+
+from gql import Client, gql
 from gql.transport.websockets import WebsocketsTransport
 
+from .websocket_fixtures import MS, TestServer, client_and_server, server
 
 countdown_server_answer = (
     '{{"type":"data","id":"{query_id}","payload":{{"data":{{"number":{number}}}}}}}'

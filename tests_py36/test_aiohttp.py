@@ -1,16 +1,16 @@
 import pytest
+from aiohttp import web
 
-from gql import gql, Client
+from gql import Client, gql
 from gql.transport.aiohttp import AIOHTTPTransport
 from gql.transport.exceptions import (
-    TransportServerError,
-    TransportQueryError,
-    TransportProtocolError,
     TransportAlreadyConnected,
     TransportClosed,
+    TransportProtocolError,
+    TransportQueryError,
+    TransportServerError,
 )
 
-from aiohttp import web
 from .aiohttp_fixtures import aiohttp_server
 
 query1_str = """

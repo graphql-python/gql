@@ -1,30 +1,27 @@
 from __future__ import absolute_import
 
-import websockets
-from websockets.http import HeadersLike
-from websockets.typing import Data, Subprotocol
-from websockets.client import WebSocketClientProtocol
-from websockets.exceptions import ConnectionClosed
-
-from ssl import SSLContext
-
 import asyncio
 import json
 import logging
+from ssl import SSLContext
+from typing import Any, AsyncGenerator, Dict, Optional, Tuple, Union, cast
 
-from typing import cast, Dict, Optional, Tuple, Union, AsyncGenerator, Any
-
+import websockets
 from graphql.execution import ExecutionResult
 from graphql.language.ast import Document
 from graphql.language.printer import print_ast
+from websockets.client import WebSocketClientProtocol
+from websockets.exceptions import ConnectionClosed
+from websockets.http import HeadersLike
+from websockets.typing import Data, Subprotocol
 
 from .async_transport import AsyncTransport
 from .exceptions import (
+    TransportAlreadyConnected,
+    TransportClosed,
     TransportProtocolError,
     TransportQueryError,
     TransportServerError,
-    TransportClosed,
-    TransportAlreadyConnected,
 )
 
 log = logging.getLogger(__name__)

@@ -1,18 +1,20 @@
 import asyncio
+import json
+from typing import Dict
+
 import pytest
 import websockets
-import json
 
-from .websocket_fixtures import MS, server, client_and_server, TestServer
-from gql.transport.websockets import WebsocketsTransport
+from gql import Client, gql
 from gql.transport.exceptions import (
+    TransportAlreadyConnected,
     TransportClosed,
     TransportQueryError,
     TransportServerError,
-    TransportAlreadyConnected,
 )
-from gql import gql, Client
-from typing import Dict
+from gql.transport.websockets import WebsocketsTransport
+
+from .websocket_fixtures import MS, TestServer, client_and_server, server
 
 query1_str = """
     query getContinents {

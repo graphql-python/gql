@@ -1,14 +1,15 @@
 import asyncio
-import pytest
 import json
-import websockets
+
 import graphql
+import pytest
+import websockets
 
-from .websocket_fixtures import MS, server, client_and_server, TestServer
-from gql import gql, Client
+from gql import Client, gql
 from gql.transport.websockets import WebsocketsTransport
-from tests_py36.schema import StarWarsSchema, StarWarsTypeDef, StarWarsIntrospection
+from tests_py36.schema import StarWarsIntrospection, StarWarsSchema, StarWarsTypeDef
 
+from .websocket_fixtures import MS, TestServer, client_and_server, server
 
 starwars_expected_one = {
     "stars": 3,

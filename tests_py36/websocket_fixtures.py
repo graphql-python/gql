@@ -1,14 +1,15 @@
-import websockets
 import asyncio
 import json
-import os
-import pytest
 import logging
+import os
 import types
 
-from gql.transport.websockets import WebsocketsTransport
+import pytest
+import websockets
 from websockets.exceptions import ConnectionClosed
+
 from gql import Client
+from gql.transport.websockets import WebsocketsTransport
 
 # Adding debug logs to websocket tests
 for name in ["websockets.server", "gql.transport.websockets"]:

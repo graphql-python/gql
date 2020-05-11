@@ -1,12 +1,14 @@
-import logging
 import asyncio
-import pytest
+import logging
 import sys
-
-from gql import gql, Client
-from gql.transport.websockets import WebsocketsTransport
-from gql.transport.exceptions import TransportError, TransportQueryError
 from typing import Dict
+
+import pytest
+
+from gql import Client, gql
+from gql.transport.exceptions import TransportError, TransportQueryError
+from gql.transport.websockets import WebsocketsTransport
+
 from .websocket_fixtures import MS
 
 logging.basicConfig(level=logging.INFO)

@@ -1,6 +1,6 @@
-import pytest
 import asyncio
 
+import pytest
 from aiohttp.test_utils import TestServer
 
 

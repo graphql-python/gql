@@ -1,11 +1,12 @@
 import asyncio
-import pytest
 import sys
+from typing import Dict
 
-from gql import gql, Client
+import pytest
+
+from gql import Client, gql
 from gql.transport.aiohttp import AIOHTTPTransport
 from gql.transport.exceptions import TransportQueryError
-from typing import Dict
 
 
 @pytest.mark.online

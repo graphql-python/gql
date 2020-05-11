@@ -1,10 +1,9 @@
 import abc
+from typing import AsyncGenerator, Dict, Optional
 
 import six
 from graphql.execution import ExecutionResult
 from graphql.language.ast import Document
-
-from typing import Dict, Optional, AsyncGenerator
 
 
 @six.add_metaclass(abc.ABCMeta)
