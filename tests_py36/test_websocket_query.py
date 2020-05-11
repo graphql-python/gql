@@ -378,9 +378,8 @@ async def test_websocket_connect_failed_with_authentication_in_connection_init(
             await session.execute(query1)
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server1_answers], indirect=True)
-def test_websocket_execute_sync(event_loop, server):
+def test_websocket_execute_sync(server):
 
     url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
     print(f"url = {url}")

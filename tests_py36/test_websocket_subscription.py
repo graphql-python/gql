@@ -325,11 +325,9 @@ async def test_websocket_subscription_with_keepalive(
     assert count == -1
 
 
-# Note: forced to put mark.asyncio here to avoid problem with aiohttp plugin
-@pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
-def test_websocket_subscription_sync(event_loop, server, subscription_str):
+def test_websocket_subscription_sync(server, subscription_str):
 
     url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
     print(f"url = {url}")

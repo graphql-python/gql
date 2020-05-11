@@ -11,7 +11,7 @@ from gql.transport.exceptions import (
 )
 
 from aiohttp import web
-from pytest_aiohttp import aiohttp_server
+from .aiohttp_fixtures import aiohttp_server
 
 query1_str = """
     query getContinents {
