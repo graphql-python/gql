@@ -58,8 +58,15 @@ invalid_subscription_str = """
 """
 
 
+async def server_invalid_subscription(ws, path):
+    await TestServer.send_connection_ack(ws)
+    result = await ws.recv()
+    await ws.send(invalid_query1_server_answer.format(query_id=1))
+    await ws.wait_closed()
+
+
 @pytest.mark.asyncio
-@pytest.mark.parametrize("server", [invalid_query1_server], indirect=True)
+@pytest.mark.parametrize("server", [server_invalid_subscription], indirect=True)
 @pytest.mark.parametrize("query_str", [invalid_subscription_str])
 async def test_websocket_invalid_subscription(event_loop, client_and_server, query_str):
 
