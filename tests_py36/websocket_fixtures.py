@@ -20,9 +20,9 @@ for name in ["websockets.server", "gql.transport.websockets"]:
         logger.addHandler(logging.StreamHandler())
 
 # Unit for timeouts. May be increased on slow machines by setting the
-# WEBSOCKETS_TESTS_TIMEOUT_FACTOR environment variable.
+# GQL_TESTS_TIMEOUT_FACTOR environment variable.
 # Copied from websockets source
-MS = 0.001 * int(os.environ.get("WEBSOCKETS_TESTS_TIMEOUT_FACTOR", 1))
+MS = 0.001 * int(os.environ.get("GQL_TESTS_TIMEOUT_FACTOR", 1))
 
 
 class TestServer:

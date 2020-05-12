@@ -1,3 +1,6 @@
+env:
+  global:
+    - GQL_TESTS_TIMEOUT_FACTOR=100
 language: python
 sudo: false
 python:
