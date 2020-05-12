@@ -12,6 +12,9 @@ from .transport.local_schema import LocalSchemaTransport
 
 
 class AsyncClient(Client):
+
+    DEFAULT_TIMEOUT = 60
+
     def __init__(
         self,
         schema=None,
@@ -68,7 +71,7 @@ class AsyncClient(Client):
                 not loop.is_running()
             ), "Cannot run client.execute if an asyncio loop is running. Use execute_async instead"
 
-            timeout = kwargs.get("timeout", 10)
+            timeout = kwargs.get("timeout", AsyncClient.DEFAULT_TIMEOUT)
 
             data: Dict[Any, Any] = loop.run_until_complete(
                 asyncio.wait_for(self.execute_async(document, *args, **kwargs), timeout)

@@ -45,7 +45,11 @@ class ListenerQueue:
 
     async def get(self) -> ParsedAnswer:
 
-        item = await self._queue.get()
+        try:
+            item = self._queue.get_nowait()
+        except asyncio.QueueEmpty:
+            item = await self._queue.get()
+
         self._queue.task_done()
 
         # If we receive an exception when reading the queue, we raise it
