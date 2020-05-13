@@ -11,15 +11,15 @@ python:
   - pypy3
 matrix:
   include:
-    - python: 3.6
+    - python: 3.8
       env: TOXENV=flake8
-    - python: 3.6
+    - python: 3.8
       env: TOXENV=black
-    - python: 3.6
+    - python: 3.8
       env: TOXENV=import-order
-    - python: 3.6
+    - python: 3.8
       env: TOXENV=mypy
-    - python: 3.6
+    - python: 3.8
       env: TOXENV=manifest
 cache: pip
 install: pip install tox-travis

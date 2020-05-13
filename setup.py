@@ -32,7 +32,7 @@ dev_requires = [
     "flake8==3.7.9",
     "isort<4.0.0",
     "black==19.10b0",
-    "mypy==0.761",
+    "mypy==0.770",
     "check-manifest>=0.40,<1",
 ] + tests_require
 
