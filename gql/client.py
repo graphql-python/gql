@@ -1,6 +1,7 @@
 import logging
 
-from graphql import build_ast_schema, build_client_schema, introspection_query, parse
+from graphql import (build_ast_schema, build_client_schema,
+                     introspection_query, parse)
 from graphql.validation import validate
 
 from .transport import Transport
@@ -55,6 +56,12 @@ class Client(object):
         self.introspection = introspection
         self.transport = transport
         self.retries = retries
+
+        if self.retries:
+            log.warning(
+                "The retries parameter on the Client class is deprecated."
+                "You can pass it to the RequestsHTTPTransport."
+            )
 
     def validate(self, document):
         if not self.schema:

@@ -1,27 +1,11 @@
-from graphql.type import (
-    GraphQLArgument,
-    GraphQLEnumType,
-    GraphQLEnumValue,
-    GraphQLField,
-    GraphQLInputObjectField,
-    GraphQLInputObjectType,
-    GraphQLInt,
-    GraphQLInterfaceType,
-    GraphQLList,
-    GraphQLNonNull,
-    GraphQLObjectType,
-    GraphQLSchema,
-    GraphQLString,
-)
+from graphql.type import (GraphQLArgument, GraphQLEnumType, GraphQLEnumValue,
+                          GraphQLField, GraphQLInputObjectField,
+                          GraphQLInputObjectType, GraphQLInt,
+                          GraphQLInterfaceType, GraphQLList, GraphQLNonNull,
+                          GraphQLObjectType, GraphQLSchema, GraphQLString)
 
-from .fixtures import (
-    createReview,
-    getCharacters,
-    getDroid,
-    getFriends,
-    getHero,
-    getHuman,
-)
+from .fixtures import (createReview, getCharacters, getDroid, getFriends,
+                       getHero, getHuman)
 
 episodeEnum = GraphQLEnumType(
     "Episode",
@@ -136,7 +120,7 @@ queryType = GraphQLObjectType(
                 "episode": GraphQLArgument(
                     description="If omitted, returns the hero of the whole saga. If "
                     "provided, returns the hero of that particular episode.",
-                    type=episodeEnum,  # type: ignore
+                    type_=episodeEnum,  # type: ignore
                 )
             },
             resolver=lambda root, info, **args: getHero(args.get("episode")),
@@ -145,7 +129,7 @@ queryType = GraphQLObjectType(
             humanType,
             args={
                 "id": GraphQLArgument(
-                    description="id of the human", type=GraphQLNonNull(GraphQLString),
+                    description="id of the human", type_=GraphQLNonNull(GraphQLString),
                 )
             },
             resolver=lambda root, info, **args: getHuman(args["id"]),
@@ -154,7 +138,7 @@ queryType = GraphQLObjectType(
             droidType,
             args={
                 "id": GraphQLArgument(
-                    description="id of the droid", type=GraphQLNonNull(GraphQLString),
+                    description="id of the droid", type_=GraphQLNonNull(GraphQLString),
                 )
             },
             resolver=lambda root, info, **args: getDroid(args["id"]),
@@ -164,7 +148,7 @@ queryType = GraphQLObjectType(
             args={
                 "ids": GraphQLArgument(
                     description="list of character ids",
-                    type=GraphQLList(GraphQLString),
+                    type_=GraphQLList(GraphQLString),
                 )
             },
             resolver=lambda root, info, **args: getCharacters(args["ids"]),
@@ -181,10 +165,10 @@ mutationType = GraphQLObjectType(
             args={
                 "episode": GraphQLArgument(
                     description="Episode to create review",
-                    type=episodeEnum,  # type: ignore
+                    type_=episodeEnum,  # type: ignore
                 ),
                 "review": GraphQLArgument(
-                    description="set alive status", type=reviewInputType,
+                    description="set alive status", type_=reviewInputType,
                 ),
             },
             resolver=lambda root, info, **args: createReview(

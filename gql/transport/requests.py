@@ -29,6 +29,7 @@ class RequestsHTTPTransport(Transport):
         timeout=None,  # type: int
         verify=True,  # type: bool
         retries=0,  # type: int
+        method="POST",  # type: str
         **kwargs  # type: Any
     ):
         """Initialize the transport with the given request parameters.
@@ -43,6 +44,7 @@ class RequestsHTTPTransport(Transport):
             the server's TLS certificate, or a string, in which case it must be a path
             to a CA bundle to use. (Default: True).
         :param retries: Pre-setup of the requests' Session for performing retries
+        :param method: HTTP method used for requests. (Default: POST).
         :param kwargs: Optional arguments that ``request`` takes. These can be seen at the :requests_: source code
             or the official :docs_:
 
@@ -56,6 +58,7 @@ class RequestsHTTPTransport(Transport):
         self.use_json = use_json
         self.default_timeout = timeout
         self.verify = verify
+        self.method = method
         self.kwargs = kwargs
 
         # Creating a session that can later be re-use to configure custom mechanisms
@@ -101,7 +104,7 @@ class RequestsHTTPTransport(Transport):
         post_args.update(self.kwargs)
 
         # Using the created session to perform requests
-        response = self.session.post(self.url, **post_args)  # type: ignore
+        response = self.session.request(self.method, self.url, **post_args)  # type: ignore
         try:
             result = response.json()
             if not isinstance(result, dict):
