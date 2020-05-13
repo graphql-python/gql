@@ -1,6 +1,7 @@
 import logging
 
-from graphql import build_ast_schema, build_client_schema, introspection_query, parse
+from graphql import (build_ast_schema, build_client_schema,
+                     introspection_query, parse)
 from graphql.validation import validate
 
 from .transport.local_schema import LocalSchemaTransport

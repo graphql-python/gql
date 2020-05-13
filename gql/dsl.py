@@ -3,13 +3,8 @@ from functools import partial
 import six
 from graphql.language import ast
 from graphql.language.printer import print_ast
-from graphql.type import (
-    GraphQLEnumType,
-    GraphQLInputObjectField,
-    GraphQLInputObjectType,
-    GraphQLList,
-    GraphQLNonNull,
-)
+from graphql.type import (GraphQLEnumType, GraphQLInputObjectField,
+                          GraphQLInputObjectType, GraphQLList, GraphQLNonNull)
 from graphql.utils.ast_from_value import ast_from_value
 
 from .utils import to_camel_case

@@ -12,7 +12,7 @@ subscriptionType = GraphQLObjectType(
             args={
                 'episode': GraphQLArgument(
                     description='Episode to review',
-                    type=episodeEnum,
+                    type_=episodeEnum,
                 )
             },
             resolver=lambda root, info, **args: reviewAdded(args.get('episode')),
