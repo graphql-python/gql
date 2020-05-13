@@ -8,7 +8,7 @@ from parse import search
 from gql import Client, gql
 from gql.transport.websockets import WebsocketsTransport
 
-from .websocket_fixtures import MS, TestServer, client_and_server, server
+from .conftest import MS, TestServer
 
 countdown_server_answer = (
     '{{"type":"data","id":"{query_id}","payload":{{"data":{{"number":{number}}}}}}}'

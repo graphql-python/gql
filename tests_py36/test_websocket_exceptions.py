@@ -13,7 +13,7 @@ from gql.transport.exceptions import (
 )
 from gql.transport.websockets import WebsocketsTransport
 
-from .websocket_fixtures import MS, TestServer, client_and_server, server
+from .conftest import MS, TestServer
 
 invalid_query_str = """
     query getContinents {
@@ -60,7 +60,7 @@ invalid_subscription_str = """
 
 async def server_invalid_subscription(ws, path):
     await TestServer.send_connection_ack(ws)
-    result = await ws.recv()
+    await ws.recv()
     await ws.send(invalid_query1_server_answer.format(query_id=1))
     await TestServer.send_complete(ws, 1)
     await ws.wait_closed()

@@ -14,7 +14,7 @@ from gql.transport.exceptions import (
 )
 from gql.transport.websockets import WebsocketsTransport
 
-from .websocket_fixtures import MS, TestServer, client_and_server, server
+from .conftest import MS, TestServer
 
 query1_str = """
     query getContinents {

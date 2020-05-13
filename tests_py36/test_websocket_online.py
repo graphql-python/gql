@@ -9,7 +9,7 @@ from gql import Client, gql
 from gql.transport.exceptions import TransportError, TransportQueryError
 from gql.transport.websockets import WebsocketsTransport
 
-from .websocket_fixtures import MS
+from .conftest import MS
 
 logging.basicConfig(level=logging.INFO)
 

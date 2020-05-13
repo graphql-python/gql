@@ -9,7 +9,7 @@ from gql import Client, gql
 from gql.transport.websockets import WebsocketsTransport
 from tests_py36.schema import StarWarsIntrospection, StarWarsSchema, StarWarsTypeDef
 
-from .websocket_fixtures import MS, TestServer, client_and_server, server
+from .conftest import MS, TestServer
 
 starwars_expected_one = {
     "stars": 3,

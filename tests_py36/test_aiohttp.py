@@ -11,8 +11,6 @@ from gql.transport.exceptions import (
     TransportServerError,
 )
 
-from .aiohttp_fixtures import aiohttp_server
-
 query1_str = """
     query getContinents {
       continents {
