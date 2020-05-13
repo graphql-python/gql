@@ -1,11 +1,27 @@
-from graphql.type import (GraphQLArgument, GraphQLEnumType, GraphQLEnumValue,
-                          GraphQLField, GraphQLInputObjectField,
-                          GraphQLInputObjectType, GraphQLInt,
-                          GraphQLInterfaceType, GraphQLList, GraphQLNonNull,
-                          GraphQLObjectType, GraphQLSchema, GraphQLString)
+from graphql.type import (
+    GraphQLArgument,
+    GraphQLEnumType,
+    GraphQLEnumValue,
+    GraphQLField,
+    GraphQLInputObjectField,
+    GraphQLInputObjectType,
+    GraphQLInt,
+    GraphQLInterfaceType,
+    GraphQLList,
+    GraphQLNonNull,
+    GraphQLObjectType,
+    GraphQLSchema,
+    GraphQLString,
+)
 
-from .fixtures import (createReview, getCharacters, getDroid, getFriends,
-                       getHero, getHuman)
+from .fixtures import (
+    createReview,
+    getCharacters,
+    getDroid,
+    getFriends,
+    getHero,
+    getHuman,
+)
 
 episodeEnum = GraphQLEnumType(
     "Episode",
