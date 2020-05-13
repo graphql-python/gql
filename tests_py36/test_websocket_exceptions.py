@@ -62,6 +62,7 @@ async def server_invalid_subscription(ws, path):
     await TestServer.send_connection_ack(ws)
     result = await ws.recv()
     await ws.send(invalid_query1_server_answer.format(query_id=1))
+    await TestServer.send_complete(ws, 1)
     await ws.wait_closed()
 
 
@@ -83,6 +84,24 @@ connection_error_server_answer = (
     '{"type":"connection_error","id":null,'
     '"payload":{"message":"Unexpected token Q in JSON at position 0"}}'
 )
+
+
+async def server_no_ack(ws, path):
+    await ws.wait_closed()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("server", [server_no_ack], indirect=True)
+@pytest.mark.parametrize("query_str", [invalid_query_str])
+async def test_websocket_server_does_not_send_ack(event_loop, server, query_str):
+
+    url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
+
+    sample_transport = WebsocketsTransport(url=url, ack_timeout=1)
+
+    with pytest.raises(asyncio.TimeoutError):
+        async with Client(transport=sample_transport):
+            pass
 
 
 async def server_connection_error(ws, path):

@@ -76,6 +76,10 @@ class ListenerQueue:
         # Put the exception in the queue
         await self._queue.put(exception)
 
+        # Don't need to send stop messages in case of error
+        self.send_stop = False
+        self._closed = True
+
 
 class WebsocketsTransport(AsyncTransport):
     """Transport to execute GraphQL queries on remote servers with a websocket connection.
@@ -92,6 +96,9 @@ class WebsocketsTransport(AsyncTransport):
         headers: Optional[HeadersLike] = None,
         ssl: Union[SSLContext, bool] = False,
         init_payload: Dict[str, Any] = {},
+        connect_timeout: int = 10,
+        close_timeout: int = 10,
+        ack_timeout: int = 10,
     ) -> None:
         """Initialize the transport with the given request parameters.
 
@@ -99,11 +106,18 @@ class WebsocketsTransport(AsyncTransport):
         :param headers: Dict of HTTP Headers.
         :param ssl: ssl_context of the connection. Use ssl=False to disable encryption
         :param init_payload: Dict of the payload sent in the connection_init message.
+        :param connect_timeout: Timeout in seconds for the establishment of the websocket connection.
+        :param close_timeout: Timeout in seconds for the close.
+        :param ack_timeout: Timeout in seconds to wait for the connection_ack message from the server.
         """
         self.url: str = url
         self.ssl: Union[SSLContext, bool] = ssl
         self.headers: Optional[HeadersLike] = headers
         self.init_payload: Dict[str, Any] = init_payload
+
+        self.connect_timeout: int = connect_timeout
+        self.close_timeout: int = close_timeout
+        self.ack_timeout: int = ack_timeout
 
         self.websocket: Optional[WebSocketClientProtocol] = None
         self.next_query_id: int = 1
@@ -169,7 +183,8 @@ class WebsocketsTransport(AsyncTransport):
 
         await self._send(init_message)
 
-        init_answer = await self._receive()
+        # Wait for the connection_ack message or raise a TimeoutError
+        init_answer = await asyncio.wait_for(self._receive(), self.ack_timeout)
 
         answer_type, answer_id, execution_result = self._parse_answer(init_answer)
 
@@ -412,10 +427,17 @@ class WebsocketsTransport(AsyncTransport):
         """
         first_result = None
 
-        async for result in self.subscribe(
+        generator = self.subscribe(
             document, variable_values, operation_name, send_stop=False
-        ):
+        )
+
+        async for result in generator:
             first_result = result
+
+            # Note: we need to run generator.aclose() here or the finally block in
+            # the subscribe will not be reached in pypy3 (python version 3.6.1)
+            await generator.aclose()
+
             break
 
         if first_result is None:
@@ -441,11 +463,15 @@ class WebsocketsTransport(AsyncTransport):
         if self.websocket is None:
 
             # Connection to the specified url
-            self.websocket = await websockets.connect(
-                self.url,
-                ssl=self.ssl if self.ssl else None,
-                extra_headers=self.headers,
-                subprotocols=[GRAPHQLWS_SUBPROTOCOL],
+            # Generate a TimeoutError if taking more than connect_timeout seconds
+            self.websocket = await asyncio.wait_for(
+                websockets.connect(
+                    self.url,
+                    ssl=self.ssl if self.ssl else None,
+                    extra_headers=self.headers,
+                    subprotocols=[GRAPHQLWS_SUBPROTOCOL],
+                ),
+                self.connect_timeout,
             )
 
             self.next_query_id = 1
@@ -453,11 +479,12 @@ class WebsocketsTransport(AsyncTransport):
             self._wait_closed.clear()
 
             # Send the init message and wait for the ack from the server
+            # Note: will generate a TimeoutError if no acks are received within the ack_timeout
             try:
                 await self._send_init_message_and_wait_ack()
             except ConnectionClosed as e:
                 raise e
-            except TransportProtocolError as e:
+            except (TransportProtocolError, asyncio.TimeoutError) as e:
                 await self._fail(e, clean_close=False)
                 raise e
 
@@ -483,7 +510,7 @@ class WebsocketsTransport(AsyncTransport):
 
         # Wait that there is no more listeners (we received 'complete' for all queries)
         try:
-            await asyncio.wait_for(self._no_more_listeners.wait(), 10)
+            await asyncio.wait_for(self._no_more_listeners.wait(), self.close_timeout)
         except asyncio.TimeoutError:  # pragma: no cover
             pass
 

@@ -1,27 +1,27 @@
 import asyncio
-from typing import Any, AsyncGenerator, Dict, Generator, cast
+from typing import Any, AsyncGenerator, Dict, Generator, Optional, Union, cast
 
 from graphql import build_ast_schema, build_client_schema, introspection_query, parse
 from graphql.execution import ExecutionResult
 from graphql.language.ast import Document
+from graphql.type import GraphQLSchema
 
 from .client import Client
 from .transport.async_transport import AsyncTransport
 from .transport.exceptions import TransportQueryError
 from .transport.local_schema import LocalSchemaTransport
+from .transport.transport import Transport
 
 
 class AsyncClient(Client):
-
-    DEFAULT_TIMEOUT = 60
-
     def __init__(
         self,
-        schema=None,
+        schema: Optional[GraphQLSchema] = None,
         introspection=None,
-        type_def=None,
-        transport=None,
-        fetch_schema_from_transport=False,
+        type_def: Optional[str] = None,
+        transport: Optional[Union[Transport, AsyncTransport]] = None,
+        fetch_schema_from_transport: bool = False,
+        execute_timeout: Optional[int] = 10,
     ):
         assert not (
             type_def and introspection
@@ -30,9 +30,11 @@ class AsyncClient(Client):
             assert (
                 not schema
             ), "Cant fetch the schema from transport if is already provided"
-            if not isinstance(transport, AsyncTransport):
+            if isinstance(transport, Transport):
                 # For sync transports, we fetch the schema directly
-                introspection = transport.execute(parse(introspection_query)).data
+                execution_result = transport.execute(parse(introspection_query))
+                execution_result = cast(ExecutionResult, execution_result)
+                introspection = execution_result.data
         if introspection:
             assert not schema, "Cant provide introspection and schema at the same time"
             schema = build_client_schema(introspection)
@@ -45,10 +47,21 @@ class AsyncClient(Client):
         elif schema and not transport:
             transport = LocalSchemaTransport(schema)
 
-        self.schema = schema
+        # GraphQL schema
+        self.schema: Optional[GraphQLSchema] = schema
+
+        # Answer of the introspection query
         self.introspection = introspection
-        self.transport = transport
-        self.fetch_schema_from_transport = fetch_schema_from_transport
+
+        # GraphQL transport chosen
+        self.transport: Optional[Union[Transport, AsyncTransport]] = transport
+
+        # Flag to indicate that we need to fetch the schema from the transport
+        # On async transports, we fetch the schema before executing the first query
+        self.fetch_schema_from_transport: bool = fetch_schema_from_transport
+
+        # Enforced timeout of the execute function
+        self.execute_timeout = execute_timeout
 
     async def execute_async(self, document: Document, *args, **kwargs) -> Dict:
         async with self as session:
@@ -71,10 +84,8 @@ class AsyncClient(Client):
                 not loop.is_running()
             ), "Cannot run client.execute if an asyncio loop is running. Use execute_async instead"
 
-            timeout = kwargs.get("timeout", AsyncClient.DEFAULT_TIMEOUT)
-
             data: Dict[Any, Any] = loop.run_until_complete(
-                asyncio.wait_for(self.execute_async(document, *args, **kwargs), timeout)
+                self.execute_async(document, *args, **kwargs)
             )
 
             return data
@@ -84,7 +95,14 @@ class AsyncClient(Client):
             if self.schema:
                 self.validate(document)
 
-            result: ExecutionResult = self.transport.execute(document, *args, **kwargs)
+            result: ExecutionResult
+
+            if isinstance(self.transport, LocalSchemaTransport):
+                result = cast(
+                    ExecutionResult, self.transport.execute(document, *args, **kwargs)
+                )
+            elif isinstance(self.transport, Transport):
+                result = cast(ExecutionResult, self.transport.execute(document))
 
             if result.errors:
                 raise TransportQueryError(str(result.errors[0]))
@@ -96,7 +114,12 @@ class AsyncClient(Client):
         self, document: Document, *args, **kwargs
     ) -> AsyncGenerator[Dict, None]:
         async with self as session:
-            async for result in session.subscribe(document, *args, **kwargs):
+
+            self._generator: AsyncGenerator[Dict, None] = session.subscribe(
+                document, *args, **kwargs
+            )
+
+            async for result in self._generator:
                 yield result
 
     def subscribe(
@@ -136,7 +159,7 @@ class AsyncClient(Client):
 
         return self.session
 
-    async def __aexit__(self, *args):
+    async def __aexit__(self, exc_type, exc, tb):
 
         await self.transport.close()
 
@@ -182,19 +205,31 @@ class AsyncClientSession:
         await self.validate(document)
 
         # Subscribe to the transport and yield data or raise error
-        async for result in self.transport.subscribe(document, *args, **kwargs):
+        self._generator: AsyncGenerator[
+            ExecutionResult, None
+        ] = self.transport.subscribe(document, *args, **kwargs)
+
+        async for result in self._generator:
             if result.errors:
+                # Note: we need to run generator.aclose() here or the finally block in
+                # the transport.subscribe will not be reached in pypy3 (python version 3.6.1)
+                await self._generator.aclose()
+
                 raise TransportQueryError(str(result.errors[0]))
 
-            yield result.data
+            elif result.data is not None:
+                yield result.data
 
     async def execute(self, document: Document, *args, **kwargs) -> Dict:
 
         # Fetch schema from transport if needed and validate document if schema is present
         await self.validate(document)
 
-        # Execute the query with the transport
-        result = await self.transport.execute(document, *args, **kwargs)
+        # Execute the query with the transport with a timeout
+        result = await asyncio.wait_for(
+            self.transport.execute(document, *args, **kwargs),
+            self.client.execute_timeout,
+        )
 
         # Raise an error if an error is returned in the ExecutionResult object
         if result.errors:
