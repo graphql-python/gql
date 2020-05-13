@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 install_requires = [
     'six>=1.10.0',
-    'graphql-core>=2,<3',
+    'graphql-core==2.3.1',
     'promise>=2.0,<3',
     'requests>=2.12,<3'
 ]
