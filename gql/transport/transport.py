@@ -1,17 +1,14 @@
 import abc
-from typing import Union
 
 import six
 from graphql.execution import ExecutionResult
 from graphql.language.ast import Document
-from promise import Promise
 
 
 @six.add_metaclass(abc.ABCMeta)
 class Transport:
     @abc.abstractmethod
-    def execute(self, document):
-        # type: (Document) -> Union[ExecutionResult, Promise[ExecutionResult]]
+    def execute(self, document: Document, *args, **kwargs) -> ExecutionResult:
         """Execute the provided document AST for either a remote or local GraphQL Schema.
 
         :param document: GraphQL query as AST Node or Document object.

@@ -1,5 +1,4 @@
 import os
-import sys
 
 import mock
 import pytest
@@ -32,37 +31,6 @@ def test_request_transport_not_implemented(http_transport_query):
     with pytest.raises(NotImplementedError) as exc_info:
         RandomTransport().execute()
     assert "Any Transport subclass must implement execute method" == str(exc_info.value)
-
-
-@pytest.mark.skipif(
-    sys.version_info > (3, 6), reason="retries on client deprecated in latest versions"
-)
-@mock.patch("gql.transport.requests.RequestsHTTPTransport.execute")
-def test_retries(execute_mock):
-    expected_retries = 3
-    execute_mock.side_effect = Exception("fail")
-
-    client = Client(
-        retries=expected_retries,
-        transport=RequestsHTTPTransport(url="http://swapi.graphene-python.org/graphql"),
-    )
-
-    query = gql(
-        """
-    {
-      myFavoriteFilm: film(id:"RmlsbToz") {
-        id
-        title
-        episodeId
-      }
-    }
-    """
-    )
-
-    with pytest.raises(Exception):
-        client.execute(query)
-    client.close()
-    assert execute_mock.call_count == expected_retries
 
 
 @mock.patch("urllib3.connection.HTTPConnection._new_conn")
