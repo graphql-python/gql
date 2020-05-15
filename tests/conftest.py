@@ -74,9 +74,8 @@ for name in ["websockets.server", "gql.transport.websockets"]:
 MS = 0.001 * int(os.environ.get("GQL_TESTS_TIMEOUT_FACTOR", 1))
 
 
-class TestServer:
-    """
-    Class used to generate a websocket server on localhost on a free port
+class WebSocketServer:
+    """Websocket server on localhost on a free port.
 
     Will allow us to test our client by simulating different correct and incorrect server responses
     """
@@ -179,7 +178,7 @@ def get_server_handler(request):
         async def default_server_handler(ws, path):
 
             try:
-                await TestServer.send_connection_ack(ws)
+                await WebSocketServer.send_connection_ack(ws)
                 query_id = 1
 
                 for answer in answers:
@@ -193,10 +192,10 @@ def get_server_handler(request):
                         formatted_answer = answer
 
                     await ws.send(formatted_answer)
-                    await TestServer.send_complete(ws, query_id)
+                    await WebSocketServer.send_complete(ws, query_id)
                     query_id += 1
 
-                await TestServer.wait_connection_terminate(ws)
+                await WebSocketServer.wait_connection_terminate(ws)
                 await ws.wait_closed()
             except ConnectionClosed:
                 pass
@@ -217,7 +216,7 @@ async def ws_ssl_server(request):
     server_handler = get_server_handler(request)
 
     try:
-        test_server = TestServer(with_ssl=True)
+        test_server = WebSocketServer(with_ssl=True)
 
         # Starting the server with the fixture param as the handler function
         await test_server.start(server_handler)
@@ -240,7 +239,7 @@ async def server(request):
     server_handler = get_server_handler(request)
 
     try:
-        test_server = TestServer()
+        test_server = WebSocketServer()
 
         # Starting the server with the fixture param as the handler function
         await test_server.start(server_handler)

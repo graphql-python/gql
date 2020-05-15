@@ -15,7 +15,7 @@ from gql.transport.exceptions import (
 )
 from gql.transport.websockets import WebsocketsTransport
 
-from .conftest import MS, TestServer
+from .conftest import MS, WebSocketServer
 
 query1_str = """
     query getContinents {
@@ -152,16 +152,16 @@ async def test_websocket_two_queries_in_series(
 
 
 async def server1_two_queries_in_parallel(ws, path):
-    await TestServer.send_connection_ack(ws)
+    await WebSocketServer.send_connection_ack(ws)
     result = await ws.recv()
     print(f"Server received: {result}")
     result = await ws.recv()
     print(f"Server received: {result}")
     await ws.send(query1_server_answer.format(query_id=1))
     await ws.send(query1_server_answer.format(query_id=2))
-    await TestServer.send_complete(ws, 1)
-    await TestServer.send_complete(ws, 2)
-    await TestServer.wait_connection_terminate(ws)
+    await WebSocketServer.send_complete(ws, 1)
+    await WebSocketServer.send_complete(ws, 2)
+    await WebSocketServer.wait_connection_terminate(ws)
     await ws.wait_closed()
 
 
@@ -199,11 +199,11 @@ async def test_websocket_two_queries_in_parallel(
 
 
 async def server_closing_while_we_are_doing_something_else(ws, path):
-    await TestServer.send_connection_ack(ws)
+    await WebSocketServer.send_connection_ack(ws)
     result = await ws.recv()
     print(f"Server received: {result}")
     await ws.send(query1_server_answer.format(query_id=1))
-    await TestServer.send_complete(ws, 1)
+    await WebSocketServer.send_complete(ws, 1)
     await asyncio.sleep(1 * MS)
 
     # Closing server after first query
@@ -349,7 +349,7 @@ async def server_with_authentication_in_connection_init_payload(ws, path):
             result = await ws.recv()
             print(f"Server received: {result}")
             await ws.send(query1_server_answer.format(query_id=1))
-            await TestServer.send_complete(ws, 1)
+            await WebSocketServer.send_complete(ws, 1)
         else:
             await ws.send(
                 '{"type":"connection_error", "payload": "Invalid Authorization token"}'
