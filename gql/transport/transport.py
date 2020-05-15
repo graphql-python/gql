@@ -1,11 +1,8 @@
 import abc
 
-import six
-from graphql.execution import ExecutionResult
-from graphql.language.ast import DocumentNode
+from graphql import DocumentNode, ExecutionResult
 
 
-@six.add_metaclass(abc.ABCMeta)
 class Transport:
     @abc.abstractmethod
     def execute(self, document: DocumentNode, *args, **kwargs) -> ExecutionResult:

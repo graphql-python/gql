@@ -4,7 +4,6 @@ install_requires = [
     "aiohttp==3.6.2",
     "graphql-core>=3.1,<3.2",
     "requests>=2.23,<3",
-    "six>=1.10.0",
     "websockets>=8.1,<9",
     "yarl>=1.4,<2.0",
 ]
@@ -33,7 +32,7 @@ dev_requires = [
 
 setup(
     name="gql",
-    version="0.5.0",
+    version="3.0.0dev",
     description="GraphQL client for Python",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
@@ -45,10 +44,7 @@ setup(
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
         "Topic :: Software Development :: Libraries",
-        "Programming Language :: Python :: 2",
-        "Programming Language :: Python :: 2.7",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
@@ -58,7 +54,7 @@ setup(
     packages=find_packages(include=["gql*"]),
     install_requires=install_requires,
     tests_require=tests_require,
-    extras_require={"test": tests_require, "dev": dev_requires,},
+    extras_require={"test": tests_require, "dev": dev_requires},
     include_package_data=True,
     zip_safe=False,
     platforms="any",

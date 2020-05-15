@@ -55,6 +55,6 @@ StarWarsSchema = GraphQLSchema(
     types=[humanType, droidType, reviewType, reviewInputType],
 )
 
-StarWarsIntrospection = graphql_sync(StarWarsSchema, get_introspection_query()).data  # type: ignore
+StarWarsIntrospection = graphql_sync(StarWarsSchema, get_introspection_query()).data
 
 StarWarsTypeDef = print_schema(StarWarsSchema)

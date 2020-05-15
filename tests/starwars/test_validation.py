@@ -5,7 +5,7 @@ from gql import Client, gql
 
 from .schema import StarWarsSchema
 
-introspection = graphql_sync(StarWarsSchema, get_introspection_query()).data  # type: ignore
+introspection = graphql_sync(StarWarsSchema, get_introspection_query()).data
 
 
 @pytest.fixture

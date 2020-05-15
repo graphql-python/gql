@@ -1,5 +1,5 @@
 import pytest
-from graphql.error import format_error
+from graphql import format_error
 
 from gql import Client, gql
 from tests.starwars.schema import StarWarsSchema

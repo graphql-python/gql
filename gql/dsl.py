@@ -1,6 +1,6 @@
+from collections.abc import Iterable
 from functools import partial
 
-import six
 from graphql import (
     ArgumentNode,
     DocumentNode,
@@ -24,11 +24,6 @@ from graphql import (
 from graphql.pyutils import FrozenList
 
 from .utils import to_camel_case
-
-if six.PY3:
-    from collections.abc import Iterable
-else:
-    from collections import Iterable
 
 
 class DSLSchema(object):

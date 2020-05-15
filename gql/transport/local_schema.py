@@ -1,6 +1,4 @@
-from graphql import GraphQLSchema
-from graphql.execution import ExecutionResult, execute
-from graphql.language.ast import DocumentNode
+from graphql import DocumentNode, ExecutionResult, GraphQLSchema, execute
 
 from gql.transport import Transport
 
