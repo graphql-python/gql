@@ -97,6 +97,7 @@ class WebsocketsTransport(AsyncTransport):
         connect_timeout: int = 10,
         close_timeout: int = 10,
         ack_timeout: int = 10,
+        **kwargs,
     ) -> None:
         """Initialize the transport with the given request parameters.
 
@@ -107,6 +108,7 @@ class WebsocketsTransport(AsyncTransport):
         :param connect_timeout: Timeout in seconds for the establishment of the websocket connection.
         :param close_timeout: Timeout in seconds for the close.
         :param ack_timeout: Timeout in seconds to wait for the connection_ack message from the server.
+        :param kwargs: Other parameters forwarded to websockets.connect
         """
         self.url: str = url
         self.ssl: Union[SSLContext, bool] = ssl
@@ -116,6 +118,8 @@ class WebsocketsTransport(AsyncTransport):
         self.connect_timeout: int = connect_timeout
         self.close_timeout: int = close_timeout
         self.ack_timeout: int = ack_timeout
+
+        self.kwargs = kwargs
 
         self.websocket: Optional[WebSocketClientProtocol] = None
         self.next_query_id: int = 1
@@ -460,16 +464,27 @@ class WebsocketsTransport(AsyncTransport):
 
         if self.websocket is None:
 
+            # If the ssl parameter is not provided, generate the ssl value depending on the url
+            ssl: Optional[Union[SSLContext, bool]]
+            if self.ssl:
+                ssl = self.ssl
+            else:
+                ssl = True if self.url.startswith("wss") else None
+
+            # Set default arguments used in the websockets.connect call
+            connect_args: Dict[str, Any] = {
+                "ssl": ssl,
+                "extra_headers": self.headers,
+                "subprotocols": [GRAPHQLWS_SUBPROTOCOL],
+            }
+
+            # Adding custom parameters passed from init
+            connect_args.update(self.kwargs)
+
             # Connection to the specified url
             # Generate a TimeoutError if taking more than connect_timeout seconds
             self.websocket = await asyncio.wait_for(
-                websockets.connect(
-                    self.url,
-                    ssl=self.ssl if self.ssl else None,
-                    extra_headers=self.headers,
-                    subprotocols=[GRAPHQLWS_SUBPROTOCOL],
-                ),
-                self.connect_timeout,
+                websockets.connect(self.url, **connect_args,), self.connect_timeout,
             )
 
             self.next_query_id = 1

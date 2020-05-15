@@ -1,5 +1,6 @@
 import asyncio
 import json
+import ssl
 from typing import Dict
 
 import pytest
@@ -45,6 +46,44 @@ async def test_websocket_starting_client_in_context_manager(event_loop, server):
     print(f"url = {url}")
 
     sample_transport = WebsocketsTransport(url=url)
+
+    async with Client(transport=sample_transport) as session:
+
+        assert isinstance(
+            sample_transport.websocket, websockets.client.WebSocketClientProtocol
+        )
+
+        query1 = gql(query1_str)
+
+        result = await session.execute(query1)
+
+        print("Client received: " + str(result))
+
+        # Verify result
+        assert isinstance(result, Dict)
+
+        continents = result["continents"]
+        africa = continents[0]
+
+        assert africa["code"] == "AF"
+
+    # Check client is disconnect here
+    assert sample_transport.websocket is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("ws_ssl_server", [server1_answers], indirect=True)
+async def test_websocket_using_ssl_connection(event_loop, ws_ssl_server):
+
+    server = ws_ssl_server
+
+    url = "wss://" + server.hostname + ":" + str(server.port) + "/graphql"
+    print(f"url = {url}")
+
+    ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    ssl_context.load_verify_locations(ws_ssl_server.testcert)
+
+    sample_transport = WebsocketsTransport(url=url, ssl=ssl_context)
 
     async with Client(transport=sample_transport) as session:
 

@@ -20,7 +20,7 @@ async def test_websocket_simple_query():
 
     # Get Websockets transport
     sample_transport = WebsocketsTransport(
-        url="wss://countries.trevorblades.com/graphql", ssl=True
+        url="wss://countries.trevorblades.com/graphql"
     )
 
     # Instanciate client
