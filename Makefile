@@ -4,10 +4,10 @@ dev-setup:
 	python pip install -e ".[test]"
 
 tests:
-	pytest tests tests_py36 --cov=gql --cov-report=term-missing -vv
+	pytest tests --cov=gql --cov-report=term-missing -vv
 
 all_tests:
-	pytest tests tests_py36 --cov=gql --cov-report=term-missing --run-online -vv
+	pytest tests --cov=gql --cov-report=term-missing --run-online -vv
 
 clean:
 	find . -name "*.pyc" -delete

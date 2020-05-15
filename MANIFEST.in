@@ -12,8 +12,7 @@ include tox.ini
 
 include scripts/gql-cli
 
-recursive-include tests *.py *.yaml *.graphql
-recursive-include tests_py36 *.py *.cnf *.pem
+recursive-include tests *.py *.graphql *.cnf *.yaml *.pem
 
 prune gql-checker
 

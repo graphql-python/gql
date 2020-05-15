@@ -20,13 +20,13 @@ def pytest_addoption(parser):
         "--run-online",
         action="store_true",
         default=False,
-        help="run tests necessitating online ressources",
+        help="run tests necessitating online resources",
     )
 
 
 def pytest_configure(config):
     config.addinivalue_line(
-        "markers", "online: mark test as necessitating external online ressources"
+        "markers", "online: mark test as necessitating external online resources"
     )
 
 
@@ -164,8 +164,11 @@ class TestServer:
 
 
 def get_server_handler(request):
-    """ Get the server handler provided from test or use the default
-    server handler if the test provides only an array of answers"""
+    """Get the server handler.
+
+    Either get it from test or use the default server handler
+    if the test provides only an array of answers.
+    """
 
     if isinstance(request.param, types.FunctionType):
         server_handler = request.param
@@ -184,8 +187,7 @@ def get_server_handler(request):
                     print(f"Server received: {result}")
 
                     if isinstance(answer, str) and "{query_id}" in answer:
-                        answer_format_params = {}
-                        answer_format_params["query_id"] = query_id
+                        answer_format_params = {"query_id": query_id}
                         formatted_answer = answer.format(**answer_format_params)
                     else:
                         formatted_answer = answer
@@ -206,7 +208,7 @@ def get_server_handler(request):
 
 @pytest.fixture
 async def ws_ssl_server(request):
-    """websockets server fixture using ssl
+    """Websockets server fixture using SSL.
 
     It can take as argument either a handler function for the websocket server for complete control
     OR an array of answers to be sent by the default server handler
@@ -229,7 +231,7 @@ async def ws_ssl_server(request):
 
 @pytest.fixture
 async def server(request):
-    """server is a fixture used to start a dummy server to test the client behaviour.
+    """Fixture used to start a dummy server to test the client behaviour.
 
     It can take as argument either a handler function for the websocket server for complete control
     OR an array of answers to be sent by the default server handler
@@ -252,7 +254,7 @@ async def server(request):
 
 @pytest.fixture
 async def client_and_server(server):
-    """client_and_server is a helper fixture to start a server and a client connected to its port"""
+    """Helper fixture to start a server and a client connected to its port."""
 
     # Generate transport to connect to the server fixture
     path = "/graphql"

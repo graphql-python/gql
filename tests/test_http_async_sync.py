@@ -19,7 +19,7 @@ async def test_async_client_async_transport(
     # Get async transport
     sample_transport = AIOHTTPTransport(url=url)
 
-    # Instanciate client
+    # Instantiate client
     async with Client(
         transport=sample_transport,
         fetch_schema_from_transport=fetch_schema_from_transport,

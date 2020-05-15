@@ -2,8 +2,9 @@ import pytest
 from graphql import subscribe
 
 from gql import gql
-from tests.starwars.fixtures import reviews
-from tests_py36.schema import StarWarsSchema
+
+from .fixtures import reviews
+from .schema import StarWarsSchema
 
 
 @pytest.mark.asyncio

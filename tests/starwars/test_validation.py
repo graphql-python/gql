@@ -1,11 +1,8 @@
 import pytest
-from graphql import get_introspection_query, graphql_sync
 
 from gql import Client, gql
 
-from .schema import StarWarsSchema
-
-introspection = graphql_sync(StarWarsSchema, get_introspection_query()).data
+from .schema import StarWarsIntrospection, StarWarsSchema
 
 
 @pytest.fixture
@@ -60,7 +57,7 @@ type Query {
 
 @pytest.fixture
 def introspection_schema():
-    return Client(introspection=introspection)
+    return Client(introspection=StarWarsIntrospection)
 
 
 @pytest.fixture(params=["local_schema", "typedef_schema", "introspection_schema"])
