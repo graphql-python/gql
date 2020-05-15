@@ -113,8 +113,6 @@ def test_execute_result_error():
         retries=expected_retries,
         transport=RequestsHTTPTransport(
             url="https://countries.trevorblades.com/",
-            use_json=True,
-            headers={"Content-type": "application/json"},
         ),
     )
 
@@ -140,6 +138,7 @@ def test_http_transport_raise_for_status_error(http_transport_query):
     client = Client(
         transport=RequestsHTTPTransport(
             url="https://countries.trevorblades.com/",
+            use_json=False,
             headers={"Content-type": "application/json"},
         )
     )
@@ -154,8 +153,6 @@ def test_http_transport_verify_error(http_transport_query):
     client = Client(
         transport=RequestsHTTPTransport(
             url="https://countries.trevorblades.com/",
-            use_json=True,
-            headers={"Content-type": "application/json"},
             verify=False,
         )
     )
@@ -170,8 +167,6 @@ def test_http_transport_specify_method_valid(http_transport_query):
     client = Client(
         transport=RequestsHTTPTransport(
             url="https://countries.trevorblades.com/",
-            use_json=True,
-            headers={"Content-type": "application/json"},
             method="POST",
         )
     )
@@ -185,8 +180,6 @@ def test_http_transport_specify_method_invalid(http_transport_query):
     client = Client(
         transport=RequestsHTTPTransport(
             url="https://countries.trevorblades.com/",
-            use_json=True,
-            headers={"Content-type": "application/json"},
             method="GET",
         )
     )
