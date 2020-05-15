@@ -81,7 +81,6 @@ def test_no_schema_exception():
 def test_execute_result_error():
 
     client = Client(
-        retries=expected_retries,
         transport=RequestsHTTPTransport(url="https://countries.trevorblades.com/",),
     )
 
