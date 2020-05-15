@@ -111,9 +111,7 @@ def test_execute_result_error():
 
     client = Client(
         retries=expected_retries,
-        transport=RequestsHTTPTransport(
-            url="https://countries.trevorblades.com/",
-        ),
+        transport=RequestsHTTPTransport(url="https://countries.trevorblades.com/",),
     )
 
     failing_query = gql(
@@ -152,8 +150,7 @@ def test_http_transport_raise_for_status_error(http_transport_query):
 def test_http_transport_verify_error(http_transport_query):
     client = Client(
         transport=RequestsHTTPTransport(
-            url="https://countries.trevorblades.com/",
-            verify=False,
+            url="https://countries.trevorblades.com/", verify=False,
         )
     )
     with pytest.warns(Warning) as record:
@@ -166,8 +163,7 @@ def test_http_transport_verify_error(http_transport_query):
 def test_http_transport_specify_method_valid(http_transport_query):
     client = Client(
         transport=RequestsHTTPTransport(
-            url="https://countries.trevorblades.com/",
-            method="POST",
+            url="https://countries.trevorblades.com/", method="POST",
         )
     )
 
@@ -179,8 +175,7 @@ def test_http_transport_specify_method_valid(http_transport_query):
 def test_http_transport_specify_method_invalid(http_transport_query):
     client = Client(
         transport=RequestsHTTPTransport(
-            url="https://countries.trevorblades.com/",
-            method="GET",
+            url="https://countries.trevorblades.com/", method="GET",
         )
     )
 
