@@ -12,10 +12,10 @@ We welcome all kinds of contributions:
 
 ## Getting started
 
-If you have a specific contribution in mind, be sure to check the 
-[issues](https://github.com/graphql-python/gql/issues) 
-and [pull requests](https://github.com/graphql-python/gql/pulls) 
-in progress - someone could already be working on something similar 
+If you have a specific contribution in mind, be sure to check the
+[issues](https://github.com/graphql-python/gql/issues)
+and [pull requests](https://github.com/graphql-python/gql/pulls)
+in progress - someone could already be working on something similar
 and you can help out.
 
 ## Project setup
@@ -31,10 +31,10 @@ virtualenv gql-dev
 Activate the virtualenv and install dependencies by running:
 
 ```console
-python pip install -e[dev]
+python pip install -e.[dev]
 ```
 
-If you are using Linux or MacOS, you can make use of Makefile command 
+If you are using Linux or MacOS, you can make use of Makefile command
 `make dev-setup`, which is a shortcut for the above python command.
 
 ### Development on Conda
@@ -55,7 +55,7 @@ pip install -e.[dev]
 
 And you ready to start development!
 
-<!-- TODO: Provide environment.yml file for conda env --> 
+<!-- TODO: Provide environment.yml file for conda env -->
 
 ## Running tests
 
@@ -65,7 +65,7 @@ After developing, the full test suite can be evaluated by running:
 pytest tests --cov=gql -vv
 ```
 
-If you are using Linux or MacOS, you can make use of Makefile command 
+If you are using Linux or MacOS, you can make use of Makefile command
 `make tests`, which is a shortcut for the above python command.
 
 You can also test on several python environments by using tox.
@@ -77,8 +77,8 @@ Install tox:
 pip install tox
 ```
 
-Run `tox` on your virtualenv (do not forget to activate it!) 
-and that's it! 
+Run `tox` on your virtualenv (do not forget to activate it!)
+and that's it!
 
 ### Running tox on Conda
 
@@ -93,5 +93,5 @@ This install tox underneath so no need to install it before.
 
 Then uncomment the `requires = tox-conda` line on `tox.ini` file.
 
-Run `tox` and you will see all the environments being created 
+Run `tox` and you will see all the environments being created
 and all passing tests. :rocket:

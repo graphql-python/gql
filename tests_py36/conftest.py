@@ -2,6 +2,8 @@ import asyncio
 import json
 import logging
 import os
+import pathlib
+import ssl
 import types
 
 import pytest
@@ -79,12 +81,35 @@ class TestServer:
     Will allow us to test our client by simulating different correct and incorrect server responses
     """
 
+    def __init__(self, with_ssl: bool = False):
+        self.with_ssl = with_ssl
+
     async def start(self, handler):
 
         print("Starting server")
 
+        extra_serve_args = {}
+
+        if self.with_ssl:
+            # This is a copy of certificate from websockets tests folder
+            #
+            # Generate TLS certificate with:
+            # $ openssl req -x509 -config test_localhost.cnf -days 15340 -newkey rsa:2048 \
+            #       -out test_localhost.crt -keyout test_localhost.key
+            # $ cat test_localhost.key test_localhost.crt > test_localhost.pem
+            # $ rm test_localhost.key test_localhost.crt
+            self.testcert = bytes(
+                pathlib.Path(__file__).with_name("test_localhost.pem")
+            )
+            ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            ssl_context.load_cert_chain(self.testcert)
+
+            extra_serve_args["ssl"] = ssl_context
+
         # Start a server with a random open port
-        self.start_server = websockets.server.serve(handler, "localhost", 0)
+        self.start_server = websockets.server.serve(
+            handler, "localhost", 0, **extra_serve_args
+        )
 
         # Wait that the server is started
         self.server = await self.start_server
@@ -137,13 +162,9 @@ class TestServer:
         assert json_result["type"] == "connection_terminate"
 
 
-@pytest.fixture
-async def server(request):
-    """server is a fixture used to start a dummy server to test the client behaviour.
-
-    It can take as argument either a handler function for the websocket server for complete control
-    OR an array of answers to be sent by the default server handler
-    """
+def get_server_handler(request):
+    """ Get the server handler provided from test or use the default
+    server handler if the test provides only an array of answers"""
 
     if isinstance(request.param, types.FunctionType):
         server_handler = request.param
@@ -178,6 +199,42 @@ async def server(request):
                 pass
 
         server_handler = default_server_handler
+
+    return server_handler
+
+
+@pytest.fixture
+async def ws_ssl_server(request):
+    """websockets server fixture using ssl
+
+    It can take as argument either a handler function for the websocket server for complete control
+    OR an array of answers to be sent by the default server handler
+    """
+
+    server_handler = get_server_handler(request)
+
+    try:
+        test_server = TestServer(with_ssl=True)
+
+        # Starting the server with the fixture param as the handler function
+        await test_server.start(server_handler)
+
+        yield test_server
+    except Exception as e:
+        print("Exception received in server fixture: " + str(e))
+    finally:
+        await test_server.stop()
+
+
+@pytest.fixture
+async def server(request):
+    """server is a fixture used to start a dummy server to test the client behaviour.
+
+    It can take as argument either a handler function for the websocket server for complete control
+    OR an array of answers to be sent by the default server handler
+    """
+
+    server_handler = get_server_handler(request)
 
     try:
         test_server = TestServer()

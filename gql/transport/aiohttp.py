@@ -35,7 +35,7 @@ class AIOHTTPTransport(AsyncTransport):
         auth: Optional[BasicAuth] = None,
         ssl: Union[SSLContext, bool, Fingerprint] = False,
         timeout: Optional[int] = None,
-        **kwargs,
+        client_session_args: Dict[str, Any] = {},
     ) -> None:
         """Initialize the transport with the given aiohttp parameters.
 
@@ -44,7 +44,7 @@ class AIOHTTPTransport(AsyncTransport):
         :param cookies: Dict of HTTP cookies.
         :param auth: BasicAuth object to enable Basic HTTP auth if needed
         :param ssl: ssl_context of the connection. Use ssl=False to disable encryption
-        :param kwargs: Other parameters forwarded to aiohttp.ClientSession
+        :param client_session_args: Dict of extra parameters passed to aiohttp.ClientSession
         """
         self.url: str = url
         self.headers: Optional[LooseHeaders] = headers
@@ -52,7 +52,7 @@ class AIOHTTPTransport(AsyncTransport):
         self.auth: Optional[BasicAuth] = auth
         self.ssl: Union[SSLContext, bool, Fingerprint] = ssl
         self.timeout: Optional[int] = timeout
-        self.kwargs = kwargs
+        self.client_session_args = client_session_args
 
         self.session: Optional[aiohttp.ClientSession] = None
 
@@ -78,7 +78,7 @@ class AIOHTTPTransport(AsyncTransport):
                 )
 
             # Adding custom parameters passed from init
-            client_session_args.update(self.kwargs)
+            client_session_args.update(self.client_session_args)
 
             self.session = aiohttp.ClientSession(**client_session_args)
 
@@ -95,7 +95,7 @@ class AIOHTTPTransport(AsyncTransport):
         document: Document,
         variable_values: Optional[Dict[str, str]] = None,
         operation_name: Optional[str] = None,
-        **kwargs,
+        extra_args: Dict[str, Any] = {},
     ) -> ExecutionResult:
         """Execute the provided document AST against the configured remote server.
         This uses the aiohttp library to perform a HTTP POST request asynchronously to the remote server.
@@ -114,8 +114,8 @@ class AIOHTTPTransport(AsyncTransport):
             "json": payload,
         }
 
-        # Pass kwargs to aiohttp post method
-        post_args.update(kwargs)
+        # Pass post_args to aiohttp post method
+        post_args.update(extra_args)
 
         if self.session is None:
             raise TransportClosed("Transport is not connected")

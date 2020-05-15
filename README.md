@@ -67,10 +67,6 @@ from gql.transport.requests import RequestsHTTPTransport
 
 sample_transport=RequestsHTTPTransport(
     url='https://countries.trevorblades.com/',
-    use_json=True,
-    headers={
-        "Content-type": "application/json",
-    },
     verify=False,
     retries=3,
 )
@@ -215,7 +211,6 @@ async def main():
 
     sample_transport = WebsocketsTransport(
         url='wss://countries.trevorblades.com/graphql',
-        ssl=True,
         headers={'Authorization': 'token'}
     )
 
@@ -262,8 +257,7 @@ import ssl
 
 sample_transport = WebsocketsTransport(
     url='wss://SERVER_URL:SERVER_PORT/graphql',
-    headers={'Authorization': 'token'},
-    ssl=True
+    headers={'Authorization': 'token'}
 )
 ```
 
@@ -298,8 +292,7 @@ There are two ways to send authentication tokens with websockets depending on th
 ```python
 sample_transport = WebsocketsTransport(
     url='wss://SERVER_URL:SERVER_PORT/graphql',
-    headers={'Authorization': 'token'},
-    ssl=True
+    headers={'Authorization': 'token'}
 )
 ```
 
@@ -308,8 +301,7 @@ sample_transport = WebsocketsTransport(
 ```python
 sample_transport = WebsocketsTransport(
     url='wss://SERVER_URL:SERVER_PORT/graphql',
-    init_payload={'Authorization': 'token'},
-    ssl=True
+    init_payload={'Authorization': 'token'}
 )
 ```
 
