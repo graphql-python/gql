@@ -43,7 +43,7 @@ class Linter(ImportOrderChecker):
 
     def error(self, node, code, message):
         lineno, col_offset = node.lineno, node.col_offset
-        return (lineno, col_offset, '{0} {1}'.format(code, message), Linter)
+        return lineno, col_offset, f'{code} {message}', Linter
 
     def run(self):
         for error in self.check_gql():

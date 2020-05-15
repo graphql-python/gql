@@ -65,9 +65,7 @@ class DSLType(object):
         if camel_cased_name in self.type.fields:
             return camel_cased_name, self.type.fields[camel_cased_name]
 
-        raise KeyError(
-            "Field {} does not exist in type {}.".format(name, self.type.name)
-        )
+        raise KeyError(f"Field {name} does not exist in type {self.type.name}.")
 
 
 def selections(*fields):
@@ -126,7 +124,7 @@ def selection_field(field):
     if isinstance(field, DSLField):
         return field
 
-    raise Exception('Received incompatible query field: "{}".'.format(field))
+    raise Exception(f'Received incompatible query field: "{field}".')
 
 
 def query(*fields, **kwargs):
@@ -145,9 +143,9 @@ def query(*fields, **kwargs):
 
 
 def serialize_list(serializer, list_values):
-    assert isinstance(list_values, Iterable), 'Expected iterable, received "{}"'.format(
-        repr(list_values)
-    )
+    assert isinstance(
+        list_values, Iterable
+    ), f'Expected iterable, received "{list_values!r}".'
     return ListValueNode(values=FrozenList(serializer(v) for v in list_values))
 
 

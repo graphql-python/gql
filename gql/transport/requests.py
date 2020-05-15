@@ -16,33 +16,37 @@ class RequestsHTTPTransport(Transport):
     """
 
     def __init__(
-        self,  # type: RequestsHTTPTransport
-        url,  # type: str
-        headers=None,  # type: Dict[str, Any]
-        cookies=None,  # type: Union[Dict[str, Any], RequestsCookieJar]
-        auth=None,  # type: AuthBase
-        use_json=True,  # type: bool
-        timeout=None,  # type: int
-        verify=True,  # type: bool
-        retries=0,  # type: int
-        method="POST",  # type: str
-        **kwargs  # type: Any
+        self,
+        url: str,
+        headers: Optional[Dict[str, Any]] = None,
+        cookies: Optional[Union[Dict[str, Any], RequestsCookieJar]] = None,
+        auth: Optional[AuthBase] = None,
+        use_json: bool = True,
+        timeout: Optional[int] = None,
+        verify: bool = True,
+        retries: int = 0,
+        method: str = "POST",
+        **kwargs: Any
     ):
         """Initialize the transport with the given request parameters.
 
         :param url: The GraphQL server URL.
-        :param headers: Dictionary of HTTP Headers to send with the :class:`Request` (Default: None).
-        :param cookies: Dict or CookieJar object to send with the :class:`Request` (Default: None).
-        :param auth: Auth tuple or callable to enable Basic/Digest/Custom HTTP Auth (Default: None).
-        :param use_json: Send request body as JSON instead of form-urlencoded (Default: False).
+        :param headers: Dictionary of HTTP Headers to send with the :class:`Request`
+            (Default: None).
+        :param cookies: Dict or CookieJar object to send with the :class:`Request`
+            (Default: None).
+        :param auth: Auth tuple or callable to enable Basic/Digest/Custom HTTP Auth
+            (Default: None).
+        :param use_json: Send request body as JSON instead of form-urlencoded
+            (Default: True).
         :param timeout: Specifies a default timeout for requests (Default: None).
         :param verify: Either a boolean, in which case it controls whether we verify
             the server's TLS certificate, or a string, in which case it must be a path
             to a CA bundle to use. (Default: True).
         :param retries: Pre-setup of the requests' Session for performing retries
         :param method: HTTP method used for requests. (Default: POST).
-        :param kwargs: Optional arguments that ``request`` takes. These can be seen at the :requests_: source code
-            or the official :docs_:
+        :param kwargs: Optional arguments that ``request`` takes.
+            These can be seen at the :requests_: source code or the official :docs_:
 
         .. _requests: https://github.com/psf/requests/blob/master/requests/api.py
         .. _docs: https://requests.readthedocs.io/en/master/
@@ -78,14 +82,17 @@ class RequestsHTTPTransport(Transport):
         variable_values: Optional[Dict[str, Any]] = None,
         timeout: Optional[int] = None,
     ) -> ExecutionResult:
-        """Execute the provided document AST against the configured remote server.
-        This uses the requests library to perform a HTTP POST request to the remote server.
+        """Execute GraphQL query.
+
+        Execute the provided document AST against the configured remote server. This
+        uses the requests library to perform a HTTP POST request to the remote server.
 
         :param document: GraphQL query as AST Node object.
         :param variable_values: Dictionary of input parameters (Default: None).
         :param timeout: Specifies a default timeout for requests (Default: None).
-        :return: The result of execution. `data` is the result of executing the query, `errors` is null if no errors
-            occurred, and is a non-empty array if an error occurred.
+        :return: The result of execution.
+            `data` is the result of executing the query, `errors` is null
+            if no errors occurred, and is a non-empty array if an error occurred.
         """
         query_str = print_ast(document)
         payload = {"query": query_str, "variables": variable_values or {}}
@@ -104,7 +111,9 @@ class RequestsHTTPTransport(Transport):
         post_args.update(self.kwargs)
 
         # Using the created session to perform requests
-        response = self.session.request(self.method, self.url, **post_args)  # type: ignore
+        response = self.session.request(
+            self.method, self.url, **post_args  # type: ignore
+        )
         try:
             result = response.json()
             if not isinstance(result, dict):

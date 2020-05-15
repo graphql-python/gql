@@ -49,7 +49,8 @@ characterInterface = GraphQLInterfaceType(
         "name": GraphQLField(GraphQLString, description="The name of the character."),
         "friends": GraphQLField(
             GraphQLList(characterInterface),  # type: ignore
-            description="The friends of the character, or an empty list if they have none.",
+            description="The friends of the character,"
+            " or an empty list if they have none.",
         ),
         "appearsIn": GraphQLField(
             GraphQLList(episodeEnum), description="Which movies they appear in."

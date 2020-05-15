@@ -78,12 +78,12 @@ class ListenerQueue:
 
 
 class WebsocketsTransport(AsyncTransport):
-    """Transport to execute GraphQL queries on remote servers with a websocket connection.
+    """Transport to execute GraphQL queries on remote servers with websocket connection.
 
-    This transport use asyncio
-    The transport uses the websockets library in order to send requests on a websocket connection.
+    This transport uses asyncio and the websockets library in order to send requests
+    on a websocket connection.
 
-    See README.md for Usage
+    See README.md for usage.
     """
 
     def __init__(
@@ -103,9 +103,11 @@ class WebsocketsTransport(AsyncTransport):
         :param headers: Dict of HTTP Headers.
         :param ssl: ssl_context of the connection. Use ssl=False to disable encryption
         :param init_payload: Dict of the payload sent in the connection_init message.
-        :param connect_timeout: Timeout in seconds for the establishment of the websocket connection.
+        :param connect_timeout: Timeout in seconds for the establishment
+            of the websocket connection.
         :param close_timeout: Timeout in seconds for the close.
-        :param ack_timeout: Timeout in seconds to wait for the connection_ack message from the server.
+        :param ack_timeout: Timeout in seconds to wait for the connection_ack message
+            from the server.
         :param connect_args: Other parameters forwarded to websockets.connect
         """
         self.url: str = url
@@ -146,7 +148,7 @@ class WebsocketsTransport(AsyncTransport):
         try:
             await self.websocket.send(message)
             log.info(">>> %s", message)
-        except (ConnectionClosed) as e:
+        except ConnectionClosed as e:
             await self._fail(e, clean_close=False)
             raise e
 
@@ -172,9 +174,9 @@ class WebsocketsTransport(AsyncTransport):
         return answer
 
     async def _send_init_message_and_wait_ack(self) -> None:
-        """Send an init message to the provided websocket then wait for the connection ack
+        """Send init message to the provided websocket and wait for the connection ACK.
 
-        If the answer is not a connection_ack message, we will return an Exception
+        If the answer is not a connection_ack message, we will return an Exception.
         """
 
         init_message = json.dumps(
@@ -194,9 +196,9 @@ class WebsocketsTransport(AsyncTransport):
             )
 
     async def _send_stop_message(self, query_id: int) -> None:
-        """Send a stop message to the provided websocket connection for the provided query_id
+        """Send stop message to the provided websocket connection and query_id.
 
-        The server should afterwards return a 'complete' message
+        The server should afterwards return a 'complete' message.
         """
 
         stop_message = json.dumps({"id": str(query_id), "type": "stop"})
@@ -204,9 +206,9 @@ class WebsocketsTransport(AsyncTransport):
         await self._send(stop_message)
 
     async def _send_connection_terminate_message(self) -> None:
-        """Send a connection_terminate message to the provided websocket connection
+        """Send a connection_terminate message to the provided websocket connection.
 
-        This message indicate that the connection will disconnect
+        This message indicates that the connection will disconnect.
         """
 
         connection_terminate_message = json.dumps({"type": "connection_terminate"})
@@ -219,11 +221,11 @@ class WebsocketsTransport(AsyncTransport):
         variable_values: Optional[Dict[str, str]] = None,
         operation_name: Optional[str] = None,
     ) -> int:
-        """Send a query to the provided websocket connection
+        """Send a query to the provided websocket connection.
 
-        We use an incremented id to reference the query
+        We use an incremented id to reference the query.
 
-        Returns the used id for this query
+        Returns the used id for this query.
         """
 
         query_id = self.next_query_id
@@ -251,7 +253,8 @@ class WebsocketsTransport(AsyncTransport):
         """Parse the answer received from the server
 
         Returns a list consisting of:
-            - the answer_type (between: 'connection_ack', 'ka', 'connection_error', 'data', 'error', 'complete')
+            - the answer_type (between:
+              'connection_ack', 'ka', 'connection_error', 'data', 'error', 'complete')
             - the answer id (Integer) if received or None
             - an execution Result if the answer_type is 'data' or None
         """
@@ -306,7 +309,7 @@ class WebsocketsTransport(AsyncTransport):
                 "Server did not return a GraphQL result"
             ) from e
 
-        return (answer_type, answer_id, execution_result)
+        return answer_type, answer_id, execution_result
 
     async def _receive_data_loop(self) -> None:
 
@@ -328,7 +331,8 @@ class WebsocketsTransport(AsyncTransport):
                 except TransportQueryError as e:
                     # Received an exception for a specific query
                     # ==> Add an exception to this query queue
-                    # The exception is raised for this specific query but the transport is not closed
+                    # The exception is raised for this specific query,
+                    # but the transport is not closed.
                     try:
                         await self.listeners[e.query_id].set_exception(e)
                     except KeyError:
@@ -340,7 +344,7 @@ class WebsocketsTransport(AsyncTransport):
                 except (TransportServerError, TransportProtocolError) as e:
                     # Received a global exception for this transport
                     # ==> close the transport
-                    # The exception will be raised for all current queries
+                    # The exception will be raised for all current queries.
                     await self._fail(e, clean_close=False)
                     break
 
@@ -351,7 +355,7 @@ class WebsocketsTransport(AsyncTransport):
                             (answer_type, execution_result)
                         )
                 except KeyError:
-                    # Do nothing if no one is listening to this query_id
+                    # Do nothing if no one is listening to this query_id.
                     pass
 
         finally:
@@ -364,11 +368,11 @@ class WebsocketsTransport(AsyncTransport):
         operation_name: Optional[str] = None,
         send_stop: Optional[bool] = True,
     ) -> AsyncGenerator[ExecutionResult, None]:
-        """Send a query and receive the results using a python async generator
+        """Send a query and receive the results using a python async generator.
 
-        The query can be a graphql query, mutation or subscription
+        The query can be a graphql query, mutation or subscription.
 
-        The results are sent as an ExecutionResult object
+        The results are sent as an ExecutionResult object.
         """
 
         # Send the query and receive the id
@@ -388,7 +392,7 @@ class WebsocketsTransport(AsyncTransport):
             while True:
 
                 # Wait for the answer from the queue of this query_id
-                # This can raise a TransportError exception or a ConnectionClosed exception
+                # This can raise a TransportError or ConnectionClosed exception.
                 answer_type, execution_result = await listener.get()
 
                 # If the received answer contains data,
@@ -421,9 +425,11 @@ class WebsocketsTransport(AsyncTransport):
         variable_values: Optional[Dict[str, str]] = None,
         operation_name: Optional[str] = None,
     ) -> ExecutionResult:
-        """Send a query but close the async generator as soon as we have the first answer
+        """Execute a GrqphQLQuery.
 
-        The result is sent as an ExecutionResult object
+        Send a query but close the async generator as soon as we have the first answer.
+
+        The result is sent as an ExecutionResult object.
         """
         first_result = None
 
@@ -453,7 +459,8 @@ class WebsocketsTransport(AsyncTransport):
         - connect to the websocket address
         - send the init message
         - wait for the connection acknowledge from the server
-        - create an asyncio task which will be used to receive and parse the websocket answers
+        - create an asyncio task which will be used to receive
+          and parse the websocket answers
 
         Should be cleaned with a call to the close coroutine
         """
@@ -462,7 +469,8 @@ class WebsocketsTransport(AsyncTransport):
 
         if self.websocket is None:
 
-            # If the ssl parameter is not provided, generate the ssl value depending on the url
+            # If the ssl parameter is not provided,
+            # generate the ssl value depending on the url
             ssl: Optional[Union[SSLContext, bool]]
             if self.ssl:
                 ssl = self.ssl
@@ -490,7 +498,8 @@ class WebsocketsTransport(AsyncTransport):
             self._wait_closed.clear()
 
             # Send the init message and wait for the ack from the server
-            # Note: will generate a TimeoutError if no acks are received within the ack_timeout
+            # Note: This will generate a TimeoutError
+            # if no ACKs are received within the ack_timeout
             try:
                 await self._send_init_message_and_wait_ack()
             except ConnectionClosed as e:
@@ -539,7 +548,8 @@ class WebsocketsTransport(AsyncTransport):
         """
         if self.websocket:
 
-            # Saving exception to raise it later if trying to use the transport after it has closed
+            # Saving exception to raise it later if trying to use the transport
+            # after it has already closed.
             self.close_exception = e
 
             if clean_close:

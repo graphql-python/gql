@@ -37,8 +37,8 @@ def test_request_transport_not_implemented(http_transport_query):
 def test_retries_on_transport(execute_mock):
     """Testing retries on the transport level
 
-    This forces us to override low-level APIs because the retry mechanism on the urllib3 (which
-    uses requests) is pretty low-level itself.
+    This forces us to override low-level APIs because the retry mechanism on the urllib3
+    (which uses requests) is pretty low-level itself.
     """
     expected_retries = 3
     execute_mock.side_effect = NewConnectionError(
@@ -103,55 +103,48 @@ def test_execute_result_error():
 
 
 def test_http_transport_raise_for_status_error(http_transport_query):
-    client = Client(
+    with Client(
         transport=RequestsHTTPTransport(
             url="https://countries.trevorblades.com/",
             use_json=False,
             headers={"Content-type": "application/json"},
         )
-    )
-
-    with pytest.raises(Exception) as exc_info:
-        client.execute(http_transport_query)
-    client.close()
+    ) as client:
+        with pytest.raises(Exception) as exc_info:
+            client.execute(http_transport_query)
     assert "400 Client Error: Bad Request for url" in str(exc_info.value)
 
 
 def test_http_transport_verify_error(http_transport_query):
-    client = Client(
+    with Client(
         transport=RequestsHTTPTransport(
             url="https://countries.trevorblades.com/", verify=False,
         )
-    )
-    with pytest.warns(Warning) as record:
-        client.execute(http_transport_query)
-    client.close()  # We could have written `with client:` on top of the `with pytest...` instead
+    ) as client:
+        with pytest.warns(Warning) as record:
+            client.execute(http_transport_query)
     assert len(record) == 1
     assert "Unverified HTTPS request is being made to host" in str(record[0].message)
 
 
 def test_http_transport_specify_method_valid(http_transport_query):
-    client = Client(
+    with Client(
         transport=RequestsHTTPTransport(
             url="https://countries.trevorblades.com/", method="POST",
         )
-    )
-
-    result = client.execute(http_transport_query)
-    client.close()
+    ) as client:
+        result = client.execute(http_transport_query)
     assert result is not None
 
 
 def test_http_transport_specify_method_invalid(http_transport_query):
-    client = Client(
+    with Client(
         transport=RequestsHTTPTransport(
             url="https://countries.trevorblades.com/", method="GET",
         )
-    )
-
-    with pytest.raises(Exception) as exc_info:
-        client.execute(http_transport_query)
-    client.close()
+    ) as client:
+        with pytest.raises(Exception) as exc_info:
+            client.execute(http_transport_query)
     assert "400 Client Error: Bad Request for url" in str(exc_info.value)
 
 
@@ -167,7 +160,6 @@ def test_gql():
 
     schema = build_ast_schema(document)
 
-    client = Client(schema=schema)
     query = gql(
         """
         query getUser {
@@ -178,6 +170,7 @@ def test_gql():
         }
     """
     )
-    result = client.execute(query)
-    client.close()
+
+    with Client(schema=schema) as client:
+        result = client.execute(query)
     assert result["user"] is None

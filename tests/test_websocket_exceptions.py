@@ -26,13 +26,13 @@ invalid_query_str = """
 
 invalid_query1_server_answer = (
     '{{"type":"data","id":"{query_id}",'
-    '"payload":{{"errors":[{{"message":"Cannot query field \\"bloh\\" on type \\"Continent\\".",'
-    '"locations":[{{"line":4,"column":5}}],"extensions":{{"code":"INTERNAL_SERVER_ERROR"}}}}]}}}}'
+    '"payload":{{"errors":['
+    '{{"message":"Cannot query field \\"bloh\\" on type \\"Continent\\".",'
+    '"locations":[{{"line":4,"column":5}}],'
+    '"extensions":{{"code":"INTERNAL_SERVER_ERROR"}}}}]}}}}'
 )
 
-invalid_query1_server = [
-    invalid_query1_server_answer,
-]
+invalid_query1_server = [invalid_query1_server_answer]
 
 
 @pytest.mark.asyncio
@@ -95,7 +95,7 @@ async def server_no_ack(ws, path):
 @pytest.mark.parametrize("query_str", [invalid_query_str])
 async def test_websocket_server_does_not_send_ack(event_loop, server, query_str):
 
-    url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
+    url = f"ws://{server.hostname}:{server.port}/graphql"
 
     sample_transport = WebsocketsTransport(url=url, ack_timeout=1)
 
@@ -223,7 +223,7 @@ async def server_without_ack(ws, path):
 @pytest.mark.parametrize("server", [server_without_ack], indirect=True)
 async def test_websocket_server_does_not_ack(event_loop, server):
 
-    url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
+    url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
     sample_transport = WebsocketsTransport(url=url)
@@ -241,7 +241,7 @@ async def server_closing_directly(ws, path):
 @pytest.mark.parametrize("server", [server_closing_directly], indirect=True)
 async def test_websocket_server_closing_directly(event_loop, server):
 
-    url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
+    url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
     sample_transport = WebsocketsTransport(url=url)
@@ -275,7 +275,10 @@ async def test_websocket_server_closing_after_ack(event_loop, client_and_server)
 
 async def server_sending_invalid_query_errors(ws, path):
     await WebSocketServer.send_connection_ack(ws)
-    invalid_error = '{"type":"error","id":"404","payload":{"message":"error for no good reason on non existing query"}}'
+    invalid_error = (
+        '{"type":"error","id":"404","payload":'
+        '{"message":"error for no good reason on non existing query"}}'
+    )
     await ws.send(invalid_error)
     await ws.wait_closed()
 
@@ -283,7 +286,7 @@ async def server_sending_invalid_query_errors(ws, path):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_sending_invalid_query_errors], indirect=True)
 async def test_websocket_server_sending_invalid_query_errors(event_loop, server):
-    url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
+    url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
     sample_transport = WebsocketsTransport(url=url)

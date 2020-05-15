@@ -1,4 +1,5 @@
 import asyncio
+from inspect import isawaitable
 from typing import Any, AsyncGenerator, Dict, Generator, Optional, Union, cast
 
 from graphql import (
@@ -87,16 +88,18 @@ class Client:
         This function WILL BLOCK until the result is received from the server.
 
         Either the transport is sync and we execute the query synchronously directly
-        OR the transport is async and we execute the query in the asyncio loop (blocking here until answer)
+        OR the transport is async and we execute the query in the asyncio loop
+        (blocking here until answer).
         """
 
         if isinstance(self.transport, AsyncTransport):
 
             loop = asyncio.get_event_loop()
 
-            assert (
-                not loop.is_running()
-            ), "Cannot run client.execute if an asyncio loop is running. Use execute_async instead"
+            assert not loop.is_running(), (
+                "Cannot run client.execute if an asyncio loop is running."
+                " Use execute_async instead."
+            )
 
             data: Dict[Any, Any] = loop.run_until_complete(
                 self.execute_async(document, *args, **kwargs)
@@ -109,9 +112,12 @@ class Client:
             if self.schema:
                 self.validate(document)
 
-            assert self.transport is not None, "Cant execute without a tranport"
+            assert self.transport is not None, "Cannot execute without a transport"
 
-            result: ExecutionResult = self.transport.execute(document, *args, **kwargs)
+            result = self.transport.execute(document, *args, **kwargs)
+
+            assert not isawaitable(result), "Transport returned an awaitable result."
+            result = cast(ExecutionResult, result)
 
             if result.errors:
                 raise TransportQueryError(str(result.errors[0]))
@@ -146,9 +152,10 @@ class Client:
 
         loop = asyncio.get_event_loop()
 
-        assert (
-            not loop.is_running()
-        ), "Cannot run client.subscribe if an asyncio loop is running. Use subscribe_async instead"
+        assert not loop.is_running(), (
+            "Cannot run client.subscribe if an asyncio loop is running."
+            " Use subscribe_async instead."
+        )
 
         try:
             while True:
@@ -191,15 +198,20 @@ class Client:
 
 
 class ClientSession:
-    """ An instance of this class is created when using 'async with' on the client.
+    """An instance of this class is created when using 'async with' on the client.
 
-    It contains the async methods (execute, subscribe) to send queries with the async transports"""
+    It contains the async methods (execute, subscribe) to send queries
+    with the async transports.
+    """
 
     def __init__(self, client: Client):
         self.client = client
 
     async def validate(self, document: DocumentNode):
-        """ Fetch schema from transport if needed and validate document if schema is present """
+        """Fetch schema from transport if needed and validate document.
+
+        If no schema is present, the validation will be skipped.
+        """
 
         # Get schema from transport if needed
         if self.client.fetch_schema_from_transport and not self.client.schema:
@@ -213,7 +225,7 @@ class ClientSession:
         self, document: DocumentNode, *args, **kwargs
     ) -> AsyncGenerator[Dict, None]:
 
-        # Fetch schema from transport if needed and validate document if schema is present
+        # Fetch schema from transport if needed and validate document if possible
         await self.validate(document)
 
         # Subscribe to the transport and yield data or raise error
@@ -224,7 +236,7 @@ class ClientSession:
         async for result in self._generator:
             if result.errors:
                 # Note: we need to run generator.aclose() here or the finally block in
-                # the transport.subscribe will not be reached in pypy3 (python version 3.6.1)
+                # transport.subscribe will not be reached in pypy3 (py 3.6.1)
                 await self._generator.aclose()
 
                 raise TransportQueryError(str(result.errors[0]))
@@ -234,7 +246,7 @@ class ClientSession:
 
     async def execute(self, document: DocumentNode, *args, **kwargs) -> Dict:
 
-        # Fetch schema from transport if needed and validate document if schema is present
+        # Fetch schema from transport if needed and validate document if possible
         await self.validate(document)
 
         # Execute the query with the transport with a timeout

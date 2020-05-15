@@ -28,8 +28,9 @@ query1_str = """
 
 query1_server_answer = (
     '{{"type":"data","id":"{query_id}","payload":{{"data":{{"continents":['
-    '{{"code":"AF","name":"Africa"}},{{"code":"AN","name":"Antarctica"}},{{"code":"AS","name":"Asia"}},'
-    '{{"code":"EU","name":"Europe"}},{{"code":"NA","name":"North America"}},{{"code":"OC","name":"Oceania"}},'
+    '{{"code":"AF","name":"Africa"}},{{"code":"AN","name":"Antarctica"}},'
+    '{{"code":"AS","name":"Asia"}},{{"code":"EU","name":"Europe"}},'
+    '{{"code":"NA","name":"North America"}},{{"code":"OC","name":"Oceania"}},'
     '{{"code":"SA","name":"South America"}}]}}}}}}'
 )
 
@@ -42,7 +43,7 @@ server1_answers = [
 @pytest.mark.parametrize("server", [server1_answers], indirect=True)
 async def test_websocket_starting_client_in_context_manager(event_loop, server):
 
-    url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
+    url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
     sample_transport = WebsocketsTransport(url=url)
@@ -57,7 +58,7 @@ async def test_websocket_starting_client_in_context_manager(event_loop, server):
 
         result = await session.execute(query1)
 
-        print("Client received: " + str(result))
+        print("Client received:", result)
 
         # Verify result
         assert isinstance(result, Dict)
@@ -77,7 +78,7 @@ async def test_websocket_using_ssl_connection(event_loop, ws_ssl_server):
 
     server = ws_ssl_server
 
-    url = "wss://" + server.hostname + ":" + str(server.port) + "/graphql"
+    url = f"wss://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
     ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
@@ -95,7 +96,7 @@ async def test_websocket_using_ssl_connection(event_loop, ws_ssl_server):
 
         result = await session.execute(query1)
 
-        print("Client received: " + str(result))
+        print("Client received:", result)
 
         # Verify result
         assert isinstance(result, Dict)
@@ -120,7 +121,7 @@ async def test_websocket_simple_query(event_loop, client_and_server, query_str):
 
     result = await session.execute(query)
 
-    print("Client received: " + str(result))
+    print("Client received:", result)
 
 
 server1_two_answers_in_series = [
@@ -142,11 +143,11 @@ async def test_websocket_two_queries_in_series(
 
     result1 = await session.execute(query)
 
-    print("Query1 received: " + str(result1))
+    print("Query1 received:", result1)
 
     result2 = await session.execute(query)
 
-    print("Query2 received: " + str(result2))
+    print("Query2 received:", result2)
 
     assert result1 == result2
 
@@ -192,8 +193,8 @@ async def test_websocket_two_queries_in_parallel(
 
     await asyncio.gather(task1, task2)
 
-    print("Query1 received: " + str(result1))
-    print("Query2 received: " + str(result2))
+    print("Query1 received:", result1)
+    print("Query2 received:", result2)
 
     assert result1 == result2
 
@@ -267,7 +268,7 @@ async def assert_client_is_working(session):
 
     result = await session.execute(query1)
 
-    print("Client received: " + str(result))
+    print("Client received:", result)
 
     # Verify result
     assert isinstance(result, Dict)
@@ -282,7 +283,7 @@ async def assert_client_is_working(session):
 @pytest.mark.parametrize("server", [server1_answers], indirect=True)
 async def test_websocket_multiple_connections_in_series(event_loop, server):
 
-    url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
+    url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
     sample_transport = WebsocketsTransport(url=url)
@@ -304,7 +305,7 @@ async def test_websocket_multiple_connections_in_series(event_loop, server):
 @pytest.mark.parametrize("server", [server1_answers], indirect=True)
 async def test_websocket_multiple_connections_in_parallel(event_loop, server):
 
-    url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
+    url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
     async def task_coro():
@@ -324,7 +325,7 @@ async def test_websocket_trying_to_connect_to_already_connected_transport(
     event_loop, server
 ):
 
-    url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
+    url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
     sample_transport = WebsocketsTransport(url=url)
@@ -371,7 +372,7 @@ async def test_websocket_connect_success_with_authentication_in_connection_init(
     event_loop, server, query_str
 ):
 
-    url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
+    url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
     init_payload = {"Authorization": 12345}
@@ -384,7 +385,7 @@ async def test_websocket_connect_success_with_authentication_in_connection_init(
 
         result = await session.execute(query1)
 
-        print("Client received: " + str(result))
+        print("Client received:", result)
 
         # Verify result
         assert isinstance(result, Dict)
@@ -405,7 +406,7 @@ async def test_websocket_connect_failed_with_authentication_in_connection_init(
     event_loop, server, query_str, init_payload
 ):
 
-    url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
+    url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
     sample_transport = WebsocketsTransport(url=url, init_payload=init_payload)
@@ -420,7 +421,7 @@ async def test_websocket_connect_failed_with_authentication_in_connection_init(
 @pytest.mark.parametrize("server", [server1_answers], indirect=True)
 def test_websocket_execute_sync(server):
 
-    url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
+    url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
     sample_transport = WebsocketsTransport(url=url)
@@ -431,7 +432,7 @@ def test_websocket_execute_sync(server):
 
     result = client.execute(query1)
 
-    print("Client received: " + str(result))
+    print("Client received:", result)
 
     # Verify result
     assert isinstance(result, Dict)
@@ -444,7 +445,7 @@ def test_websocket_execute_sync(server):
     # Execute sync a second time
     result = client.execute(query1)
 
-    print("Client received: " + str(result))
+    print("Client received:", result)
 
     # Verify result
     assert isinstance(result, Dict)
@@ -462,7 +463,7 @@ def test_websocket_execute_sync(server):
 @pytest.mark.parametrize("server", [server1_answers], indirect=True)
 async def test_websocket_add_extra_parameters_to_connect(event_loop, server):
 
-    url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
+    url = f"ws://{server.hostname}:{server.port}/graphql"
 
     # Increase max payload size to avoid websockets.exceptions.PayloadTooBig exceptions
     sample_transport = WebsocketsTransport(url=url, connect_args={"max_size": 2 ** 21})

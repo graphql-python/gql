@@ -77,7 +77,8 @@ MS = 0.001 * int(os.environ.get("GQL_TESTS_TIMEOUT_FACTOR", 1))
 class WebSocketServer:
     """Websocket server on localhost on a free port.
 
-    Will allow us to test our client by simulating different correct and incorrect server responses
+    This server allows us to test our client by simulating different correct and
+    incorrect server responses.
     """
 
     def __init__(self, with_ssl: bool = False):
@@ -93,7 +94,8 @@ class WebSocketServer:
             # This is a copy of certificate from websockets tests folder
             #
             # Generate TLS certificate with:
-            # $ openssl req -x509 -config test_localhost.cnf -days 15340 -newkey rsa:2048 \
+            # $ openssl req -x509 -config test_localhost.cnf \
+            #       -days 15340 -newkey rsa:2048 \
             #       -out test_localhost.crt -keyout test_localhost.key
             # $ cat test_localhost.key test_localhost.crt > test_localhost.pem
             # $ rm test_localhost.key test_localhost.crt
@@ -209,8 +211,8 @@ def get_server_handler(request):
 async def ws_ssl_server(request):
     """Websockets server fixture using SSL.
 
-    It can take as argument either a handler function for the websocket server for complete control
-    OR an array of answers to be sent by the default server handler
+    It can take as argument either a handler function for the websocket server for
+    complete control OR an array of answers to be sent by the default server handler.
     """
 
     server_handler = get_server_handler(request)
@@ -223,7 +225,7 @@ async def ws_ssl_server(request):
 
         yield test_server
     except Exception as e:
-        print("Exception received in ws server fixture: " + str(e))
+        print("Exception received in ws server fixture:", e)
     finally:
         await test_server.stop()
 
@@ -232,8 +234,8 @@ async def ws_ssl_server(request):
 async def server(request):
     """Fixture used to start a dummy server to test the client behaviour.
 
-    It can take as argument either a handler function for the websocket server for complete control
-    OR an array of answers to be sent by the default server handler
+    It can take as argument either a handler function for the websocket server for
+    complete control OR an array of answers to be sent by the default server handler.
     """
 
     server_handler = get_server_handler(request)
@@ -246,7 +248,7 @@ async def server(request):
 
         yield test_server
     except Exception as e:
-        print("Exception received in server fixture: " + str(e))
+        print("Exception received in server fixture:", e)
     finally:
         await test_server.stop()
 
@@ -257,7 +259,7 @@ async def client_and_server(server):
 
     # Generate transport to connect to the server fixture
     path = "/graphql"
-    url = "ws://" + server.hostname + ":" + str(server.port) + path
+    url = f"ws://{server.hostname}:{server.port}{path}"
     sample_transport = WebsocketsTransport(url=url)
 
     async with Client(transport=sample_transport) as session:

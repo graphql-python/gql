@@ -34,8 +34,10 @@ async def server_starwars(ws, path):
 
         for review in reviews:
 
-            data = '{{"type":"data","id":"1","payload":{{"data":{{"reviewAdded": {0}}}}}}}'.format(
-                json.dumps(review)
+            data = (
+                '{"type":"data","id":"1","payload":{"data":{"reviewAdded": '
+                + json.dumps(review)
+                + "}}}"
             )
             await ws.send(data)
             await asyncio.sleep(2 * MS)
@@ -86,7 +88,7 @@ async def test_async_client_validation(
     event_loop, server, subscription_str, client_params
 ):
 
-    url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
+    url = f"ws://{server.hostname}:{server.port}/graphql"
 
     sample_transport = WebsocketsTransport(url=url)
 
@@ -128,7 +130,7 @@ async def test_async_client_validation_invalid_query(
     event_loop, server, subscription_str, client_params
 ):
 
-    url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
+    url = f"ws://{server.hostname}:{server.port}/graphql"
 
     sample_transport = WebsocketsTransport(url=url)
 
@@ -160,7 +162,7 @@ async def test_async_client_validation_different_schemas_parameters_forbidden(
     event_loop, server, subscription_str, client_params
 ):
 
-    url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
+    url = f"ws://{server.hostname}:{server.port}/graphql"
 
     sample_transport = WebsocketsTransport(url=url)
 
@@ -170,7 +172,9 @@ async def test_async_client_validation_different_schemas_parameters_forbidden(
 
 
 hero_server_answers = (
-    f'{{"type":"data","id":"1","payload":{{"data":{json.dumps(StarWarsIntrospection)}}}}}',
+    '{"type":"data","id":"1","payload":{"data":'
+    + json.dumps(StarWarsIntrospection)
+    + "}}",
     '{"type":"data","id":"2","payload":{"data":{"hero":{"name": "R2-D2"}}}}',
 )
 
@@ -206,7 +210,7 @@ async def test_async_client_validation_fetch_schema_from_server_valid_query(
 
     result = await session.execute(query)
 
-    print("Client received: " + str(result))
+    print("Client received:", result)
     expected = {"hero": {"name": "R2-D2"}}
 
     assert result == expected
@@ -242,7 +246,7 @@ async def test_async_client_validation_fetch_schema_from_server_invalid_query(
 async def test_async_client_validation_fetch_schema_from_server_with_client_argument(
     event_loop, server
 ):
-    url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
+    url = f"ws://{server.hostname}:{server.port}/graphql"
 
     sample_transport = WebsocketsTransport(url=url)
 

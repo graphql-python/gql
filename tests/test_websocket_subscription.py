@@ -332,7 +332,7 @@ async def test_websocket_subscription_with_keepalive(
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 def test_websocket_subscription_sync(server, subscription_str):
 
-    url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
+    url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
     sample_transport = WebsocketsTransport(url=url)

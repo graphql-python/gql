@@ -42,7 +42,7 @@ class AIOHTTPTransport(AsyncTransport):
         :param cookies: Dict of HTTP cookies.
         :param auth: BasicAuth object to enable Basic HTTP auth if needed
         :param ssl: ssl_context of the connection. Use ssl=False to disable encryption
-        :param client_session_args: Dict of extra parameters passed to aiohttp.ClientSession
+        :param client_session_args: Dict of extra args passed to aiohttp.ClientSession
         """
         self.url: str = url
         self.headers: Optional[LooseHeaders] = headers
@@ -96,9 +96,10 @@ class AIOHTTPTransport(AsyncTransport):
         extra_args: Dict[str, Any] = {},
     ) -> ExecutionResult:
         """Execute the provided document AST against the configured remote server.
-        This uses the aiohttp library to perform a HTTP POST request asynchronously to the remote server.
+        This uses the aiohttp library to perform a HTTP POST request asynchronously
+        to the remote server.
 
-        The result is sent as an ExecutionResult object
+        The result is sent as an ExecutionResult object.
         """
 
         query_str = print_ast(document)
@@ -126,7 +127,7 @@ class AIOHTTPTransport(AsyncTransport):
                 # We raise a TransportProtocolError in the other cases
 
                 try:
-                    # Raise a ClientResponseError if the response status is 400 or higher
+                    # Raise a ClientResponseError if response status is 400 or higher
                     resp.raise_for_status()
 
                 except ClientResponseError as e:

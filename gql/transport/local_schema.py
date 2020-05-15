@@ -1,3 +1,5 @@
+from typing import Awaitable, Union
+
 from graphql import DocumentNode, ExecutionResult, GraphQLSchema, execute
 
 from gql.transport import Transport
@@ -15,12 +17,14 @@ class LocalSchemaTransport(Transport):
         """
         self.schema = schema
 
-    def execute(self, document: DocumentNode, *args, **kwargs) -> ExecutionResult:
+    def execute(
+        self, document: DocumentNode, *args, **kwargs
+    ) -> Union[ExecutionResult, Awaitable[ExecutionResult]]:
         """Execute the given document against the configured local schema.
 
         :param document: GraphQL query as AST Node object.
-        :param args: Positional options for execute method from graphql-core library.
-        :param kwargs: Keyword options passed to execute method from graphql-core library.
-        :return: Either ExecutionResult or a Promise that resolves to ExecutionResult object.
+        :param args: Positional options for execute method from graphql-core.
+        :param kwargs: Keyword options passed to execute method from graphql-core.
+        :return: ExecutionResult (either as value or awaitable)
         """
-        return execute(self.schema, document, *args, **kwargs)  # type: ignore
+        return execute(self.schema, document, *args, **kwargs)
