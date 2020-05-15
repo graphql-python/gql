@@ -5,9 +5,7 @@ from ssl import SSLContext
 from typing import Any, AsyncGenerator, Dict, Optional, Tuple, Union, cast
 
 import websockets
-from graphql.execution import ExecutionResult
-from graphql.language.ast import Document
-from graphql.language.printer import print_ast
+from graphql import DocumentNode, ExecutionResult, print_ast
 from websockets.client import WebSocketClientProtocol
 from websockets.exceptions import ConnectionClosed
 from websockets.http import HeadersLike
@@ -217,7 +215,7 @@ class WebsocketsTransport(AsyncTransport):
 
     async def _send_query(
         self,
-        document: Document,
+        document: DocumentNode,
         variable_values: Optional[Dict[str, str]] = None,
         operation_name: Optional[str] = None,
     ) -> int:
@@ -361,7 +359,7 @@ class WebsocketsTransport(AsyncTransport):
 
     async def subscribe(
         self,
-        document: Document,
+        document: DocumentNode,
         variable_values: Optional[Dict[str, str]] = None,
         operation_name: Optional[str] = None,
         send_stop: Optional[bool] = True,
@@ -419,7 +417,7 @@ class WebsocketsTransport(AsyncTransport):
 
     async def execute(
         self,
-        document: Document,
+        document: DocumentNode,
         variable_values: Optional[Dict[str, str]] = None,
         operation_name: Optional[str] = None,
     ) -> ExecutionResult:

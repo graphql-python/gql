@@ -1,16 +1,27 @@
 from functools import partial
 
 import six
-from graphql.language import ast
-from graphql.language.printer import print_ast
-from graphql.type import (
+from graphql import (
+    ArgumentNode,
+    DocumentNode,
+    EnumValueNode,
+    FieldNode,
     GraphQLEnumType,
-    GraphQLInputObjectField,
+    GraphQLInputField,
     GraphQLInputObjectType,
     GraphQLList,
     GraphQLNonNull,
+    ListValueNode,
+    NameNode,
+    ObjectFieldNode,
+    ObjectValueNode,
+    OperationDefinitionNode,
+    OperationType,
+    SelectionSetNode,
+    ast_from_value,
+    print_ast,
 )
-from graphql.utils.ast_from_value import ast_from_value
+from graphql.pyutils import FrozenList
 
 from .utils import to_camel_case
 
@@ -43,8 +54,8 @@ class DSLSchema(object):
 
 
 class DSLType(object):
-    def __init__(self, type):
-        self.type = type
+    def __init__(self, type_):
+        self.type = type_
 
     def __getattr__(self, name):
         formatted_name, field_def = self.get_field(name)
@@ -72,30 +83,40 @@ def selections(*fields):
 class DSLField(object):
     def __init__(self, name, field):
         self.field = field
-        self.ast_field = ast.Field(name=ast.Name(value=name), arguments=[])
+        self.ast_field = FieldNode(name=NameNode(value=name), arguments=FrozenList())
         self.selection_set = None
 
     def select(self, *fields):
-        if not self.ast_field.selection_set:
-            self.ast_field.selection_set = ast.SelectionSet(selections=[])
-        self.ast_field.selection_set.selections.extend(selections(*fields))
+        selection_set = self.ast_field.selection_set
+        added_selections = selections(*fields)
+        if selection_set:
+            selection_set.selections = FrozenList(
+                selection_set.selections + added_selections
+            )
+        else:
+            self.ast_field.selection_set = SelectionSetNode(
+                selections=FrozenList(added_selections)
+            )
         return self
 
     def __call__(self, **kwargs):
         return self.args(**kwargs)
 
     def alias(self, alias):
-        self.ast_field.alias = ast.Name(value=alias)
+        self.ast_field.alias = NameNode(value=alias)
         return self
 
     def args(self, **kwargs):
+        added_args = []
         for name, value in kwargs.items():
             arg = self.field.args.get(name)
             arg_type_serializer = get_arg_serializer(arg.type)
             serialized_value = arg_type_serializer(value)
-            self.ast_field.arguments.append(
-                ast.Argument(name=ast.Name(value=name), value=serialized_value)
+            added_args.append(
+                ArgumentNode(name=NameNode(value=name), value=serialized_value)
             )
+        ast_field = self.ast_field
+        ast_field.arguments = FrozenList(ast_field.arguments + added_args)
         return self
 
     @property
@@ -116,11 +137,13 @@ def selection_field(field):
 def query(*fields, **kwargs):
     if "operation" not in kwargs:
         kwargs["operation"] = "query"
-    return ast.Document(
+    return DocumentNode(
         definitions=[
-            ast.OperationDefinition(
-                operation=kwargs["operation"],
-                selection_set=ast.SelectionSet(selections=list(selections(*fields))),
+            OperationDefinitionNode(
+                operation=OperationType(kwargs["operation"]),
+                selection_set=SelectionSetNode(
+                    selections=FrozenList(selections(*fields))
+                ),
             )
         ]
     )
@@ -130,25 +153,25 @@ def serialize_list(serializer, list_values):
     assert isinstance(list_values, Iterable), 'Expected iterable, received "{}"'.format(
         repr(list_values)
     )
-    return ast.ListValue(values=[serializer(v) for v in list_values])
+    return ListValueNode(values=FrozenList(serializer(v) for v in list_values))
 
 
 def get_arg_serializer(arg_type):
     if isinstance(arg_type, GraphQLNonNull):
         return get_arg_serializer(arg_type.of_type)
-    if isinstance(arg_type, GraphQLInputObjectField):
+    if isinstance(arg_type, GraphQLInputField):
         return get_arg_serializer(arg_type.type)
     if isinstance(arg_type, GraphQLInputObjectType):
         serializers = {k: get_arg_serializer(v) for k, v in arg_type.fields.items()}
-        return lambda value: ast.ObjectValue(
-            fields=[
-                ast.ObjectField(ast.Name(k), serializers[k](v))
+        return lambda value: ObjectValueNode(
+            fields=FrozenList(
+                ObjectFieldNode(name=NameNode(value=k), value=serializers[k](v))
                 for k, v in value.items()
-            ]
+            )
         )
     if isinstance(arg_type, GraphQLList):
         inner_serializer = get_arg_serializer(arg_type.of_type)
         return partial(serialize_list, inner_serializer)
     if isinstance(arg_type, GraphQLEnumType):
-        return lambda value: ast.EnumValue(value=arg_type.serialize(value))
-    return lambda value: ast_from_value(arg_type.serialize(value))
+        return lambda value: EnumValueNode(value=arg_type.serialize(value))
+    return lambda value: ast_from_value(arg_type.serialize(value), arg_type)

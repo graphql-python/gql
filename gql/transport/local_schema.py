@@ -1,6 +1,6 @@
 from graphql import GraphQLSchema
 from graphql.execution import ExecutionResult, execute
-from graphql.language.ast import Document
+from graphql.language.ast import DocumentNode
 
 from gql.transport import Transport
 
@@ -17,7 +17,7 @@ class LocalSchemaTransport(Transport):
         """
         self.schema = schema
 
-    def execute(self, document: Document, *args, **kwargs) -> ExecutionResult:
+    def execute(self, document: DocumentNode, *args, **kwargs) -> ExecutionResult:
         """Execute the given document against the configured local schema.
 
         :param document: GraphQL query as AST Node object.

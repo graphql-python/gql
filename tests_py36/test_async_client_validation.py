@@ -138,8 +138,8 @@ async def test_async_client_validation_invalid_query(
 
         subscription = gql(subscription_str)
 
-        with pytest.raises(graphql.error.base.GraphQLError):
-            async for result in session.subscribe(
+        with pytest.raises(graphql.error.GraphQLError):
+            async for _result in session.subscribe(
                 subscription, variable_values=variable_values
             ):
                 pass
@@ -233,7 +233,7 @@ async def test_async_client_validation_fetch_schema_from_server_invalid_query(
     """
     )
 
-    with pytest.raises(graphql.error.base.GraphQLError):
+    with pytest.raises(graphql.error.GraphQLError):
         await session.execute(query)
 
 
@@ -261,5 +261,5 @@ async def test_async_client_validation_fetch_schema_from_server_with_client_argu
         """
         )
 
-        with pytest.raises(graphql.error.base.GraphQLError):
+        with pytest.raises(graphql.error.GraphQLError):
             await session.execute(query)

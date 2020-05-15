@@ -3,7 +3,7 @@ from typing import AsyncGenerator, Dict, Optional
 
 import six
 from graphql.execution import ExecutionResult
-from graphql.language.ast import Document
+from graphql.language.ast import DocumentNode
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -27,7 +27,7 @@ class AsyncTransport:
     @abc.abstractmethod
     async def execute(
         self,
-        document: Document,
+        document: DocumentNode,
         variable_values: Optional[Dict[str, str]] = None,
         operation_name: Optional[str] = None,
     ) -> ExecutionResult:
@@ -40,7 +40,7 @@ class AsyncTransport:
     @abc.abstractmethod
     def subscribe(
         self,
-        document: Document,
+        document: DocumentNode,
         variable_values: Optional[Dict[str, str]] = None,
         operation_name: Optional[str] = None,
     ) -> AsyncGenerator[ExecutionResult, None]:

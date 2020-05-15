@@ -6,9 +6,7 @@ from aiohttp.client_exceptions import ClientResponseError
 from aiohttp.client_reqrep import Fingerprint
 from aiohttp.helpers import BasicAuth
 from aiohttp.typedefs import LooseCookies, LooseHeaders
-from graphql.execution import ExecutionResult
-from graphql.language.ast import Document
-from graphql.language.printer import print_ast
+from graphql import DocumentNode, ExecutionResult, print_ast
 
 from .async_transport import AsyncTransport
 from .exceptions import (
@@ -92,7 +90,7 @@ class AIOHTTPTransport(AsyncTransport):
 
     async def execute(
         self,
-        document: Document,
+        document: DocumentNode,
         variable_values: Optional[Dict[str, str]] = None,
         operation_name: Optional[str] = None,
         extra_args: Dict[str, Any] = {},
@@ -143,7 +141,7 @@ class AIOHTTPTransport(AsyncTransport):
 
     def subscribe(
         self,
-        document: Document,
+        document: DocumentNode,
         variable_values: Optional[Dict[str, str]] = None,
         operation_name: Optional[str] = None,
     ) -> AsyncGenerator[ExecutionResult, None]:

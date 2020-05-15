@@ -1,12 +1,11 @@
 import pytest
-from graphql import graphql
-from graphql.utils.introspection_query import introspection_query
+from graphql import get_introspection_query, graphql_sync
 
 from gql import Client, gql
 
 from .schema import StarWarsSchema
 
-introspection = graphql(StarWarsSchema, introspection_query).data  # type: ignore
+introspection = graphql_sync(StarWarsSchema, get_introspection_query()).data  # type: ignore
 
 
 @pytest.fixture

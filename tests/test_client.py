@@ -45,7 +45,7 @@ def test_retries_on_transport(execute_mock):
         "Should be HTTPConnection", "Fake connection error"
     )
     transport = RequestsHTTPTransport(
-        url="http://localhost:9999", retries=expected_retries,
+        url="http://127.0.0.1:9999", retries=expected_retries,
     )
     client = Client(transport=transport)
 

@@ -2,13 +2,13 @@ import abc
 
 import six
 from graphql.execution import ExecutionResult
-from graphql.language.ast import Document
+from graphql.language.ast import DocumentNode
 
 
 @six.add_metaclass(abc.ABCMeta)
 class Transport:
     @abc.abstractmethod
-    def execute(self, document: Document, *args, **kwargs) -> ExecutionResult:
+    def execute(self, document: DocumentNode, *args, **kwargs) -> ExecutionResult:
         """Execute the provided document AST for either a remote or local GraphQL Schema.
 
         :param document: GraphQL query as AST Node or Document object.

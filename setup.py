@@ -2,11 +2,11 @@ from setuptools import setup, find_packages
 
 install_requires = [
     "aiohttp==3.6.2",
-    "graphql-core>=2.3.2,<3",
-    "requests>=2.12,<3",
+    "graphql-core>=3.1,<3.2",
+    "requests>=2.23,<3",
     "six>=1.10.0",
     "websockets>=8.1,<9",
-    "yarl>=1.0,<2.0",
+    "yarl>=1.4,<2.0",
 ]
 
 scripts = [
@@ -15,7 +15,7 @@ scripts = [
 
 tests_require = [
     "coveralls==2.0.0",
-    "parse>=1.6.0",
+    "parse==1.15.0",
     "pytest==5.4.2",
     "pytest-asyncio==0.11.0",
     "pytest-cov==2.8.1",
@@ -25,9 +25,9 @@ tests_require = [
 
 dev_requires = [
     "black==19.10b0",
-    "check-manifest>=0.40,<1",
-    "flake8==3.7.9",
-    "isort==4.2.8",
+    "check-manifest>=0.42,<1",
+    "flake8==3.8.1",
+    "isort==4.3.21",
     "mypy==0.770",
 ] + tests_require
 

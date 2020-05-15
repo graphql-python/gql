@@ -1,11 +1,16 @@
 import asyncio
 from typing import Any, AsyncGenerator, Dict, Generator, Optional, Union, cast
 
-from graphql import build_ast_schema, build_client_schema, introspection_query, parse
-from graphql.execution import ExecutionResult
-from graphql.language.ast import Document
-from graphql.type import GraphQLSchema
-from graphql.validation import validate
+from graphql import (
+    DocumentNode,
+    ExecutionResult,
+    GraphQLSchema,
+    build_ast_schema,
+    build_client_schema,
+    get_introspection_query,
+    parse,
+    validate,
+)
 
 from .transport.async_transport import AsyncTransport
 from .transport.exceptions import TransportQueryError
@@ -32,7 +37,7 @@ class Client:
             ), "Cant fetch the schema from transport if is already provided"
             if isinstance(transport, Transport):
                 # For sync transports, we fetch the schema directly
-                execution_result = transport.execute(parse(introspection_query))
+                execution_result = transport.execute(parse(get_introspection_query()))
                 execution_result = cast(ExecutionResult, execution_result)
                 introspection = execution_result.data
         if introspection:
@@ -72,11 +77,11 @@ class Client:
         if validation_errors:
             raise validation_errors[0]
 
-    async def execute_async(self, document: Document, *args, **kwargs) -> Dict:
+    async def execute_async(self, document: DocumentNode, *args, **kwargs) -> Dict:
         async with self as session:
             return await session.execute(document, *args, **kwargs)
 
-    def execute(self, document: Document, *args, **kwargs) -> Dict:
+    def execute(self, document: DocumentNode, *args, **kwargs) -> Dict:
         """Execute the provided document AST against the configured remote server.
 
         This function WILL BLOCK until the result is received from the server.
@@ -118,7 +123,7 @@ class Client:
             return result.data
 
     async def subscribe_async(
-        self, document: Document, *args, **kwargs
+        self, document: DocumentNode, *args, **kwargs
     ) -> AsyncGenerator[Dict, None]:
         async with self as session:
 
@@ -130,7 +135,7 @@ class Client:
                 yield result
 
     def subscribe(
-        self, document: Document, *args, **kwargs
+        self, document: DocumentNode, *args, **kwargs
     ) -> Generator[Dict, None, None]:
         """Execute a GraphQL subscription with a python generator.
 
@@ -193,7 +198,7 @@ class ClientSession:
     def __init__(self, client: Client):
         self.client = client
 
-    async def validate(self, document: Document):
+    async def validate(self, document: DocumentNode):
         """ Fetch schema from transport if needed and validate document if schema is present """
 
         # Get schema from transport if needed
@@ -205,7 +210,7 @@ class ClientSession:
             self.client.validate(document)
 
     async def subscribe(
-        self, document: Document, *args, **kwargs
+        self, document: DocumentNode, *args, **kwargs
     ) -> AsyncGenerator[Dict, None]:
 
         # Fetch schema from transport if needed and validate document if schema is present
@@ -227,7 +232,7 @@ class ClientSession:
             elif result.data is not None:
                 yield result.data
 
-    async def execute(self, document: Document, *args, **kwargs) -> Dict:
+    async def execute(self, document: DocumentNode, *args, **kwargs) -> Dict:
 
         # Fetch schema from transport if needed and validate document if schema is present
         await self.validate(document)
@@ -245,7 +250,9 @@ class ClientSession:
         return result.data
 
     async def fetch_schema(self) -> None:
-        execution_result = await self.transport.execute(parse(introspection_query))
+        execution_result = await self.transport.execute(
+            parse(get_introspection_query())
+        )
         self.client.introspection = execution_result.data
         self.client.schema = build_client_schema(self.client.introspection)
 

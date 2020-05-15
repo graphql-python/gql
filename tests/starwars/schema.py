@@ -1,9 +1,9 @@
-from graphql.type import (
+from graphql import (
     GraphQLArgument,
     GraphQLEnumType,
     GraphQLEnumValue,
     GraphQLField,
-    GraphQLInputObjectField,
+    GraphQLInputField,
     GraphQLInputObjectType,
     GraphQLInt,
     GraphQLInterfaceType,
@@ -65,7 +65,7 @@ humanType = GraphQLObjectType(
         "friends": GraphQLField(
             GraphQLList(characterInterface),
             description="The friends of the human, or an empty list if they have none.",
-            resolver=lambda human, info, **args: getFriends(human),
+            resolve=lambda human, info, **args: getFriends(human),
         ),
         "appearsIn": GraphQLField(
             GraphQLList(episodeEnum), description="Which movies they appear in.",
@@ -89,7 +89,7 @@ droidType = GraphQLObjectType(
         "friends": GraphQLField(
             GraphQLList(characterInterface),
             description="The friends of the droid, or an empty list if they have none.",
-            resolver=lambda droid, info, **args: getFriends(droid),
+            resolve=lambda droid, info, **args: getFriends(droid),
         ),
         "appearsIn": GraphQLField(
             GraphQLList(episodeEnum), description="Which movies they appear in.",
@@ -120,8 +120,8 @@ reviewInputType = GraphQLInputObjectType(
     "ReviewInput",
     description="The input object sent when someone is creating a new review",
     fields={
-        "stars": GraphQLInputObjectField(GraphQLInt, description="0-5 stars"),
-        "commentary": GraphQLInputObjectField(
+        "stars": GraphQLInputField(GraphQLInt, description="0-5 stars"),
+        "commentary": GraphQLInputField(
             GraphQLString, description="Comment about the movie, optional"
         ),
     },
@@ -139,7 +139,7 @@ queryType = GraphQLObjectType(
                     type_=episodeEnum,  # type: ignore
                 )
             },
-            resolver=lambda root, info, **args: getHero(args.get("episode")),
+            resolve=lambda root, info, **args: getHero(args.get("episode")),
         ),
         "human": GraphQLField(
             humanType,
@@ -148,7 +148,7 @@ queryType = GraphQLObjectType(
                     description="id of the human", type_=GraphQLNonNull(GraphQLString),
                 )
             },
-            resolver=lambda root, info, **args: getHuman(args["id"]),
+            resolve=lambda root, info, **args: getHuman(args["id"]),
         ),
         "droid": GraphQLField(
             droidType,
@@ -157,7 +157,7 @@ queryType = GraphQLObjectType(
                     description="id of the droid", type_=GraphQLNonNull(GraphQLString),
                 )
             },
-            resolver=lambda root, info, **args: getDroid(args["id"]),
+            resolve=lambda root, info, **args: getDroid(args["id"]),
         ),
         "characters": GraphQLField(
             GraphQLList(characterInterface),
@@ -167,7 +167,7 @@ queryType = GraphQLObjectType(
                     type_=GraphQLList(GraphQLString),
                 )
             },
-            resolver=lambda root, info, **args: getCharacters(args["ids"]),
+            resolve=lambda root, info, **args: getCharacters(args["ids"]),
         ),
     },
 )
@@ -187,7 +187,7 @@ mutationType = GraphQLObjectType(
                     description="set alive status", type_=reviewInputType,
                 ),
             },
-            resolver=lambda root, info, **args: createReview(
+            resolve=lambda root, info, **args: createReview(
                 args.get("episode"), args.get("review")
             ),
         ),

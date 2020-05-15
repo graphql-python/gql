@@ -1,9 +1,7 @@
 from typing import Any, Dict, Optional, Union
 
 import requests
-from graphql.execution import ExecutionResult
-from graphql.language.ast import Document
-from graphql.language.printer import print_ast
+from graphql import DocumentNode, ExecutionResult, print_ast
 from requests.adapters import HTTPAdapter, Retry
 from requests.auth import AuthBase
 from requests.cookies import RequestsCookieJar
@@ -76,7 +74,7 @@ class RequestsHTTPTransport(Transport):
 
     def execute(  # type: ignore
         self,
-        document: Document,
+        document: DocumentNode,
         variable_values: Optional[Dict[str, Any]] = None,
         timeout: Optional[int] = None,
     ) -> ExecutionResult:

@@ -108,14 +108,15 @@ class TestServer:
 
         # Start a server with a random open port
         self.start_server = websockets.server.serve(
-            handler, "localhost", 0, **extra_serve_args
+            handler, "127.0.0.1", 0, **extra_serve_args
         )
 
         # Wait that the server is started
         self.server = await self.start_server
 
         # Get hostname and port
-        hostname, port = self.server.sockets[0].getsockname()
+        hostname, port = self.server.sockets[0].getsockname()[:2]
+        assert hostname == "127.0.0.1"
 
         self.hostname = hostname
         self.port = port
@@ -221,7 +222,7 @@ async def ws_ssl_server(request):
 
         yield test_server
     except Exception as e:
-        print("Exception received in server fixture: " + str(e))
+        print("Exception received in ws server fixture: " + str(e))
     finally:
         await test_server.stop()
 
@@ -261,4 +262,4 @@ async def client_and_server(server):
     async with Client(transport=sample_transport) as session:
 
         # Yield both client session and server
-        yield (session, server)
+        yield session, server

@@ -1,13 +1,16 @@
+import asyncio
+
 from graphql import (
     GraphQLArgument,
     GraphQLField,
     GraphQLObjectType,
     GraphQLSchema,
-    graphql,
+    get_introspection_query,
+    graphql_sync,
     print_schema,
 )
-from graphql.utils.introspection_query import introspection_query
 
+from tests.starwars.fixtures import reviews
 from tests.starwars.schema import (
     droidType,
     episodeEnum,
@@ -17,7 +20,17 @@ from tests.starwars.schema import (
     reviewInputType,
     reviewType,
 )
-from tests_py36.fixtures import reviewAdded
+
+
+async def subscribe_reviews(_root, _info, episode):
+    for review in reviews[episode]:
+        yield review
+        await asyncio.sleep(0.1)
+
+
+async def resolve_review(review, _info, **_args):
+    return review
+
 
 subscriptionType = GraphQLObjectType(
     "Subscription",
@@ -29,7 +42,8 @@ subscriptionType = GraphQLObjectType(
                     description="Episode to review", type_=episodeEnum,
                 )
             },
-            resolver=lambda root, info, **args: reviewAdded(args.get("episode")),
+            subscribe=subscribe_reviews,
+            resolve=resolve_review,
         )
     },
 )
@@ -41,6 +55,6 @@ StarWarsSchema = GraphQLSchema(
     types=[humanType, droidType, reviewType, reviewInputType],
 )
 
-StarWarsIntrospection = graphql(StarWarsSchema, introspection_query).data  # type: ignore
+StarWarsIntrospection = graphql_sync(StarWarsSchema, get_introspection_query()).data  # type: ignore
 
 StarWarsTypeDef = print_schema(StarWarsSchema)

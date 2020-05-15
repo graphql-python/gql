@@ -305,10 +305,7 @@ def test_parse_error(client):
     error = exc_info.value
     formatted_error = format_error(error)
     assert formatted_error["locations"] == [{"column": 13, "line": 2}]
-    assert (
-        'Syntax Error GraphQL request (2:13) Unexpected Name "qeury"'
-        in formatted_error["message"]
-    )
+    assert formatted_error["message"] == "Syntax Error: Unexpected Name 'qeury'."
     assert not result
 
 
