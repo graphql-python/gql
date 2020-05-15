@@ -1,3 +1,4 @@
+import os
 import pytest
 import requests
 import vcr
@@ -9,9 +10,17 @@ from gql.transport.requests import RequestsHTTPTransport
 URL = "http://127.0.0.1:8000/graphql"
 
 
+def use_cassette(name):
+    return vcr.use_cassette(
+        os.path.join(
+            os.path.dirname(__file__), "fixtures", "vcr_cassettes", name + ".yaml"
+        )
+    )
+
+
 @pytest.fixture
 def client():
-    with vcr.use_cassette("tests/fixtures/vcr_cassettes/client.yaml"):
+    with use_cassette("client"):
         request = requests.get(
             URL, headers={"Host": "swapi.graphene-python.org", "Accept": "text/html"}
         )
@@ -61,6 +70,6 @@ def test_hero_name_query(client):
             },
         }
     }
-    with vcr.use_cassette("tests/fixtures/vcr_cassettes/execute.yaml"):
+    with use_cassette("execute"):
         result = client.execute(query)
         assert result == expected
