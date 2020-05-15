@@ -97,7 +97,7 @@ class WebsocketsTransport(AsyncTransport):
         connect_timeout: int = 10,
         close_timeout: int = 10,
         ack_timeout: int = 10,
-        **kwargs,
+        connect_args: Dict[str, Any] = {},
     ) -> None:
         """Initialize the transport with the given request parameters.
 
@@ -108,7 +108,7 @@ class WebsocketsTransport(AsyncTransport):
         :param connect_timeout: Timeout in seconds for the establishment of the websocket connection.
         :param close_timeout: Timeout in seconds for the close.
         :param ack_timeout: Timeout in seconds to wait for the connection_ack message from the server.
-        :param kwargs: Other parameters forwarded to websockets.connect
+        :param connect_args: Other parameters forwarded to websockets.connect
         """
         self.url: str = url
         self.ssl: Union[SSLContext, bool] = ssl
@@ -119,7 +119,7 @@ class WebsocketsTransport(AsyncTransport):
         self.close_timeout: int = close_timeout
         self.ack_timeout: int = ack_timeout
 
-        self.kwargs = kwargs
+        self.connect_args = connect_args
 
         self.websocket: Optional[WebSocketClientProtocol] = None
         self.next_query_id: int = 1
@@ -479,7 +479,7 @@ class WebsocketsTransport(AsyncTransport):
             }
 
             # Adding custom parameters passed from init
-            connect_args.update(self.kwargs)
+            connect_args.update(self.connect_args)
 
             # Connection to the specified url
             # Generate a TimeoutError if taking more than connect_timeout seconds

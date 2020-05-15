@@ -458,3 +458,18 @@ def test_websocket_execute_sync(server):
 
     # Check client is disconnect here
     assert sample_transport.websocket is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("server", [server1_answers], indirect=True)
+async def test_websocket_add_extra_parameters_to_connect(event_loop, server):
+
+    url = "ws://" + server.hostname + ":" + str(server.port) + "/graphql"
+
+    # Increase max payload size to avoid websockets.exceptions.PayloadTooBig exceptions
+    sample_transport = WebsocketsTransport(url=url, connect_args={"max_size": 2 ** 21})
+
+    query = gql(query1_str)
+
+    async with Client(transport=sample_transport) as session:
+        await session.execute(query)
