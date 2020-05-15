@@ -18,17 +18,17 @@ class RequestsHTTPTransport(Transport):
     """
 
     def __init__(
-        self,
-        url: str,
-        headers: Optional[Dict[str, Any]] = None,
-        cookies: Optional[Union[Dict[str, Any], RequestsCookieJar]] = None,
-        auth: Optional[AuthBase] = None,
-        use_json: bool = False,
-        timeout: Optional[int] = None,
-        verify: bool = True,
-        retries: int = 0,
-        method: str = "POST",
-        **kwargs,
+        self,  # type: RequestsHTTPTransport
+        url,  # type: str
+        headers=None,  # type: Dict[str, Any]
+        cookies=None,  # type: Union[Dict[str, Any], RequestsCookieJar]
+        auth=None,  # type: AuthBase
+        use_json=True,  # type: bool
+        timeout=None,  # type: int
+        verify=True,  # type: bool
+        retries=0,  # type: int
+        method="POST",  # type: str
+        **kwargs  # type: Any
     ):
         """Initialize the transport with the given request parameters.
 
