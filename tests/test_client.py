@@ -33,34 +33,6 @@ def test_request_transport_not_implemented(http_transport_query):
     assert "Any Transport subclass must implement execute method" == str(exc_info.value)
 
 
-@mock.patch("gql.transport.requests.RequestsHTTPTransport.execute")
-def test_retries(execute_mock):
-    expected_retries = 3
-    execute_mock.side_effect = Exception("fail")
-
-    client = Client(
-        retries=expected_retries,
-        transport=RequestsHTTPTransport(url="http://swapi.graphene-python.org/graphql"),
-    )
-
-    query = gql(
-        """
-    {
-      myFavoriteFilm: film(id:"RmlsbToz") {
-        id
-        title
-        episodeId
-      }
-    }
-    """
-    )
-
-    with pytest.raises(Exception):
-        client.execute(query)
-    client.close()
-    assert execute_mock.call_count == expected_retries
-
-
 @mock.patch("urllib3.connection.HTTPConnection._new_conn")
 def test_retries_on_transport(execute_mock):
     """Testing retries on the transport level
@@ -107,7 +79,6 @@ def test_no_schema_exception():
 
 
 def test_execute_result_error():
-    expected_retries = 3
 
     client = Client(
         retries=expected_retries,

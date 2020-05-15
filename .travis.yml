@@ -1,13 +1,13 @@
+env:
+  global:
+    - GQL_TESTS_TIMEOUT_FACTOR=100
 language: python
 sudo: false
 python:
-  - 2.7
-  - 3.5
   - 3.6
   - 3.7
   - 3.8
   - 3.9-dev
-  - pypy
   - pypy3
 matrix:
   include:

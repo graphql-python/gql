@@ -1,6 +1,4 @@
-from __future__ import absolute_import
-
-from typing import Any, Dict, Union
+from typing import Any, Dict, Optional, Union
 
 import requests
 from graphql.execution import ExecutionResult
@@ -76,8 +74,12 @@ class RequestsHTTPTransport(Transport):
             for prefix in "http://", "https://":
                 self.session.mount(prefix, adapter)
 
-    def execute(self, document, variable_values=None, timeout=None):
-        # type: (Document, Dict, int) -> ExecutionResult
+    def execute(  # type: ignore
+        self,
+        document: Document,
+        variable_values: Optional[Dict[str, Any]] = None,
+        timeout: Optional[int] = None,
+    ) -> ExecutionResult:
         """Execute the provided document AST against the configured remote server.
         This uses the requests library to perform a HTTP POST request to the remote server.
 

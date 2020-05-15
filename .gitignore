@@ -89,3 +89,6 @@ target/
 
 ### VisualStudioCode ###
 .vscode/*
+
+# VIM
+*.swp
