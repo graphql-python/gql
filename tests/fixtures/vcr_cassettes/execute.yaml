@@ -15,7 +15,7 @@ interactions:
       Cookie:
       - csrftoken=hRIez34v4hg2Wbl8XhrbshvDIB3HmLR2L9WNTJ3SdrIQHxAKtoukxiuwQlwRJewz
       User-Agent:
-      - python-requests/2.22.0
+      - python-requests/2.23.0
       x-csrftoken:
       - hRIez34v4hg2Wbl8XhrbshvDIB3HmLR2L9WNTJ3SdrIQHxAKtoukxiuwQlwRJewz
     method: POST

@@ -11,7 +11,7 @@ interactions:
       Host:
       - swapi.graphene-python.org
       User-Agent:
-      - python-requests/2.22.0
+      - python-requests/2.23.0
     method: GET
     uri: http://127.0.0.1:8000/graphql
   response:
@@ -98,7 +98,7 @@ interactions:
       Cookie:
       - csrftoken=hRIez34v4hg2Wbl8XhrbshvDIB3HmLR2L9WNTJ3SdrIQHxAKtoukxiuwQlwRJewz
       User-Agent:
-      - python-requests/2.22.0
+      - python-requests/2.23.0
       x-csrftoken:
       - hRIez34v4hg2Wbl8XhrbshvDIB3HmLR2L9WNTJ3SdrIQHxAKtoukxiuwQlwRJewz
     method: POST
