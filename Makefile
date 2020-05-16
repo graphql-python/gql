@@ -9,6 +9,13 @@ tests:
 all_tests:
 	pytest tests --cov=gql --cov-report=term-missing --run-online -vv
 
+check:
+	isort --recursive gql tests
+	black gql tests
+	flake8 gql tests
+	mypy gql tests
+	check-manifest
+
 clean:
 	find . -name "*.pyc" -delete
 	find . -name "__pycache__" | xargs -I {} rm -rf {}
