@@ -1,0 +1,143 @@
+interactions:
+- request:
+    body: '{"query": "{\n  myFavoriteFilm: film(id: \"RmlsbToz\") {\n    id\n    title\n    episodeId\n    characters(first:
+      5) {\n      edges {\n        node {\n          name\n        }\n      }\n    }\n  }\n}\n"}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '204'
+      Content-Type:
+      - application/json
+      Cookie:
+      - csrftoken=hRIez34v4hg2Wbl8XhrbshvDIB3HmLR2L9WNTJ3SdrIQHxAKtoukxiuwQlwRJewz
+      User-Agent:
+      - python-requests/2.23.0
+      x-csrftoken:
+      - hRIez34v4hg2Wbl8XhrbshvDIB3HmLR2L9WNTJ3SdrIQHxAKtoukxiuwQlwRJewz
+    method: POST
+    uri: http://127.0.0.1:8000/graphql
+  response:
+    body:
+      string: '{"data":{"myFavoriteFilm":{"id":"RmlsbToz","title":"Return of the Jedi","episodeId":6,"characters":{"edges":[{"node":{"name":"Luke
+        Skywalker"}},{"node":{"name":"C-3PO"}},{"node":{"name":"R2-D2"}},{"node":{"name":"Darth
+        Vader"}},{"node":{"name":"Leia Organa"}}]}}}}'
+    headers:
+      Content-Length:
+      - '264'
+      Content-Type:
+      - application/json
+      Date:
+      - Sat, 16 May 2020 15:28:52 GMT
+      Server:
+      - WSGIServer/0.2 CPython/3.8.3
+      Set-Cookie:
+      - csrftoken=hRIez34v4hg2Wbl8XhrbshvDIB3HmLR2L9WNTJ3SdrIQHxAKtoukxiuwQlwRJewz;
+        expires=Sat, 15 May 2021 15:28:52 GMT; Max-Age=31449600; Path=/; SameSite=Lax
+      Vary:
+      - Cookie
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - DENY
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"query": "query Planet($id: ID!) {\n  planet(id: $id) {\n    id\n    name\n  }\n}\n",
+      "variables": {"id": "UGxhbmV0OjEw"}}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '123'
+      Content-Type:
+      - application/json
+      Cookie:
+      - csrftoken=hRIez34v4hg2Wbl8XhrbshvDIB3HmLR2L9WNTJ3SdrIQHxAKtoukxiuwQlwRJewz
+      User-Agent:
+      - python-requests/2.23.0
+      x-csrftoken:
+      - hRIez34v4hg2Wbl8XhrbshvDIB3HmLR2L9WNTJ3SdrIQHxAKtoukxiuwQlwRJewz
+    method: POST
+    uri: http://127.0.0.1:8000/graphql
+  response:
+    body:
+      string: '{"data":{"planet":{"id":"UGxhbmV0OjEw","name":"Kamino"}}}'
+    headers:
+      Content-Length:
+      - '57'
+      Content-Type:
+      - application/json
+      Date:
+      - Sat, 16 May 2020 15:28:52 GMT
+      Server:
+      - WSGIServer/0.2 CPython/3.8.3
+      Set-Cookie:
+      - csrftoken=hRIez34v4hg2Wbl8XhrbshvDIB3HmLR2L9WNTJ3SdrIQHxAKtoukxiuwQlwRJewz;
+        expires=Sat, 15 May 2021 15:28:52 GMT; Max-Age=31449600; Path=/; SameSite=Lax
+      Vary:
+      - Cookie
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - DENY
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"query": "query Planet1 {\n  planet(id: \"UGxhbmV0OjEw\") {\n    id\n    name\n  }\n}\n\nquery
+      Planet2 {\n  planet(id: \"UGxhbmV0OjEx\") {\n    id\n    name\n  }\n}\n", "operationName":
+      "Planet2"}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '197'
+      Content-Type:
+      - application/json
+      Cookie:
+      - csrftoken=hRIez34v4hg2Wbl8XhrbshvDIB3HmLR2L9WNTJ3SdrIQHxAKtoukxiuwQlwRJewz
+      User-Agent:
+      - python-requests/2.23.0
+      x-csrftoken:
+      - hRIez34v4hg2Wbl8XhrbshvDIB3HmLR2L9WNTJ3SdrIQHxAKtoukxiuwQlwRJewz
+    method: POST
+    uri: http://127.0.0.1:8000/graphql
+  response:
+    body:
+      string: '{"data":{"planet":{"id":"UGxhbmV0OjEx","name":"Geonosis"}}}'
+    headers:
+      Content-Length:
+      - '59'
+      Content-Type:
+      - application/json
+      Date:
+      - Sat, 16 May 2020 15:28:52 GMT
+      Server:
+      - WSGIServer/0.2 CPython/3.8.3
+      Set-Cookie:
+      - csrftoken=hRIez34v4hg2Wbl8XhrbshvDIB3HmLR2L9WNTJ3SdrIQHxAKtoukxiuwQlwRJewz;
+        expires=Sat, 15 May 2021 15:28:52 GMT; Max-Age=31449600; Path=/; SameSite=Lax
+      Vary:
+      - Cookie
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - DENY
+    status:
+      code: 200
+      message: OK
+version: 1

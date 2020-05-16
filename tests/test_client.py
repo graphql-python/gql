@@ -13,13 +13,13 @@ from gql.transport.requests import RequestsHTTPTransport, Transport
 def http_transport_query():
     return gql(
         """
-    query getContinents {
-      continents {
-        code
-        name
-      }
-    }
-    """
+        query getContinents {
+          continents {
+            code
+            name
+          }
+        }
+        """
     )
 
 
@@ -45,20 +45,20 @@ def test_retries_on_transport(execute_mock):
         "Should be HTTPConnection", "Fake connection error"
     )
     transport = RequestsHTTPTransport(
-        url="http://127.0.0.1:9999", retries=expected_retries,
+        url="http://127.0.0.1:8000/graphql", retries=expected_retries,
     )
     client = Client(transport=transport)
 
     query = gql(
         """
-    {
-      myFavoriteFilm: film(id:"RmlsbToz") {
-        id
-        title
-        episodeId
-      }
-    }
-    """
+        {
+          myFavoriteFilm: film(id:"RmlsbToz") {
+            id
+            title
+            episodeId
+          }
+        }
+        """
     )
     with client as session:  # We're using the client as context manager
         with pytest.raises(Exception):
@@ -86,14 +86,14 @@ def test_execute_result_error():
 
     failing_query = gql(
         """
-    query getContinents {
-      continents {
-        code
-        name
-        id
-      }
-    }
-    """
+        query getContinents {
+          continents {
+            code
+            name
+            id
+          }
+        }
+        """
     )
 
     with pytest.raises(Exception) as exc_info:
@@ -167,7 +167,7 @@ def test_gql():
             username
           }
         }
-    """
+        """
     )
 
     client = Client(schema=schema)

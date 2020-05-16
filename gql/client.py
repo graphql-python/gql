@@ -31,18 +31,20 @@ class Client:
     ):
         assert not (
             type_def and introspection
-        ), "Cant provide introspection type definition at the same time"
+        ), "Cannot provide introspection type definition at the same time."
         if transport and fetch_schema_from_transport:
             assert (
                 not schema
-            ), "Cant fetch the schema from transport if is already provided"
+            ), "Cannot fetch the schema from transport if is already provided."
         if introspection:
-            assert not schema, "Cant provide introspection and schema at the same time"
+            assert (
+                not schema
+            ), "Cannot provide introspection and schema at the same time."
             schema = build_client_schema(introspection)
         elif type_def:
             assert (
                 not schema
-            ), "Cant provide Type definition and schema at the same time"
+            ), "Cannot provide type definition and schema at the same time."
             type_def_ast = parse(type_def)
             schema = build_ast_schema(type_def_ast)
         elif schema and not transport:
@@ -71,7 +73,7 @@ class Client:
     def validate(self, document):
         if not self.schema:
             raise Exception(
-                "Cannot validate locally the document, you need to pass a schema."
+                "Cannot validate the document locally, you need to pass a schema."
             )
         validation_errors = validate(self.schema, document)
         if validation_errors:

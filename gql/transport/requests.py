@@ -96,6 +96,7 @@ class RequestsHTTPTransport(Transport):
         self,
         document: DocumentNode,
         variable_values: Optional[Dict[str, Any]] = None,
+        operation_name: Optional[str] = None,
         timeout: Optional[int] = None,
     ) -> ExecutionResult:
         """Execute GraphQL query.
@@ -105,6 +106,8 @@ class RequestsHTTPTransport(Transport):
 
         :param document: GraphQL query as AST Node object.
         :param variable_values: Dictionary of input parameters (Default: None).
+        :param operation_name: Name of the operation that shall be executed.
+            Only required in multi-operation documents (Default: None).
         :param timeout: Specifies a default timeout for requests (Default: None).
         :return: The result of execution.
             `data` is the result of executing the query, `errors` is null
@@ -115,7 +118,11 @@ class RequestsHTTPTransport(Transport):
             raise TransportClosed("Transport is not connected")
 
         query_str = print_ast(document)
-        payload = {"query": query_str, "variables": variable_values or {}}
+        payload: Dict[str, Any] = {"query": query_str}
+        if variable_values:
+            payload["variables"] = variable_values
+        if operation_name:
+            payload["operationName"] = operation_name
 
         data_key = "json" if self.use_json else "data"
         post_args = {
