@@ -101,7 +101,7 @@ def test_no_schema_exception():
     with pytest.raises(Exception) as exc_info:
         client = Client()
         client.validate("")
-    assert "Cannot validate locally the document, you need to pass a schema." in str(
+    assert "Cannot validate the document locally, you need to pass a schema." in str(
         exc_info.value
     )
 

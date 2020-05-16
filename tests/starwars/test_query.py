@@ -18,7 +18,7 @@ def test_hero_name_query(client):
             name
           }
         }
-    """
+        """
     )
     expected = {"hero": {"name": "R2-D2"}}
     result = client.execute(query)
@@ -37,7 +37,7 @@ def test_hero_name_and_friends_query(client):
             }
           }
         }
-    """
+        """
     )
     expected = {
         "hero": {
@@ -69,7 +69,7 @@ def test_nested_query(client):
             }
           }
         }
-    """
+        """
     )
     expected = {
         "hero": {
@@ -119,7 +119,7 @@ def test_fetch_luke_query(client):
             name
           }
         }
-    """
+        """
     )
     expected = {"human": {"name": "Luke Skywalker"}}
     result = client.execute(query)
@@ -134,7 +134,7 @@ def test_fetch_some_id_query(client):
             name
           }
         }
-    """
+        """
     )
     params = {
         "someId": "1000",
@@ -152,7 +152,7 @@ def test_fetch_some_id_query2(client):
             name
           }
         }
-    """
+        """
     )
     params = {
         "someId": "1002",
@@ -170,7 +170,7 @@ def test_invalid_id_query(client):
             name
           }
         }
-    """
+        """
     )
     params = {
         "id": "not a valid id",
@@ -188,7 +188,7 @@ def test_fetch_luke_aliased(client):
             name
           }
         }
-    """
+        """
     )
     expected = {"luke": {"name": "Luke Skywalker"}}
     result = client.execute(query)
@@ -206,7 +206,7 @@ def test_fetch_luke_and_leia_aliased(client):
             name
           }
         }
-    """
+        """
     )
     expected = {"luke": {"name": "Luke Skywalker"}, "leia": {"name": "Leia Organa"}}
     result = client.execute(query)
@@ -226,7 +226,7 @@ def test_duplicate_fields(client):
             homePlanet
           }
         }
-    """
+        """
     )
     expected = {
         "luke": {"name": "Luke Skywalker", "homePlanet": "Tatooine"},
@@ -251,7 +251,7 @@ def test_use_fragment(client):
           name
           homePlanet
         }
-    """
+        """
     )
     expected = {
         "luke": {"name": "Luke Skywalker", "homePlanet": "Tatooine"},
@@ -270,7 +270,7 @@ def test_check_type_of_r2(client):
             name
           }
         }
-    """
+        """
     )
     expected = {"hero": {"__typename": "Droid", "name": "R2-D2"}}
     result = client.execute(query)
@@ -286,7 +286,7 @@ def test_check_type_of_luke(client):
             name
           }
         }
-    """
+        """
     )
     expected = {"hero": {"__typename": "Human", "name": "Luke Skywalker"}}
     result = client.execute(query)
@@ -294,14 +294,12 @@ def test_check_type_of_luke(client):
 
 
 def test_parse_error(client):
-    result = None
     with pytest.raises(Exception) as exc_info:
-        query = gql(
+        gql(
             """
             qeury
-        """
+            """
         )
-        result = client.execute(query)
     error = exc_info.value
     formatted_error = format_error(error)
     assert formatted_error["locations"] == [{"column": 13, "line": 2}]
@@ -309,7 +307,6 @@ def test_parse_error(client):
         'Syntax Error GraphQL request (2:13) Unexpected Name "qeury"'
         in formatted_error["message"]
     )
-    assert not result
 
 
 def test_mutation_result(client):
@@ -321,7 +318,7 @@ def test_mutation_result(client):
             commentary
           }
         }
-    """
+        """
     )
     params = {
         "ep": "JEDI",
