@@ -31,7 +31,7 @@ def client():
             URL, headers={"Host": "swapi.graphene-python.org", "Accept": "text/html"}
         )
         response.raise_for_status()
-        csrf = response.cookies.get("csrftoken")
+        csrf = response.cookies["csrftoken"]
         return Client(
             transport=RequestsHTTPTransport(
                 url=URL, cookies={"csrftoken": csrf}, headers={"x-csrftoken": csrf}
@@ -97,7 +97,7 @@ def test_query_with_variable(client):
     assert result == expected
 
 
-def test_planet_query_with_name(client):
+def test_named_query(client):
     query = gql(
         """
         query Planet1 {
