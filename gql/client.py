@@ -58,7 +58,7 @@ class Client:
         self.transport: Optional[Union[Transport, AsyncTransport]] = transport
 
         # Flag to indicate that we need to fetch the schema from the transport
-        # We will fetch the schema before executing the first query
+        # On async transports, we fetch the schema before executing the first query
         self.fetch_schema_from_transport: bool = fetch_schema_from_transport
 
         # Enforced timeout of the execute function
