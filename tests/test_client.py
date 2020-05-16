@@ -170,6 +170,6 @@ def test_gql():
     """
     )
 
-    with Client(schema=schema) as client:
-        result = client.execute(query)
+    client = Client(schema=schema)
+    result = client.execute(query)
     assert result["user"] is None
