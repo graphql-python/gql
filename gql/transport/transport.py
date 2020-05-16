@@ -17,6 +17,11 @@ class Transport:
             "Any Transport subclass must implement execute method"
         )  # pragma: no cover
 
+    def connect(self):
+        """Establish a session with the transport.
+        """
+        pass
+
     def close(self):
         """Close the transport
 
