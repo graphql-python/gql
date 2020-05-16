@@ -11,14 +11,17 @@ from gql.transport.requests import RequestsHTTPTransport
 URL = "http://127.0.0.1:8000/graphql"
 
 
-def use_cassette(name):
+query_vcr = vcr.VCR(
+    cassette_library_dir=os.path.join(
+        os.path.dirname(__file__), "fixtures", "vcr_cassettes"
+    ),
+    record_mode="new_episodes",
+    match_on=["uri", "method", "body"],
+)
 
-    return vcr.use_cassette(
-        os.path.join(
-            os.path.dirname(__file__), "fixtures", "vcr_cassettes", name + ".yaml"
-        ),
-        record_mod="new_episodes",
-    )
+
+def use_cassette(name):
+    return query_vcr.use_cassette(name + ".yaml")
 
 
 @pytest.fixture
@@ -28,8 +31,7 @@ def client():
             URL, headers={"Host": "swapi.graphene-python.org", "Accept": "text/html"}
         )
         response.raise_for_status()
-        csrf = response.cookies["csrftoken"]
-
+        csrf = response.cookies.get("csrftoken")
         return Client(
             transport=RequestsHTTPTransport(
                 url=URL, cookies={"csrftoken": csrf}, headers={"x-csrftoken": csrf}
@@ -73,12 +75,29 @@ def test_hero_name_query(client):
             },
         }
     }
-    with use_cassette("execute"):
+    with use_cassette("queries"):
         result = client.execute(query)
-        assert result == expected
+    assert result == expected
 
 
-def test_planet_names_query(client):
+def test_query_with_variable(client):
+    query = gql(
+        """
+        query Planet($id: ID!) {
+          planet(id: $id) {
+            id
+            name
+          }
+        }
+        """
+    )
+    expected = {"planet": {"id": "UGxhbmV0OjEw", "name": "Kamino"}}
+    with use_cassette("queries"):
+        result = client.execute(query, variable_values={"id": "UGxhbmV0OjEw"})
+    assert result == expected
+
+
+def test_planet_query_with_name(client):
     query = gql(
         """
         query Planet1 {
@@ -96,6 +115,6 @@ def test_planet_names_query(client):
         """
     )
     expected = {"planet": {"id": "UGxhbmV0OjEx", "name": "Geonosis"}}
-    with use_cassette("execute2"):
+    with use_cassette("queries"):
         result = client.execute(query, operation_name="Planet2")
-        assert result == expected
+    assert result == expected

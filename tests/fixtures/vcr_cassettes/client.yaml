@@ -4,14 +4,10 @@ interactions:
     headers:
       Accept:
       - text/html
-      Accept-Encoding:
-      - gzip, deflate
-      Connection:
-      - keep-alive
       Host:
       - swapi.graphene-python.org
       User-Agent:
-      - python-requests/2.22.0
+      - python-requests/2.23.0
     method: GET
     uri: http://127.0.0.1:8000/graphql
   response:
@@ -68,39 +64,33 @@ interactions:
       - '3808'
       Content-Type:
       - text/html; charset=utf-8
-      Date:
-      - Tue, 03 Dec 2019 08:22:54 GMT
-      Server:
-      - WSGIServer/0.1 Python/2.7.16
       Set-Cookie:
       - csrftoken=hRIez34v4hg2Wbl8XhrbshvDIB3HmLR2L9WNTJ3SdrIQHxAKtoukxiuwQlwRJewz;
-        expires=Tue, 01-Dec-2020 08:22:54 GMT; Max-Age=31449600; Path=/
-      Vary:
-      - Cookie
-      X-Frame-Options:
-      - SAMEORIGIN
+        Max-Age=31449600; Path=/
     status:
       code: 200
       message: OK
 - request:
-    body: query=query+IntrospectionQuery+%7B%0A++__schema+%7B%0A++++queryType+%7B%0A++++++name%0A++++%7D%0A++++mutationType+%7B%0A++++++name%0A++++%7D%0A++++subscriptionType+%7B%0A++++++name%0A++++%7D%0A++++types+%7B%0A++++++...FullType%0A++++%7D%0A++++directives+%7B%0A++++++name%0A++++++description%0A++++++locations%0A++++++args+%7B%0A++++++++...InputValue%0A++++++%7D%0A++++%7D%0A++%7D%0A%7D%0A%0Afragment+FullType+on+__Type+%7B%0A++kind%0A++name%0A++description%0A++fields%28includeDeprecated%3A+true%29+%7B%0A++++name%0A++++description%0A++++args+%7B%0A++++++...InputValue%0A++++%7D%0A++++type+%7B%0A++++++...TypeRef%0A++++%7D%0A++++isDeprecated%0A++++deprecationReason%0A++%7D%0A++inputFields+%7B%0A++++...InputValue%0A++%7D%0A++interfaces+%7B%0A++++...TypeRef%0A++%7D%0A++enumValues%28includeDeprecated%3A+true%29+%7B%0A++++name%0A++++description%0A++++isDeprecated%0A++++deprecationReason%0A++%7D%0A++possibleTypes+%7B%0A++++...TypeRef%0A++%7D%0A%7D%0A%0Afragment+InputValue+on+__InputValue+%7B%0A++name%0A++description%0A++type+%7B%0A++++...TypeRef%0A++%7D%0A++defaultValue%0A%7D%0A%0Afragment+TypeRef+on+__Type+%7B%0A++kind%0A++name%0A++ofType+%7B%0A++++kind%0A++++name%0A++++ofType+%7B%0A++++++kind%0A++++++name%0A++++++ofType+%7B%0A++++++++kind%0A++++++++name%0A++++++++ofType+%7B%0A++++++++++kind%0A++++++++++name%0A++++++++++ofType+%7B%0A++++++++++++kind%0A++++++++++++name%0A++++++++++++ofType+%7B%0A++++++++++++++kind%0A++++++++++++++name%0A++++++++++++++ofType+%7B%0A++++++++++++++++kind%0A++++++++++++++++name%0A++++++++++++++%7D%0A++++++++++++%7D%0A++++++++++%7D%0A++++++++%7D%0A++++++%7D%0A++++%7D%0A++%7D%0A%7D%0A
+    body: '{"query": "query IntrospectionQuery {\n  __schema {\n    queryType {\n      name\n    }\n    mutationType
+      {\n      name\n    }\n    subscriptionType {\n      name\n    }\n    types {\n      ...FullType\n    }\n    directives
+      {\n      name\n      description\n      locations\n      args {\n        ...InputValue\n      }\n    }\n  }\n}\n\nfragment
+      FullType on __Type {\n  kind\n  name\n  description\n  fields(includeDeprecated:
+      true) {\n    name\n    description\n    args {\n      ...InputValue\n    }\n    type
+      {\n      ...TypeRef\n    }\n    isDeprecated\n    deprecationReason\n  }\n  inputFields
+      {\n    ...InputValue\n  }\n  interfaces {\n    ...TypeRef\n  }\n  enumValues(includeDeprecated:
+      true) {\n    name\n    description\n    isDeprecated\n    deprecationReason\n  }\n  possibleTypes
+      {\n    ...TypeRef\n  }\n}\n\nfragment InputValue on __InputValue {\n  name\n  description\n  type
+      {\n    ...TypeRef\n  }\n  defaultValue\n}\n\nfragment TypeRef on __Type {\n  kind\n  name\n  ofType
+      {\n    kind\n    name\n    ofType {\n      kind\n      name\n      ofType {\n        kind\n        name\n        ofType
+      {\n          kind\n          name\n          ofType {\n            kind\n            name\n            ofType
+      {\n              kind\n              name\n              ofType {\n                kind\n                name\n              }\n            }\n          }\n        }\n      }\n    }\n  }\n}\n"}'
     headers:
       Accept:
       - '*/*'
-      Accept-Encoding:
-      - gzip, deflate
-      Connection:
-      - keep-alive
-      Content-Length:
-      - '1625'
       Content-Type:
-      - application/x-www-form-urlencoded
-      Cookie:
-      - csrftoken=hRIez34v4hg2Wbl8XhrbshvDIB3HmLR2L9WNTJ3SdrIQHxAKtoukxiuwQlwRJewz
+      - application/json
       User-Agent:
-      - python-requests/2.22.0
-      x-csrftoken:
-      - hRIez34v4hg2Wbl8XhrbshvDIB3HmLR2L9WNTJ3SdrIQHxAKtoukxiuwQlwRJewz
+      - python-requests/2.23.0
     method: POST
     uri: http://127.0.0.1:8000/graphql
   response:
@@ -113,7 +103,7 @@ interactions:
         ID of the object","args":[{"name":"id","description":null,"type":{"kind":"NON_NULL","name":null,"ofType":{"kind":"SCALAR","name":"ID","ofType":null}},"defaultValue":null}],"type":{"kind":"OBJECT","name":"Planet","ofType":null},"isDeprecated":false,"deprecationReason":null},{"name":"starship","description":"The
         ID of the object","args":[{"name":"id","description":null,"type":{"kind":"NON_NULL","name":null,"ofType":{"kind":"SCALAR","name":"ID","ofType":null}},"defaultValue":null}],"type":{"kind":"OBJECT","name":"Starship","ofType":null},"isDeprecated":false,"deprecationReason":null},{"name":"hero","description":"The
         ID of the object","args":[{"name":"id","description":null,"type":{"kind":"NON_NULL","name":null,"ofType":{"kind":"SCALAR","name":"ID","ofType":null}},"defaultValue":null}],"type":{"kind":"OBJECT","name":"Hero","ofType":null},"isDeprecated":false,"deprecationReason":null},{"name":"node","description":"The
-        ID of the object","args":[{"name":"id","description":null,"type":{"kind":"NON_NULL","name":null,"ofType":{"kind":"SCALAR","name":"ID","ofType":null}},"defaultValue":null}],"type":{"kind":"INTERFACE","name":"Node","ofType":null},"isDeprecated":false,"deprecationReason":null},{"name":"viewer","description":null,"args":[],"type":{"kind":"OBJECT","name":"Query","ofType":null},"isDeprecated":false,"deprecationReason":null},{"name":"__debug","description":null,"args":[],"type":{"kind":"OBJECT","name":"DjangoDebug","ofType":null},"isDeprecated":false,"deprecationReason":null}],"inputFields":null,"interfaces":[],"enumValues":null,"possibleTypes":null},{"kind":"OBJECT","name":"FilmConnection","description":null,"fields":[{"name":"pageInfo","description":"Pagination
+        ID of the object","args":[{"name":"id","description":null,"type":{"kind":"NON_NULL","name":null,"ofType":{"kind":"SCALAR","name":"ID","ofType":null}},"defaultValue":null}],"type":{"kind":"INTERFACE","name":"Node","ofType":null},"isDeprecated":false,"deprecationReason":null},{"name":"viewer","description":null,"args":[],"type":{"kind":"OBJECT","name":"Query","ofType":null},"isDeprecated":false,"deprecationReason":null}],"inputFields":null,"interfaces":[],"enumValues":null,"possibleTypes":null},{"kind":"OBJECT","name":"FilmConnection","description":null,"fields":[{"name":"pageInfo","description":"Pagination
         data for this connection.","args":[],"type":{"kind":"NON_NULL","name":null,"ofType":{"kind":"OBJECT","name":"PageInfo","ofType":null}},"isDeprecated":false,"deprecationReason":null},{"name":"edges","description":"Contains
         the nodes in this connection.","args":[],"type":{"kind":"NON_NULL","name":null,"ofType":{"kind":"LIST","name":null,"ofType":{"kind":"OBJECT","name":"FilmEdge","ofType":null}}},"isDeprecated":false,"deprecationReason":null},{"name":"totalCount","description":null,"args":[],"type":{"kind":"SCALAR","name":"Int","ofType":null},"isDeprecated":false,"deprecationReason":null}],"inputFields":null,"interfaces":[],"enumValues":null,"possibleTypes":null},{"kind":"OBJECT","name":"PageInfo","description":"The
         Relay compliant `PageInfo` type, containing data necessary to paginate this
@@ -254,20 +244,9 @@ interactions:
         when true.","type":{"kind":"NON_NULL","name":null,"ofType":{"kind":"SCALAR","name":"Boolean","ofType":null}},"defaultValue":null}]}]}}}'
     headers:
       Content-Length:
-      - '69554'
+      - '69400'
       Content-Type:
       - application/json
-      Date:
-      - Tue, 03 Dec 2019 08:22:54 GMT
-      Server:
-      - WSGIServer/0.1 Python/2.7.16
-      Set-Cookie:
-      - csrftoken=hRIez34v4hg2Wbl8XhrbshvDIB3HmLR2L9WNTJ3SdrIQHxAKtoukxiuwQlwRJewz;
-        expires=Tue, 01-Dec-2020 08:22:54 GMT; Max-Age=31449600; Path=/
-      Vary:
-      - Cookie
-      X-Frame-Options:
-      - SAMEORIGIN
     status:
       code: 200
       message: OK
