@@ -76,8 +76,10 @@ class RequestsHTTPTransport(Transport):
             for prefix in "http://", "https://":
                 self.session.mount(prefix, adapter)
 
-    def execute(self, document, variable_values=None, timeout=None):
-        # type: (Document, Dict, int) -> ExecutionResult
+    def execute(
+        self, document, variable_values=None, operation_name=None, timeout=None
+    ):
+        # type: (Document, Dict, str, int) -> ExecutionResult
         """Execute the provided document AST against the configured remote server.
         This uses the requests library to perform a HTTP POST request to the remote server.
 
@@ -88,7 +90,11 @@ class RequestsHTTPTransport(Transport):
             occurred, and is a non-empty array if an error occurred.
         """
         query_str = print_ast(document)
-        payload = {"query": query_str, "variables": variable_values or {}}
+        payload = {"query": query_str}  # type: Dict
+        if variable_values:
+            payload["variables"] = variable_values
+        if operation_name:
+            payload["operationName"] = operation_name
 
         data_key = "json" if self.use_json else "data"
         post_args = {

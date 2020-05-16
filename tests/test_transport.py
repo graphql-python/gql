@@ -1,3 +1,5 @@
+import os
+
 import pytest
 import requests
 import vcr
@@ -5,18 +7,28 @@ import vcr
 from gql import Client, gql
 from gql.transport.requests import RequestsHTTPTransport
 
-# https://github.com/graphql-python/swapi-graphene
+# We serve https://github.com/graphql-python/swapi-graphene locally:
 URL = "http://127.0.0.1:8000/graphql"
+
+
+def use_cassette(name):
+
+    return vcr.use_cassette(
+        os.path.join(
+            os.path.dirname(__file__), "fixtures", "vcr_cassettes", name + ".yaml"
+        ),
+        record_mod="new_episodes",
+    )
 
 
 @pytest.fixture
 def client():
-    with vcr.use_cassette("tests/fixtures/vcr_cassettes/client.yaml"):
-        request = requests.get(
+    with use_cassette("client"):
+        response = requests.get(
             URL, headers={"Host": "swapi.graphene-python.org", "Accept": "text/html"}
         )
-        request.raise_for_status()
-        csrf = request.cookies["csrftoken"]
+        response.raise_for_status()
+        csrf = response.cookies["csrftoken"]
 
         return Client(
             transport=RequestsHTTPTransport(
@@ -29,21 +41,21 @@ def client():
 def test_hero_name_query(client):
     query = gql(
         """
-    {
-      myFavoriteFilm: film(id:"RmlsbToz") {
-        id
-        title
-        episodeId
-        characters(first:5) {
-          edges {
-            node {
-              name
+        {
+          myFavoriteFilm: film(id:"RmlsbToz") {
+            id
+            title
+            episodeId
+            characters(first:5) {
+              edges {
+                node {
+                  name
+                }
+              }
             }
           }
         }
-      }
-    }
-    """
+        """
     )
     expected = {
         "myFavoriteFilm": {
@@ -61,6 +73,29 @@ def test_hero_name_query(client):
             },
         }
     }
-    with vcr.use_cassette("tests/fixtures/vcr_cassettes/execute.yaml"):
+    with use_cassette("execute"):
         result = client.execute(query)
+        assert result == expected
+
+
+def test_planet_names_query(client):
+    query = gql(
+        """
+        query Planet1 {
+          planet(id: "UGxhbmV0OjEw") {
+            id
+            name
+          }
+        }
+        query Planet2 {
+          planet(id: "UGxhbmV0OjEx") {
+            id
+            name
+          }
+        }
+        """
+    )
+    expected = {"planet": {"id": "UGxhbmV0OjEx", "name": "Geonosis"}}
+    with use_cassette("execute2"):
+        result = client.execute(query, operation_name="Planet2")
         assert result == expected

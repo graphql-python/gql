@@ -29,19 +29,19 @@ class Client(object):
     ):
         assert not (
             type_def and introspection
-        ), "Cant provide introspection type definition at the same time"
+        ), "Can't provide introspection type definition at the same time"
         if transport and fetch_schema_from_transport:
             assert (
                 not schema
-            ), "Cant fetch the schema from transport if is already provided"
+            ), "Can't fetch the schema from transport if is already provided"
             introspection = transport.execute(parse(introspection_query)).data
         if introspection:
-            assert not schema, "Cant provide introspection and schema at the same time"
+            assert not schema, "Can't provide introspection and schema at the same time"
             schema = build_client_schema(introspection)
         elif type_def:
             assert (
                 not schema
-            ), "Cant provide Type definition and schema at the same time"
+            ), "Can't provide Type definition and schema at the same time"
             type_def_ast = parse(type_def)
             schema = build_ast_schema(type_def_ast)
         elif schema and not transport:

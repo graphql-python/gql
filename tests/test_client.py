@@ -40,19 +40,19 @@ def test_retries(execute_mock):
 
     client = Client(
         retries=expected_retries,
-        transport=RequestsHTTPTransport(url="http://swapi.graphene-python.org/graphql"),
+        transport=RequestsHTTPTransport(url="http://127.0.0.1:8000/graphql"),
     )
 
     query = gql(
         """
-    {
-      myFavoriteFilm: film(id:"RmlsbToz") {
-        id
-        title
-        episodeId
-      }
-    }
-    """
+        {
+          myFavoriteFilm: film(id:"RmlsbToz") {
+            id
+            title
+            episodeId
+          }
+        }
+        """
     )
 
     with pytest.raises(Exception):
@@ -73,20 +73,20 @@ def test_retries_on_transport(execute_mock):
         "Should be HTTPConnection", "Fake connection error"
     )
     transport = RequestsHTTPTransport(
-        url="http://localhost:9999", retries=expected_retries,
+        url="http://127.0.0.1:8000/graphql", retries=expected_retries,
     )
     client = Client(transport=transport)
 
     query = gql(
         """
-    {
-      myFavoriteFilm: film(id:"RmlsbToz") {
-        id
-        title
-        episodeId
-      }
-    }
-    """
+        {
+          myFavoriteFilm: film(id:"RmlsbToz") {
+            id
+            title
+            episodeId
+          }
+        }
+        """
     )
     with client:  # We're using the client as context manager
         with pytest.raises(Exception):
@@ -116,14 +116,14 @@ def test_execute_result_error():
 
     failing_query = gql(
         """
-    query getContinents {
-      continents {
-        code
-        name
-        id
-      }
-    }
-    """
+        query getContinents {
+          continents {
+            code
+            name
+            id
+          }
+        }
+        """
     )
 
     with pytest.raises(Exception) as exc_info:
@@ -206,7 +206,7 @@ def test_gql():
             username
           }
         }
-    """
+        """
     )
     result = client.execute(query)
     client.close()
