@@ -8,6 +8,13 @@ from requests.cookies import RequestsCookieJar
 
 from gql.transport import Transport
 
+from .exceptions import (
+    TransportAlreadyConnected,
+    TransportClosed,
+    TransportProtocolError,
+    TransportServerError,
+)
+
 
 class RequestsHTTPTransport(Transport):
     """Transport to execute GraphQL queries on remote servers.
@@ -58,23 +65,32 @@ class RequestsHTTPTransport(Transport):
         self.use_json = use_json
         self.default_timeout = timeout
         self.verify = verify
+        self.retries = retries
         self.method = method
         self.kwargs = kwargs
 
-        # Creating a session that can later be re-use to configure custom mechanisms
-        self.session = requests.Session()
+        self.session = None
 
-        # If we specified some retries, we provide a predefined retry-logic
-        if retries > 0:
-            adapter = HTTPAdapter(
-                max_retries=Retry(
-                    total=retries,
-                    backoff_factor=0.1,
-                    status_forcelist=[500, 502, 503, 504],
+    def connect(self):
+
+        if self.session is None:
+
+            # Creating a session that can later be re-use to configure custom mechanisms
+            self.session = requests.Session()
+
+            # If we specified some retries, we provide a predefined retry-logic
+            if self.retries > 0:
+                adapter = HTTPAdapter(
+                    max_retries=Retry(
+                        total=self.retries,
+                        backoff_factor=0.1,
+                        status_forcelist=[500, 502, 503, 504],
+                    )
                 )
-            )
-            for prefix in "http://", "https://":
-                self.session.mount(prefix, adapter)
+                for prefix in "http://", "https://":
+                    self.session.mount(prefix, adapter)
+        else:
+            raise TransportAlreadyConnected("Transport is already connected")
 
     def execute(  # type: ignore
         self,
@@ -94,6 +110,10 @@ class RequestsHTTPTransport(Transport):
             `data` is the result of executing the query, `errors` is null
             if no errors occurred, and is a non-empty array if an error occurred.
         """
+
+        if not self.session:
+            raise TransportClosed("Transport is not connected")
+
         query_str = print_ast(document)
         payload = {"query": query_str, "variables": variable_values or {}}
 
@@ -116,18 +136,26 @@ class RequestsHTTPTransport(Transport):
         )
         try:
             result = response.json()
-            if not isinstance(result, dict):
-                raise ValueError
-        except ValueError:
-            result = {}
+        except Exception:
+            # We raise a TransportServerError if the status code is 400 or higher
+            # We raise a TransportProtocolError in the other cases
+
+            try:
+                # Raise a requests.HTTPerror if response status is 400 or higher
+                response.raise_for_status()
+
+            except requests.HTTPError as e:
+                raise TransportServerError(str(e))
+
+            raise TransportProtocolError("Server did not return a GraphQL result")
 
         if "errors" not in result and "data" not in result:
-            response.raise_for_status()
-            raise requests.HTTPError(
-                "Server did not return a GraphQL result", response=response
-            )
+            raise TransportProtocolError("Server did not return a GraphQL result")
+
         return ExecutionResult(errors=result.get("errors"), data=result.get("data"))
 
     def close(self):
         """Closing the transport by closing the inner session"""
-        self.session.close()
+        if self.session:
+            self.session.close()
+            self.session = None

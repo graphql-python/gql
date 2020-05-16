@@ -60,9 +60,9 @@ def test_retries_on_transport(execute_mock):
     }
     """
     )
-    with client:  # We're using the client as context manager
+    with client as session:  # We're using the client as context manager
         with pytest.raises(Exception):
-            client.execute(query)
+            session.execute(query)
 
     # This might look strange compared to the previous test, but making 3 retries
     # means you're actually doing 4 calls.
@@ -98,7 +98,6 @@ def test_execute_result_error():
 
     with pytest.raises(Exception) as exc_info:
         client.execute(failing_query)
-    client.close()
     assert 'Cannot query field "id" on type "Continent".' in str(exc_info.value)
 
 

@@ -1,4 +1,5 @@
 import asyncio
+from inspect import isawaitable
 from typing import Any, AsyncGenerator, Dict, Generator, Optional, Union, cast
 
 from graphql import (
@@ -35,11 +36,6 @@ class Client:
             assert (
                 not schema
             ), "Cant fetch the schema from transport if is already provided"
-            if isinstance(transport, Transport):
-                # For sync transports, we fetch the schema directly
-                execution_result = transport.execute(parse(get_introspection_query()))
-                execution_result = cast(ExecutionResult, execution_result)
-                introspection = execution_result.data
         if introspection:
             assert not schema, "Cant provide introspection and schema at the same time"
             schema = build_client_schema(introspection)
@@ -68,6 +64,10 @@ class Client:
         # Enforced timeout of the execute function
         self.execute_timeout = execute_timeout
 
+        if isinstance(transport, Transport) and fetch_schema_from_transport:
+            with self as session:
+                session.fetch_schema()
+
     def validate(self, document):
         if not self.schema:
             raise Exception(
@@ -76,6 +76,10 @@ class Client:
         validation_errors = validate(self.schema, document)
         if validation_errors:
             raise validation_errors[0]
+
+    def execute_sync(self, document: DocumentNode, *args, **kwargs) -> Dict:
+        with self as session:
+            return session.execute(document, *args, **kwargs)
 
     async def execute_async(self, document: DocumentNode, *args, **kwargs) -> Dict:
         async with self as session:
@@ -107,22 +111,7 @@ class Client:
             return data
 
         else:  # Sync transports
-
-            if self.schema:
-                self.validate(document)
-
-            assert self.transport is not None, "Cannot execute without a transport"
-
-            result = self.transport.execute(document, *args, **kwargs)
-
-            if result.errors:
-                raise TransportQueryError(str(result.errors[0]))
-
-            assert (
-                result.data is not None
-            ), "Transport returned an ExecutionResult without data or errors"
-
-            return result.data
+            return self.execute_sync(document, *args, **kwargs)
 
     async def subscribe_async(
         self, document: DocumentNode, *args, **kwargs
@@ -170,7 +159,7 @@ class Client:
         await self.transport.connect()
 
         if not hasattr(self, "session"):
-            self.session = ClientSession(client=self)
+            self.session = AsyncClientSession(client=self)
 
         return self.session
 
@@ -178,22 +167,64 @@ class Client:
 
         await self.transport.close()
 
-    def close(self):
-        """Close the client and it's underlying transport (only for Sync transports)"""
-        if not isinstance(self.transport, AsyncTransport):
-            self.transport.close()
-
     def __enter__(self):
+
         assert not isinstance(
             self.transport, AsyncTransport
         ), "Only a sync transport can be use. Use 'async with Client(...)' instead"
-        return self
+
+        self.transport.connect()
+
+        if not hasattr(self, "session"):
+            self.session = SyncClientSession(client=self)
+
+        return self.session
 
     def __exit__(self, *args):
-        self.close()
+        self.transport.close()
 
 
-class ClientSession:
+class SyncClientSession:
+    """An instance of this class is created when using 'with' on the client.
+
+    It contains the sync method execute to send queries
+    with the sync transports.
+    """
+
+    def __init__(self, client: Client):
+        self.client = client
+
+    def execute(self, document: DocumentNode, *args, **kwargs) -> Dict:
+
+        # Validate document
+        if self.client.schema:
+            self.client.validate(document)
+
+        result = self.transport.execute(document, *args, **kwargs)
+
+        assert not isawaitable(result), "Transport returned an awaitable result."
+        result = cast(ExecutionResult, result)
+
+        if result.errors:
+            raise TransportQueryError(str(result.errors[0]))
+
+        assert (
+            result.data is not None
+        ), "Transport returned an ExecutionResult without data or errors"
+
+        return result.data
+
+    def fetch_schema(self) -> None:
+        execution_result = self.transport.execute(parse(get_introspection_query()))
+        self.client.introspection = execution_result.data
+        self.client.schema = build_client_schema(self.client.introspection)
+
+    @property
+    def transport(self):
+        return self.client.transport
+
+
+class AsyncClientSession:
     """An instance of this class is created when using 'async with' on the client.
 
     It contains the async methods (execute, subscribe) to send queries
@@ -203,7 +234,7 @@ class ClientSession:
     def __init__(self, client: Client):
         self.client = client
 
-    async def validate(self, document: DocumentNode):
+    async def fetch_and_validate(self, document: DocumentNode):
         """Fetch schema from transport if needed and validate document.
 
         If no schema is present, the validation will be skipped.
@@ -222,7 +253,7 @@ class ClientSession:
     ) -> AsyncGenerator[Dict, None]:
 
         # Fetch schema from transport if needed and validate document if possible
-        await self.validate(document)
+        await self.fetch_and_validate(document)
 
         # Subscribe to the transport and yield data or raise error
         self._generator: AsyncGenerator[
@@ -243,7 +274,7 @@ class ClientSession:
     async def execute(self, document: DocumentNode, *args, **kwargs) -> Dict:
 
         # Fetch schema from transport if needed and validate document if possible
-        await self.validate(document)
+        await self.fetch_and_validate(document)
 
         # Execute the query with the transport with a timeout
         result = await asyncio.wait_for(
