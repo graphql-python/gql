@@ -85,9 +85,11 @@ class RequestsHTTPTransport(Transport):
 
         :param document: GraphQL query as AST Node object.
         :param variable_values: Dictionary of input parameters (Default: None).
+        :param operation_name: Name of the operation that shall be executed.
+            Only required in multi-operation documents (Default: None).
         :param timeout: Specifies a default timeout for requests (Default: None).
-        :return: The result of execution. `data` is the result of executing the query, `errors` is null if no errors
-            occurred, and is a non-empty array if an error occurred.
+        :return: The result of execution. `data` is the result of executing the query,
+            `errors` is null if no errors occurred, and is a non-empty array if an error occurred.
         """
         query_str = print_ast(document)
         payload = {"query": query_str}  # type: Dict
