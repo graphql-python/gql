@@ -50,10 +50,10 @@ async def test_subscription_support_using_client():
     params = {"ep": "JEDI"}
     expected = [{**review, "episode": "JEDI"} for review in reviews[6]]
 
-    results = []
-
     async with Client(schema=StarWarsSchema) as session:
-        async for result in session.subscribe(subs, variable_values=params):
-            results.append(result["reviewAdded"])
+        results = [
+            result["reviewAdded"]
+            async for result in session.subscribe(subs, variable_values=params)
+        ]
 
     assert results == expected
