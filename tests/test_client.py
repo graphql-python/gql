@@ -81,7 +81,7 @@ def test_no_schema_exception():
 def test_execute_result_error():
 
     client = Client(
-        transport=RequestsHTTPTransport(url="https://countries.trevorblades.com/",),
+        transport=RequestsHTTPTransport(url="https://countries.trevorblades.com/"),
     )
 
     failing_query = gql(

@@ -76,7 +76,7 @@ def test_hero_name_query(client):
             },
         }
     }
-    with use_cassette("execute"):
+    with use_cassette("queries"):
         result = client.execute(query)
     assert result == expected
 
