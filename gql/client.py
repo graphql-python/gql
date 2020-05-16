@@ -1,5 +1,4 @@
 import asyncio
-from inspect import isawaitable
 from typing import Any, AsyncGenerator, Dict, Generator, Optional, Union, cast
 
 from graphql import (
@@ -115,9 +114,6 @@ class Client:
             assert self.transport is not None, "Cannot execute without a transport"
 
             result = self.transport.execute(document, *args, **kwargs)
-
-            assert not isawaitable(result), "Transport returned an awaitable result."
-            result = cast(ExecutionResult, result)
 
             if result.errors:
                 raise TransportQueryError(str(result.errors[0]))
