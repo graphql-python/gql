@@ -29,16 +29,16 @@ tests_require = (
 )
 
 dev_requires = [
-    "flake8==3.7.9",
-    "isort<4.0.0",
+    "flake8==3.8.1",
+    "isort==4.3.21",
     "black==19.10b0",
     "mypy==0.770",
-    "check-manifest>=0.40,<1",
+    "check-manifest>=0.42,<1",
 ] + tests_require
 
 setup(
     name="gql",
-    version="0.5.0",
+    version="2.0.0",
     description="GraphQL client for Python",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
@@ -63,7 +63,7 @@ setup(
     packages=find_packages(include=["gql*"]),
     install_requires=install_requires,
     tests_require=tests_require,
-    extras_require={"test": tests_require, "dev": dev_requires,},
+    extras_require={"test": tests_require, "dev": dev_requires},
     include_package_data=True,
     zip_safe=False,
     platforms="any",
