@@ -26,6 +26,9 @@ GQL architecture is inspired by `React-Relay` and `Apollo-Client`.
 
     $ pip install gql
 
+Please note that the following documentation describes the current version which is currently only available as a pre-relase and needs to be installed with
+
+    $ pip install --pre gql
 
 ## Usage
 
