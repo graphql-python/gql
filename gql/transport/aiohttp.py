@@ -103,11 +103,14 @@ class AIOHTTPTransport(AsyncTransport):
         """
 
         query_str = print_ast(document)
-        payload = {
+        payload: Dict[str, Any] = {
             "query": query_str,
-            "variables": variable_values or {},
-            "operationName": operation_name or "",
         }
+
+        if variable_values:
+            payload["variables"] = variable_values
+        if operation_name:
+            payload["operationName"] = operation_name
 
         post_args = {
             "json": payload,
