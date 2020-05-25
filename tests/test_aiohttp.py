@@ -227,7 +227,6 @@ async def test_aiohttp_extra_args(event_loop, aiohttp_server):
 query2_str = """
     query getEurope ($code: ID!) {
       continent (code: $code) {
-        code
         name
       }
     }
