@@ -8,7 +8,7 @@ from parse import search
 from gql import Client, gql
 from gql.transport.websockets import WebsocketsTransport
 
-from .conftest import MS, WebSocketServer
+from .conftest import MS, WebSocketServerHelper
 
 countdown_server_answer = (
     '{{"type":"data","id":"{query_id}","payload":{{"data":{{"number":{number}}}}}}}'
@@ -20,9 +20,9 @@ WITH_KEEPALIVE = False
 async def server_countdown(ws, path):
     global WITH_KEEPALIVE
     try:
-        await WebSocketServer.send_connection_ack(ws)
+        await WebSocketServerHelper.send_connection_ack(ws)
         if WITH_KEEPALIVE:
-            await WebSocketServer.send_keepalive(ws)
+            await WebSocketServerHelper.send_keepalive(ws)
 
         result = await ws.recv()
         json_result = json.loads(result)
@@ -58,7 +58,7 @@ async def server_countdown(ws, path):
         async def keepalive_coro():
             while True:
                 await asyncio.sleep(5 * MS)
-                await WebSocketServer.send_keepalive(ws)
+                await WebSocketServerHelper.send_keepalive(ws)
 
         stopping_task = asyncio.ensure_future(stopping_coro())
         keepalive_task = asyncio.ensure_future(keepalive_coro())
@@ -82,8 +82,8 @@ async def server_countdown(ws, path):
             except asyncio.CancelledError:
                 print("Now keepalive task is cancelled")
 
-        await WebSocketServer.send_complete(ws, query_id)
-        await WebSocketServer.wait_connection_terminate(ws)
+        await WebSocketServerHelper.send_complete(ws, query_id)
+        await WebSocketServerHelper.wait_connection_terminate(ws)
     except websockets.exceptions.ConnectionClosedOK:
         pass
     finally:
@@ -228,7 +228,7 @@ async def test_websocket_subscription_close_transport(
 
 
 async def server_countdown_close_connection_in_middle(ws, path):
-    await WebSocketServer.send_connection_ack(ws)
+    await WebSocketServerHelper.send_connection_ack(ws)
 
     result = await ws.recv()
     json_result = json.loads(result)

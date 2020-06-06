@@ -8,7 +8,7 @@ import websockets
 from gql import Client, gql
 from gql.transport.websockets import WebsocketsTransport
 
-from .conftest import MS, WebSocketServer
+from .conftest import MS, WebSocketServerHelper
 from .starwars.schema import StarWarsIntrospection, StarWarsSchema, StarWarsTypeDef
 
 starwars_expected_one = {
@@ -25,7 +25,7 @@ starwars_expected_two = {
 
 
 async def server_starwars(ws, path):
-    await WebSocketServer.send_connection_ack(ws)
+    await WebSocketServerHelper.send_connection_ack(ws)
 
     try:
         await ws.recv()
@@ -42,8 +42,8 @@ async def server_starwars(ws, path):
             await ws.send(data)
             await asyncio.sleep(2 * MS)
 
-        await WebSocketServer.send_complete(ws, 1)
-        await WebSocketServer.wait_connection_terminate(ws)
+        await WebSocketServerHelper.send_complete(ws, 1)
+        await WebSocketServerHelper.wait_connection_terminate(ws)
 
     except websockets.exceptions.ConnectionClosedOK:
         pass
