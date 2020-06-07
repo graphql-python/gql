@@ -3,6 +3,7 @@ import json
 from typing import Dict, Optional, Tuple
 
 from graphql import DocumentNode, ExecutionResult, print_ast
+from websockets.exceptions import ConnectionClosed
 
 from .exceptions import (
     TransportProtocolError,
@@ -54,7 +55,12 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
         async def heartbeat_coro():
             while True:
                 await asyncio.sleep(self.heartbeat_interval)
-                await self._send(json.dumps({"topic": "phoenix", "event": "heartbeat"}))
+                try:
+                    await self._send(
+                        json.dumps({"topic": "phoenix", "event": "heartbeat"})
+                    )
+                except ConnectionClosed:
+                    pass
 
         self.heartbeat_task = asyncio.ensure_future(heartbeat_coro())
 
@@ -140,7 +146,13 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
                     raise ValueError("payload is not a dict")
 
                 subscription_id = str(payload.get("subscriptionId"))
-                answer_id = self.subscription_ids_to_query_ids[subscription_id]
+                try:
+                    answer_id = self.subscription_ids_to_query_ids[subscription_id]
+                except KeyError:
+                    raise ValueError(
+                        f"subscription '{subscription_id}' has not been registerd"
+                    )
+
                 result = payload.get("result")
 
                 if not isinstance(result, dict):
