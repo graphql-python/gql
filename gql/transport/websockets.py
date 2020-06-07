@@ -348,15 +348,15 @@ class WebsocketsTransport(AsyncTransport):
                     await self._fail(e, clean_close=False)
                     break
 
-                await self._handle_answer(answer_id, answer_type, execution_result)
+                await self._handle_answer(answer_type, answer_id, execution_result)
 
         finally:
             log.debug("Exiting _receive_data_loop()")
 
     async def _handle_answer(
         self,
-        answer_id: str,
-        answer_type: Optional[int],
+        answer_type: str,
+        answer_id: Optional[int],
         execution_result: Optional[ExecutionResult],
     ) -> None:
         try:

@@ -199,15 +199,15 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
 
     async def _handle_answer(
         self,
-        answer_id: str,
-        answer_type: Optional[int],
+        answer_type: str,
+        answer_id: Optional[int],
         execution_result: Optional[ExecutionResult],
     ) -> None:
         if answer_type == "close":
             for listener in self.listeners.values():
                 await listener.put(("complete", execution_result))
         else:
-            await super()._handle_answer(answer_id, answer_type, execution_result)
+            await super()._handle_answer(answer_type, answer_id, execution_result)
 
     async def close(self) -> None:
         self.heartbeat_task.cancel()
