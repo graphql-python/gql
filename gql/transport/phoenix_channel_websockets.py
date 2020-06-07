@@ -13,7 +13,9 @@ from .websockets import WebsocketsTransport
 
 
 class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
-    def __init__(self, channel_name, heartbeat_interval=30, *args, **kwargs) -> None:
+    def __init__(
+        self, channel_name: str, heartbeat_interval: int = 30, *args, **kwargs
+    ) -> None:
         self.channel_name = channel_name
         self.heartbeat_interval = heartbeat_interval
         self.subscription_ids_to_query_ids: Dict[str, int] = {}
@@ -195,7 +197,12 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
 
         return answer_type, answer_id, execution_result
 
-    async def _handle_answer(self, answer_id, answer_type, execution_result) -> None:
+    async def _handle_answer(
+        self,
+        answer_id: str,
+        answer_type: Optional[int],
+        execution_result: Optional[ExecutionResult],
+    ) -> None:
         if answer_type == "close":
             for listener in self.listeners.values():
                 await listener.put(("complete", execution_result))

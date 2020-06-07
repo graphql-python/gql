@@ -353,7 +353,12 @@ class WebsocketsTransport(AsyncTransport):
         finally:
             log.debug("Exiting _receive_data_loop()")
 
-    async def _handle_answer(self, answer_id, answer_type, execution_result) -> None:
+    async def _handle_answer(
+        self,
+        answer_id: str,
+        answer_type: Optional[int],
+        execution_result: Optional[ExecutionResult],
+    ) -> None:
         try:
             # Put the answer in the queue
             if answer_id is not None:
