@@ -65,7 +65,10 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
         self.heartbeat_task = asyncio.ensure_future(heartbeat_coro())
 
     async def _send_stop_message(self, query_id: int) -> None:
-        pass
+        try:
+            await self.listeners[query_id].put(("complete", None))
+        except KeyError:
+            pass
 
     async def _send_connection_terminate_message(self) -> None:
         """Send a phx_leave message to disconnect from the provided channel.
@@ -216,8 +219,7 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
         execution_result: Optional[ExecutionResult],
     ) -> None:
         if answer_type == "close":
-            for listener in self.listeners.values():
-                await listener.put(("complete", execution_result))
+            await self.close()
         else:
             await super()._handle_answer(answer_type, answer_id, execution_result)
 
