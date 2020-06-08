@@ -228,6 +228,3 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
             self.heartbeat_task.cancel()
 
         await super()._close_coro(e, clean_close)
-
-    async def close(self) -> None:
-        await super().close()
