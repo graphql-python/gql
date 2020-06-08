@@ -223,6 +223,11 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
         else:
             await super()._handle_answer(answer_type, answer_id, execution_result)
 
+    async def _close_coro(self, e: Exception, clean_close: bool = True) -> None:
+        if self.heartbeat_task is not None:
+            self.heartbeat_task.cancel()
+
+        await super()._close_coro(e, clean_close)
+
     async def close(self) -> None:
-        self.heartbeat_task.cancel()
         await super().close()
