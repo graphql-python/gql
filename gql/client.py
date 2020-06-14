@@ -71,10 +71,10 @@ class Client:
                 session.fetch_schema()
 
     def validate(self, document):
-        if not self.schema:
-            raise Exception(
-                "Cannot validate the document locally, you need to pass a schema."
-            )
+        assert (
+            self.schema
+        ), "Cannot validate the document locally, you need to pass a schema."
+
         validation_errors = validate(self.schema, document)
         if validation_errors:
             raise validation_errors[0]

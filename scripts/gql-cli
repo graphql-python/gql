@@ -27,7 +27,7 @@ async def main():
     elif scheme in ["http", "https"]:
         transport = AIOHTTPTransport(url=args.server)
     else:
-        raise Exception("URL protocol should be one of: http, https, ws, wss")
+        raise ValueError("URL protocol should be one of: http, https, ws, wss")
 
     async with Client(transport=transport) as session:
 
