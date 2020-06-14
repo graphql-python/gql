@@ -1,0 +1,50 @@
+#!/usr/bin/env python3
+
+from gql import gql, Client
+from gql.transport.websockets import WebsocketsTransport
+from gql.transport.aiohttp import AIOHTTPTransport
+from yarl import URL
+import asyncio
+import argparse
+
+parser = argparse.ArgumentParser(
+    description="Send GraphQL queries from command line using http(s) or websockets"
+)
+parser.add_argument(
+    "server", help="the server url starting with http://, https://, ws:// or wss://"
+)
+args = parser.parse_args()
+
+
+async def main():
+
+    url = URL(args.server)
+
+    scheme = url.scheme
+
+    if scheme in ["ws", "wss"]:
+        transport = WebsocketsTransport(url=args.server, ssl=(scheme == "wss"))
+    elif scheme in ["http", "https"]:
+        transport = AIOHTTPTransport(url=args.server)
+    else:
+        raise ValueError("URL protocol should be one of: http, https, ws, wss")
+
+    async with Client(transport=transport) as session:
+
+        while True:
+            try:
+                query_str = input()
+            except EOFError:
+                break
+
+            query = gql(query_str)
+
+            if scheme in ["ws", "wss"]:
+                async for result in session.subscribe(query):
+                    print(result)
+            else:
+                result = await session.execute(query)
+                print(result)
+
+
+asyncio.run(main())

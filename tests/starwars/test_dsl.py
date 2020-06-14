@@ -13,20 +13,30 @@ def ds():
     return ds
 
 
+def test_invalid_field_on_type_query(ds):
+    with pytest.raises(KeyError) as exc_info:
+        ds.Query.extras.select(ds.Character.name)
+    assert "Field extras does not exist in type Query." in str(exc_info.value)
+
+
+def test_incompatible_query_field(ds):
+    with pytest.raises(Exception) as exc_info:
+        ds.query("hero")
+    assert "Received incompatible query field" in str(exc_info.value)
+
+
 def test_hero_name_query(ds):
-    query = '''
+    query = """
 hero {
   name
 }
-    '''.strip()
-    query_dsl = ds.Query.hero.select(
-        ds.Character.name
-    )
+    """.strip()
+    query_dsl = ds.Query.hero.select(ds.Character.name)
     assert query == str(query_dsl)
 
 
 def test_hero_name_and_friends_query(ds):
-    query = '''
+    query = """
 hero {
   id
   name
@@ -34,19 +44,17 @@ hero {
     name
   }
 }
-    '''.strip()
+    """.strip()
     query_dsl = ds.Query.hero.select(
         ds.Character.id,
         ds.Character.name,
-        ds.Character.friends.select(
-            ds.Character.name,
-        )
+        ds.Character.friends.select(ds.Character.name,),
     )
     assert query == str(query_dsl)
 
 
 def test_nested_query(ds):
-    query = '''
+    query = """
 hero {
   name
   friends {
@@ -57,238 +65,70 @@ hero {
     }
   }
 }
-    '''.strip()
+    """.strip()
     query_dsl = ds.Query.hero.select(
         ds.Character.name,
         ds.Character.friends.select(
             ds.Character.name,
             ds.Character.appears_in,
-            ds.Character.friends.select(
-                ds.Character.name
-            )
-        )
+            ds.Character.friends.select(ds.Character.name),
+        ),
     )
     assert query == str(query_dsl)
 
 
 def test_fetch_luke_query(ds):
-    query = '''
+    query = """
 human(id: "1000") {
   name
 }
-    '''.strip()
-    query_dsl = ds.Query.human(id="1000").select(
-        ds.Human.name,
-    )
+    """.strip()
+    query_dsl = ds.Query.human(id="1000").select(ds.Human.name,)
 
     assert query == str(query_dsl)
-
-
-# def test_fetch_some_id_query():
-#     query = '''
-#         query FetchSomeIDQuery($someId: String!) {
-#           human(id: $someId) {
-#             name
-#           }
-#         }
-#     '''
-#     params = {
-#         'someId': '1000',
-#     }
-#     expected = {
-#         'human': {
-#             'name': 'Luke Skywalker',
-#         }
-#     }
-#     result = schema.execute(query, None, params)
-#     assert not result.errors
-#     assert result.data == expected
-
-
-# def test_fetch_some_id_query2():
-#     query = '''
-#         query FetchSomeIDQuery($someId: String!) {
-#           human(id: $someId) {
-#             name
-#           }
-#         }
-#     '''
-#     params = {
-#         'someId': '1002',
-#     }
-#     expected = {
-#         'human': {
-#             'name': 'Han Solo',
-#         }
-#     }
-#     result = schema.execute(query, None, params)
-#     assert not result.errors
-#     assert result.data == expected
-
-
-# def test_invalid_id_query():
-#     query = '''
-#         query humanQuery($id: String!) {
-#           human(id: $id) {
-#             name
-#           }
-#         }
-#     '''
-#     params = {
-#         'id': 'not a valid id',
-#     }
-#     expected = {
-#         'human': None
-#     }
-#     result = schema.execute(query, None, params)
-#     assert not result.errors
-#     assert result.data == expected
 
 
 def test_fetch_luke_aliased(ds):
-    query = '''
+    query = """
 luke: human(id: "1000") {
   name
 }
-    '''.strip()
-    query_dsl = ds.Query.human.args(id=1000).alias('luke').select(
-        ds.Character.name,
-    )
+    """.strip()
+    query_dsl = ds.Query.human.args(id=1000).alias("luke").select(ds.Character.name,)
     assert query == str(query_dsl)
 
 
-# def test_fetch_luke_and_leia_aliased():
-#     query = '''
-#         query FetchLukeAndLeiaAliased {
-#           luke: human(id: "1000") {
-#             name
-#           }
-#           leia: human(id: "1003") {
-#             name
-#           }
-#         }
-#     '''
-#     expected = {
-#         'luke': {
-#             'name': 'Luke Skywalker',
-#         },
-#         'leia': {
-#             'name': 'Leia Organa',
-#         }
-#     }
-#     result = schema.execute(query)
-#     assert not result.errors
-#     assert result.data == expected
+def test_hero_name_query_result(ds):
+    result = ds.query(ds.Query.hero.select(ds.Character.name))
+    expected = {"hero": {"name": "R2-D2"}}
+    assert result == expected
 
 
-# def test_duplicate_fields():
-#     query = '''
-#         query DuplicateFields {
-#           luke: human(id: "1000") {
-#             name
-#             homePlanet
-#           }
-#           leia: human(id: "1003") {
-#             name
-#             homePlanet
-#           }
-#         }
-#     '''
-#     expected = {
-#         'luke': {
-#             'name': 'Luke Skywalker',
-#             'homePlanet': 'Tatooine',
-#         },
-#         'leia': {
-#             'name': 'Leia Organa',
-#             'homePlanet': 'Alderaan',
-#         }
-#     }
-#     result = schema.execute(query)
-#     assert not result.errors
-#     assert result.data == expected
-
-
-# def test_use_fragment():
-#     query = '''
-#         query UseFragment {
-#           luke: human(id: "1000") {
-#             ...HumanFragment
-#           }
-#           leia: human(id: "1003") {
-#             ...HumanFragment
-#           }
-#         }
-#         fragment HumanFragment on Human {
-#           name
-#           homePlanet
-#         }
-#     '''
-#     expected = {
-#         'luke': {
-#             'name': 'Luke Skywalker',
-#             'homePlanet': 'Tatooine',
-#         },
-#         'leia': {
-#             'name': 'Leia Organa',
-#             'homePlanet': 'Alderaan',
-#         }
-#     }
-#     result = schema.execute(query)
-#     assert not result.errors
-#     assert result.data == expected
-
-
-# def test_check_type_of_r2():
-#     query = '''
-#         query CheckTypeOfR2 {
-#           hero {
-#             __typename
-#             name
-#           }
-#         }
-#     '''
-#     expected = {
-#         'hero': {
-#             '__typename': 'Droid',
-#             'name': 'R2-D2',
-#         }
-#     }
-#     result = schema.execute(query)
-#     assert not result.errors
-#     assert result.data == expected
-
-
-# def test_check_type_of_luke():
-#     query = '''
-#         query CheckTypeOfLuke {
-#           hero(episode: EMPIRE) {
-#             __typename
-#             name
-#           }
-#         }
-#     '''
-#     expected = {
-#         'hero': {
-#             '__typename': 'Human',
-#             'name': 'Luke Skywalker',
-#         }
-#     }
-#     result = schema.execute(query)
-#     assert not result.errors
-#     assert result.data == expected
-
-
-
-def test_hero_name_query(ds):
+def test_arg_serializer_list(ds):
     result = ds.query(
-        ds.Query.hero.select(
-            ds.Character.name
-        )
+        ds.Query.characters.args(ids=[1000, 1001, 1003]).select(ds.Character.name,)
     )
     expected = {
-        'hero': {
-            'name': 'R2-D2'
-        }
+        "characters": [
+            {"name": "Luke Skywalker"},
+            {"name": "Darth Vader"},
+            {"name": "Leia Organa"},
+        ]
     }
+    assert result == expected
+
+
+def test_arg_serializer_enum(ds):
+    result = ds.query(ds.Query.hero.args(episode=5).select(ds.Character.name))
+    expected = {"hero": {"name": "Luke Skywalker"}}
+    assert result == expected
+
+
+def test_create_review_mutation_result(ds):
+    result = ds.mutate(
+        ds.Mutation.createReview.args(
+            episode=6, review={"stars": 5, "commentary": "This is a great movie!"}
+        ).select(ds.Review.stars, ds.Review.commentary)
+    )
+    expected = {"createReview": {"stars": 5, "commentary": "This is a great movie!"}}
     assert result == expected

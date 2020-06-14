@@ -76,7 +76,7 @@ class ImportOrderChecker(object):
                     introspection_schema = json.load(data_file)
                     return build_client_schema(introspection_schema)
             except IOError as e:
-                raise Exception("Cannot find the provided introspection schema. {}".format(str(e)))
+                raise Exception(f"Cannot find the provided introspection schema. {e}")
 
         schema = self.options.get('schema')
         assert schema, 'Need to provide schema'

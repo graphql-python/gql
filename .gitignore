@@ -11,6 +11,9 @@ __pycache__/
 # Distribution / packaging
 .Python
 env/
+.env/
+venv/
+.venv/
 build/
 develop-eggs/
 dist/
@@ -44,7 +47,7 @@ htmlcov/
 .cache
 nosetests.xml
 coverage.xml
-*,cover
+*.cover
 
 # Translations
 *.mo
@@ -53,12 +56,16 @@ coverage.xml
 # Django stuff:
 *.log
 
+# Type checking
+/.mypy_cache
+.pyre
+/type_info.json
+
 # Sphinx documentation
 docs/_build/
 
 # PyBuilder
 target/
-
 
 /tests/django.sqlite
 
@@ -79,3 +86,9 @@ target/
 # Databases
 *.sqlite3
 .DS_Store
+
+### VisualStudioCode ###
+.vscode/*
+
+# VIM
+*.swp
