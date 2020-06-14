@@ -222,3 +222,43 @@ async def test_aiohttp_extra_args(event_loop, aiohttp_server):
         africa = continents[0]
 
         assert africa["code"] == "AF"
+
+
+query2_str = """
+    query getEurope ($code: ID!) {
+      continent (code: $code) {
+        name
+      }
+    }
+"""
+
+query2_server_answer = '{"data": {"continent": {"name": "Europe"}}}'
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_query_variable_values(event_loop, aiohttp_server):
+    async def handler(request):
+        return web.Response(text=query2_server_answer, content_type="application/json")
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    sample_transport = AIOHTTPTransport(url=url, timeout=10)
+
+    async with Client(transport=sample_transport,) as session:
+
+        params = {"code": "EU"}
+
+        query = gql(query2_str)
+
+        # Execute query asynchronously
+        result = await session.execute(
+            query, variable_values=params, operation_name="getEurope"
+        )
+
+        continent = result["continent"]
+
+        assert continent["name"] == "Europe"
