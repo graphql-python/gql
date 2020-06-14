@@ -29,7 +29,7 @@ class Client:
         transport: Optional[Union[Transport, AsyncTransport]] = None,
         fetch_schema_from_transport: bool = False,
         execute_timeout: Optional[int] = 10,
-        custom_types: Dict[str, Any] = {}
+        custom_types: Optional[Dict[str, Any]] = None,
     ):
         assert not (
             type_def and introspection
@@ -220,8 +220,8 @@ class SyncClientSession:
             result.data is not None
         ), "Transport returned an ExecutionResult without data or errors"
 
-        if self.type_adapter:
-            result.data = self.type_adapter.convert_scalars(result.data)
+        if self.client.type_adapter:
+            result.data = self.client.type_adapter.convert_scalars(result.data)
 
         return result.data
 
@@ -297,8 +297,8 @@ class AsyncClientSession:
         if result.errors:
             raise TransportQueryError(str(result.errors[0]))
 
-        if self.type_adapter:
-            result.data = self.type_adapter.convert_scalars(result.data)
+        if self.client.type_adapter:
+            result.data = self.client.type_adapter.convert_scalars(result.data)
 
         return result.data
 
