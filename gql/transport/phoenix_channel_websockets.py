@@ -206,7 +206,7 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
                         raise ValueError("reply error")
 
                 elif status == "timeout":
-                    raise ValueError("reply timeout")
+                    raise TransportQueryError("reply timeout", query_id=answer_id)
 
             elif event == "phx_error":
                 raise TransportServerError("Server error")
