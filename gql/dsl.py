@@ -124,7 +124,7 @@ def selection_field(field):
     if isinstance(field, DSLField):
         return field
 
-    raise Exception(f'Received incompatible query field: "{field}".')
+    raise TypeError(f'Received incompatible query field: "{field}".')
 
 
 def query(*fields, **kwargs):
