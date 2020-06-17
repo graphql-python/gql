@@ -56,8 +56,18 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
             while True:
                 await asyncio.sleep(self.heartbeat_interval)
                 try:
+                    query_id = self.next_query_id
+                    self.next_query_id += 1
+
                     await self._send(
-                        json.dumps({"topic": "phoenix", "event": "heartbeat"})
+                        json.dumps(
+                            {
+                                "topic": "phoenix",
+                                "event": "heartbeat",
+                                "payload": {},
+                                "ref": query_id,
+                            }
+                        )
                     )
                 except ConnectionClosed:
                     pass
