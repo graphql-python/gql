@@ -7,14 +7,14 @@ locally.
 import copy
 import os
 
-import vcr
 import pytest
 import requests
+import vcr
 from graphql import GraphQLSchema
 
 from gql import Client
-from gql.type_adapter import TypeAdapter
 from gql.transport.requests import RequestsHTTPTransport
+from gql.type_adapter import TypeAdapter
 
 # We serve https://github.com/graphql-python/swapi-graphene locally:
 URL = "http://127.0.0.1:8000/graphql"
@@ -63,7 +63,7 @@ def schema(client):
 
 def test_scalar_type_name_for_scalar_field_returns_name(schema: GraphQLSchema):
     type_adapter = TypeAdapter(schema)
-    schema_obj = schema.query_type.fields["film"]
+    schema_obj = schema.query_type.fields["film"] if schema.query_type else None
 
     assert (
         type_adapter._get_scalar_type_name(schema_obj.type.fields["releaseDate"])
@@ -73,7 +73,7 @@ def test_scalar_type_name_for_scalar_field_returns_name(schema: GraphQLSchema):
 
 def test_scalar_type_name_for_non_scalar_field_returns_none(schema: GraphQLSchema):
     type_adapter = TypeAdapter(schema)
-    schema_obj = schema.query_type.fields["film"]
+    schema_obj = schema.query_type.fields["film"] if schema.query_type else None
 
     assert type_adapter._get_scalar_type_name(schema_obj.type.fields["species"]) is None
 
@@ -108,7 +108,7 @@ def test_parse_response(schema: GraphQLSchema):
 
 
 def test_parse_response_containing_list(schema: GraphQLSchema):
-    custom_types = {"DateTime": Capitalize}
+    custom_types = {"Date": Capitalize}
     type_adapter = TypeAdapter(schema, custom_types)
 
     response = {

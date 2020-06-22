@@ -70,7 +70,10 @@ class Client:
 
         # Dictionary where the name of the custom scalar type is the key and the
         # value is a class which has a `parse_value()` function
-        self.type_adapter = TypeAdapter(schema, custom_types) if custom_types else None
+        if schema:
+            self.type_adapter = (
+                TypeAdapter(schema, custom_types) if custom_types else None
+            )
 
         if isinstance(transport, Transport) and fetch_schema_from_transport:
             with self as session:

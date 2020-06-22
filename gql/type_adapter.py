@@ -1,10 +1,10 @@
-from typing import Optional, Dict, Any, List
+from typing import Any, Dict, List, Optional, Union
 
 from graphql import GraphQLSchema
-from graphql.type.definition import GraphQLObjectType, GraphQLScalarType, GraphQLField
+from graphql.type.definition import GraphQLField, GraphQLObjectType, GraphQLScalarType
 
 
-class TypeAdapter(object):
+class TypeAdapter:
     """Substitute custom scalars in a GQL response with their decoded counterparts.
 
     GQL custom scalar types are defined on the GQL schema and are used to represent
@@ -27,7 +27,7 @@ class TypeAdapter(object):
         self, schema: GraphQLSchema, custom_types: Optional[Dict[str, Any]] = None
     ):
         self.schema = schema
-        self.custom_types = custom_types
+        self.custom_types = custom_types or {}
 
     @staticmethod
     def _follow_type_chain(node):
@@ -48,7 +48,7 @@ class TypeAdapter(object):
 
     def _get_scalar_type_name(self, field):
         """Returns the name of the type if the type is a scalar type.
-        Returns None otherwise"""
+        Returns `None` otherwise"""
         node = self._follow_type_chain(field)
         if isinstance(node, GraphQLScalarType):
             return node.name
@@ -61,22 +61,24 @@ class TypeAdapter(object):
         this function returns the name of that type. (e.g. 'DateTime')
 
         If it is not a scalar type (e..g a GraphQLObject), then this
-        function returns None.
+        function returns `None`.
 
         `keys` is a breadcrumb trail telling us where to look in the GraphQL schema.
         By default the root level is `schema.query`, if that fails, then we check
         `schema.mutation`."""
 
-        def traverse_schema(node: Optional[GraphQLField], lookup):
+        def traverse_schema(
+            node: Optional[Union[GraphQLObjectType, GraphQLField]], lookup
+        ):
             if not lookup:
                 return self._get_scalar_type_name(node)
 
             final_node = self._follow_type_chain(node)
             return traverse_schema(final_node.fields[lookup[0]], lookup[1:])
 
-        if keys[0] in self.schema.query_type.fields:
+        if self.schema.query_type and keys[0] in self.schema.query_type.fields:
             schema_root = self.schema.query_type
-        elif keys[0] in self.schema.mutation_type.fields:
+        elif self.schema.mutation_type and keys[0] in self.schema.mutation_type.fields:
             schema_root = self.schema.mutation_type
         else:
             return None
@@ -86,7 +88,7 @@ class TypeAdapter(object):
         except (KeyError, AttributeError):
             return None
 
-    def _get_decoded_scalar_type(self, keys: List[str], value):
+    def _get_decoded_scalar_type(self, keys: List[str], value: Any):
         """Get the decoded value of the type identified by `keys`.
 
         If the type is not a custom scalar, then return the original value.
@@ -98,19 +100,21 @@ class TypeAdapter(object):
             return self.custom_types[scalar_type].parse_value(value)
         return value
 
-    def convert_scalars(self, response):
+    def convert_scalars(self, response: Dict[str, Any]):
         """Recursively traverse the GQL response
 
         Recursively traverses the GQL response and calls _get_decoded_scalar_type()
-        for all leaf nodes. The function is called with 2 arguments:
-            keys: List[str] is a breadcrumb trail telling us where we are in the
+        for all leaf nodes.
+
+        The function is called with 2 arguments:
+            keys: is a breadcrumb trail telling us where we are in the
                 response, and therefore, where to look in the GQL Schema.
-            value: Any is the value at that node in the response
+            value: is the value at that node in the response
 
         Builds a new tree with the substituted values so old `response` is not
         modified."""
 
-        def iterate(node, keys: List[str] = None):
+        def iterate(node: Union[List, Dict, str], keys: List[str] = None):
             if keys is None:
                 keys = []
             if isinstance(node, dict):
