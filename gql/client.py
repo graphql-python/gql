@@ -70,10 +70,9 @@ class Client:
 
         # Dictionary where the name of the custom scalar type is the key and the
         # value is a class which has a `parse_value()` function
-        if schema:
-            self.type_adapter = (
-                TypeAdapter(schema, custom_types) if custom_types else None
-            )
+        self.type_adapter = (
+            TypeAdapter(schema, custom_types) if custom_types and schema else None
+        )
 
         if isinstance(transport, Transport) and fetch_schema_from_transport:
             with self as session:
@@ -283,6 +282,8 @@ class AsyncClientSession:
                 raise TransportQueryError(str(result.errors[0]))
 
             elif result.data is not None:
+                if self.client.type_adapter:
+                    result.data = self.client.type_adapter.convert_scalars(result.data)
                 yield result.data
 
     async def execute(self, document: DocumentNode, *args, **kwargs) -> Dict:
