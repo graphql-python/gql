@@ -111,6 +111,8 @@ class TypeAdapter(object):
         modified."""
 
         def iterate(node, keys: List[str] = None):
+            if keys is None:
+                keys = []
             if isinstance(node, dict):
                 return {
                     _key: iterate(value, keys + [_key]) for _key, value in node.items()

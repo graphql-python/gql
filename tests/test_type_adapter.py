@@ -5,11 +5,49 @@ server endpoint. In future it would be better to store this schema in a file
 locally.
 """
 import copy
-from gql.type_adapter import TypeAdapter
+import os
+
+import vcr
 import pytest
 import requests
+from graphql import GraphQLSchema
+
 from gql import Client
+from gql.type_adapter import TypeAdapter
 from gql.transport.requests import RequestsHTTPTransport
+
+# We serve https://github.com/graphql-python/swapi-graphene locally:
+URL = "http://127.0.0.1:8000/graphql"
+
+
+query_vcr = vcr.VCR(
+    cassette_library_dir=os.path.join(
+        os.path.dirname(__file__), "fixtures", "vcr_cassettes"
+    ),
+    record_mode="new_episodes",
+    match_on=["uri", "method", "body"],
+)
+
+
+def use_cassette(name):
+    return query_vcr.use_cassette(name + ".yaml")
+
+
+@pytest.fixture
+def client():
+    with use_cassette("client"):
+        response = requests.get(
+            URL, headers={"Host": "swapi.graphene-python.org", "Accept": "text/html"}
+        )
+        response.raise_for_status()
+        csrf = response.cookies["csrftoken"]
+
+        return Client(
+            transport=RequestsHTTPTransport(
+                url=URL, cookies={"csrftoken": csrf}, headers={"x-csrftoken": csrf}
+            ),
+            fetch_schema_from_transport=True,
+        )
 
 
 class Capitalize:
@@ -18,40 +56,24 @@ class Capitalize:
         return value.upper()
 
 
-@pytest.fixture(scope="session")
-def schema():
-    request = requests.get(
-        "http://swapi.graphene-python.org/graphql",
-        headers={"Host": "swapi.graphene-python.org", "Accept": "text/html"},
-    )
-    request.raise_for_status()
-    csrf = request.cookies["csrftoken"]
-
-    client = Client(
-        transport=RequestsHTTPTransport(
-            url="http://swapi.graphene-python.org/graphql",
-            cookies={"csrftoken": csrf},
-            headers={"x-csrftoken": csrf},
-        ),
-        fetch_schema_from_transport=True,
-    )
-
+@pytest.fixture()
+def schema(client):
     return client.schema
 
 
-def test_scalar_type_name_for_scalar_field_returns_name(schema):
+def test_scalar_type_name_for_scalar_field_returns_name(schema: GraphQLSchema):
     type_adapter = TypeAdapter(schema)
-    schema_obj = schema.get_query_type().fields["film"]
+    schema_obj = schema.query_type.fields["film"]
 
     assert (
         type_adapter._get_scalar_type_name(schema_obj.type.fields["releaseDate"])
-        == "DateTime"
+        == "Date"
     )
 
 
-def test_scalar_type_name_for_non_scalar_field_returns_none(schema):
+def test_scalar_type_name_for_non_scalar_field_returns_none(schema: GraphQLSchema):
     type_adapter = TypeAdapter(schema)
-    schema_obj = schema.get_query_type().fields["film"]
+    schema_obj = schema.query_type.fields["film"]
 
     assert type_adapter._get_scalar_type_name(schema_obj.type.fields["species"]) is None
 
@@ -60,11 +82,11 @@ def test_lookup_scalar_type(schema):
     type_adapter = TypeAdapter(schema)
 
     assert type_adapter._lookup_scalar_type(["film"]) is None
-    assert type_adapter._lookup_scalar_type(["film", "releaseDate"]) == "DateTime"
+    assert type_adapter._lookup_scalar_type(["film", "releaseDate"]) == "Date"
     assert type_adapter._lookup_scalar_type(["film", "species"]) is None
 
 
-def test_lookup_scalar_type_in_mutation(schema):
+def test_lookup_scalar_type_in_mutation(schema: GraphQLSchema):
     type_adapter = TypeAdapter(schema)
 
     assert type_adapter._lookup_scalar_type(["createHero"]) is None
@@ -72,8 +94,8 @@ def test_lookup_scalar_type_in_mutation(schema):
     assert type_adapter._lookup_scalar_type(["createHero", "ok"]) == "Boolean"
 
 
-def test_parse_response(schema):
-    custom_types = {"DateTime": Capitalize}
+def test_parse_response(schema: GraphQLSchema):
+    custom_types = {"Date": Capitalize}
     type_adapter = TypeAdapter(schema, custom_types)
 
     response = {"film": {"id": "some_id", "releaseDate": "some_datetime"}}
@@ -85,7 +107,7 @@ def test_parse_response(schema):
     assert response["film"]["releaseDate"] == "some_datetime"
 
 
-def test_parse_response_containing_list(schema):
+def test_parse_response_containing_list(schema: GraphQLSchema):
     custom_types = {"DateTime": Capitalize}
     type_adapter = TypeAdapter(schema, custom_types)
 
