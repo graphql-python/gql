@@ -199,11 +199,15 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
                     response = payload.get("response")
 
                     if isinstance(response, dict):
-                        raise TransportQueryError(
-                            response.get("reason"), query_id=answer_id
-                        )
-                    else:
-                        raise ValueError("reply error")
+                        if "errors" in response:
+                            raise TransportQueryError(
+                                response.get("errors"), query_id=answer_id
+                            )
+                        elif "reason" in response:
+                            raise TransportQueryError(
+                                response.get("reason"), query_id=answer_id
+                            )
+                    raise ValueError("reply error")
 
                 elif status == "timeout":
                     raise TransportQueryError("reply timeout", query_id=answer_id)

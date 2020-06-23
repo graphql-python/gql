@@ -29,11 +29,21 @@ default_subscription_server_answer = (
     '"topic":"test_topic"}'
 )
 
-error_server_answer = (
+error_with_reason_server_answer = (
     '{"event":"phx_reply",'
     '"payload":'
     '{"response":'
     '{"reason":"internal error"},'
+    '"status":"error"},'
+    '"ref":2,'
+    '"topic":"test_topic"}'
+)
+
+multiple_errors_server_answer = (
+    '{"event":"phx_reply",'
+    '"payload":'
+    '{"response":'
+    '{"errors": ["error 1", "error 2"]},'
     '"status":"error"},'
     '"ref":2,'
     '"topic":"test_topic"}'
@@ -66,7 +76,11 @@ def server(
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "server",
-    [server(error_server_answer), server(timeout_server_answer)],
+    [
+        server(error_with_reason_server_answer),
+        server(multiple_errors_server_answer),
+        server(timeout_server_answer),
+    ],
     indirect=True,
 )
 @pytest.mark.parametrize("query_str", [query1_str])
