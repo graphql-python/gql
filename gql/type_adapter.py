@@ -80,6 +80,11 @@ class TypeAdapter:
             schema_root = self.schema.query_type
         elif self.schema.mutation_type and keys[0] in self.schema.mutation_type.fields:
             schema_root = self.schema.mutation_type
+        elif (
+            self.schema.subscription_type
+            and keys[0] in self.schema.subscription_type.fields
+        ):
+            schema_root = self.schema.subscription_type
         else:
             return None
 
@@ -95,6 +100,7 @@ class TypeAdapter:
 
         If it is a custom scalar, return the deserialized value, as
         output by `<CustomScalarType>.parse_value()`"""
+
         scalar_type = self._lookup_scalar_type(keys)
         if scalar_type and scalar_type in self.custom_types:
             return self.custom_types[scalar_type].parse_value(value)
