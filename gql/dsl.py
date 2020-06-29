@@ -84,7 +84,7 @@ class DSLField(object):
         added_selections = selections(*fields)
         if selection_set:
             selection_set.selections = FrozenList(
-                selection_set.selections + [selection for selection in added_selections]
+                selection_set.selections + list(added_selections)
             )
         else:
             self.ast_field.selection_set = SelectionSetNode(
