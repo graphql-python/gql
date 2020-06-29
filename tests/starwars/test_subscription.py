@@ -1,5 +1,5 @@
 import pytest
-from graphql import subscribe
+from graphql import ExecutionResult, GraphQLError, subscribe
 
 from gql import Client, gql
 
@@ -57,3 +57,38 @@ async def test_subscription_support_using_client():
         ]
 
     assert results == expected
+
+
+subscription_invalid_str = """
+    subscription ListenEpisodeReviews($ep: Episode!) {
+      qsdfqsdfqsdf
+    }
+"""
+
+
+@pytest.mark.asyncio
+async def test_subscription_support_using_client_invalid_field():
+
+    subs = gql(subscription_invalid_str)
+
+    params = {"ep": "JEDI"}
+
+    async with Client(schema=StarWarsSchema) as session:
+
+        # We subscribe directly from the transport to avoid local validation
+        results = [
+            result
+            async for result in session.transport.subscribe(
+                subs, variable_values=params
+            )
+        ]
+
+    assert len(results) == 1
+    result = results[0]
+    assert isinstance(result, ExecutionResult)
+    assert result.data is None
+    assert isinstance(result.errors, list)
+    assert len(result.errors) == 1
+    error = result.errors[0]
+    assert isinstance(error, GraphQLError)
+    assert error.message == "The subscription field 'qsdfqsdfqsdf' is not defined."
