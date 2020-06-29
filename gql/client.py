@@ -1,6 +1,5 @@
 import asyncio
-from inspect import isawaitable
-from typing import Any, AsyncGenerator, Dict, Generator, Optional, Union, cast
+from typing import Any, AsyncGenerator, Dict, Generator, Optional, Union
 
 from graphql import (
     DocumentNode,
@@ -196,19 +195,22 @@ class SyncClientSession:
     def __init__(self, client: Client):
         self.client = client
 
-    def execute(self, document: DocumentNode, *args, **kwargs) -> Dict:
+    def _execute(self, document: DocumentNode, *args, **kwargs) -> ExecutionResult:
 
         # Validate document
         if self.client.schema:
             self.client.validate(document)
 
-        result = self.transport.execute(document, *args, **kwargs)
+        return self.transport.execute(document, *args, **kwargs)
 
-        assert not isawaitable(result), "Transport returned an awaitable result."
-        result = cast(ExecutionResult, result)
+    def execute(self, document: DocumentNode, *args, **kwargs) -> Dict:
 
+        # Validate and execute on the transport
+        result = self._execute(document, *args, **kwargs)
+
+        # Raise an error if an error is returned in the ExecutionResult object
         if result.errors:
-            raise TransportQueryError(str(result.errors[0]))
+            raise TransportQueryError(str(result.errors[0]), errors=result.errors)
 
         assert (
             result.data is not None
@@ -250,43 +252,69 @@ class AsyncClientSession:
         if self.client.schema:
             self.client.validate(document)
 
-    async def subscribe(
+    async def _subscribe(
         self, document: DocumentNode, *args, **kwargs
-    ) -> AsyncGenerator[Dict, None]:
+    ) -> AsyncGenerator[ExecutionResult, None]:
 
         # Fetch schema from transport if needed and validate document if possible
         await self.fetch_and_validate(document)
 
-        # Subscribe to the transport and yield data or raise error
-        self._generator: AsyncGenerator[
+        # Subscribe to the transport
+        inner_generator: AsyncGenerator[
             ExecutionResult, None
         ] = self.transport.subscribe(document, *args, **kwargs)
 
-        async for result in self._generator:
+        # Keep a reference to the inner generator to allow the user to call aclose()
+        # before a break if python version is too old (pypy3 py 3.6.1)
+        self._generator = inner_generator
+
+        async for result in inner_generator:
             if result.errors:
                 # Note: we need to run generator.aclose() here or the finally block in
                 # transport.subscribe will not be reached in pypy3 (py 3.6.1)
-                await self._generator.aclose()
+                await inner_generator.aclose()
 
-                raise TransportQueryError(str(result.errors[0]))
+            yield result
+
+    async def subscribe(
+        self, document: DocumentNode, *args, **kwargs
+    ) -> AsyncGenerator[Dict, None]:
+
+        # Validate and subscribe on the transport
+        async for result in self._subscribe(document, *args, **kwargs):
+
+            # Raise an error if an error is returned in the ExecutionResult object
+            if result.errors:
+                raise TransportQueryError(str(result.errors[0]), errors=result.errors)
 
             elif result.data is not None:
                 yield result.data
 
-    async def execute(self, document: DocumentNode, *args, **kwargs) -> Dict:
+    async def _execute(
+        self, document: DocumentNode, *args, **kwargs
+    ) -> ExecutionResult:
 
         # Fetch schema from transport if needed and validate document if possible
         await self.fetch_and_validate(document)
 
         # Execute the query with the transport with a timeout
-        result = await asyncio.wait_for(
+        return await asyncio.wait_for(
             self.transport.execute(document, *args, **kwargs),
             self.client.execute_timeout,
         )
 
+    async def execute(self, document: DocumentNode, *args, **kwargs) -> Dict:
+
+        # Validate and execute on the transport
+        result = await self._execute(document, *args, **kwargs)
+
         # Raise an error if an error is returned in the ExecutionResult object
         if result.errors:
-            raise TransportQueryError(str(result.errors[0]))
+            raise TransportQueryError(str(result.errors[0]), errors=result.errors)
+
+        assert (
+            result.data is not None
+        ), "Transport returned an ExecutionResult without data or errors"
 
         return result.data
 
