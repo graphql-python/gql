@@ -24,7 +24,7 @@ from .fixtures import (
     getCharacters,
     getDroid,
     getFriends,
-    getHero,
+    getHeroAsync,
     getHuman,
     reviews,
 )
@@ -146,7 +146,7 @@ queryType = GraphQLObjectType(
                     type_=episodeEnum,  # type: ignore
                 )
             },
-            resolve=lambda root, info, **args: getHero(args.get("episode")),
+            resolve=lambda root, info, **args: getHeroAsync(args.get("episode")),
         ),
         "human": GraphQLField(
             humanType,
