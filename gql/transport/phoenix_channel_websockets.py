@@ -201,11 +201,11 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
                     if isinstance(response, dict):
                         if "errors" in response:
                             raise TransportQueryError(
-                                response.get("errors"), query_id=answer_id
+                                str(response.get("errors")), query_id=answer_id
                             )
                         elif "reason" in response:
                             raise TransportQueryError(
-                                response.get("reason"), query_id=answer_id
+                                str(response.get("reason")), query_id=answer_id
                             )
                     raise ValueError("reply error")
 
