@@ -53,6 +53,18 @@ hero {
     assert query == str(query_dsl)
 
 
+def test_hero_id_and_name(ds):
+    query = """
+hero {
+  id
+  name
+}
+    """.strip()
+    query_dsl = ds.Query.hero.select(ds.Character.id)
+    query_dsl = query_dsl.select(ds.Character.name)
+    assert query == str(query_dsl)
+
+
 def test_nested_query(ds):
     query = """
 hero {

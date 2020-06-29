@@ -20,7 +20,7 @@ class Transport:
     def connect(self):
         """Establish a session with the transport.
         """
-        pass
+        pass  # pragma: no cover
 
     def close(self):
         """Close the transport
