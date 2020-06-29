@@ -134,6 +134,8 @@ class WebsocketsTransport(AsyncTransport):
         self._no_more_listeners: asyncio.Event = asyncio.Event()
         self._no_more_listeners.set()
 
+        self._connecting: bool = False
+
         self.close_exception: Optional[Exception] = None
 
     async def _send(self, message: str) -> None:
@@ -291,7 +293,9 @@ class WebsocketsTransport(AsyncTransport):
 
                     elif answer_type == "error":
 
-                        raise TransportQueryError(str(payload), query_id=answer_id)
+                        raise TransportQueryError(
+                            str(payload), query_id=answer_id, errors=[payload]
+                        )
 
             elif answer_type == "ka":
                 # KeepAlive message
@@ -333,6 +337,9 @@ class WebsocketsTransport(AsyncTransport):
                     # ==> Add an exception to this query queue
                     # The exception is raised for this specific query,
                     # but the transport is not closed.
+                    assert isinstance(
+                        e.query_id, int
+                    ), "TransportQueryError should have a query_id defined here"
                     try:
                         await self.listeners[e.query_id].set_exception(e)
                     except KeyError:
@@ -467,7 +474,11 @@ class WebsocketsTransport(AsyncTransport):
 
         GRAPHQLWS_SUBPROTOCOL: Subprotocol = cast(Subprotocol, "graphql-ws")
 
-        if self.websocket is None:
+        if self.websocket is None and not self._connecting:
+
+            # Set connecting to True to avoid a race condition if user is trying
+            # to connect twice using the same client at the same time
+            self._connecting = True
 
             # If the ssl parameter is not provided,
             # generate the ssl value depending on the url
@@ -489,9 +500,13 @@ class WebsocketsTransport(AsyncTransport):
 
             # Connection to the specified url
             # Generate a TimeoutError if taking more than connect_timeout seconds
-            self.websocket = await asyncio.wait_for(
-                websockets.connect(self.url, **connect_args,), self.connect_timeout,
-            )
+            # Set the _connecting flag to False after in all cases
+            try:
+                self.websocket = await asyncio.wait_for(
+                    websockets.connect(self.url, **connect_args,), self.connect_timeout,
+                )
+            finally:
+                self._connecting = False
 
             self.next_query_id = 1
             self.close_exception = None
