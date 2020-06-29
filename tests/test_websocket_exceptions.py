@@ -1,6 +1,7 @@
 import asyncio
 import json
 import types
+from typing import List
 
 import pytest
 import websockets
@@ -44,8 +45,16 @@ async def test_websocket_invalid_query(event_loop, client_and_server, query_str)
 
     query = gql(query_str)
 
-    with pytest.raises(TransportQueryError):
+    with pytest.raises(TransportQueryError) as exc_info:
         await session.execute(query)
+
+    exception = exc_info.value
+
+    assert isinstance(exception.errors, List)
+
+    error = exception.errors[0]
+
+    assert error["extensions"]["code"] == "INTERNAL_SERVER_ERROR"
 
 
 invalid_subscription_str = """
@@ -75,9 +84,17 @@ async def test_websocket_invalid_subscription(event_loop, client_and_server, que
 
     query = gql(query_str)
 
-    with pytest.raises(TransportQueryError):
+    with pytest.raises(TransportQueryError) as exc_info:
         async for result in session.subscribe(query):
             pass
+
+    exception = exc_info.value
+
+    assert isinstance(exception.errors, List)
+
+    error = exception.errors[0]
+
+    assert error["extensions"]["code"] == "INTERNAL_SERVER_ERROR"
 
 
 connection_error_server_answer = (
@@ -170,8 +187,16 @@ async def test_websocket_sending_invalid_payload(
 
     query = gql(query_str)
 
-    with pytest.raises(TransportQueryError):
+    with pytest.raises(TransportQueryError) as exc_info:
         await session.execute(query)
+
+    exception = exc_info.value
+
+    assert isinstance(exception.errors, List)
+
+    error = exception.errors[0]
+
+    assert error["message"] == "Must provide document"
 
 
 not_json_answer = ["BLAHBLAH"]
