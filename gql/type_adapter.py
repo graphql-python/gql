@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, cast
 
 from graphql import GraphQLSchema
 from graphql.type.definition import GraphQLField, GraphQLObjectType, GraphQLScalarType
@@ -88,7 +88,7 @@ class TypeAdapter:
         except (KeyError, AttributeError):
             return None
 
-    def _get_decoded_scalar_type(self, keys: List[str], value: Any):
+    def _get_decoded_scalar_type(self, keys: List[str], value: str) -> str:
         """Get the decoded value of the type identified by `keys`.
 
         If the type is not a custom scalar, then return the original value.
@@ -100,7 +100,7 @@ class TypeAdapter:
             return self.custom_types[scalar_type].parse_value(value)
         return value
 
-    def convert_scalars(self, response: Dict[str, Any]):
+    def convert_scalars(self, response: Dict[str, Any]) -> Dict[str, Any]:
         """Recursively traverse the GQL response
 
         Recursively traverses the GQL response and calls _get_decoded_scalar_type()
@@ -114,7 +114,9 @@ class TypeAdapter:
         Builds a new tree with the substituted values so old `response` is not
         modified."""
 
-        def iterate(node: Union[List, Dict, str], keys: List[str] = None):
+        def iterate(
+            node: Union[List, Dict, str], keys: List[str] = None
+        ) -> Union[Dict[str, Any], List, str]:
             if keys is None:
                 keys = []
             if isinstance(node, dict):
@@ -126,4 +128,4 @@ class TypeAdapter:
             else:
                 return self._get_decoded_scalar_type(keys, node)
 
-        return iterate(response)
+        return cast(Dict, iterate(response))

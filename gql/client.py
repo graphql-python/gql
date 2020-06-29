@@ -211,7 +211,9 @@ class SyncClientSession:
 
         return self.transport.execute(document, *args, **kwargs)
 
-    def execute(self, document: DocumentNode, *args, **kwargs) -> Dict:
+    def execute(
+        self, document: DocumentNode, *args, **kwargs
+    ) -> Optional[Dict[str, Any]]:
 
         # Validate and execute on the transport
         result = self._execute(document, *args, **kwargs)
@@ -225,7 +227,9 @@ class SyncClientSession:
         ), "Transport returned an ExecutionResult without data or errors"
 
         if self.client.type_adapter:
-            result.data = self.client.type_adapter.convert_scalars(result.data)
+            result = result._replace(
+                data=self.client.type_adapter.convert_scalars(result.data)
+            )
 
         return result.data
 
@@ -289,7 +293,7 @@ class AsyncClientSession:
 
     async def subscribe(
         self, document: DocumentNode, *args, **kwargs
-    ) -> AsyncGenerator[Dict, None]:
+    ) -> AsyncGenerator[Optional[Dict[str, Any]], None]:
 
         # Validate and subscribe on the transport
         async for result in self._subscribe(document, *args, **kwargs):
@@ -300,7 +304,9 @@ class AsyncClientSession:
 
             elif result.data is not None:
                 if self.client.type_adapter:
-                    result.data = self.client.type_adapter.convert_scalars(result.data)
+                    result = result._replace(
+                        data=self.client.type_adapter.convert_scalars(result.data)
+                    )
                 yield result.data
 
     async def _execute(
@@ -316,7 +322,9 @@ class AsyncClientSession:
             self.client.execute_timeout,
         )
 
-    async def execute(self, document: DocumentNode, *args, **kwargs) -> Dict:
+    async def execute(
+        self, document: DocumentNode, *args, **kwargs
+    ) -> Optional[Dict[str, Any]]:
 
         # Validate and execute on the transport
         result = await self._execute(document, *args, **kwargs)
@@ -330,7 +338,9 @@ class AsyncClientSession:
         ), "Transport returned an ExecutionResult without data or errors"
 
         if self.client.type_adapter:
-            result.data = self.client.type_adapter.convert_scalars(result.data)
+            result = result._replace(
+                data=self.client.type_adapter.convert_scalars(result.data)
+            )
 
         return result.data
 
