@@ -93,7 +93,7 @@ class TypeAdapter:
         except (KeyError, AttributeError):
             return None
 
-    def _get_decoded_scalar_type(self, keys: List[str], value: str) -> str:
+    def _get_decoded_scalar_type(self, keys: List[str], value: Any) -> Any:
         """Get the decoded value of the type identified by `keys`.
 
         If the type is not a custom scalar, then return the original value.
@@ -122,7 +122,7 @@ class TypeAdapter:
 
         def iterate(
             node: Union[List, Dict, str], keys: List[str] = None
-        ) -> Union[Dict[str, Any], List, str]:
+        ) -> Union[Dict[str, Any], List, Any]:
             if keys is None:
                 keys = []
             if isinstance(node, dict):
