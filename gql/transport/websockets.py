@@ -293,7 +293,9 @@ class WebsocketsTransport(AsyncTransport):
 
                     elif answer_type == "error":
 
-                        raise TransportQueryError(str(payload), query_id=answer_id)
+                        raise TransportQueryError(
+                            str(payload), query_id=answer_id, errors=[payload]
+                        )
 
             elif answer_type == "ka":
                 # KeepAlive message
@@ -335,6 +337,9 @@ class WebsocketsTransport(AsyncTransport):
                     # ==> Add an exception to this query queue
                     # The exception is raised for this specific query,
                     # but the transport is not closed.
+                    assert isinstance(
+                        e.query_id, int
+                    ), "TransportQueryError should have a query_id defined here"
                     try:
                         await self.listeners[e.query_id].set_exception(e)
                     except KeyError:

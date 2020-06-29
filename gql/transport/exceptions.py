@@ -1,3 +1,6 @@
+from typing import Any, List, Optional
+
+
 class TransportError(Exception):
     pass
 
@@ -22,9 +25,15 @@ class TransportQueryError(Exception):
     This exception should not close the transport connection.
     """
 
-    def __init__(self, msg, query_id=None):
+    def __init__(
+        self,
+        msg: str,
+        query_id: Optional[int] = None,
+        errors: Optional[List[Any]] = None,
+    ):
         super().__init__(msg)
         self.query_id = query_id
+        self.errors = errors
 
 
 class TransportClosed(TransportError):
