@@ -241,7 +241,7 @@ async def test_websocket_transport_protocol_errors(event_loop, client_and_server
 
 async def server_without_ack(ws, path):
     # Sending something else than an ack
-    await WebSocketServer.send_keepalive(ws)
+    await WebSocketServer.send_complete(ws, 1)
     await ws.wait_closed()
 
 
