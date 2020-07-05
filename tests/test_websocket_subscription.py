@@ -1,5 +1,6 @@
 import asyncio
 import json
+import sys
 from typing import List
 
 import pytest
@@ -370,9 +371,21 @@ def test_websocket_subscription_sync(server, subscription_str):
     assert count == -1
 
 
+@pytest.mark.skipif(sys.platform.startswith("win"), reason="test failing on windows")
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 def test_websocket_subscription_sync_graceful_shutdown(server, subscription_str):
+    """ Note: this test will simulate a control-C happening while a sync subscription
+    is in progress. To do that we will throw a KeyboardInterrupt exception inside
+    the subscription async generator.
+
+    The code should then do a clean close:
+      - send stop messages for each active query
+      - send a connection_terminate message
+    Then the KeyboardInterrupt will be reraise (to warn potential user code)
+
+    This test does not work on Windows but the behaviour with Windows is correct.
+    """
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
