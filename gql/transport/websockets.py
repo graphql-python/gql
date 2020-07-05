@@ -134,6 +134,8 @@ class WebsocketsTransport(AsyncTransport):
         self._no_more_listeners: asyncio.Event = asyncio.Event()
         self._no_more_listeners.set()
 
+        self._connecting: bool = False
+
         self.close_exception: Optional[Exception] = None
 
     async def _send(self, message: str) -> None:
@@ -173,6 +175,23 @@ class WebsocketsTransport(AsyncTransport):
 
         return answer
 
+    async def _wait_ack(self) -> None:
+        """Wait for the connection_ack message. Keep alive messages are ignored
+        """
+
+        while True:
+            init_answer = await self._receive()
+
+            answer_type, answer_id, execution_result = self._parse_answer(init_answer)
+
+            if answer_type == "connection_ack":
+                return
+
+            if answer_type != "ka":
+                raise TransportProtocolError(
+                    "Websocket server did not return a connection ack"
+                )
+
     async def _send_init_message_and_wait_ack(self) -> None:
         """Send init message to the provided websocket and wait for the connection ACK.
 
@@ -186,14 +205,7 @@ class WebsocketsTransport(AsyncTransport):
         await self._send(init_message)
 
         # Wait for the connection_ack message or raise a TimeoutError
-        init_answer = await asyncio.wait_for(self._receive(), self.ack_timeout)
-
-        answer_type, answer_id, execution_result = self._parse_answer(init_answer)
-
-        if answer_type != "connection_ack":
-            raise TransportProtocolError(
-                "Websocket server did not return a connection ack"
-            )
+        await asyncio.wait_for(self._wait_ack(), self.ack_timeout)
 
     async def _send_stop_message(self, query_id: int) -> None:
         """Send stop message to the provided websocket connection and query_id.
@@ -291,7 +303,9 @@ class WebsocketsTransport(AsyncTransport):
 
                     elif answer_type == "error":
 
-                        raise TransportQueryError(str(payload), query_id=answer_id)
+                        raise TransportQueryError(
+                            str(payload), query_id=answer_id, errors=[payload]
+                        )
 
             elif answer_type == "ka":
                 # KeepAlive message
@@ -333,6 +347,9 @@ class WebsocketsTransport(AsyncTransport):
                     # ==> Add an exception to this query queue
                     # The exception is raised for this specific query,
                     # but the transport is not closed.
+                    assert isinstance(
+                        e.query_id, int
+                    ), "TransportQueryError should have a query_id defined here"
                     try:
                         await self.listeners[e.query_id].set_exception(e)
                     except KeyError:
@@ -467,7 +484,11 @@ class WebsocketsTransport(AsyncTransport):
 
         GRAPHQLWS_SUBPROTOCOL: Subprotocol = cast(Subprotocol, "graphql-ws")
 
-        if self.websocket is None:
+        if self.websocket is None and not self._connecting:
+
+            # Set connecting to True to avoid a race condition if user is trying
+            # to connect twice using the same client at the same time
+            self._connecting = True
 
             # If the ssl parameter is not provided,
             # generate the ssl value depending on the url
@@ -489,9 +510,13 @@ class WebsocketsTransport(AsyncTransport):
 
             # Connection to the specified url
             # Generate a TimeoutError if taking more than connect_timeout seconds
-            self.websocket = await asyncio.wait_for(
-                websockets.connect(self.url, **connect_args,), self.connect_timeout,
-            )
+            # Set the _connecting flag to False after in all cases
+            try:
+                self.websocket = await asyncio.wait_for(
+                    websockets.connect(self.url, **connect_args,), self.connect_timeout,
+                )
+            finally:
+                self._connecting = False
 
             self.next_query_id = 1
             self.close_exception = None

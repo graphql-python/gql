@@ -1,5 +1,5 @@
 from inspect import isawaitable
-from typing import Any, AsyncGenerator, AsyncIterator, Awaitable, Coroutine, cast
+from typing import AsyncGenerator, Awaitable, cast
 
 from graphql import DocumentNode, ExecutionResult, GraphQLSchema, execute, subscribe
 
@@ -50,27 +50,16 @@ class LocalSchemaTransport(AsyncTransport):
     async def subscribe(
         self, document: DocumentNode, *args, **kwargs,
     ) -> AsyncGenerator[ExecutionResult, None]:
-        """Send a query and receive the results using an async generator
-
-        The query can be a graphql query, mutation or subscription
+        """Send a subscription and receive the results using an async generator
 
         The results are sent as an ExecutionResult object
         """
 
-        subscribe_result = subscribe(self.schema, document, *args, **kwargs)
+        subscribe_result = await subscribe(self.schema, document, *args, **kwargs)
 
         if isinstance(subscribe_result, ExecutionResult):
-            yield ExecutionResult
+            yield subscribe_result
 
         else:
-            # if we don't get an ExecutionResult, then we should receive
-            # a Coroutine returning an AsyncIterator[ExecutionResult]
-
-            subscribe_coro = cast(
-                Coroutine[Any, Any, AsyncIterator[ExecutionResult]], subscribe_result
-            )
-
-            subscribe_generator = await subscribe_coro
-
-            async for result in subscribe_generator:
+            async for result in subscribe_result:
                 yield result

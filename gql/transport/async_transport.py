@@ -10,7 +10,7 @@ class AsyncTransport:
         """Coroutine used to create a connection to the specified address
         """
         raise NotImplementedError(
-            "Any AsyncTransport subclass must implement execute method"
+            "Any AsyncTransport subclass must implement connect method"
         )  # pragma: no cover
 
     @abc.abstractmethod
@@ -18,7 +18,7 @@ class AsyncTransport:
         """Coroutine used to Close an established connection
         """
         raise NotImplementedError(
-            "Any AsyncTransport subclass must implement execute method"
+            "Any AsyncTransport subclass must implement close method"
         )  # pragma: no cover
 
     @abc.abstractmethod
@@ -48,5 +48,5 @@ class AsyncTransport:
         The results are sent as an ExecutionResult object
         """
         raise NotImplementedError(
-            "Any AsyncTransport subclass must implement execute method"
+            "Any AsyncTransport subclass must implement subscribe method"
         )  # pragma: no cover

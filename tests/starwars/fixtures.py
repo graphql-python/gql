@@ -1,3 +1,4 @@
+import asyncio
 from collections import namedtuple
 
 Human = namedtuple("Human", "id name friends appearsIn homePlanet")
@@ -92,6 +93,11 @@ def getHero(episode):
     if episode == 5:
         return luke
     return artoo
+
+
+async def getHeroAsync(episode):
+    await asyncio.sleep(0.001)
+    return getHero(episode)
 
 
 def getHuman(id):
