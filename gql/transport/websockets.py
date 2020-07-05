@@ -175,6 +175,23 @@ class WebsocketsTransport(AsyncTransport):
 
         return answer
 
+    async def _wait_ack(self) -> None:
+        """Wait for the connection_ack message. Keep alive messages are ignored
+        """
+
+        while True:
+            init_answer = await self._receive()
+
+            answer_type, answer_id, execution_result = self._parse_answer(init_answer)
+
+            if answer_type == "connection_ack":
+                return
+
+            if answer_type != "ka":
+                raise TransportProtocolError(
+                    "Websocket server did not return a connection ack"
+                )
+
     async def _send_init_message_and_wait_ack(self) -> None:
         """Send init message to the provided websocket and wait for the connection ACK.
 
@@ -188,14 +205,7 @@ class WebsocketsTransport(AsyncTransport):
         await self._send(init_message)
 
         # Wait for the connection_ack message or raise a TimeoutError
-        init_answer = await asyncio.wait_for(self._receive(), self.ack_timeout)
-
-        answer_type, answer_id, execution_result = self._parse_answer(init_answer)
-
-        if answer_type != "connection_ack":
-            raise TransportProtocolError(
-                "Websocket server did not return a connection ack"
-            )
+        await asyncio.wait_for(self._wait_ack(), self.ack_timeout)
 
     async def _send_stop_message(self, query_id: int) -> None:
         """Send stop message to the provided websocket connection and query_id.
