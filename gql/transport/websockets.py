@@ -243,16 +243,14 @@ class WebsocketsTransport(AsyncTransport):
         query_id = self.next_query_id
         self.next_query_id += 1
 
+        payload: Dict[str, Any] = {"query": print_ast(document)}
+        if variable_values:
+            payload["variables"] = variable_values
+        if operation_name:
+            payload["operationName"] = operation_name
+
         query_str = json.dumps(
-            {
-                "id": str(query_id),
-                "type": "start",
-                "payload": {
-                    "variables": variable_values or {},
-                    "operationName": operation_name or "",
-                    "query": print_ast(document),
-                },
-            }
+            {"id": str(query_id), "type": "start", "payload": payload}
         )
 
         await self._send(query_str)
