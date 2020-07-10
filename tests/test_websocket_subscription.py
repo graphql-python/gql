@@ -320,6 +320,34 @@ async def test_websocket_subscription_slow_consumer(
     assert count == -1
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("server", [server_countdown], indirect=True)
+@pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
+async def test_websocket_subscription_with_operation_name(
+    event_loop, client_and_server, subscription_str
+):
+
+    session, server = client_and_server
+
+    count = 10
+    subscription = gql(subscription_str.format(count=count))
+
+    async for result in session.subscribe(
+        subscription, operation_name="CountdownSubscription"
+    ):
+
+        number = result["number"]
+        print(f"Number received: {number}")
+
+        assert number == count
+        count -= 1
+
+    assert count == -1
+
+    # Check that the query contains the operationName
+    assert '"operationName": "CountdownSubscription"' in logged_messages[0]
+
+
 WITH_KEEPALIVE = True
 
 
