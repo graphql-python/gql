@@ -15,12 +15,18 @@ from .websockets import WebsocketsTransport
 
 class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
     def __init__(
-        self, channel_name: str, heartbeat_interval: int = 30, *args, **kwargs
+        self, channel_name: str, heartbeat_interval: float = 30, *args, **kwargs
     ) -> None:
         self.channel_name = channel_name
         self.heartbeat_interval = heartbeat_interval
         self.subscription_ids_to_query_ids: Dict[str, int] = {}
         super(PhoenixChannelWebsocketsTransport, self).__init__(*args, **kwargs)
+        """Initialize the transport with the given request parameters.
+
+        :param channel_name Channel on the server this transport will join
+        :param heartbeat_interval Interval in second between each heartbeat messages
+            sent by the client
+        """
 
     async def _send_init_message_and_wait_ack(self) -> None:
         """Join the specified channel and wait for the connection ACK.
