@@ -119,11 +119,11 @@ class Client:
     ) -> AsyncGenerator[Dict, None]:
         async with self as session:
 
-            self._generator: AsyncGenerator[Dict, None] = session.subscribe(
+            generator: AsyncGenerator[Dict, None] = session.subscribe(
                 document, *args, **kwargs
             )
 
-            async for result in self._generator:
+            async for result in generator:
                 yield result
 
     def subscribe(
@@ -145,11 +145,28 @@ class Client:
 
         try:
             while True:
-                result = loop.run_until_complete(async_generator.__anext__())
+                # Note: we need to create a task here in order to be able to close
+                # the async generator properly on python 3.8
+                # See https://bugs.python.org/issue38559
+                generator_task = asyncio.ensure_future(async_generator.__anext__())
+                result = loop.run_until_complete(generator_task)
                 yield result
 
         except StopAsyncIteration:
             pass
+
+        except (KeyboardInterrupt, Exception):
+
+            # Graceful shutdown by cancelling the task and waiting clean shutdown
+            generator_task.cancel()
+
+            try:
+                loop.run_until_complete(generator_task)
+            except (StopAsyncIteration, asyncio.CancelledError):
+                pass
+
+            # Then reraise the exception
+            raise
 
     async def __aenter__(self):
 

@@ -472,3 +472,43 @@ async def test_websocket_add_extra_parameters_to_connect(event_loop, server):
 
     async with Client(transport=sample_transport) as session:
         await session.execute(query)
+
+
+async def server_sending_keep_alive_before_connection_ack(ws, path):
+    await WebSocketServer.send_keepalive(ws)
+    await WebSocketServer.send_keepalive(ws)
+    await WebSocketServer.send_keepalive(ws)
+    await WebSocketServer.send_keepalive(ws)
+    await WebSocketServer.send_connection_ack(ws)
+    result = await ws.recv()
+    print(f"Server received: {result}")
+    await ws.send(query1_server_answer.format(query_id=1))
+    await WebSocketServer.send_complete(ws, 1)
+    await ws.wait_closed()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "server", [server_sending_keep_alive_before_connection_ack], indirect=True
+)
+@pytest.mark.parametrize("query_str", [query1_str])
+async def test_websocket_non_regression_bug_108(
+    event_loop, client_and_server, query_str
+):
+
+    # This test will check that we now ignore keepalive message
+    # arriving before the connection_ack
+    # See bug #108
+
+    session, server = client_and_server
+
+    query = gql(query_str)
+
+    result = await session.execute(query)
+
+    print("Client received:", result)
+
+    continents = result["continents"]
+    africa = continents[0]
+
+    assert africa["code"] == "AF"
