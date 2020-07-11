@@ -475,15 +475,15 @@ async def test_websocket_add_extra_parameters_to_connect(event_loop, server):
 
 
 async def server_sending_keep_alive_before_connection_ack(ws, path):
-    await WebSocketServer.send_keepalive(ws)
-    await WebSocketServer.send_keepalive(ws)
-    await WebSocketServer.send_keepalive(ws)
-    await WebSocketServer.send_keepalive(ws)
-    await WebSocketServer.send_connection_ack(ws)
+    await WebSocketServerHelper.send_keepalive(ws)
+    await WebSocketServerHelper.send_keepalive(ws)
+    await WebSocketServerHelper.send_keepalive(ws)
+    await WebSocketServerHelper.send_keepalive(ws)
+    await WebSocketServerHelper.send_connection_ack(ws)
     result = await ws.recv()
     print(f"Server received: {result}")
     await ws.send(query1_server_answer.format(query_id=1))
-    await WebSocketServer.send_complete(ws, 1)
+    await WebSocketServerHelper.send_complete(ws, 1)
     await ws.wait_closed()
 
 
