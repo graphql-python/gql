@@ -183,16 +183,16 @@ Instead of providing the GraphQL queries as a String, it is also possible to cre
 Using the DSL module, we can create a query using a Domain Specific Language which is created from the schema.
 
 ```python
-    from gql.dsl import DSLSchema
+from gql.dsl import DSLSchema
 
-    client = Client(schema=StarWarsSchema)
-    ds = DSLSchema(client)
+client = Client(schema=StarWarsSchema)
+ds = DSLSchema(client)
 
-    query_dsl = ds.Query.hero.select(
-        ds.Character.id,
-        ds.Character.name,
-        ds.Character.friends.select(ds.Character.name,),
-    )
+query_dsl = ds.Query.hero.select(
+    ds.Character.id,
+    ds.Character.name,
+    ds.Character.friends.select(ds.Character.name,),
+)
 ```
 
 will create a query equivalent to:
