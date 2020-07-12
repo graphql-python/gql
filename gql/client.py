@@ -1,4 +1,5 @@
 import asyncio
+import warnings
 from typing import Any, AsyncGenerator, Dict, Generator, Optional, Union
 
 from graphql import (
@@ -21,7 +22,7 @@ from .transport.transport import Transport
 class Client:
     def __init__(
         self,
-        schema: Optional[GraphQLSchema] = None,
+        schema: Optional[Union[str, GraphQLSchema]] = None,
         introspection=None,
         type_def: Optional[str] = None,
         transport: Optional[Union[Transport, AsyncTransport]] = None,
@@ -30,23 +31,34 @@ class Client:
     ):
         assert not (
             type_def and introspection
-        ), "Cannot provide introspection type definition at the same time."
-        if transport and fetch_schema_from_transport:
+        ), "Cannot provide introspection and type definition at the same time."
+
+        if type_def:
             assert (
                 not schema
-            ), "Cannot fetch the schema from transport if is already provided."
+            ), "Cannot provide type definition and schema at the same time."
+            warnings.warn(
+                "type_def is deprecated; use schema instead",
+                category=DeprecationWarning,
+            )
+            schema = type_def
+
         if introspection:
             assert (
                 not schema
             ), "Cannot provide introspection and schema at the same time."
             schema = build_client_schema(introspection)
-        elif type_def:
+
+        if isinstance(schema, str):
+            type_def_ast = parse(schema)
+            schema = build_ast_schema(type_def_ast)
+
+        if transport and fetch_schema_from_transport:
             assert (
                 not schema
-            ), "Cannot provide type definition and schema at the same time."
-            type_def_ast = parse(type_def)
-            schema = build_ast_schema(type_def_ast)
-        elif schema and not transport:
+            ), "Cannot fetch the schema from transport if is already provided."
+
+        if schema and not transport:
             transport = LocalSchemaTransport(schema)
 
         # GraphQL schema
