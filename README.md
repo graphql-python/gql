@@ -5,6 +5,9 @@ Plays nicely with `graphene`, `graphql-core`, `graphql-js` and any other GraphQL
 
 GQL architecture is inspired by `React-Relay` and `Apollo-Client`.
 
+> **WARNING**: Please note that the following documentation describes the current version which is currently only available as a pre-release
+> The documentation for the 2.x version compatible with python<3.6 is available in the [2.x branch](https://github.com/graphql-python/gql/tree/v2.x)
+
 [![travis][travis-image]][travis-url]
 [![pyversion][pyversion-image]][pyversion-url]
 [![pypi][pypi-image]][pypi-url]
@@ -26,102 +29,119 @@ GQL architecture is inspired by `React-Relay` and `Apollo-Client`.
 
     $ pip install gql
 
-Please note that the following documentation describes the current version which is currently only available as a pre-relase and needs to be installed with
+> **WARNING**: Please note that the following documentation describes the current version which is currently only available as a pre-release and needs to be installed with
 
     $ pip install --pre gql
 
 ## Usage
 
-The example below shows how you can execute queries against a local schema.
+### Basic usage
 
 ```python
-from gql import gql, Client
+from gql import gql, Client, AIOHTTPTransport
 
-from .someSchema import SampleSchema
+# Select your transport with a defined url endpoint
+transport = AIOHTTPTransport(url="https://countries.trevorblades.com/")
 
+# Create a GraphQL client using the defined transport
+client = Client(transport=transport, fetch_schema_from_transport=True)
 
-client = Client(schema=SampleSchema)
-query = gql('''
-    {
-      hello
-    }
-''')
-
-client.execute(query)
-```
-
-If you want to add additional headers when executing the query, you can specify these in a transport object:
-
-```python
-from gql import Client
-from gql.transport.requests import RequestsHTTPTransport
-
-from .someSchema import SampleSchema
-
-client = Client(transport=RequestsHTTPTransport(
-     url='/graphql', headers={'Authorization': 'token'}), schema=SampleSchema)
-```
-
-To execute against a graphQL API. (We get the schema by using introspection).
-
-```python
-from gql import gql, Client
-from gql.transport.requests import RequestsHTTPTransport
-
-sample_transport=RequestsHTTPTransport(
-    url='https://countries.trevorblades.com/',
-    verify=False,
-    retries=3,
-)
-
-client = Client(
-    transport=sample_transport,
-    fetch_schema_from_transport=True,
-)
-
-query = gql('''
+# Provide a GraphQL query
+query = gql(
+    """
     query getContinents {
       continents {
         code
         name
       }
     }
-''')
+"""
+)
 
-client.execute(query)
+# Execute the query on the transport
+result = client.execute(query)
+print(result)
 ```
 
-If you have a local schema stored as a `schema.graphql` file, you can do:
+### Local schema validation
+
+It is possible to validate a query locally either using a provided schema or by using
+[introspection](https://graphql.org/learn/introspection/) to get the schema from the GraphQL API server.
+
+#### Using a provided schema
+
+The schema can be provided as a String (which is usually stored in a .graphql file):
 
 ```python
-from graphql import build_ast_schema, parse
-from gql import gql, Client
+with open('path/to/schema.graphql') as f:
+    schema_str = f.read()
 
-with open('path/to/schema.graphql') as source:
-    document = parse(source.read())
+client = Client(schema=schema_str)
+```
 
-schema = build_ast_schema(document)
+OR can be created using python classes:
 
-client = Client(schema=schema)
-query = gql('''
-    {
-      hello
+```python
+from .someSchema import SampleSchema
+# SampleSchema is an instance of GraphQLSchema
+
+client = Client(schema=SampleSchema)
+```
+
+See [tests/starwars/schema.py](tests/starwars/schema.py) for an example of such a schema.
+
+#### Using introspection
+
+In order to get the schema directly from the GraphQL Server API using the transport, you just need
+to set the `fetch_schema_from_transport` argument of Client to True
+
+### HTTP Headers
+
+If you want to add additional http headers for your connection, you can specify these in your transport:
+
+```python
+transport = AIOHTTPTransport(url='YOUR_URL', headers={'Authorization': 'token'})
+```
+
+### GraphQL variables
+
+You can also provide variable values with your query:
+
+```python
+query = gql(
+    """
+    query getContinentName ($code: ID!) {
+      continent (code: $code) {
+        name
+      }
     }
-''')
+"""
+)
 
-client.execute(query)
+params = {"code": "EU"}
+
+# Get name of continent with code "EU"
+result = client.execute(query, variable_values=params)
+print(result)
+
+params = {"code": "AF"}
+
+# Get name of continent with code "AF"
+result = client.execute(query, variable_values=params)
+print(result)
 ```
 
-With a python version > 3.6, it is possible to execute GraphQL subscriptions using the websockets transport:
+### GraphQL subscriptions
+
+Using the websockets transport, it is possible to execute GraphQL subscriptions:
 
 ```python
-from gql import gql, Client
-from gql.transport.websockets import WebsocketsTransport
+from gql import gql, Client, WebsocketsTransport
 
-sample_transport = WebsocketsTransport(url='wss://your_server/graphql')
+transport = WebsocketsTransport(url='wss://your_server/graphql')
 
 client = Client(
-    transport=sample_transport,
+    transport=transport,
     fetch_schema_from_transport=True,
 )
 
@@ -132,12 +152,64 @@ query = gql('''
 ''')
 
 for result in client.subscribe(query):
-    print (f"result = {result!s}")
+    print (result)
 ```
 
-Note: the websockets transport can also execute queries or mutations
+> **Note**: the websockets transport can also execute queries or mutations, it is not restricted to subscriptions
 
-# Async usage with asyncio
+### Execute on a local schema
+
+It is also possible to execute queries against a local schema (so without a transport).
+
+```python
+from gql import gql, Client
+
+from .someSchema import SampleSchema
+
+client = Client(schema=SampleSchema)
+
+query = gql('''
+    {
+      hello
+    }
+''')
+
+result = client.execute(query)
+```
+
+### Compose GraphQL queries dynamically with the DSL module
+
+Instead of providing the GraphQL queries as a String, it is also possible to create GraphQL queries dynamically.
+Using the DSL module, we can create a query using a Domain Specific Language which is created from the schema.
+
+```python
+    from gql.dsl import DSLSchema
+
+    client = Client(schema=StarWarsSchema)
+    ds = DSLSchema(client)
+
+    query_dsl = ds.Query.hero.select(
+        ds.Character.id,
+        ds.Character.name,
+        ds.Character.friends.select(ds.Character.name,),
+    )
+```
+
+will create a query equivalent to:
+
+```
+hero {
+  id
+  name
+  friends {
+    name
+  }
+}
+```
+
+See [tests/starwars/test_dsl.py](tests/starwars/test_dsl.py) for examples.
+
+## Async usage with asyncio
 
 When using the `execute` or `subscribe` function directly on the client, the execution is synchronous.
 It means that we are blocked until we receive an answer from the server and
@@ -153,7 +225,7 @@ To use the async features, you need to use an async transport:
 * [AIOHTTPTransport](#HTTP-async-transport) for the HTTP(s) protocols
 * [WebsocketsTransport](#Websockets-async-transport) for the ws(s) protocols
 
-## HTTP async transport
+### HTTP async transport
 
 This transport uses the [aiohttp library](https://docs.aiohttp.org)
 
@@ -161,19 +233,17 @@ GraphQL subscriptions are not supported on the HTTP transport.
 For subscriptions you should use the websockets transport.
 
 ```python
-from gql import gql, Client
-from gql.transport.aiohttp import AIOHTTPTransport
+from gql import gql, AIOHTTPTransport, Client
 import asyncio
 
 async def main():
 
-    sample_transport = AIOHTTPTransport(
-        url='https://countries.trevorblades.com/graphql',
-        headers={'Authorization': 'token'}
-    )
+    transport = AIOHTTPTransport(url='https://countries.trevorblades.com/graphql')
 
+    # Using `async with` on the client will start a connection on the transport
+    # and provide a `session` variable to execute queries on this connection
     async with Client(
-        transport=sample_transport,
+        transport=transport,
         fetch_schema_from_transport=True,
         ) as session:
 
@@ -188,35 +258,32 @@ async def main():
         ''')
 
         result = await session.execute(query)
-
         print(result)
 
 asyncio.run(main())
 ```
 
-## Websockets async transport
+### Websockets async transport
 
 The websockets transport uses the apollo protocol described here:
 
 [Apollo websockets transport protocol](https://github.com/apollographql/subscriptions-transport-ws/blob/master/PROTOCOL.md)
 
-This transport allows to do multiple queries, mutations and subscriptions on the same websocket connection
+This transport allows to do multiple queries, mutations and subscriptions on the same websocket connection.
 
 ```python
 import logging
 logging.basicConfig(level=logging.INFO)
 
-from gql import gql, Client
-from gql.transport.websockets import WebsocketsTransport
+from gql import gql, Client, WebsocketsTransport
 import asyncio
 
 async def main():
 
-    sample_transport = WebsocketsTransport(
-        url='wss://countries.trevorblades.com/graphql',
-        headers={'Authorization': 'token'}
-    )
+    transport = WebsocketsTransport(url='wss://countries.trevorblades.com/graphql')
 
+    # Using `async with` on the client will start a connection on the transport
+    # and provide a `session` variable to execute queries on this connection
     async with Client(
         transport=sample_transport,
         fetch_schema_from_transport=True,
@@ -248,16 +315,13 @@ async def main():
 asyncio.run(main())
 ```
 
-### Websockets SSL
+#### Websockets SSL
 
 If you need to connect to an ssl encrypted endpoint:
 
 * use _wss_ instead of _ws_ in the url of the transport
-* set the parameter ssl to True
 
 ```python
-import ssl
-
 sample_transport = WebsocketsTransport(
     url='wss://SERVER_URL:SERVER_PORT/graphql',
     headers={'Authorization': 'token'}
@@ -286,7 +350,7 @@ If you have also need to have a client ssl certificate, add:
 ssl_context.load_cert_chain(certfile='YOUR_CLIENT_CERTIFICATE.pem', keyfile='YOUR_CLIENT_CERTIFICATE_KEY.key')
 ```
 
-### Websockets authentication
+#### Websockets authentication
 
 There are two ways to send authentication tokens with websockets depending on the server configuration.
 
@@ -311,35 +375,49 @@ sample_transport = WebsocketsTransport(
 ### Async advanced usage
 
 It is possible to send multiple GraphQL queries (query, mutation or subscription) in parallel,
-on the same websocket connection, using asyncio tasks
+on the same websocket connection, using asyncio tasks.
+
+In order to retry in case of connection failure, we can use the great
+[backoff](https://github.com/litl/backoff) module.
 
 ```python
+# First define all your queries using a session argument:
 
-async def execute_query1():
+async def execute_query1(session):
     result = await session.execute(query1)
     print(result)
 
-async def execute_query2():
+async def execute_query2(session):
     result = await session.execute(query2)
     print(result)
 
-async def execute_subscription1():
+async def execute_subscription1(session):
     async for result in session.subscribe(subscription1):
         print(result)
 
-async def execute_subscription2():
+async def execute_subscription2(session):
     async for result in session.subscribe(subscription2):
         print(result)
 
-task1 = asyncio.create_task(execute_query1())
-task2 = asyncio.create_task(execute_query2())
-task3 = asyncio.create_task(execute_subscription1())
-task4 = asyncio.create_task(execute_subscription2())
+# Then create a couroutine which will connect to your API and run all your queries as tasks.
+# We use a `backoff` decorator to reconnect using exponential backoff in case of connection failure.
 
-await task1
-await task2
-await task3
-await task4
+@backoff.on_exception(backoff.expo, Exception, max_time=300)
+async def graphql_connection():
+
+    transport = WebsocketsTransport(url="wss://YOUR_URL")
+
+    client = Client(transport=transport, fetch_schema_from_transport=True)
+
+    async with client as session:
+        task1 = asyncio.create_task(execute_query1(session))
+        task2 = asyncio.create_task(execute_query2(session))
+        task3 = asyncio.create_task(execute_subscription1(session))
+        task4 = asyncio.create_task(execute_subscription2(session))
+
+        await asyncio.gather(task1, task2, task3, task4)
+
+asyncio.run(graphql_connection())
 ```
 
 Subscriptions tasks can be stopped at any time by running
