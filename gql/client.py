@@ -1,6 +1,6 @@
 import asyncio
 import warnings
-from typing import Any, AsyncGenerator, Dict, Generator, Optional, Union, cast
+from typing import Any, AsyncGenerator, Dict, Generator, Optional, Union
 
 from graphql import (
     DocumentNode,
@@ -31,7 +31,7 @@ class Client:
     ):
         assert not (
             type_def and introspection
-        ), "Cannot provide introspection type definition at the same time."
+        ), "Cannot provide introspection and type definition at the same time."
 
         if type_def:
             assert (
@@ -51,7 +51,7 @@ class Client:
 
         if isinstance(schema, str):
             type_def_ast = parse(schema)
-            schema = cast(GraphQLSchema, build_ast_schema(type_def_ast))
+            schema = build_ast_schema(type_def_ast)
 
         if transport and fetch_schema_from_transport:
             assert (
