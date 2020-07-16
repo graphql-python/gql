@@ -1,7 +1,7 @@
 """Utilities to manipulate several python objects."""
 
 import io
-from typing import Dict, List, Any, Union
+from typing import Dict, List, Any, Union, Tuple
 
 
 # From this response in Stackoverflow
@@ -18,20 +18,55 @@ def is_file_like(value: Any) -> bool:
     return isinstance(value, io.IOBase)
 
 
-def is_file_like_list(value: Any) -> bool:
-    """Check if value is a list and if all items in the list are file-like"""
-    return isinstance(value, list) and all(is_file_like(item) for item in value)
+# def is_file_like_list(value: Any) -> bool:
+#     """Check if value is a list and if all items in the list are file-like"""
+#     return isinstance(value, list) and all(is_file_like(item) for item in value)
 
 
-def contains_file_like_values(value: Any) -> bool:
-    return is_file_like(value) or is_file_like_list(value)
+# def contains_file_like_values(value: Any) -> bool:
+#     return is_file_like(value) or is_file_like_list(value)
 
 
-def get_file_variables(
-    variables: Dict[str, Any]
-) -> Dict[str, Union[io.IOBase, List[io.IOBase]]]:
-    return {
-        variable: value
-        for variable, value in variables.items()
-        if contains_file_like_values(value)
-    }
+# def get_file_variables(variables: Dict[str, Any]) -> Dict[str, Union[io.IOBase, List[io.IOBase]]]:
+#     return {
+#         variable: value
+#         for variable, value in variables.items()
+#         if contains_file_like_values(value)
+#     }
+
+
+
+def extract_files(variables: dict) -> Tuple[dict, dict, list]:
+    files = {}
+
+    def recurse_extract(path, obj):
+        """
+        recursively traverse obj, doing a deepcopy, but
+        replacing any file-like objects with nulls and
+        shunting the originals off to the side.
+        """
+        nonlocal files
+        if type(obj) is list:
+            nulled_obj = []
+            for key, value in enumerate(obj):
+                value = recurse_extract(f'{path}.{key}', value)
+                nulled_obj.append(value)
+            # TODO: merge this with dict case below. somehow.
+            return nulled_obj
+        elif type(obj) is dict:
+            nulled_obj = {}
+            for key, value in obj.items():
+                value = recurse_extract(f'{path}.{key}', value)
+                nulled_obj[key] = value
+            return nulled_obj
+        elif is_file_like(obj):
+            # extract obj from its parent and put it into files instead.
+            files[path] = obj
+            return None
+        else:
+            # base case: pass through unchanged
+            return obj
+
+    nulled_variables = recurse_extract('variables', variables)
+
+    return nulled_variables, files

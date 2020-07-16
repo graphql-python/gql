@@ -1,5 +1,6 @@
 from ssl import SSLContext
 from typing import Any, AsyncGenerator, Dict, Optional, Union
+import json
 
 import aiohttp
 from aiohttp.client_exceptions import ClientResponseError
@@ -15,6 +16,7 @@ from .exceptions import (
     TransportProtocolError,
     TransportServerError,
 )
+from ..utils import extract_files
 
 
 class AIOHTTPTransport(AsyncTransport):
@@ -103,15 +105,34 @@ class AIOHTTPTransport(AsyncTransport):
         """
 
         query_str = print_ast(document)
+
+        nulled_variable_values, files = extract_files(variable_values)
+
         payload = {
             "query": query_str,
-            "variables": variable_values or {},
+            "variables": nulled_variable_values or {},
             "operationName": operation_name or "",
         }
 
-        post_args = {
-            "json": payload,
-        }
+        if files:
+            data = aiohttp.FormData()
+            operations_json = json.dumps(cls.prepare_json_data(query, variables, operation))
+
+            file_map = {str(i): [path] for i, path in enumerate(files)}  # header
+            # path is nested in a list because the spec allows multiple pointers to the same file.
+            # But we don't use that.
+            file_streams = {str(i): files[path] for i, path in enumerate(files)}  # payload
+
+            data.add_field('operations', operations_json, content_type='application/json')
+            data.add_field('map', json.dumps(file_map), content_type='application/json')
+            data.add_fields(*file_streams.items())
+
+            post_args = { "data": payload }
+
+        else:
+            post_args = { "json": payload }
+
+
 
         # Pass post_args to aiohttp post method
         post_args.update(extra_args)
