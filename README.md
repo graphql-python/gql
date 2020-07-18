@@ -63,6 +63,10 @@ result = client.execute(query)
 print(result)
 ```
 
+> **WARNING**: Please note that this basic example won't work if you have an asyncio event loop running. In some
+> python environments (as with Jupyter which uses IPython) an asyncio event loop is created for you. In that case you
+> should use instead the example in the [AIOHTTPTransport](#HTTP-async-transport) section.
+
 ### Local schema validation
 
 It is possible to validate a query locally either using a provided schema or by using
