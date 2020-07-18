@@ -113,8 +113,8 @@ class Client:
             loop = asyncio.get_event_loop()
 
             assert not loop.is_running(), (
-                "Cannot run client.execute if an asyncio loop is running."
-                " Use execute_async instead."
+                "Cannot run client.execute(query) if an asyncio loop is running."
+                " Use 'await client.execute_async(query)' instead."
             )
 
             data: Dict[Any, Any] = loop.run_until_complete(
@@ -151,8 +151,8 @@ class Client:
         loop = asyncio.get_event_loop()
 
         assert not loop.is_running(), (
-            "Cannot run client.subscribe if an asyncio loop is running."
-            " Use subscribe_async instead."
+            "Cannot run client.subscribe(query) if an asyncio loop is running."
+            " Use 'await client.subscribe_async(query)' instead."
         )
 
         try:
@@ -199,9 +199,10 @@ class Client:
 
     def __enter__(self):
 
-        assert not isinstance(
-            self.transport, AsyncTransport
-        ), "Only a sync transport can be use. Use 'async with Client(...)' instead"
+        assert not isinstance(self.transport, AsyncTransport), (
+            "Only a sync transport can be used."
+            " Use 'async with Client(...) as session:' instead"
+        )
 
         self.transport.connect()
 
