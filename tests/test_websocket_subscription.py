@@ -1,5 +1,7 @@
 import asyncio
 import json
+import sys
+from typing import List
 
 import pytest
 import websockets
@@ -32,7 +34,13 @@ countdown_server_answer = '{{"type":"data","id":"{query_id}","payload":\
 WITH_KEEPALIVE = False
 
 
+# List which can used to store received messages by the server
+logged_messages: List[str] = []
+
+
 async def server_countdown(ws, path):
+    logged_messages.clear()
+
     global WITH_KEEPALIVE
     try:
         await WebSocketServer.send_connection_ack(ws)
@@ -40,6 +48,8 @@ async def server_countdown(ws, path):
             await WebSocketServer.send_keepalive(ws)
 
         result = await ws.recv()
+        logged_messages.append(result)
+
         json_result = json.loads(result)
         assert json_result["type"] == "start"
         payload = json_result["payload"]
@@ -63,7 +73,12 @@ async def server_countdown(ws, path):
             nonlocal counting_task
             while True:
 
-                result = await ws.recv()
+                try:
+                    result = await ws.recv()
+                    logged_messages.append(result)
+                except websockets.exceptions.ConnectionClosed:
+                    break
+
                 json_result = json.loads(result)
 
                 if json_result["type"] == "stop" and json_result["id"] == str(query_id):
@@ -73,7 +88,10 @@ async def server_countdown(ws, path):
         async def keepalive_coro():
             while True:
                 await asyncio.sleep(5 * MS)
-                await WebSocketServer.send_keepalive(ws)
+                try:
+                    await WebSocketServer.send_keepalive(ws)
+                except websockets.exceptions.ConnectionClosed:
+                    break
 
         stopping_task = asyncio.ensure_future(stopping_coro())
         keepalive_task = asyncio.ensure_future(keepalive_coro())
@@ -317,6 +335,34 @@ async def test_websocket_subscription_slow_consumer(
     assert count == -1
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("server", [server_countdown], indirect=True)
+@pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
+async def test_websocket_subscription_with_operation_name(
+    event_loop, client_and_server, subscription_str
+):
+
+    session, server = client_and_server
+
+    count = 10
+    subscription = gql(subscription_str.format(count=count))
+
+    async for result in session.subscribe(
+        subscription, operation_name="CountdownSubscription"
+    ):
+
+        number = result["number"]
+        print(f"Number received: {number}")
+
+        assert number == count
+        count -= 1
+
+    assert count == -1
+
+    # Check that the query contains the operationName
+    assert '"operationName": "CountdownSubscription"' in logged_messages[0]
+
+
 WITH_KEEPALIVE = True
 
 
@@ -366,6 +412,55 @@ def test_websocket_subscription_sync(server, subscription_str):
         count -= 1
 
     assert count == -1
+
+
+@pytest.mark.skipif(sys.platform.startswith("win"), reason="test failing on windows")
+@pytest.mark.parametrize("server", [server_countdown], indirect=True)
+@pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
+def test_websocket_subscription_sync_graceful_shutdown(server, subscription_str):
+    """ Note: this test will simulate a control-C happening while a sync subscription
+    is in progress. To do that we will throw a KeyboardInterrupt exception inside
+    the subscription async generator.
+
+    The code should then do a clean close:
+      - send stop messages for each active query
+      - send a connection_terminate message
+    Then the KeyboardInterrupt will be reraise (to warn potential user code)
+
+    This test does not work on Windows but the behaviour with Windows is correct.
+    """
+
+    url = f"ws://{server.hostname}:{server.port}/graphql"
+    print(f"url = {url}")
+
+    sample_transport = WebsocketsTransport(url=url)
+
+    client = Client(transport=sample_transport)
+
+    count = 10
+    subscription = gql(subscription_str.format(count=count))
+
+    with pytest.raises(KeyboardInterrupt):
+        for result in client.subscribe(subscription):
+
+            number = result["number"]
+            print(f"Number received: {number}")
+
+            assert number == count
+
+            if count == 5:
+
+                # Simulate a KeyboardInterrupt in the generator
+                asyncio.ensure_future(
+                    client.session._generator.athrow(KeyboardInterrupt)
+                )
+
+            count -= 1
+
+    assert count == 4
+
+    # Check that the server received a connection_terminate message last
+    assert logged_messages.pop() == '{"type": "connection_terminate"}'
 
 
 class NumberAddParser:
