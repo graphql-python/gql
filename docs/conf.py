@@ -70,7 +70,6 @@ htmlhelp_basename = 'gql-3-doc'
 autodoc_default_options = {
     'members': True,
     'inherited-members': True,
-    'private-members': False,
     'special-members': '__init__',
     'undoc-members': True,
     'show-inheritance': True
