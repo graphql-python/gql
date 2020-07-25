@@ -103,6 +103,8 @@ class DSLField(object):
         added_args = []
         for name, value in kwargs.items():
             arg = self.field.args.get(name)
+            if not arg:
+                raise KeyError(f"Argument {name} does not exist in {self.field}.")            
             arg_type_serializer = get_arg_serializer(arg.type)
             serialized_value = arg_type_serializer(value)
             added_args.append(
