@@ -122,27 +122,6 @@ class RequestsHTTPTransport(Transport):
         query_str = print_ast(document)
         payload: Dict[str, Any] = {"query": query_str}
         if variable_values:
-            # file_variables = get_file_variables(variable_values)
-            # if file_variables:
-            #     map_ = {
-            #         file_variable: [f"variables.{file_variable}"]
-            #         for file_variable, value in file_variables.items()
-            #     }
-            #     all_variables = {
-            #         **variable_values,
-            #         **{
-            #             file_variable: None
-            #             for file_variable in file_variables.values()
-            #         }
-            #     }
-            #     file_payload = {
-            #         "operations":
-            #             json.dumps(
-            #                 {"query": query_str, "variables": all_variables}
-            #             ),
-            #             "map": json.dumps(map_)
-            #     }
-            # else:
             payload["variables"] = variable_values
         if operation_name:
             payload["operationName"] = operation_name

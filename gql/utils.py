@@ -18,24 +18,6 @@ def is_file_like(value: Any) -> bool:
     return isinstance(value, io.IOBase)
 
 
-# def is_file_like_list(value: Any) -> bool:
-#     """Check if value is a list and if all items in the list are file-like"""
-#     return isinstance(value, list) and all(is_file_like(item) for item in value)
-
-
-# def contains_file_like_values(value: Any) -> bool:
-#     return is_file_like(value) or is_file_like_list(value)
-
-
-# def get_file_variables(variables: Dict[str, Any]) -> Dict[str, Union[io.IOBase, List[io.IOBase]]]:
-#     return {
-#         variable: value
-#         for variable, value in variables.items()
-#         if contains_file_like_values(value)
-#     }
-
-
-
 def extract_files(variables: dict) -> Tuple[dict, dict, list]:
     files = {}
 
@@ -49,14 +31,14 @@ def extract_files(variables: dict) -> Tuple[dict, dict, list]:
         if type(obj) is list:
             nulled_obj = []
             for key, value in enumerate(obj):
-                value = recurse_extract(f'{path}.{key}', value)
+                value = recurse_extract(f"{path}.{key}", value)
                 nulled_obj.append(value)
             # TODO: merge this with dict case below. somehow.
             return nulled_obj
         elif type(obj) is dict:
             nulled_obj = {}
             for key, value in obj.items():
-                value = recurse_extract(f'{path}.{key}', value)
+                value = recurse_extract(f"{path}.{key}", value)
                 nulled_obj[key] = value
             return nulled_obj
         elif is_file_like(obj):
@@ -67,6 +49,6 @@ def extract_files(variables: dict) -> Tuple[dict, dict, list]:
             # base case: pass through unchanged
             return obj
 
-    nulled_variables = recurse_extract('variables', variables)
+    nulled_variables = recurse_extract("variables", variables)
 
     return nulled_variables, files

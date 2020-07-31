@@ -110,21 +110,21 @@ class AIOHTTPTransport(AsyncTransport):
 
         payload = {
             "query": query_str,
-            "variables": nulled_variable_values or {},
+            "variables": json.dumps(nulled_variable_values) or "{}",
             "operationName": operation_name or "",
         }
 
         if files:
             data = aiohttp.FormData()
-            operations_json = json.dumps(cls.prepare_json_data(query, variables, operation))
+            operations_json = json.dumps(payload)
 
             file_map = {str(i): [path] for i, path in enumerate(files)}  # header
             # path is nested in a list because the spec allows multiple pointers to the same file.
             # But we don't use that.
-            file_streams = {str(i): files[path] for i, path in enumerate(files)}  # payload
+            file_streams = {i: files[path] for i, path in enumerate(files)}  # payload
 
-            data.add_field('operations', operations_json, content_type='application/json')
-            data.add_field('map', json.dumps(file_map), content_type='application/json')
+            data.add_field("operations", operations_json, content_type="application/json")
+            data.add_field("map", json.dumps(file_map), content_type="application/json")
             data.add_fields(*file_streams.items())
 
             post_args = { "data": payload }
