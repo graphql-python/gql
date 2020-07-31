@@ -9,6 +9,7 @@ from aiohttp.helpers import BasicAuth
 from aiohttp.typedefs import LooseCookies, LooseHeaders
 from graphql import DocumentNode, ExecutionResult, print_ast
 
+from ..utils import extract_files
 from .async_transport import AsyncTransport
 from .exceptions import (
     TransportAlreadyConnected,
@@ -16,7 +17,6 @@ from .exceptions import (
     TransportProtocolError,
     TransportServerError,
 )
-from ..utils import extract_files
 
 
 class AIOHTTPTransport(AsyncTransport):

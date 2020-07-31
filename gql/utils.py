@@ -1,7 +1,7 @@
 """Utilities to manipulate several python objects."""
 
 import io
-from typing import Dict, Any, Tuple
+from typing import Any, Dict, Tuple
 
 
 # From this response in Stackoverflow
