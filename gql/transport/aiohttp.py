@@ -1,6 +1,6 @@
+import json
 from ssl import SSLContext
 from typing import Any, AsyncGenerator, Dict, Optional, Union
-import json
 
 import aiohttp
 from aiohttp.client_exceptions import ClientResponseError

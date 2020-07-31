@@ -1,7 +1,7 @@
 """Utilities to manipulate several python objects."""
 
 import io
-from typing import Dict, List, Any, Union, Tuple
+from typing import Dict, Any, Tuple
 
 
 # From this response in Stackoverflow
@@ -18,7 +18,7 @@ def is_file_like(value: Any) -> bool:
     return isinstance(value, io.IOBase)
 
 
-def extract_files(variables: dict) -> Tuple[dict, dict, list]:
+def extract_files(variables: Dict) -> Tuple[Dict, Dict]:
     files = {}
 
     def recurse_extract(path, obj):
@@ -28,14 +28,13 @@ def extract_files(variables: dict) -> Tuple[dict, dict, list]:
         shunting the originals off to the side.
         """
         nonlocal files
-        if type(obj) is list:
+        if isinstance(obj, list):
             nulled_obj = []
             for key, value in enumerate(obj):
                 value = recurse_extract(f"{path}.{key}", value)
                 nulled_obj.append(value)
-            # TODO: merge this with dict case below. somehow.
             return nulled_obj
-        elif type(obj) is dict:
+        elif isinstance(obj, dict):
             nulled_obj = {}
             for key, value in obj.items():
                 value = recurse_extract(f"{path}.{key}", value)

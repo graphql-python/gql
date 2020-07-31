@@ -1,5 +1,4 @@
 from typing import Any, Dict, Optional, Union
-import json
 
 import requests
 from graphql import DocumentNode, ExecutionResult, print_ast
@@ -9,7 +8,6 @@ from requests.cookies import RequestsCookieJar
 
 from gql.transport import Transport
 
-# from ..utils import get_file_variables, is_file_like, is_file_like_list
 from .exceptions import (
     TransportAlreadyConnected,
     TransportClosed,
