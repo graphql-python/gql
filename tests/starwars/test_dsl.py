@@ -147,5 +147,7 @@ def test_create_review_mutation_result(ds):
 
 
 def test_invalid_arg(ds):
-    with pytest.raises(KeyError, match="Argument invalid_arg does not exist in Field: Character."):
+    with pytest.raises(
+        KeyError, match="Argument invalid_arg does not exist in Field: Character."
+    ):
         ds.query(ds.Query.hero.args(invalid_arg=5).select(ds.Character.name))
