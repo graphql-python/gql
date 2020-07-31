@@ -84,7 +84,7 @@ class DSLField(object):
         added_selections = selections(*fields)
         if selection_set:
             selection_set.selections = FrozenList(
-                selection_set.selections + added_selections
+                selection_set.selections + list(added_selections)
             )
         else:
             self.ast_field.selection_set = SelectionSetNode(
@@ -103,6 +103,8 @@ class DSLField(object):
         added_args = []
         for name, value in kwargs.items():
             arg = self.field.args.get(name)
+            if not arg:
+                raise KeyError(f"Argument {name} does not exist in {self.field}.")
             arg_type_serializer = get_arg_serializer(arg.type)
             serialized_value = arg_type_serializer(value)
             added_args.append(
@@ -124,7 +126,7 @@ def selection_field(field):
     if isinstance(field, DSLField):
         return field
 
-    raise Exception(f'Received incompatible query field: "{field}".')
+    raise TypeError(f'Received incompatible query field: "{field}".')
 
 
 def query(*fields, **kwargs):

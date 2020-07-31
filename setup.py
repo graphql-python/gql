@@ -32,7 +32,7 @@ dev_requires = [
 
 setup(
     name="gql",
-    version="3.0.0a0",
+    version="3.0.0a1",
     description="GraphQL client for Python",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",

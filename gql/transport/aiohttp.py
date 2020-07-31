@@ -108,11 +108,14 @@ class AIOHTTPTransport(AsyncTransport):
 
         nulled_variable_values, files = extract_files(variable_values)
 
-        payload = {
+        payload: Dict[str, Any] = {
             "query": query_str,
-            "variables": nulled_variable_values or {},
-            "operationName": operation_name or "",
         }
+
+        if nulled_variable_values:
+            payload["variables"] = nulled_variable_values
+        if operation_name:
+            payload["operationName"] = operation_name
 
         if files:
             data = aiohttp.FormData()
@@ -130,8 +133,6 @@ class AIOHTTPTransport(AsyncTransport):
 
         else:
             post_args = { "json": payload }
-
-
 
         # Pass post_args to aiohttp post method
         post_args.update(extra_args)

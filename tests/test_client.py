@@ -70,7 +70,7 @@ def test_retries_on_transport(execute_mock):
 
 
 def test_no_schema_exception():
-    with pytest.raises(Exception) as exc_info:
+    with pytest.raises(AssertionError) as exc_info:
         client = Client()
         client.validate("")
     assert "Cannot validate the document locally, you need to pass a schema." in str(

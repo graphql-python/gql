@@ -53,6 +53,18 @@ hero {
     assert query == str(query_dsl)
 
 
+def test_hero_id_and_name(ds):
+    query = """
+hero {
+  id
+  name
+}
+    """.strip()
+    query_dsl = ds.Query.hero.select(ds.Character.id)
+    query_dsl = query_dsl.select(ds.Character.name)
+    assert query == str(query_dsl)
+
+
 def test_nested_query(ds):
     query = """
 hero {
@@ -132,3 +144,10 @@ def test_create_review_mutation_result(ds):
     )
     expected = {"createReview": {"stars": 5, "commentary": "This is a great movie!"}}
     assert result == expected
+
+
+def test_invalid_arg(ds):
+    with pytest.raises(
+        KeyError, match="Argument invalid_arg does not exist in Field: Character."
+    ):
+        ds.query(ds.Query.hero.args(invalid_arg=5).select(ds.Character.name))

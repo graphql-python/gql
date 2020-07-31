@@ -1,12 +1,14 @@
 import asyncio
 import json
 import types
+from typing import List
 
 import pytest
 import websockets
 
 from gql import Client, gql
 from gql.transport.exceptions import (
+    TransportAlreadyConnected,
     TransportClosed,
     TransportProtocolError,
     TransportQueryError,
@@ -44,8 +46,16 @@ async def test_websocket_invalid_query(event_loop, client_and_server, query_str)
 
     query = gql(query_str)
 
-    with pytest.raises(TransportQueryError):
+    with pytest.raises(TransportQueryError) as exc_info:
         await session.execute(query)
+
+    exception = exc_info.value
+
+    assert isinstance(exception.errors, List)
+
+    error = exception.errors[0]
+
+    assert error["extensions"]["code"] == "INTERNAL_SERVER_ERROR"
 
 
 invalid_subscription_str = """
@@ -75,9 +85,17 @@ async def test_websocket_invalid_subscription(event_loop, client_and_server, que
 
     query = gql(query_str)
 
-    with pytest.raises(TransportQueryError):
+    with pytest.raises(TransportQueryError) as exc_info:
         async for result in session.subscribe(query):
             pass
+
+    exception = exc_info.value
+
+    assert isinstance(exception.errors, List)
+
+    error = exception.errors[0]
+
+    assert error["extensions"]["code"] == "INTERNAL_SERVER_ERROR"
 
 
 connection_error_server_answer = (
@@ -170,8 +188,16 @@ async def test_websocket_sending_invalid_payload(
 
     query = gql(query_str)
 
-    with pytest.raises(TransportQueryError):
+    with pytest.raises(TransportQueryError) as exc_info:
         await session.execute(query)
+
+    exception = exc_info.value
+
+    assert isinstance(exception.errors, List)
+
+    error = exception.errors[0]
+
+    assert error["message"] == "Must provide document"
 
 
 not_json_answer = ["BLAHBLAH"]
@@ -215,7 +241,7 @@ async def test_websocket_transport_protocol_errors(event_loop, client_and_server
 
 async def server_without_ack(ws, path):
     # Sending something else than an ack
-    await WebSocketServer.send_keepalive(ws)
+    await WebSocketServer.send_complete(ws, 1)
     await ws.wait_closed()
 
 
@@ -294,3 +320,31 @@ async def test_websocket_server_sending_invalid_query_errors(event_loop, server)
     # Invalid server message is ignored
     async with Client(transport=sample_transport):
         await asyncio.sleep(2 * MS)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("server", [server_sending_invalid_query_errors], indirect=True)
+async def test_websocket_non_regression_bug_105(event_loop, server):
+
+    # This test will check a fix to a race condition which happens if the user is trying
+    # to connect using the same client twice at the same time
+    # See bug #105
+
+    url = f"ws://{server.hostname}:{server.port}/graphql"
+    print(f"url = {url}")
+
+    sample_transport = WebsocketsTransport(url=url)
+
+    client = Client(transport=sample_transport)
+
+    # Create a coroutine which start the connection with the transport but does nothing
+    async def client_connect(client):
+        async with client:
+            await asyncio.sleep(2 * MS)
+
+    # Create two tasks which will try to connect using the same client (not allowed)
+    connect_task1 = asyncio.ensure_future(client_connect(client))
+    connect_task2 = asyncio.ensure_future(client_connect(client))
+
+    with pytest.raises(TransportAlreadyConnected):
+        await asyncio.gather(connect_task1, connect_task2)

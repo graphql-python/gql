@@ -13,7 +13,7 @@ def local_schema():
 @pytest.fixture
 def typedef_schema():
     return Client(
-        type_def="""
+        schema="""
 schema {
   query: Query
 }
@@ -75,9 +75,9 @@ def validation_errors(client, query):
 
 
 def test_incompatible_request_gql(client):
-    with pytest.raises(Exception) as exc_info:
+    with pytest.raises(TypeError) as exc_info:
         gql(123)
-    assert "Received incompatible request" in str(exc_info.value)
+    assert "body must be a string" in str(exc_info.value)
 
 
 def test_nested_query_with_fragment(client):
