@@ -38,7 +38,8 @@ GQL architecture is inspired by `React-Relay` and `Apollo-Client`.
 ### Basic usage
 
 ```python
-from gql import gql, Client, AIOHTTPTransport
+from gql import gql, Client
+from gql.transport.aiohttp import AIOHTTPTransport
 
 # Select your transport with a defined url endpoint
 transport = AIOHTTPTransport(url="https://countries.trevorblades.com/")
@@ -237,7 +238,8 @@ GraphQL subscriptions are not supported on the HTTP transport.
 For subscriptions you should use the websockets transport.
 
 ```python
-from gql import gql, AIOHTTPTransport, Client
+from gql import gql, Client
+from gql.transport.aiohttp import AIOHTTPTransport
 import asyncio
 
 async def main():
