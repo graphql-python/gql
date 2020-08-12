@@ -151,19 +151,38 @@ def serialize_list(serializer, list_values):
     return ListValueNode(values=FrozenList(serializer(v) for v in list_values))
 
 
+class SerializerWrapper:
+    def __init__(self, name):
+        self.name = name
+        self._serializer = None
+
+    def set_serializer(self, serializer):
+        self._serializer = serializer
+        return self._serializer
+
+    def __call__(self, *args, **kwargs):
+        return self._serializer(*args, **kwargs)
+
+
+visited_arg_types = {}
+
+
 def get_arg_serializer(arg_type):
     if isinstance(arg_type, GraphQLNonNull):
         return get_arg_serializer(arg_type.of_type)
     if isinstance(arg_type, GraphQLInputField):
         return get_arg_serializer(arg_type.type)
     if isinstance(arg_type, GraphQLInputObjectType):
+        if arg_type in visited_arg_types:
+            return visited_arg_types[arg_type]
+        visited_arg_types[arg_type] = SerializerWrapper(arg_type.name)
         serializers = {k: get_arg_serializer(v) for k, v in arg_type.fields.items()}
-        return lambda value: ObjectValueNode(
+        return visited_arg_types[arg_type].set_serializer(lambda value: ObjectValueNode(
             fields=FrozenList(
                 ObjectFieldNode(name=NameNode(value=k), value=serializers[k](v))
                 for k, v in value.items()
             )
-        )
+        ))
     if isinstance(arg_type, GraphQLList):
         inner_serializer = get_arg_serializer(arg_type.of_type)
         return partial(serialize_list, inner_serializer)
