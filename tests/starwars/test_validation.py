@@ -13,7 +13,7 @@ def local_schema():
 @pytest.fixture
 def typedef_schema():
     return Client(
-        type_def="""
+        schema="""
 schema {
   query: Query
 }

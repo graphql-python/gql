@@ -82,6 +82,7 @@ starwars_invalid_subscription_str = """
         {"schema": StarWarsSchema},
         {"introspection": StarWarsIntrospection},
         {"type_def": StarWarsTypeDef},
+        {"schema": StarWarsTypeDef},
     ],
 )
 async def test_async_client_validation(
@@ -124,6 +125,7 @@ async def test_async_client_validation(
         {"schema": StarWarsSchema},
         {"introspection": StarWarsIntrospection},
         {"type_def": StarWarsTypeDef},
+        {"schema": StarWarsTypeDef},
     ],
 )
 async def test_async_client_validation_invalid_query(

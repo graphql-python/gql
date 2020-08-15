@@ -1,4 +1,5 @@
 import asyncio
+import warnings
 from typing import Any, AsyncGenerator, Dict, Generator, Optional, Union
 
 from graphql import (
@@ -21,7 +22,7 @@ from .transport.transport import Transport
 class Client:
     def __init__(
         self,
-        schema: Optional[GraphQLSchema] = None,
+        schema: Optional[Union[str, GraphQLSchema]] = None,
         introspection=None,
         type_def: Optional[str] = None,
         transport: Optional[Union[Transport, AsyncTransport]] = None,
@@ -30,23 +31,34 @@ class Client:
     ):
         assert not (
             type_def and introspection
-        ), "Cannot provide introspection type definition at the same time."
-        if transport and fetch_schema_from_transport:
+        ), "Cannot provide introspection and type definition at the same time."
+
+        if type_def:
             assert (
                 not schema
-            ), "Cannot fetch the schema from transport if is already provided."
+            ), "Cannot provide type definition and schema at the same time."
+            warnings.warn(
+                "type_def is deprecated; use schema instead",
+                category=DeprecationWarning,
+            )
+            schema = type_def
+
         if introspection:
             assert (
                 not schema
             ), "Cannot provide introspection and schema at the same time."
             schema = build_client_schema(introspection)
-        elif type_def:
+
+        if isinstance(schema, str):
+            type_def_ast = parse(schema)
+            schema = build_ast_schema(type_def_ast)
+
+        if transport and fetch_schema_from_transport:
             assert (
                 not schema
-            ), "Cannot provide type definition and schema at the same time."
-            type_def_ast = parse(type_def)
-            schema = build_ast_schema(type_def_ast)
-        elif schema and not transport:
+            ), "Cannot fetch the schema from transport if is already provided."
+
+        if schema and not transport:
             transport = LocalSchemaTransport(schema)
 
         # GraphQL schema
@@ -101,8 +113,8 @@ class Client:
             loop = asyncio.get_event_loop()
 
             assert not loop.is_running(), (
-                "Cannot run client.execute if an asyncio loop is running."
-                " Use execute_async instead."
+                "Cannot run client.execute(query) if an asyncio loop is running."
+                " Use 'await client.execute_async(query)' instead."
             )
 
             data: Dict[Any, Any] = loop.run_until_complete(
@@ -139,8 +151,8 @@ class Client:
         loop = asyncio.get_event_loop()
 
         assert not loop.is_running(), (
-            "Cannot run client.subscribe if an asyncio loop is running."
-            " Use subscribe_async instead."
+            "Cannot run client.subscribe(query) if an asyncio loop is running."
+            " Use 'await client.subscribe_async(query)' instead."
         )
 
         try:
@@ -187,9 +199,10 @@ class Client:
 
     def __enter__(self):
 
-        assert not isinstance(
-            self.transport, AsyncTransport
-        ), "Only a sync transport can be use. Use 'async with Client(...)' instead"
+        assert not isinstance(self.transport, AsyncTransport), (
+            "Only a sync transport can be used."
+            " Use 'async with Client(...) as session:' instead"
+        )
 
         self.transport.connect()
 
