@@ -569,35 +569,80 @@ class WebsocketsTransport(AsyncTransport):
         - close the websocket connection
         - send the exception to all the remaining listeners
         """
+
+        log.info("_close_coro: starting")
+
         if self.websocket:
 
-            # Saving exception to raise it later if trying to use the transport
-            # after it has already closed.
-            self.close_exception = e
+            try:
+                # Saving exception to raise it later if trying to use the transport
+                # after it has already closed.
+                self.close_exception = e
 
-            if clean_close:
-                await self._clean_close(e)
+                if clean_close:
+                    log.info("_close_coro: starting clean_close")
+                    try:
+                        await self._clean_close(e)
+                    except Exception as exc:
+                        log.debug("Ignoring exception in _clean_close: " + repr(exc))
 
-            # Send an exception to all remaining listeners
-            for query_id, listener in self.listeners.items():
-                await listener.set_exception(e)
+                log.info("_close_coro: sending exception to listeners")
 
-            await self.websocket.close()
+                # Send an exception to all remaining listeners
+                for query_id, listener in self.listeners.items():
+                    await listener.set_exception(e)
 
-            self.websocket = None
+                log.info("_close_coro: close websocket connection")
 
-            self.close_task = None
-            self._wait_closed.set()
+                await self.websocket.close()
+
+                log.info("_close_coro: websocket connection closed")
+
+            except Exception as exc:
+                log.debug("Exception catched in _close_coro: " + repr(exc))
+
+            finally:
+
+                log.info("_close_coro: start cleanup")
+
+                self.websocket = None
+
+                self.close_task = None
+                self._wait_closed.set()
+
+        else:
+            log.debug(
+                "websocket is falsy in _close_coro: " + repr(self.close_exception)
+            )
+
+        log.info("_close_coro: exiting")
 
     async def _fail(self, e: Exception, clean_close: bool = True) -> None:
+        log.debug("_fail: starting with exception: " + repr(e))
+
         if self.close_task is None:
             self.close_task = asyncio.shield(
                 asyncio.ensure_future(self._close_coro(e, clean_close=clean_close))
             )
+        else:
+            log.debug(
+                "close_task is not None in _fail. Previous exception is: "
+                + repr(self.close_exception)
+                + " New exception is: "
+                + repr(e)
+            )
 
     async def close(self) -> None:
+        log.info("close: starting")
+
         await self._fail(TransportClosed("Websocket GraphQL transport closed by user"))
         await self.wait_closed()
 
+        log.info("close: done")
+
     async def wait_closed(self) -> None:
+        log.info("wait_close: starting")
+
         await self._wait_closed.wait()
+
+        log.info("wait_close: done")
