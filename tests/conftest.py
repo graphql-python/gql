@@ -5,6 +5,7 @@ import os
 import pathlib
 import ssl
 import types
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 import websockets
@@ -266,3 +267,21 @@ async def client_and_server(server):
 
         # Yield both client session and server
         yield session, server
+
+
+@pytest.fixture
+async def run_sync_test():
+    async def run_sync_test_inner(event_loop, server, test_function):
+        """This function will run the test in a different Thread.
+
+        This allows us to run sync code while aiohttp server can still run.
+        """
+        executor = ThreadPoolExecutor(max_workers=2)
+        test_task = event_loop.run_in_executor(executor, test_function)
+
+        await test_task
+
+        if hasattr(server, "close"):
+            await server.close()
+
+    return run_sync_test_inner

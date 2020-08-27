@@ -128,6 +128,14 @@ class WebsocketsTransport(AsyncTransport):
         self.receive_data_task: Optional[asyncio.Future] = None
         self.close_task: Optional[asyncio.Future] = None
 
+        # We need to set an event loop here if there is none
+        # Or else we will not be able to create an asyncio.Event()
+        try:
+            self._loop = asyncio.get_event_loop()
+        except RuntimeError:
+            self._loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(self._loop)
+
         self._wait_closed: asyncio.Event = asyncio.Event()
         self._wait_closed.set()
 
