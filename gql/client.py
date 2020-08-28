@@ -240,7 +240,9 @@ class SyncClientSession:
 
         # Raise an error if an error is returned in the ExecutionResult object
         if result.errors:
-            raise TransportQueryError(str(result.errors[0]), errors=result.errors)
+            raise TransportQueryError(
+                str(result.errors[0]), errors=result.errors, data=result.data
+            )
 
         assert (
             result.data is not None
@@ -315,7 +317,9 @@ class AsyncClientSession:
 
             # Raise an error if an error is returned in the ExecutionResult object
             if result.errors:
-                raise TransportQueryError(str(result.errors[0]), errors=result.errors)
+                raise TransportQueryError(
+                    str(result.errors[0]), errors=result.errors, data=result.data
+                )
 
             elif result.data is not None:
                 yield result.data
@@ -340,7 +344,9 @@ class AsyncClientSession:
 
         # Raise an error if an error is returned in the ExecutionResult object
         if result.errors:
-            raise TransportQueryError(str(result.errors[0]), errors=result.errors)
+            raise TransportQueryError(
+                str(result.errors[0]), errors=result.errors, data=result.data
+            )
 
         assert (
             result.data is not None
