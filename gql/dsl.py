@@ -103,7 +103,9 @@ class DSLField(object):
         added_args = []
         for name, value in kwargs.items():
             arg = self.field.args.get(name)
-            arg_type_serializer = get_arg_serializer(arg.type)
+            if not arg:
+                raise KeyError(f"Argument {name} does not exist in {self.field}.")
+            arg_type_serializer = get_arg_serializer(arg.type, known_serializers=dict())
             serialized_value = arg_type_serializer(value)
             added_args.append(
                 ArgumentNode(name=NameNode(value=name), value=serialized_value)
@@ -149,21 +151,28 @@ def serialize_list(serializer, list_values):
     return ListValueNode(values=FrozenList(serializer(v) for v in list_values))
 
 
-def get_arg_serializer(arg_type):
+def get_arg_serializer(arg_type, known_serializers):
     if isinstance(arg_type, GraphQLNonNull):
-        return get_arg_serializer(arg_type.of_type)
+        return get_arg_serializer(arg_type.of_type, known_serializers)
     if isinstance(arg_type, GraphQLInputField):
-        return get_arg_serializer(arg_type.type)
+        return get_arg_serializer(arg_type.type, known_serializers)
     if isinstance(arg_type, GraphQLInputObjectType):
-        serializers = {k: get_arg_serializer(v) for k, v in arg_type.fields.items()}
-        return lambda value: ObjectValueNode(
+        if arg_type in known_serializers:
+            return known_serializers[arg_type]
+        known_serializers[arg_type] = None
+        serializers = {
+            k: get_arg_serializer(v, known_serializers)
+            for k, v in arg_type.fields.items()
+        }
+        known_serializers[arg_type] = lambda value: ObjectValueNode(
             fields=FrozenList(
                 ObjectFieldNode(name=NameNode(value=k), value=serializers[k](v))
                 for k, v in value.items()
             )
         )
+        return known_serializers[arg_type]
     if isinstance(arg_type, GraphQLList):
-        inner_serializer = get_arg_serializer(arg_type.of_type)
+        inner_serializer = get_arg_serializer(arg_type.of_type, known_serializers)
         return partial(serialize_list, inner_serializer)
     if isinstance(arg_type, GraphQLEnumType):
         return lambda value: EnumValueNode(value=arg_type.serialize(value))
