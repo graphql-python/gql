@@ -446,3 +446,32 @@ def test_websocket_subscription_sync_graceful_shutdown(server, subscription_str)
 
     # Check that the server received a connection_terminate message last
     assert logged_messages.pop() == '{"type": "connection_terminate"}'
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("server", [server_countdown], indirect=True)
+@pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
+async def test_websocket_subscription_running_in_thread(
+    event_loop, server, subscription_str, run_sync_test
+):
+    def test_code():
+        path = "/graphql"
+        url = f"ws://{server.hostname}:{server.port}{path}"
+        sample_transport = WebsocketsTransport(url=url)
+
+        client = Client(transport=sample_transport)
+
+        count = 10
+        subscription = gql(subscription_str.format(count=count))
+
+        for result in client.subscribe(subscription):
+
+            number = result["number"]
+            print(f"Number received: {number}")
+
+            assert number == count
+            count -= 1
+
+        assert count == -1
+
+    await run_sync_test(event_loop, server, test_code)

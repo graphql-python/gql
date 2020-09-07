@@ -1,9 +1,7 @@
-from concurrent.futures import ThreadPoolExecutor
-
 import pytest
 from aiohttp import web
 
-from gql import Client, gql
+from gql import Client, RequestsHTTPTransport, gql
 from gql.transport.exceptions import (
     TransportAlreadyConnected,
     TransportClosed,
@@ -11,7 +9,6 @@ from gql.transport.exceptions import (
     TransportQueryError,
     TransportServerError,
 )
-from gql.transport.requests import RequestsHTTPTransport
 
 query1_str = """
     query getContinents {
@@ -31,20 +28,8 @@ query1_server_answer = (
 )
 
 
-async def run_sync_test(event_loop, server, test_function):
-    """This function will run the test in a different Thread.
-
-    This allows us to run sync code while aiohttp server can still run.
-    """
-    executor = ThreadPoolExecutor(max_workers=2)
-    test_task = event_loop.run_in_executor(executor, test_function)
-
-    await test_task
-    await server.close()
-
-
 @pytest.mark.asyncio
-async def test_requests_query(event_loop, aiohttp_server):
+async def test_requests_query(event_loop, aiohttp_server, run_sync_test):
     async def handler(request):
         return web.Response(text=query1_server_answer, content_type="application/json")
 
@@ -74,7 +59,7 @@ async def test_requests_query(event_loop, aiohttp_server):
 
 
 @pytest.mark.asyncio
-async def test_requests_error_code_500(event_loop, aiohttp_server):
+async def test_requests_error_code_500(event_loop, aiohttp_server, run_sync_test):
     async def handler(request):
         # Will generate http error code 500
         raise Exception("Server error")
@@ -102,7 +87,7 @@ query1_server_error_answer = '{"errors": ["Error 1", "Error 2"]}'
 
 
 @pytest.mark.asyncio
-async def test_requests_error_code(event_loop, aiohttp_server):
+async def test_requests_error_code(event_loop, aiohttp_server, run_sync_test):
     async def handler(request):
         return web.Response(
             text=query1_server_error_answer, content_type="application/json"
@@ -136,7 +121,9 @@ invalid_protocol_responses = [
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("response", invalid_protocol_responses)
-async def test_requests_invalid_protocol(event_loop, aiohttp_server, response):
+async def test_requests_invalid_protocol(
+    event_loop, aiohttp_server, response, run_sync_test
+):
     async def handler(request):
         return web.Response(text=response, content_type="application/json")
 
@@ -160,7 +147,7 @@ async def test_requests_invalid_protocol(event_loop, aiohttp_server, response):
 
 
 @pytest.mark.asyncio
-async def test_requests_cannot_connect_twice(event_loop, aiohttp_server):
+async def test_requests_cannot_connect_twice(event_loop, aiohttp_server, run_sync_test):
     async def handler(request):
         return web.Response(text=query1_server_answer, content_type="application/json")
 
@@ -182,7 +169,9 @@ async def test_requests_cannot_connect_twice(event_loop, aiohttp_server):
 
 
 @pytest.mark.asyncio
-async def test_requests_cannot_execute_if_not_connected(event_loop, aiohttp_server):
+async def test_requests_cannot_execute_if_not_connected(
+    event_loop, aiohttp_server, run_sync_test
+):
     async def handler(request):
         return web.Response(text=query1_server_answer, content_type="application/json")
 

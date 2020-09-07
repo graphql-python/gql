@@ -262,3 +262,62 @@ async def test_aiohttp_query_variable_values(event_loop, aiohttp_server):
         continent = result["continent"]
 
         assert continent["name"] == "Europe"
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_execute_running_in_thread(
+    event_loop, aiohttp_server, run_sync_test
+):
+    async def handler(request):
+        return web.Response(text=query1_server_answer, content_type="application/json")
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    def test_code():
+        sample_transport = AIOHTTPTransport(url=url)
+
+        client = Client(transport=sample_transport)
+
+        query = gql(query1_str)
+
+        client.execute(query)
+
+    await run_sync_test(event_loop, server, test_code)
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_subscribe_running_in_thread(
+    event_loop, aiohttp_server, run_sync_test
+):
+    async def handler(request):
+        return web.Response(text=query1_server_answer, content_type="application/json")
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    def test_code():
+        sample_transport = AIOHTTPTransport(url=url)
+
+        client = Client(transport=sample_transport)
+
+        query = gql(query1_str)
+
+        # Note: subscriptions are not supported on the aiohttp transport
+        # But we add this test in order to have 100% code coverage
+        # It is to check that we will correctly set an event loop
+        # in the subscribe function if there is none (in a Thread for example)
+        # We cannot test this with the websockets transport because
+        # the websockets transport will set an event loop in its init
+
+        with pytest.raises(NotImplementedError):
+            for result in client.subscribe(query):
+                pass
+
+    await run_sync_test(event_loop, server, test_code)
