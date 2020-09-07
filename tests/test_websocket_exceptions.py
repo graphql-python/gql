@@ -15,7 +15,7 @@ from gql.transport.exceptions import (
 )
 from gql.transport.websockets import WebsocketsTransport
 
-from .conftest import MS, WebSocketServer
+from .conftest import MS, WebSocketServerHelper
 
 invalid_query_str = """
     query getContinents {
@@ -69,10 +69,10 @@ invalid_subscription_str = """
 
 
 async def server_invalid_subscription(ws, path):
-    await WebSocketServer.send_connection_ack(ws)
+    await WebSocketServerHelper.send_connection_ack(ws)
     await ws.recv()
     await ws.send(invalid_query1_server_answer.format(query_id=1))
-    await WebSocketServer.send_complete(ws, 1)
+    await WebSocketServerHelper.send_complete(ws, 1)
     await ws.wait_closed()
 
 
@@ -123,7 +123,7 @@ async def test_websocket_server_does_not_send_ack(event_loop, server, query_str)
 
 
 async def server_connection_error(ws, path):
-    await WebSocketServer.send_connection_ack(ws)
+    await WebSocketServerHelper.send_connection_ack(ws)
     result = await ws.recv()
     print(f"Server received: {result}")
     await ws.send(connection_error_server_answer)
@@ -150,11 +150,11 @@ invalid_payload_server_answer = (
 
 
 async def server_invalid_payload(ws, path):
-    await WebSocketServer.send_connection_ack(ws)
+    await WebSocketServerHelper.send_connection_ack(ws)
     result = await ws.recv()
     print(f"Server received: {result}")
     await ws.send(invalid_payload_server_answer)
-    await WebSocketServer.wait_connection_terminate(ws)
+    await WebSocketServerHelper.wait_connection_terminate(ws)
     await ws.wait_closed()
 
 
@@ -241,7 +241,7 @@ async def test_websocket_transport_protocol_errors(event_loop, client_and_server
 
 async def server_without_ack(ws, path):
     # Sending something else than an ack
-    await WebSocketServer.send_complete(ws, 1)
+    await WebSocketServerHelper.send_complete(ws, 1)
     await ws.wait_closed()
 
 
@@ -278,7 +278,7 @@ async def test_websocket_server_closing_directly(event_loop, server):
 
 
 async def server_closing_after_ack(ws, path):
-    await WebSocketServer.send_connection_ack(ws)
+    await WebSocketServerHelper.send_connection_ack(ws)
     await ws.close()
 
 
@@ -300,7 +300,7 @@ async def test_websocket_server_closing_after_ack(event_loop, client_and_server)
 
 
 async def server_sending_invalid_query_errors(ws, path):
-    await WebSocketServer.send_connection_ack(ws)
+    await WebSocketServerHelper.send_connection_ack(ws)
     invalid_error = (
         '{"type":"error","id":"404","payload":'
         '{"message":"error for no good reason on non existing query"}}'

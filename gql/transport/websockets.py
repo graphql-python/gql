@@ -371,18 +371,24 @@ class WebsocketsTransport(AsyncTransport):
                     await self._fail(e, clean_close=False)
                     break
 
-                try:
-                    # Put the answer in the queue
-                    if answer_id is not None:
-                        await self.listeners[answer_id].put(
-                            (answer_type, execution_result)
-                        )
-                except KeyError:
-                    # Do nothing if no one is listening to this query_id.
-                    pass
+                await self._handle_answer(answer_type, answer_id, execution_result)
 
         finally:
             log.debug("Exiting _receive_data_loop()")
+
+    async def _handle_answer(
+        self,
+        answer_type: str,
+        answer_id: Optional[int],
+        execution_result: Optional[ExecutionResult],
+    ) -> None:
+        try:
+            # Put the answer in the queue
+            if answer_id is not None:
+                await self.listeners[answer_id].put((answer_type, execution_result))
+        except KeyError:
+            # Do nothing if no one is listening to this query_id.
+            pass
 
     async def subscribe(
         self,
