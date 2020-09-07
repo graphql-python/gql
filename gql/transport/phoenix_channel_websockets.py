@@ -75,15 +75,15 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
                             }
                         )
                     )
-                except ConnectionClosed:
-                    pass
+                except ConnectionClosed:  # pragma: no cover
+                    return
 
         self.heartbeat_task = asyncio.ensure_future(heartbeat_coro())
 
     async def _send_stop_message(self, query_id: int) -> None:
         try:
             await self.listeners[query_id].put(("complete", None))
-        except KeyError:
+        except KeyError:  # pragma: no cover
             pass
 
     async def _send_connection_terminate_message(self) -> None:
