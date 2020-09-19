@@ -110,7 +110,13 @@ class Client:
 
         if isinstance(self.transport, AsyncTransport):
 
-            loop = asyncio.get_event_loop()
+            # Get the current asyncio event loop
+            # Or create a new event loop if there isn't one (in a new Thread)
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
 
             assert not loop.is_running(), (
                 "Cannot run client.execute(query) if an asyncio loop is running."
@@ -146,9 +152,15 @@ class Client:
         We need an async transport for this functionality.
         """
 
-        async_generator = self.subscribe_async(document, *args, **kwargs)
+        # Get the current asyncio event loop
+        # Or create a new event loop if there isn't one (in a new Thread)
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
 
-        loop = asyncio.get_event_loop()
+        async_generator = self.subscribe_async(document, *args, **kwargs)
 
         assert not loop.is_running(), (
             "Cannot run client.subscribe(query) if an asyncio loop is running."
@@ -240,7 +252,9 @@ class SyncClientSession:
 
         # Raise an error if an error is returned in the ExecutionResult object
         if result.errors:
-            raise TransportQueryError(str(result.errors[0]), errors=result.errors)
+            raise TransportQueryError(
+                str(result.errors[0]), errors=result.errors, data=result.data
+            )
 
         assert (
             result.data is not None
@@ -315,7 +329,9 @@ class AsyncClientSession:
 
             # Raise an error if an error is returned in the ExecutionResult object
             if result.errors:
-                raise TransportQueryError(str(result.errors[0]), errors=result.errors)
+                raise TransportQueryError(
+                    str(result.errors[0]), errors=result.errors, data=result.data
+                )
 
             elif result.data is not None:
                 yield result.data
@@ -340,7 +356,9 @@ class AsyncClientSession:
 
         # Raise an error if an error is returned in the ExecutionResult object
         if result.errors:
-            raise TransportQueryError(str(result.errors[0]), errors=result.errors)
+            raise TransportQueryError(
+                str(result.errors[0]), errors=result.errors, data=result.data
+            )
 
         assert (
             result.data is not None

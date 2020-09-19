@@ -5,6 +5,7 @@ import os
 import pathlib
 import ssl
 import types
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 import websockets
@@ -135,6 +136,8 @@ class WebSocketServer:
 
         print("Server stopped\n\n\n")
 
+
+class WebSocketServerHelper:
     @staticmethod
     async def send_complete(ws, query_id):
         await ws.send(f'{{"type":"complete","id":"{query_id}","payload":null}}')
@@ -164,6 +167,26 @@ class WebSocketServer:
         assert json_result["type"] == "connection_terminate"
 
 
+class PhoenixChannelServerHelper:
+    @staticmethod
+    async def send_close(ws):
+        await ws.send('{"event":"phx_close"}')
+
+    @staticmethod
+    async def send_connection_ack(ws):
+
+        # Line return for easy debugging
+        print("")
+
+        # Wait for init
+        result = await ws.recv()
+        json_result = json.loads(result)
+        assert json_result["event"] == "phx_join"
+
+        # Send ack
+        await ws.send('{"event":"phx_reply", "payload": {"status": "ok"}, "ref": 1}')
+
+
 def get_server_handler(request):
     """Get the server handler.
 
@@ -180,7 +203,7 @@ def get_server_handler(request):
         async def default_server_handler(ws, path):
 
             try:
-                await WebSocketServer.send_connection_ack(ws)
+                await WebSocketServerHelper.send_connection_ack(ws)
                 query_id = 1
 
                 for answer in answers:
@@ -194,10 +217,10 @@ def get_server_handler(request):
                         formatted_answer = answer
 
                     await ws.send(formatted_answer)
-                    await WebSocketServer.send_complete(ws, query_id)
+                    await WebSocketServerHelper.send_complete(ws, query_id)
                     query_id += 1
 
-                await WebSocketServer.wait_connection_terminate(ws)
+                await WebSocketServerHelper.wait_connection_terminate(ws)
                 await ws.wait_closed()
             except ConnectionClosed:
                 pass
@@ -266,3 +289,21 @@ async def client_and_server(server):
 
         # Yield both client session and server
         yield session, server
+
+
+@pytest.fixture
+async def run_sync_test():
+    async def run_sync_test_inner(event_loop, server, test_function):
+        """This function will run the test in a different Thread.
+
+        This allows us to run sync code while aiohttp server can still run.
+        """
+        executor = ThreadPoolExecutor(max_workers=2)
+        test_task = event_loop.run_in_executor(executor, test_function)
+
+        await test_task
+
+        if hasattr(server, "close"):
+            await server.close()
+
+    return run_sync_test_inner

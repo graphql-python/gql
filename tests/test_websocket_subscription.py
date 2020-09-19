@@ -10,7 +10,7 @@ from parse import search
 from gql import Client, gql
 from gql.transport.websockets import WebsocketsTransport
 
-from .conftest import MS, WebSocketServer
+from .conftest import MS, WebSocketServerHelper
 
 countdown_server_answer = (
     '{{"type":"data","id":"{query_id}","payload":{{"data":{{"number":{number}}}}}}}'
@@ -28,9 +28,9 @@ async def server_countdown(ws, path):
 
     global WITH_KEEPALIVE
     try:
-        await WebSocketServer.send_connection_ack(ws)
+        await WebSocketServerHelper.send_connection_ack(ws)
         if WITH_KEEPALIVE:
-            await WebSocketServer.send_keepalive(ws)
+            await WebSocketServerHelper.send_keepalive(ws)
 
         result = await ws.recv()
         logged_messages.append(result)
@@ -74,7 +74,7 @@ async def server_countdown(ws, path):
             while True:
                 await asyncio.sleep(5 * MS)
                 try:
-                    await WebSocketServer.send_keepalive(ws)
+                    await WebSocketServerHelper.send_keepalive(ws)
                 except websockets.exceptions.ConnectionClosed:
                     break
 
@@ -100,8 +100,8 @@ async def server_countdown(ws, path):
             except asyncio.CancelledError:
                 print("Now keepalive task is cancelled")
 
-        await WebSocketServer.send_complete(ws, query_id)
-        await WebSocketServer.wait_connection_terminate(ws)
+        await WebSocketServerHelper.send_complete(ws, query_id)
+        await WebSocketServerHelper.wait_connection_terminate(ws)
     except websockets.exceptions.ConnectionClosedOK:
         pass
     finally:
@@ -246,7 +246,7 @@ async def test_websocket_subscription_close_transport(
 
 
 async def server_countdown_close_connection_in_middle(ws, path):
-    await WebSocketServer.send_connection_ack(ws)
+    await WebSocketServerHelper.send_connection_ack(ws)
 
     result = await ws.recv()
     json_result = json.loads(result)
@@ -446,3 +446,32 @@ def test_websocket_subscription_sync_graceful_shutdown(server, subscription_str)
 
     # Check that the server received a connection_terminate message last
     assert logged_messages.pop() == '{"type": "connection_terminate"}'
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("server", [server_countdown], indirect=True)
+@pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
+async def test_websocket_subscription_running_in_thread(
+    event_loop, server, subscription_str, run_sync_test
+):
+    def test_code():
+        path = "/graphql"
+        url = f"ws://{server.hostname}:{server.port}{path}"
+        sample_transport = WebsocketsTransport(url=url)
+
+        client = Client(transport=sample_transport)
+
+        count = 10
+        subscription = gql(subscription_str.format(count=count))
+
+        for result in client.subscribe(subscription):
+
+            number = result["number"]
+            print(f"Number received: {number}")
+
+            assert number == count
+            count -= 1
+
+        assert count == -1
+
+    await run_sync_test(event_loop, server, test_code)
