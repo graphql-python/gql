@@ -35,7 +35,7 @@ class AIOHTTPTransport(AsyncTransport):
         auth: Optional[BasicAuth] = None,
         ssl: Union[SSLContext, bool, Fingerprint] = False,
         timeout: Optional[int] = None,
-        client_session_args: Dict[str, Any] = {},
+        client_session_args: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Initialize the transport with the given aiohttp parameters.
 
@@ -53,7 +53,6 @@ class AIOHTTPTransport(AsyncTransport):
         self.ssl: Union[SSLContext, bool, Fingerprint] = ssl
         self.timeout: Optional[int] = timeout
         self.client_session_args = client_session_args
-
         self.session: Optional[aiohttp.ClientSession] = None
 
     async def connect(self) -> None:
@@ -78,7 +77,8 @@ class AIOHTTPTransport(AsyncTransport):
                 )
 
             # Adding custom parameters passed from init
-            client_session_args.update(self.client_session_args)
+            if self.client_session_args:
+                client_session_args.update(self.client_session_args)  # type: ignore
 
             self.session = aiohttp.ClientSession(**client_session_args)
 
@@ -95,7 +95,7 @@ class AIOHTTPTransport(AsyncTransport):
         document: DocumentNode,
         variable_values: Optional[Dict[str, str]] = None,
         operation_name: Optional[str] = None,
-        extra_args: Dict[str, Any] = {},
+        extra_args: Dict[str, Any] = None,
     ) -> ExecutionResult:
         """Execute the provided document AST against the configured remote server.
         This uses the aiohttp library to perform a HTTP POST request asynchronously
@@ -106,7 +106,10 @@ class AIOHTTPTransport(AsyncTransport):
 
         query_str = print_ast(document)
 
-        nulled_variable_values, files = extract_files(variable_values)
+        nulled_variable_values = None
+        files = None
+        if variable_values:
+            nulled_variable_values, files = extract_files(variable_values)
 
         payload: Dict[str, Any] = {
             "query": query_str,
@@ -120,22 +123,28 @@ class AIOHTTPTransport(AsyncTransport):
         if files:
             data = aiohttp.FormData()
 
-            file_map = {str(i): [path] for i, path in enumerate(files)}  # header
-            # path is nested in a list because the spec allows multiple pointers to the same file.
-            # But we don't use that.
-            file_streams = {str(i): files[path] for i, path in enumerate(files)}  # payload
+            # header
+            file_map = {str(i): [path] for i, path in enumerate(files)}
+            # path is nested in a list because the spec allows multiple pointers
+            # to the same file. But we don't use that.
+            file_streams = {
+                str(i): files[path] for i, path in enumerate(files)
+            }  # payload
 
-            data.add_field("operations", json.dumps(payload), content_type="application/json")
+            data.add_field(
+                "operations", json.dumps(payload), content_type="application/json"
+            )
             data.add_field("map", json.dumps(file_map), content_type="application/json")
             data.add_fields(*file_streams.items())
 
-            post_args = { "data": data }
+            post_args = {"data": data}
 
         else:
-            post_args = { "json": payload }
+            post_args = {"json": payload}  # type: ignore
 
         # Pass post_args to aiohttp post method
-        post_args.update(extra_args)
+        if extra_args:
+            post_args.update(extra_args)  # type: ignore
 
         if self.session is None:
             raise TransportClosed("Transport is not connected")
