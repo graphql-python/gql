@@ -28,6 +28,8 @@ dev_requires = [
     "flake8==3.8.1",
     "isort==4.3.21",
     "mypy==0.770",
+    "sphinx>=3.0.0,<4",
+    "sphinx_rtd_theme>=0.4,<1"
 ] + tests_require
 
 setup(

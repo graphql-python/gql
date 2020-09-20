@@ -1,4 +1,4 @@
-.PHONY: clean tests
+.PHONY: clean tests docs
 
 dev-setup:
 	python pip install -e ".[test]"
@@ -16,6 +16,10 @@ check:
 	mypy gql tests
 	check-manifest
 
+docs:
+	rm -rf ./docs/_build
+	cd docs; make html
+
 clean:
 	find . -name "*.pyc" -delete
 	find . -name "__pycache__" | xargs -I {} rm -rf {}
@@ -26,4 +30,5 @@ clean:
 	rm -rf ./gql.egg-info
 	rm -rf ./dist
 	rm -rf ./build
+	rm -rf ./docs/_build
 	rm -f ./.coverage

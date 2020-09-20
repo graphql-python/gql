@@ -17,7 +17,8 @@ from .exceptions import (
 
 
 class RequestsHTTPTransport(Transport):
-    """Transport to execute GraphQL queries on remote servers.
+    """:ref:`Sync Transport <sync_transports>` used to execute GraphQL queries
+    on remote servers.
 
     The transport uses the requests library to send HTTP POST requests.
     """
@@ -53,7 +54,7 @@ class RequestsHTTPTransport(Transport):
         :param retries: Pre-setup of the requests' Session for performing retries
         :param method: HTTP method used for requests. (Default: POST).
         :param kwargs: Optional arguments that ``request`` takes.
-            These can be seen at the :requests_: source code or the official :docs_:
+            These can be seen at the `requests`_ source code or the official `docs`_
 
         .. _requests: https://github.com/psf/requests/blob/master/requests/api.py
         .. _docs: https://requests.readthedocs.io/en/master/

@@ -13,7 +13,10 @@ include tox.ini
 include scripts/gql-cli
 
 recursive-include tests *.py *.graphql *.cnf *.yaml *.pem
+recursive-include docs *.txt *.rst conf.py Makefile make.bat *.jpg *.png *.gif
+recursive-include docs/code_examples *.py
 
+prune docs/_build
 prune gql-checker
 
 global-exclude *.py[co] __pycache__

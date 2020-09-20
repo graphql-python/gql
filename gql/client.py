@@ -20,6 +20,25 @@ from .transport.transport import Transport
 
 
 class Client:
+    """The Client class is the main entrypoint to execute GraphQL requests
+    on a GQL transport.
+
+    It can take sync or async transports as argument and can either execute
+    and subscribe to requests itself with the
+    :func:`execute <gql.client.Client.execute>` and
+    :func:`subscribe <gql.client.Client.subscribe>` methods
+    OR can be used to get a sync or async session depending on the
+    transport type.
+
+    To connect to an :ref:`async transport <async_transports>` and get an
+    :class:`async session <gql.client.AsyncClientSession>`,
+    use :code:`async with client as session:`
+
+    To connect to a :ref:`sync transport <sync_transports>` and get a
+    :class:`sync session <gql.client.SyncClientSession>`,
+    use :code:`with client as session:`
+    """
+
     def __init__(
         self,
         schema: Optional[Union[str, GraphQLSchema]] = None,
@@ -29,6 +48,16 @@ class Client:
         fetch_schema_from_transport: bool = False,
         execute_timeout: Optional[int] = 10,
     ):
+        """Initialize the client with the given parameters.
+
+        :param schema: an optional GraphQL Schema for local validation
+                See :ref:`schema_validation`
+        :param transport: The provided :ref:`transport <Transports>`.
+        :param fetch_schema_from_transport: Boolean to indicate that if we want to fetch
+                the schema from the transport using an introspection query
+        :param execute_timeout: The maximum time in seconds for the execution of a
+                request before a TimeoutError is raised
+        """
         assert not (
             type_def and introspection
         ), "Cannot provide introspection and type definition at the same time."
@@ -81,7 +110,8 @@ class Client:
             with self as session:
                 session.fetch_schema()
 
-    def validate(self, document):
+    def validate(self, document: DocumentNode):
+        """:meta private:"""
         assert (
             self.schema
         ), "Cannot validate the document locally, you need to pass a schema."
@@ -91,21 +121,36 @@ class Client:
             raise validation_errors[0]
 
     def execute_sync(self, document: DocumentNode, *args, **kwargs) -> Dict:
+        """:meta private:"""
         with self as session:
             return session.execute(document, *args, **kwargs)
 
     async def execute_async(self, document: DocumentNode, *args, **kwargs) -> Dict:
+        """:meta private:"""
         async with self as session:
             return await session.execute(document, *args, **kwargs)
 
     def execute(self, document: DocumentNode, *args, **kwargs) -> Dict:
-        """Execute the provided document AST against the configured remote server.
+        """Execute the provided document AST against the remote server using
+        the transport provided during init.
 
-        This function WILL BLOCK until the result is received from the server.
+        This function **WILL BLOCK** until the result is received from the server.
 
         Either the transport is sync and we execute the query synchronously directly
         OR the transport is async and we execute the query in the asyncio loop
         (blocking here until answer).
+
+        This method will:
+
+         - connect using the transport to get a session
+         - execute the GraphQL request on the transport session
+         - close the session and close the connection to the server
+
+         If you have multiple requests to send, it is better to get your own session
+         and execute the requests in your session.
+
+         The extra arguments passed in the method will be passed to the transport
+         execute method.
         """
 
         if isinstance(self.transport, AsyncTransport):
@@ -135,6 +180,7 @@ class Client:
     async def subscribe_async(
         self, document: DocumentNode, *args, **kwargs
     ) -> AsyncGenerator[Dict, None]:
+        """:meta private:"""
         async with self as session:
 
             generator: AsyncGenerator[Dict, None] = session.subscribe(
@@ -228,13 +274,14 @@ class Client:
 
 
 class SyncClientSession:
-    """An instance of this class is created when using 'with' on the client.
+    """An instance of this class is created when using :code:`with` on the client.
 
     It contains the sync method execute to send queries
-    with the sync transports.
+    on a sync transport using the same session.
     """
 
     def __init__(self, client: Client):
+        """:param client: the :class:`client <gql.client.Client>` used"""
         self.client = client
 
     def _execute(self, document: DocumentNode, *args, **kwargs) -> ExecutionResult:
@@ -263,6 +310,10 @@ class SyncClientSession:
         return result.data
 
     def fetch_schema(self) -> None:
+        """Fetch the GraphQL schema explicitely using introspection.
+
+        Don't use this function and instead set the fetch_schema_from_transport
+        attribute to True"""
         execution_result = self.transport.execute(parse(get_introspection_query()))
         self.client.introspection = execution_result.data
         self.client.schema = build_client_schema(self.client.introspection)
@@ -273,13 +324,15 @@ class SyncClientSession:
 
 
 class AsyncClientSession:
-    """An instance of this class is created when using 'async with' on the client.
+    """An instance of this class is created when using :code:`async with` on a
+    :class:`client <gql.client.Client>`.
 
     It contains the async methods (execute, subscribe) to send queries
-    with the async transports.
+    on an async transport using the same session.
     """
 
     def __init__(self, client: Client):
+        """:param client: the :class:`client <gql.client.Client>` used"""
         self.client = client
 
     async def fetch_and_validate(self, document: DocumentNode):
@@ -323,6 +376,10 @@ class AsyncClientSession:
     async def subscribe(
         self, document: DocumentNode, *args, **kwargs
     ) -> AsyncGenerator[Dict, None]:
+        """Coroutine to subscribe asynchronously to the provided document AST
+        asynchronously using the async transport.
+
+        The extra arguments are passed to the transport subscribe method."""
 
         # Validate and subscribe on the transport
         async for result in self._subscribe(document, *args, **kwargs):
@@ -339,7 +396,6 @@ class AsyncClientSession:
     async def _execute(
         self, document: DocumentNode, *args, **kwargs
     ) -> ExecutionResult:
-
         # Fetch schema from transport if needed and validate document if possible
         await self.fetch_and_validate(document)
 
@@ -350,6 +406,10 @@ class AsyncClientSession:
         )
 
     async def execute(self, document: DocumentNode, *args, **kwargs) -> Dict:
+        """Coroutine to execute the provided document AST asynchronously using
+        the async transport.
+
+        The extra arguments are passed to the transport execute method."""
 
         # Validate and execute on the transport
         result = await self._execute(document, *args, **kwargs)
@@ -367,6 +427,10 @@ class AsyncClientSession:
         return result.data
 
     async def fetch_schema(self) -> None:
+        """Fetch the GraphQL schema explicitely using introspection.
+
+        Don't use this function and instead set the fetch_schema_from_transport
+        attribute to True"""
         execution_result = await self.transport.execute(
             parse(get_introspection_query())
         )

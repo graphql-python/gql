@@ -18,11 +18,10 @@ from .exceptions import (
 
 
 class AIOHTTPTransport(AsyncTransport):
-    """Transport to execute GraphQL queries on remote servers with an http connection.
+    """:ref:`Async Transport <async_transports>` to execute GraphQL queries
+    on remote servers with an HTTP connection.
 
-    This transport use the aiohttp library with asyncio
-
-    See README.md for Usage
+    This transport use the aiohttp library with asyncio.
     """
 
     def __init__(
@@ -42,7 +41,11 @@ class AIOHTTPTransport(AsyncTransport):
         :param cookies: Dict of HTTP cookies.
         :param auth: BasicAuth object to enable Basic HTTP auth if needed
         :param ssl: ssl_context of the connection. Use ssl=False to disable encryption
-        :param client_session_args: Dict of extra args passed to aiohttp.ClientSession
+        :param client_session_args: Dict of extra args passed to
+                `aiohttp.ClientSession`_
+
+        .. _aiohttp.ClientSession:
+          https://docs.aiohttp.org/en/stable/client_reference.html#aiohttp.ClientSession
         """
         self.url: str = url
         self.headers: Optional[LooseHeaders] = headers
@@ -55,11 +58,13 @@ class AIOHTTPTransport(AsyncTransport):
         self.session: Optional[aiohttp.ClientSession] = None
 
     async def connect(self) -> None:
-        """Coroutine which will:
+        """Coroutine which will create an aiohttp ClientSession() as self.session.
 
-        - create an aiohttp ClientSession() as self.session
+        Don't call this coroutine directly on the transport, instead use
+        :code:`async with` on the client and this coroutine will be executed
+        to create the session.
 
-        Should be cleaned with a call to the close coroutine
+        Should be cleaned with a call to the close coroutine.
         """
 
         if self.session is None:
@@ -84,6 +89,12 @@ class AIOHTTPTransport(AsyncTransport):
             raise TransportAlreadyConnected("Transport is already connected")
 
     async def close(self) -> None:
+        """Coroutine which will close the aiohttp session.
+
+        Don't call this coroutine directly on the transport, instead use
+        :code:`async with` on the client and this coroutine will be executed
+        when you exit the async context manager.
+        """
         if self.session is not None:
             await self.session.close()
         self.session = None
@@ -95,11 +106,19 @@ class AIOHTTPTransport(AsyncTransport):
         operation_name: Optional[str] = None,
         extra_args: Dict[str, Any] = {},
     ) -> ExecutionResult:
-        """Execute the provided document AST against the configured remote server.
+        """Execute the provided document AST against the configured remote server
+        using the current session.
         This uses the aiohttp library to perform a HTTP POST request asynchronously
         to the remote server.
 
-        The result is sent as an ExecutionResult object.
+        Don't call this coroutine directly on the transport, instead use
+        :code:`execute` on a client or a session.
+
+        :param document: the parsed GraphQL request
+        :param variables_values: An optional Dict of variable values
+        :param operation_name: An optional Operation name for the request
+        :param extra_args: additional arguments to send to the aiohttp post method
+        :returns: an ExecutionResult object.
         """
 
         query_str = print_ast(document)
@@ -149,4 +168,8 @@ class AIOHTTPTransport(AsyncTransport):
         variable_values: Optional[Dict[str, str]] = None,
         operation_name: Optional[str] = None,
     ) -> AsyncGenerator[ExecutionResult, None]:
+        """Subscribe is not supported on HTTP.
+
+        :meta private:
+        """
         raise NotImplementedError(" The HTTP transport does not support subscriptions")
