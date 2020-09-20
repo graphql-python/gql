@@ -5,9 +5,10 @@ Basic usage
 
 In order to execute a GraphQL request against a GraphQL API:
 
-* create your gql :ref:`transport <transports>` in order to choose the destination url and the protocol used to communicate with it
-* create a gql `Client` with the selected transport
-* parse a query using `gql`
+* create your gql :ref:`transport <transports>` in order to choose the destination url
+  and the protocol used to communicate with it
+* create a gql :class:`Client <gql.client.Client>` with the selected transport
+* parse a query using :func:`gql <gql.gql>`
 * execute the query on the client to get the result
 
 .. literalinclude:: ../code_examples/aiohttp_sync.py

@@ -3,12 +3,12 @@ Reference
 
 .. currentmodule:: gql
 
-.. autofunction:: gql
-
 .. _top-level-functions:
 
 Top-Level Functions
 -------------------
+
+.. automodule:: gql
 
 .. _sub-packages:
 
@@ -19,5 +19,4 @@ Sub-Packages
    :maxdepth: 1
 
    client
-   dsl
    transport

@@ -78,12 +78,11 @@ class ListenerQueue:
 
 
 class WebsocketsTransport(AsyncTransport):
-    """Transport to execute GraphQL queries on remote servers with websocket connection.
+    """:ref:`Async Transport <async_transports>` used to execute GraphQL queries on
+    remote servers with websocket connection.
 
     This transport uses asyncio and the websockets library in order to send requests
     on a websocket connection.
-
-    See README.md for usage.
     """
 
     def __init__(
@@ -97,7 +96,7 @@ class WebsocketsTransport(AsyncTransport):
         ack_timeout: int = 10,
         connect_args: Dict[str, Any] = {},
     ) -> None:
-        """Initialize the transport with the given request parameters.
+        """Initialize the transport with the given parameters.
 
         :param url: The GraphQL server URL. Example: 'wss://server.com:PORT/graphql'.
         :param headers: Dict of HTTP Headers.
@@ -454,7 +453,8 @@ class WebsocketsTransport(AsyncTransport):
         variable_values: Optional[Dict[str, str]] = None,
         operation_name: Optional[str] = None,
     ) -> ExecutionResult:
-        """Execute a GrqphQLQuery.
+        """Execute the provided document AST against the configured remote server
+        using the current session.
 
         Send a query but close the async generator as soon as we have the first answer.
 

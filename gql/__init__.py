@@ -1,3 +1,12 @@
+"""The primary :mod:`gql` package includes everything you need to
+execute GraphQL requests:
+
+ - the :func:`gql <gql.gql>` method to parse a GraphQL query
+ - the :class:`Client <gql.Client>` class as the entrypoint to execute requests
+   and create sessions
+ - all the transports classes implementing different communication protocols
+"""
+
 from .client import Client
 from .gql import gql
 from .transport.aiohttp import AIOHTTPTransport

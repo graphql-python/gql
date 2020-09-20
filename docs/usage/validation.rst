@@ -1,3 +1,5 @@
+.. _schema_validation:
+
 Schema validation
 =================
 
