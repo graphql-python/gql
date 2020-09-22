@@ -13,10 +13,22 @@ parser = argparse.ArgumentParser(
 parser.add_argument(
     "server", help="the server url starting with http://, https://, ws:// or wss://"
 )
+parser.add_argument(
+    "params", nargs="*", help="query parameters in the form param=value"
+)
 args = parser.parse_args()
 
 
 async def main():
+
+    params = {}
+    if 'params' in args:
+        for p in args.params:
+            param = p.split('=')
+            if len(param) != 2:
+                print('bad param:', p)
+                return 1
+            params[param[0]] = param[1]
 
     url = URL(args.server)
 
@@ -43,7 +55,7 @@ async def main():
                 async for result in session.subscribe(query):
                     print(result)
             else:
-                result = await session.execute(query)
+                result = await session.execute(query, variable_values=params)
                 print(result)
 
 
