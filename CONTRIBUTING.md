@@ -133,8 +133,8 @@ and all passing tests. :rocket:
 5. Verify that the [Coding guidelines](#coding-guidelines) are respected
 6. Verify that the [automated tests](#running-tests) are passing
 7. Make a commit and push it to your fork
-8. From github, create the pull request. Automated tests from travis
-and coveralls will then automatically run the tests and check the code coverage
+8. From github, create the pull request. Automated tests from GitHub actions
+and codecov will then automatically run the tests and check the code coverage
 9. If other modifications are needed, you are free to create more commits and
 push them on your branch. They'll get added to the PR automatically.
 
