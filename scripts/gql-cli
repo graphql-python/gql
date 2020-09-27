@@ -25,7 +25,7 @@ async def main():
 
     # Parse the params argument
     params = {}
-    if 'params' in args:
+    if args.params is not None:
         for p in args.params:
 
             try:
