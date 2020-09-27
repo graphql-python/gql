@@ -24,3 +24,20 @@ jobs:
       run: tox
       env:
         TOXENV: ${{ matrix.toxenv }}
+    - if: matrix.python-version == "3.8"
+      name: Coveralls Parallel
+      uses: coverallsapp/github-action@master
+      with:
+        github-token: ${{ secrets.github_token }}
+        flag-name: run-${{ matrix.python-version }}
+        parallel: true
+
+  coverage:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Coveralls Finished
+      uses: coverallsapp/github-action@master
+      with:
+        github-token: ${{ secrets.github_token }}
+        parallel-finished: true
