@@ -13,7 +13,6 @@ scripts = [
 ]
 
 tests_require = [
-    "coveralls==2.0.0",
     "parse==1.15.0",
     "pytest==5.4.2",
     "pytest-asyncio==0.11.0",
