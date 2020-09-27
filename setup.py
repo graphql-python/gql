@@ -1,3 +1,5 @@
+import os
+
 from setuptools import setup, find_packages
 
 install_requires = [
@@ -28,12 +30,18 @@ dev_requires = [
     "isort==4.3.21",
     "mypy==0.770",
     "sphinx>=3.0.0,<4",
-    "sphinx_rtd_theme>=0.4,<1"
+    "sphinx_rtd_theme>=0.4,<1",
 ] + tests_require
+
+# Get version from __version__.py file
+current_folder = os.path.abspath(os.path.dirname(__file__))
+about = {}
+with open(os.path.join(current_folder, "gql", "__version__.py"), "r") as f:
+    exec(f.read(), about)
 
 setup(
     name="gql",
-    version="3.0.0a1",
+    version=about["__version__"],
     description="GraphQL client for Python",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
