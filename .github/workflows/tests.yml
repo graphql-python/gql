@@ -24,8 +24,7 @@ jobs:
       run: tox
       env:
         TOXENV: ${{ matrix.toxenv }}
-    - if: matrix.python-version == "3.8"
-      name: Coveralls Parallel
+    - name: Coveralls Parallel
       uses: coverallsapp/github-action@master
       with:
         github-token: ${{ secrets.github_token }}
