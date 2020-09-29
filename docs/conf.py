@@ -22,7 +22,8 @@ copyright = '2020, graphql-python.org'
 author = 'graphql-python.org'
 
 # The full version, including alpha/beta/rc tags
-release = '3.0.0a1'
+from gql import __version__
+release = __version__
 
 
 # -- General configuration ---------------------------------------------------
