@@ -1,4 +1,5 @@
 import json
+import logging
 from ssl import SSLContext
 from typing import Any, AsyncGenerator, Dict, Optional, Union
 
@@ -17,6 +18,8 @@ from .exceptions import (
     TransportProtocolError,
     TransportServerError,
 )
+
+log = logging.getLogger(__name__)
 
 
 class AIOHTTPTransport(AsyncTransport):
@@ -107,6 +110,7 @@ class AIOHTTPTransport(AsyncTransport):
         variable_values: Optional[Dict[str, str]] = None,
         operation_name: Optional[str] = None,
         extra_args: Dict[str, Any] = None,
+        upload_files: bool = False,
     ) -> ExecutionResult:
         """Execute the provided document AST against the configured remote server
         using the current session.
@@ -120,50 +124,70 @@ class AIOHTTPTransport(AsyncTransport):
         :param variables_values: An optional Dict of variable values
         :param operation_name: An optional Operation name for the request
         :param extra_args: additional arguments to send to the aiohttp post method
+        :param upload_files: Set to True if you want to put files in the variable values
         :returns: an ExecutionResult object.
         """
 
         query_str = print_ast(document)
 
-        nulled_variable_values = None
-        files = None
-        if variable_values:
-            nulled_variable_values, files = extract_files(variable_values)
-
         payload: Dict[str, Any] = {
             "query": query_str,
         }
 
-        if nulled_variable_values:
-            payload["variables"] = nulled_variable_values
         if operation_name:
             payload["operationName"] = operation_name
 
-        if files:
+        if upload_files:
+
+            # If the upload_files flag is set, then we need variable_values
+            assert variable_values is not None
+
+            # If we upload files, we will extract the files present in the
+            # variable_values dict and replace them by null values
+            nulled_variable_values, files = extract_files(variable_values)
+
+            # Save the nulled variable values in the payload
+            payload["variables"] = nulled_variable_values
+
+            # Prepare aiohttp to send multipart-encoded data
             data = aiohttp.FormData()
 
-            # header
-            file_map = {str(i): [path] for i, path in enumerate(files)}
+            # Generate the file map
             # path is nested in a list because the spec allows multiple pointers
-            # to the same file. But we don't use that.
-            file_streams = {
-                str(i): files[path] for i, path in enumerate(files)
-            }  # payload
+            # to the same file. But we don't support that.
+            # Will generate something like {"0": ["variables.file"]}
+            file_map = {str(i): [path] for i, path in enumerate(files)}
 
+            # Enumerate the file streams
+            # Will generate something like {'0': <_io.BufferedReader ...>}
+            file_streams = {str(i): files[path] for i, path in enumerate(files)}
+
+            # Add the payload to the operations field
+            operations_str = json.dumps(payload)
+            log.debug("operations %s", operations_str)
             data.add_field(
-                "operations", json.dumps(payload), content_type="application/json"
+                "operations", operations_str, content_type="application/json"
             )
-            data.add_field("map", json.dumps(file_map), content_type="application/json")
+
+            # Add the file map field
+            file_map_str = json.dumps(file_map)
+            log.debug("file_map %s", file_map_str)
+            data.add_field("map", file_map_str, content_type="application/json")
+
+            # Add the extracted files as remaining fields
             data.add_fields(*file_streams.items())
 
-            post_args = {"data": data}
+            post_args: Dict[str, Any] = {"data": data}
 
         else:
-            post_args = {"json": payload}  # type: ignore
+            if variable_values:
+                payload["variables"] = variable_values
+
+            post_args = {"json": payload}
 
         # Pass post_args to aiohttp post method
         if extra_args:
-            post_args.update(extra_args)  # type: ignore
+            post_args.update(extra_args)
 
         if self.session is None:
             raise TransportClosed("Transport is not connected")
