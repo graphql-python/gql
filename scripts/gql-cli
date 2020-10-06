@@ -6,6 +6,8 @@ from gql.transport.aiohttp import AIOHTTPTransport
 from yarl import URL
 import asyncio
 import argparse
+import sys
+import json
 
 parser = argparse.ArgumentParser(
     description="Send GraphQL queries from command line using http(s) or websockets"
@@ -13,10 +15,38 @@ parser = argparse.ArgumentParser(
 parser.add_argument(
     "server", help="the server url starting with http://, https://, ws:// or wss://"
 )
+parser.add_argument(
+    "-p", "--params", nargs="*", help="query parameters in the form param:json_value"
+)
 args = parser.parse_args()
 
 
 async def main():
+
+    # Parse the params argument
+    params = {}
+    if args.params is not None:
+        for p in args.params:
+
+            try:
+                # Split only the first colon (throw a ValueError if no colon is present)
+                param_key, param_json_value = p.split(':', 1)
+
+                # Extract the json value, trying with double quotes if it does not work
+                try:
+                    param_value = json.loads(param_json_value)
+                except json.JSONDecodeError:
+                    try:
+                        param_value = json.loads(f'"{param_json_value}"')
+                    except json.JSONDecodeError:
+                        raise ValueError
+
+                # Save the value in the params dict
+                params[param_key] = param_value
+
+            except ValueError:
+                print (f"Invalid parameter: {p}", file=sys.stderr)
+                return 1
 
     url = URL(args.server)
 
@@ -40,11 +70,10 @@ async def main():
             query = gql(query_str)
 
             if scheme in ["ws", "wss"]:
-                async for result in session.subscribe(query):
+                async for result in session.subscribe(query, variable_values=params):
                     print(result)
             else:
-                result = await session.execute(query)
+                result = await session.execute(query, variable_values=params)
                 print(result)
-
 
 asyncio.run(main())
