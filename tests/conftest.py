@@ -194,20 +194,15 @@ class TemporaryFile:
 
     def __init__(self, content: Union[str, bytearray]):
 
-        open_params = {}
+        mode = "w" if isinstance(content, str) else "wb"
 
-        if isinstance(content, str):
+        # We need to set the newline to '' so that the line returns
+        # are not replaced by '\r\n' on windows
+        newline = "" if isinstance(content, str) else None
 
-            open_params["mode"] = "w"
-
-            # We need to set the newline to '' so that the line returns
-            # are not replaced to '\r\n' on windows
-            open_params["newline"] = ""
-
-        else:
-            open_params["mode"] = "wb"
-
-        self.file = tempfile.NamedTemporaryFile(**open_params, delete=False)
+        self.file = tempfile.NamedTemporaryFile(
+            mode=mode, newline=newline, delete=False
+        )
 
         with self.file as f:
             f.write(content)
