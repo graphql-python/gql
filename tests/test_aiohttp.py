@@ -443,6 +443,67 @@ async def test_aiohttp_file_upload_without_session(
     await run_sync_test(event_loop, server, test_code)
 
 
+# This is a sample binary file content containing all possible byte values
+binary_file_content = bytes(range(0, 256))
+
+
+async def binary_upload_handler(request):
+
+    reader = await request.multipart()
+
+    field_0 = await reader.next()
+    assert field_0.name == "operations"
+    field_0_text = await field_0.text()
+    assert field_0_text == file_upload_mutation_1_operations
+
+    field_1 = await reader.next()
+    assert field_1.name == "map"
+    field_1_text = await field_1.text()
+    assert field_1_text == file_upload_mutation_1_map
+
+    field_2 = await reader.next()
+    assert field_2.name == "0"
+    field_2_binary = await field_2.read()
+    assert field_2_binary == binary_file_content
+
+    field_3 = await reader.next()
+    assert field_3 is None
+
+    return web.Response(text=file_upload_server_answer, content_type="application/json")
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_binary_file_upload(event_loop, aiohttp_server):
+    app = web.Application()
+    app.router.add_route("POST", "/", binary_upload_handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    sample_transport = AIOHTTPTransport(url=url, timeout=10)
+
+    with TemporaryFile(binary_file_content) as test_file:
+
+        async with Client(transport=sample_transport,) as session:
+
+            query = gql(file_upload_mutation_1)
+
+            file_path = test_file.filename
+
+            with open(file_path, "rb") as f:
+
+                params = {"file": f, "other_var": 42}
+
+                # Execute query asynchronously
+                result = await session.execute(
+                    query, variable_values=params, upload_files=True
+                )
+
+            success = result["success"]
+
+            assert success
+
+
 file_upload_mutation_2 = """
     mutation($file1: Upload!, $file2: Upload!) {
       uploadFile(input:{file1:$file, file2:$file}) {

@@ -7,6 +7,7 @@ import ssl
 import tempfile
 import types
 from concurrent.futures import ThreadPoolExecutor
+from typing import Union
 
 import pytest
 import websockets
@@ -191,9 +192,22 @@ class PhoenixChannelServerHelper:
 class TemporaryFile:
     """Class used to generate temporary files for the tests"""
 
-    def __init__(self, content):
+    def __init__(self, content: Union[str, bytearray]):
 
-        self.file = tempfile.NamedTemporaryFile(mode="w", delete=False)
+        open_params = {}
+
+        if isinstance(content, str):
+
+            open_params["mode"] = "w"
+
+            # We need to set the newline to '' so that the line returns
+            # are not replaced to '\r\n' on windows
+            open_params["newline"] = ""
+
+        else:
+            open_params["mode"] = "wb"
+
+        self.file = tempfile.NamedTemporaryFile(**open_params, delete=False)
 
         with self.file as f:
             f.write(content)
