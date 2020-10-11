@@ -21,6 +21,9 @@ parser.add_argument(
 parser.add_argument(
     "-p", "--params", nargs="*", help="query parameters in the form param:json_value"
 )
+parser.add_argument(
+    "-H", "--headers", nargs="*", help="http headers in the form key:value"
+)
 parser.add_argument("--version", action="version", version=f"v{__version__}")
 group = parser.add_mutually_exclusive_group()
 group.add_argument(
@@ -76,14 +79,35 @@ async def main():
                 print(f"Invalid parameter: {p}", file=sys.stderr)
                 return 1
 
+    # Parse the headers argument
+    headers = {}
+    if args.headers is not None:
+        for header in args.headers:
+
+            try:
+                # Split only the first colon (throw a ValueError if no colon is present)
+                header_key, header_value = header.split(":", 1)
+
+                headers[header_key] = header_value
+
+            except ValueError:
+                print(f"Invalid header: {header}", file=sys.stderr)
+                return 1
+
     url = URL(args.server)
 
     scheme = url.scheme
 
+    transport_params = {}
+    if args.headers is not None:
+        transport_params["headers"] = headers
+
     if scheme in ["ws", "wss"]:
-        transport = WebsocketsTransport(url=args.server, ssl=(scheme == "wss"))
+        transport = WebsocketsTransport(
+            url=args.server, ssl=(scheme == "wss"), **transport_params
+        )
     elif scheme in ["http", "https"]:
-        transport = AIOHTTPTransport(url=args.server)
+        transport = AIOHTTPTransport(url=args.server, **transport_params)
     else:
         raise ValueError("URL protocol should be one of: http, https, ws, wss")
 
