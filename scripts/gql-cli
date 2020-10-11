@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from gql import gql, Client
+from gql import gql, Client, __version__
 from gql.transport.websockets import WebsocketsTransport
 from gql.transport.aiohttp import AIOHTTPTransport
 from yarl import URL
@@ -18,6 +18,7 @@ parser.add_argument(
 parser.add_argument(
     "-p", "--params", nargs="*", help="query parameters in the form param:json_value"
 )
+parser.add_argument("--version", action="version", version=f"v{__version__}")
 args = parser.parse_args()
 
 
@@ -30,7 +31,7 @@ async def main():
 
             try:
                 # Split only the first colon (throw a ValueError if no colon is present)
-                param_key, param_json_value = p.split(':', 1)
+                param_key, param_json_value = p.split(":", 1)
 
                 # Extract the json value, trying with double quotes if it does not work
                 try:
@@ -45,7 +46,7 @@ async def main():
                 params[param_key] = param_value
 
             except ValueError:
-                print (f"Invalid parameter: {p}", file=sys.stderr)
+                print(f"Invalid parameter: {p}", file=sys.stderr)
                 return 1
 
     url = URL(args.server)
@@ -75,5 +76,6 @@ async def main():
             else:
                 result = await session.execute(query, variable_values=params)
                 print(result)
+
 
 asyncio.run(main())
