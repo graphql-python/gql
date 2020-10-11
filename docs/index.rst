@@ -17,6 +17,7 @@ Contents
    async/index
    transports/index
    advanced/index
+   gql-cli/intro
    modules/gql
 
 

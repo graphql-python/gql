@@ -31,6 +31,7 @@ dev_requires = [
     "mypy==0.770",
     "sphinx>=3.0.0,<4",
     "sphinx_rtd_theme>=0.4,<1",
+    "sphinx-argparse==0.2.5",
 ] + tests_require
 
 # Get version from __version__.py file

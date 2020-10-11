@@ -3,7 +3,7 @@
 from gql.cli import get_parser, run_gql_cli
 
 # Get arguments from command line
-parser = get_parser()
+parser = get_parser(with_examples=True)
 args = parser.parse_args()
 
 # Execute the script
