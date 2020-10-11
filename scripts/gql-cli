@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 
-from gql import gql, Client, __version__
-from gql.transport.websockets import WebsocketsTransport
-from gql.transport.aiohttp import AIOHTTPTransport
-from yarl import URL
-import asyncio
 import argparse
-import sys
+import asyncio
 import json
+import logging
+import sys
+
+from yarl import URL
+
+from gql import Client, __version__, gql
+from gql.transport.aiohttp import AIOHTTPTransport
+from gql.transport.websockets import WebsocketsTransport
 
 parser = argparse.ArgumentParser(
     description="Send GraphQL queries from command line using http(s) or websockets"
@@ -19,8 +22,22 @@ parser.add_argument(
     "-p", "--params", nargs="*", help="query parameters in the form param:json_value"
 )
 parser.add_argument("--version", action="version", version=f"v{__version__}")
+group = parser.add_mutually_exclusive_group()
+group.add_argument(
+    '-d', '--debug',
+    help="print lots of debugging statements",
+    action="store_const", dest="loglevel", const=logging.DEBUG,
+    default=logging.WARNING,
+)
+group.add_argument(
+    '-v', '--verbose',
+    help="show low level messages",
+    action="store_const", dest="loglevel", const=logging.INFO,
+)
+
 args = parser.parse_args()
 
+logging.basicConfig(level=args.loglevel)
 
 async def main():
 
