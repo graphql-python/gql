@@ -6,14 +6,50 @@ import json
 import logging
 import sys
 
+from graphql import GraphQLError
 from yarl import URL
 
 from gql import Client, __version__, gql
 from gql.transport.aiohttp import AIOHTTPTransport
+from gql.transport.exceptions import TransportQueryError
 from gql.transport.websockets import WebsocketsTransport
 
+description = """
+Send GraphQL queries from the command line using http(s) or websockets.
+If used interactively, write your query, then use Ctrl-D (EOF) to execute it.
+
+USAGE
+=====
+"""
+
+examples = """
+EXAMPLES
+========
+
+# Simple query using https
+echo 'query { continent(code:"AF") { name } }' | \
+gql-cli https://countries.trevorblades.com
+
+# Simple query using websockets
+echo 'query { continent(code:"AF") { name } }' | \
+gql-cli wss://countries.trevorblades.com/graphql
+
+# Query with variable
+echo 'query getContinent($code:ID!) { continent(code:$code) { name } }' | \
+gql-cli https://countries.trevorblades.com --params code:AF
+
+# Interactive usage (insert your query in the terminal, then press Ctrl-D to execute it)
+gql-cli wss://countries.trevorblades.com/graphql --params code:AF
+
+# Execute query saved in a file
+cat query.gql | gql-cli wss://countries.trevorblades.com/graphql
+
+"""
+
 parser = argparse.ArgumentParser(
-    description="Send GraphQL queries from command line using http(s) or websockets"
+    description=description,
+    epilog=examples,
+    formatter_class=argparse.RawDescriptionHelpFormatter,
 )
 parser.add_argument(
     "server", help="the server url starting with http://, https://, ws:// or wss://"
@@ -94,14 +130,16 @@ async def main():
                 print(f"Invalid header: {header}", file=sys.stderr)
                 return 1
 
+    # Get the url scheme from server parameter
     url = URL(args.server)
-
     scheme = url.scheme
 
+    # Get extra transport parameters from command line arguments
     transport_params = {}
     if args.headers is not None:
         transport_params["headers"] = headers
 
+    # Instanciate transport depending on url scheme
     if scheme in ["ws", "wss"]:
         transport = WebsocketsTransport(
             url=args.server, ssl=(scheme == "wss"), **transport_params
@@ -111,30 +149,52 @@ async def main():
     else:
         raise ValueError("URL protocol should be one of: http, https, ws, wss")
 
+    # Get extra execution parameters from command line arguments
+    extra_params = {}
+
+    if args.params is not None:
+        extra_params["variable_values"] = params
+
+    if args.operation_name is not None:
+        extra_params["operation_name"] = args.operation_name
+
+    # Connect to the backend and provide a session
     async with Client(transport=transport) as session:
 
         while True:
-            try:
-                query_str = input()
-            except EOFError:
+
+            # Read multiple lines from input and trim whitespaces
+            # Will read until EOF character is received (Ctrl-D)
+            query_str = sys.stdin.read().strip()
+
+            # Exit if query is empty
+            if len(query_str) == 0:
                 break
 
-            query = gql(query_str)
+            # Parse query, continue on error
+            try:
+                query = gql(query_str)
+            except GraphQLError as e:
+                print(e, file=sys.stderr)
+                continue
 
-            extra_params = {}
-
-            if args.params is not None:
-                extra_params["variable_values"] = params
-
-            if args.operation_name is not None:
-                extra_params["operation_name"] = args.operation_name
-
-            if scheme in ["ws", "wss"]:
-                async for result in session.subscribe(query, **extra_params):
+            # Execute or Subscribe the query depending on transport
+            try:
+                if scheme in ["ws", "wss"]:
+                    try:
+                        async for result in session.subscribe(query, **extra_params):
+                            print(result)
+                    except KeyboardInterrupt:
+                        pass
+                else:
+                    result = await session.execute(query, **extra_params)
                     print(result)
-            else:
-                result = await session.execute(query, **extra_params)
-                print(result)
+            except TransportQueryError as e:
+                print(e)
+                pass
 
 
-asyncio.run(main())
+try:
+    asyncio.run(main())
+except KeyboardInterrupt:
+    pass
