@@ -24,20 +24,30 @@ parser.add_argument(
 parser.add_argument("--version", action="version", version=f"v{__version__}")
 group = parser.add_mutually_exclusive_group()
 group.add_argument(
-    '-d', '--debug',
+    "-d",
+    "--debug",
     help="print lots of debugging statements",
-    action="store_const", dest="loglevel", const=logging.DEBUG,
+    action="store_const",
+    dest="loglevel",
+    const=logging.DEBUG,
     default=logging.WARNING,
 )
 group.add_argument(
-    '-v', '--verbose',
+    "-v",
+    "--verbose",
     help="show low level messages",
-    action="store_const", dest="loglevel", const=logging.INFO,
+    action="store_const",
+    dest="loglevel",
+    const=logging.INFO,
+)
+parser.add_argument(
+    "-o", "--operation-name", help="set the operation_name value", dest="operation_name"
 )
 
 args = parser.parse_args()
 
 logging.basicConfig(level=args.loglevel)
+
 
 async def main():
 
@@ -87,11 +97,19 @@ async def main():
 
             query = gql(query_str)
 
+            extra_params = {}
+
+            if args.params is not None:
+                extra_params["variable_values"] = params
+
+            if args.operation_name is not None:
+                extra_params["operation_name"] = args.operation_name
+
             if scheme in ["ws", "wss"]:
-                async for result in session.subscribe(query, variable_values=params):
+                async for result in session.subscribe(query, **extra_params):
                     print(result)
             else:
-                result = await session.execute(query, variable_values=params)
+                result = await session.execute(query, **extra_params)
                 print(result)
 
 
