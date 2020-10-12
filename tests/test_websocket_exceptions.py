@@ -348,3 +348,37 @@ async def test_websocket_non_regression_bug_105(event_loop, server):
 
     with pytest.raises(TransportAlreadyConnected):
         await asyncio.gather(connect_task1, connect_task2)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("server", [invalid_query1_server], indirect=True)
+async def test_websocket_using_cli_invalid_query(
+    event_loop, server, monkeypatch, capsys
+):
+
+    url = f"ws://{server.hostname}:{server.port}/graphql"
+    print(f"url = {url}")
+
+    from gql.cli import main, get_parser
+    import io
+
+    parser = get_parser(with_examples=True)
+    args = parser.parse_args([url])
+
+    # Monkeypatching sys.stdin to simulate getting the query
+    # via the standard input
+    monkeypatch.setattr("sys.stdin", io.StringIO(invalid_query_str))
+
+    # Flush captured output
+    captured = capsys.readouterr()
+
+    await main(args)
+
+    # Check that the error has been printed on stdout
+    captured = capsys.readouterr()
+    captured_err = str(captured.err).strip()
+    print(f"Captured: {captured_err}")
+
+    expected_error = 'Cannot query field "bloh" on type "Continent"'
+
+    assert expected_error in captured_err

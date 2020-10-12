@@ -1,7 +1,11 @@
+import io
+import json
+
 import pytest
 from aiohttp import DummyCookieJar, web
 
 from gql import Client, gql
+from gql.cli import get_parser, main
 from gql.transport.aiohttp import AIOHTTPTransport
 from gql.transport.exceptions import (
     TransportAlreadyConnected,
@@ -20,13 +24,16 @@ query1_str = """
     }
 """
 
-query1_server_answer = (
-    '{"data":{"continents":['
+query1_server_answer_data = (
+    '{"continents":['
     '{"code":"AF","name":"Africa"},{"code":"AN","name":"Antarctica"},'
     '{"code":"AS","name":"Asia"},{"code":"EU","name":"Europe"},'
     '{"code":"NA","name":"North America"},{"code":"OC","name":"Oceania"},'
-    '{"code":"SA","name":"South America"}]}}'
+    '{"code":"SA","name":"South America"}]}'
 )
+
+
+query1_server_answer = f'{{"data":{query1_server_answer_data}}}'
 
 
 @pytest.mark.asyncio
@@ -321,3 +328,103 @@ async def test_aiohttp_subscribe_running_in_thread(
                 pass
 
     await run_sync_test(event_loop, server, test_code)
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_using_cli(event_loop, aiohttp_server, monkeypatch, capsys):
+    async def handler(request):
+        return web.Response(text=query1_server_answer, content_type="application/json")
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = str(server.make_url("/"))
+
+    parser = get_parser(with_examples=True)
+    args = parser.parse_args([url, "--verbose"])
+
+    # Monkeypatching sys.stdin to simulate getting the query
+    # via the standard input
+    monkeypatch.setattr("sys.stdin", io.StringIO(query1_str))
+
+    exit_code = await main(args)
+
+    assert exit_code == 0
+
+    # Check that the result has been printed on stdout
+    captured = capsys.readouterr()
+    captured_out = str(captured.out).strip()
+
+    expected_answer = json.loads(query1_server_answer_data)
+    print(f"Captured: {captured_out}")
+    received_answer = json.loads(captured_out)
+
+    assert received_answer == expected_answer
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_using_cli_invalid_param(
+    event_loop, aiohttp_server, monkeypatch, capsys
+):
+    async def handler(request):
+        return web.Response(text=query1_server_answer, content_type="application/json")
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = str(server.make_url("/"))
+
+    parser = get_parser(with_examples=True)
+    args = parser.parse_args([url, "--params", "invalid_param"])
+
+    # Monkeypatching sys.stdin to simulate getting the query
+    # via the standard input
+    monkeypatch.setattr("sys.stdin", io.StringIO(query1_str))
+
+    # Checking that sys.exit() is called
+    with pytest.raises(SystemExit):
+        await main(args)
+
+    # Check that the error has been printed on stdout
+    captured = capsys.readouterr()
+    captured_err = str(captured.err).strip()
+    print(f"Captured: {captured_err}")
+
+    expected_error = "Error: Invalid parameter: invalid_param"
+
+    assert expected_error in captured_err
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_using_cli_invalid_query(
+    event_loop, aiohttp_server, monkeypatch, capsys
+):
+    async def handler(request):
+        return web.Response(text=query1_server_answer, content_type="application/json")
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = str(server.make_url("/"))
+
+    parser = get_parser(with_examples=True)
+    args = parser.parse_args([url])
+
+    # Send invalid query on standard input
+    monkeypatch.setattr("sys.stdin", io.StringIO("BLAHBLAH"))
+
+    exit_code = await main(args)
+
+    assert exit_code == 1
+
+    # Check that the error has been printed on stdout
+    captured = capsys.readouterr()
+    captured_err = str(captured.err).strip()
+    print(f"Captured: {captured_err}")
+
+    expected_error = "Syntax Error: Unexpected Name 'BLAHBLAH'"
+
+    assert expected_error in captured_err

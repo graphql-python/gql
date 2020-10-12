@@ -1,13 +1,14 @@
-import argparse
-import asyncio
 import json
 import logging
 import sys
+from argparse import ArgumentParser, Namespace, RawDescriptionHelpFormatter
+from typing import Any, Dict
 
 from graphql import GraphQLError
 from yarl import URL
 
 from gql import Client, __version__, gql
+from gql.transport import AsyncTransport
 from gql.transport.aiohttp import AIOHTTPTransport
 from gql.transport.exceptions import TransportQueryError
 from gql.transport.websockets import WebsocketsTransport
@@ -42,16 +43,20 @@ cat query.gql | gql-cli wss://countries.trevorblades.com/graphql
 """
 
 
-def get_parser(with_examples: bool = False):
+def get_parser(with_examples: bool = False) -> ArgumentParser:
     """Provides an ArgumentParser for the gql-cli script.
 
     This function is also used by sphinx to generate the script documentation.
+
+    :param with_examples: set to False by default so that the examples are not
+                          present in the sphinx docs (they are put there with
+                          a different layout)
     """
 
-    parser = argparse.ArgumentParser(
+    parser = ArgumentParser(
         description=description,
         epilog=examples if with_examples else None,
-        formatter_class=argparse.RawDescriptionHelpFormatter,
+        formatter_class=RawDescriptionHelpFormatter,
     )
     parser.add_argument(
         "server", help="the server url starting with http://, https://, ws:// or wss://"
@@ -70,7 +75,7 @@ def get_parser(with_examples: bool = False):
     group.add_argument(
         "-d",
         "--debug",
-        help="print lots of debugging statements",
+        help="print lots of debugging statements (loglevel==DEBUG)",
         action="store_const",
         dest="loglevel",
         const=logging.DEBUG,
@@ -78,7 +83,7 @@ def get_parser(with_examples: bool = False):
     group.add_argument(
         "-v",
         "--verbose",
-        help="show low level messages",
+        help="show low level messages (loglevel==INFO)",
         action="store_const",
         dest="loglevel",
         const=logging.INFO,
@@ -93,15 +98,64 @@ def get_parser(with_examples: bool = False):
     return parser
 
 
-async def main(args):
+def get_transport_args(args: Namespace) -> Dict[str, Any]:
+    """Extract extra arguments necessary for the transport
+    from the parsed command line args
 
-    # Set requested log level
-    if args.loglevel is not None:
-        logging.basicConfig(level=args.loglevel)
+    Will create a headers dict by splitting the colon
+    in the --headers arguments
 
-    # Parse the params argument
-    params = {}
+    :param args: parsed command line arguments
+    """
+
+    transport_args: Dict[str, Any] = {}
+
+    # Parse the headers argument
+    headers = {}
+    if args.headers is not None:
+        for header in args.headers:
+
+            try:
+                # Split only the first colon (throw a ValueError if no colon is present)
+                header_key, header_value = header.split(":", 1)
+
+                headers[header_key] = header_value
+
+            except ValueError:
+                raise ValueError(f"Invalid header: {header}")
+
+    if args.headers is not None:
+        transport_args["headers"] = headers
+
+    return transport_args
+
+
+def get_execute_args(args: Namespace) -> Dict[str, Any]:
+    """Extract extra arguments necessary for the execute or subscribe
+    methods from the parsed command line args
+
+    Extract the operation_name
+
+    Extract the variable_values from the --params argument
+    by splitting the first colon, then loads the json value,
+    We try to add double quotes around the value if it does not work first
+    in order to simplify the passing of simple string values
+    (we allow --params KEY:VALUE instead of KEY:\"VALUE\")
+
+    :param args: parsed command line arguments
+    """
+
+    execute_args: Dict[str, Any] = {}
+
+    # Parse the operation_name argument
+    if args.operation_name is not None:
+        execute_args["operation_name"] = args.operation_name
+
+    # Parse the params argument (variable values)
     if args.params is not None:
+
+        params = {}
+
         for p in args.params:
 
             try:
@@ -123,51 +177,66 @@ async def main(args):
                 params[param_key] = param_value
 
             except ValueError:
-                print(f"Invalid parameter: {p}", file=sys.stderr)
-                return 1
+                raise ValueError(f"Invalid parameter: {p}")
 
-    # Parse the headers argument
-    headers = {}
-    if args.headers is not None:
-        for header in args.headers:
+        execute_args["variable_values"] = params
 
-            try:
-                # Split only the first colon (throw a ValueError if no colon is present)
-                header_key, header_value = header.split(":", 1)
+    return execute_args
 
-                headers[header_key] = header_value
 
-            except ValueError:
-                print(f"Invalid header: {header}", file=sys.stderr)
-                return 1
+def get_transport(args: Namespace) -> AsyncTransport:
+    """Instanciate a transport from the parsed command line arguments
+
+    :param args: parsed command line arguments
+    """
 
     # Get the url scheme from server parameter
     url = URL(args.server)
     scheme = url.scheme
 
     # Get extra transport parameters from command line arguments
-    transport_params = {}
-    if args.headers is not None:
-        transport_params["headers"] = headers
+    # (headers)
+    transport_args = get_transport_args(args)
 
     # Instanciate transport depending on url scheme
+    transport: AsyncTransport
     if scheme in ["ws", "wss"]:
         transport = WebsocketsTransport(
-            url=args.server, ssl=(scheme == "wss"), **transport_params
+            url=args.server, ssl=(scheme == "wss"), **transport_args
         )
     elif scheme in ["http", "https"]:
-        transport = AIOHTTPTransport(url=args.server, **transport_params)
+        transport = AIOHTTPTransport(url=args.server, **transport_args)
     else:
         raise ValueError("URL protocol should be one of: http, https, ws, wss")
 
-    # Get extra execution parameters from command line arguments
-    extra_params = {}
+    return transport
 
-    if args.params is not None:
-        extra_params["variable_values"] = params
 
-    if args.operation_name is not None:
-        extra_params["operation_name"] = args.operation_name
+async def main(args: Namespace) -> int:
+    """Main entrypoint of the gql-cli script
+
+    :param args: The parsed command line arguments
+    :return: The script exit code (0 = ok, 1 = error)
+    """
+
+    # Set requested log level
+    if args.loglevel is not None:
+        logging.basicConfig(level=args.loglevel)
+
+    try:
+        # Instanciate transport from command line arguments
+        transport = get_transport(args)
+
+        # Get extra execute parameters from command line arguments
+        # (params, operation_name)
+        execute_args = get_execute_args(args)
+
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # By default, the exit_code is 0 (everything is ok)
+    exit_code = 0
 
     # Connect to the backend and provide a session
     async with Client(transport=transport) as session:
@@ -187,26 +256,22 @@ async def main(args):
                 query = gql(query_str)
             except GraphQLError as e:
                 print(e, file=sys.stderr)
+                exit_code = 1
                 continue
 
             # Execute or Subscribe the query depending on transport
             try:
-                if scheme in ["ws", "wss"]:
+                if isinstance(transport, WebsocketsTransport):
                     try:
-                        async for result in session.subscribe(query, **extra_params):
-                            print(result)
-                    except KeyboardInterrupt:
+                        async for result in session.subscribe(query, **execute_args):
+                            print(json.dumps(result))
+                    except KeyboardInterrupt:  # pragma: no cover
                         pass
                 else:
-                    result = await session.execute(query, **extra_params)
-                    print(result)
-            except TransportQueryError as e:
-                print(e)
-                pass
+                    result = await session.execute(query, **execute_args)
+                    print(json.dumps(result))
+            except (GraphQLError, TransportQueryError) as e:
+                print(e, file=sys.stderr)
+                exit_code = 1
 
-
-def run_gql_cli(args):
-    try:
-        asyncio.run(main(args))
-    except KeyboardInterrupt:
-        pass
+    return exit_code

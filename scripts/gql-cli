@@ -1,10 +1,18 @@
 #!/usr/bin/env python3
+import asyncio
+import sys
 
-from gql.cli import get_parser, run_gql_cli
+from gql.cli import get_parser, main
 
 # Get arguments from command line
 parser = get_parser(with_examples=True)
 args = parser.parse_args()
 
 # Execute the script
-run_gql_cli(args)
+try:
+    exit_code = asyncio.run(main(args))
+except KeyboardInterrupt:
+    pass
+
+# Return with the correct exit code
+sys.exit(exit_code)
