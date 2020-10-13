@@ -50,7 +50,7 @@ class DSLSchema(object):
 
 class DSLType(object):
     def __init__(self, type_):
-        self.type = type_
+        self._type = type_
 
     def __getattr__(self, name):
         formatted_name, field_def = self.get_field(name)
@@ -59,13 +59,13 @@ class DSLType(object):
     def get_field(self, name):
         camel_cased_name = to_camel_case(name)
 
-        if name in self.type.fields:
-            return name, self.type.fields[name]
+        if name in self._type.fields:
+            return name, self._type.fields[name]
 
-        if camel_cased_name in self.type.fields:
-            return camel_cased_name, self.type.fields[camel_cased_name]
+        if camel_cased_name in self._type.fields:
+            return camel_cased_name, self._type.fields[camel_cased_name]
 
-        raise KeyError(f"Field {name} does not exist in type {self.type.name}.")
+        raise KeyError(f"Field {name} does not exist in type {self._type.name}.")
 
 
 def selections(*fields):
