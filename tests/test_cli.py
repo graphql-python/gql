@@ -22,16 +22,16 @@ def test_cli_parser(parser):
     assert args.headers is None
     assert args.loglevel is None
     assert args.operation_name is None
-    assert args.params is None
+    assert args.variables is None
 
     # Call with variable values parameters
-    # gql-cli https://your_server.com --params KEY1:value1 KEY2:value2
+    # gql-cli https://your_server.com --variables KEY1:value1 KEY2:value2
     args = parser.parse_args(
-        ["https://your_server.com", "--params", "KEY1:value1", "KEY2:value2"]
+        ["https://your_server.com", "--variables", "KEY1:value1", "KEY2:value2"]
     )
 
     assert args.server == "https://your_server.com"
-    assert args.params == ["KEY1:value1", "KEY2:value2"]
+    assert args.variables == ["KEY1:value1", "KEY2:value2"]
 
     # Call with headers values parameters
     # gql-cli https://your_server.com --headers HEADER1:value1 HEADER2:value2
@@ -131,7 +131,7 @@ def test_cli_parse_operation_name(parser):
 )
 def test_cli_parse_variable_value(parser, param):
 
-    args = parser.parse_args(["https://your_server.com", "--params", *param["args"]])
+    args = parser.parse_args(["https://your_server.com", "--variables", *param["args"]])
 
     execute_args = get_execute_args(args)
 
@@ -140,10 +140,10 @@ def test_cli_parse_variable_value(parser, param):
     assert execute_args == {"variable_values": expected_variable_values}
 
 
-@pytest.mark.parametrize("arg", ["nocolon", 'key:"'])
-def test_cli_parse_variable_value_invalid_param(parser, arg):
+@pytest.mark.parametrize("param", ["nocolon", 'key:"'])
+def test_cli_parse_variable_value_invalid_param(parser, param):
 
-    args = parser.parse_args(["https://your_server.com", "--params", arg])
+    args = parser.parse_args(["https://your_server.com", "--variables", param])
 
     with pytest.raises(ValueError):
         get_execute_args(args)

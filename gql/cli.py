@@ -32,10 +32,10 @@ gql-cli wss://countries.trevorblades.com/graphql
 
 # Query with variable
 echo 'query getContinent($code:ID!) { continent(code:$code) { name } }' | \
-gql-cli https://countries.trevorblades.com --params code:AF
+gql-cli https://countries.trevorblades.com --variables code:AF
 
 # Interactive usage (insert your query in the terminal, then press Ctrl-D to execute it)
-gql-cli wss://countries.trevorblades.com/graphql --params code:AF
+gql-cli wss://countries.trevorblades.com/graphql --variables code:AF
 
 # Execute query saved in a file
 cat query.gql | gql-cli wss://countries.trevorblades.com/graphql
@@ -62,10 +62,10 @@ def get_parser(with_examples: bool = False) -> ArgumentParser:
         "server", help="the server url starting with http://, https://, ws:// or wss://"
     )
     parser.add_argument(
-        "-p",
-        "--params",
+        "-V",
+        "--variables",
         nargs="*",
-        help="query parameters in the form param:json_value",
+        help="query variables in the form key:json_value",
     )
     parser.add_argument(
         "-H", "--headers", nargs="*", help="http headers in the form key:value"
@@ -136,11 +136,11 @@ def get_execute_args(args: Namespace) -> Dict[str, Any]:
 
     Extract the operation_name
 
-    Extract the variable_values from the --params argument
+    Extract the variable_values from the --variables argument
     by splitting the first colon, then loads the json value,
     We try to add double quotes around the value if it does not work first
     in order to simplify the passing of simple string values
-    (we allow --params KEY:VALUE instead of KEY:\"VALUE\")
+    (we allow --variables KEY:VALUE instead of KEY:\"VALUE\")
 
     :param args: parsed command line arguments
     """
@@ -151,35 +151,35 @@ def get_execute_args(args: Namespace) -> Dict[str, Any]:
     if args.operation_name is not None:
         execute_args["operation_name"] = args.operation_name
 
-    # Parse the params argument (variable values)
-    if args.params is not None:
+    # Parse the variables argument
+    if args.variables is not None:
 
-        params = {}
+        variables = {}
 
-        for p in args.params:
+        for var in args.variables:
 
             try:
                 # Split only the first colon
                 # (throw a ValueError if no colon is present)
-                param_key, param_json_value = p.split(":", 1)
+                variable_key, variable_json_value = var.split(":", 1)
 
                 # Extract the json value,
                 # trying with double quotes if it does not work
                 try:
-                    param_value = json.loads(param_json_value)
+                    variable_value = json.loads(variable_json_value)
                 except json.JSONDecodeError:
                     try:
-                        param_value = json.loads(f'"{param_json_value}"')
+                        variable_value = json.loads(f'"{variable_json_value}"')
                     except json.JSONDecodeError:
                         raise ValueError
 
-                # Save the value in the params dict
-                params[param_key] = param_value
+                # Save the value in the variables dict
+                variables[variable_key] = variable_value
 
             except ValueError:
-                raise ValueError(f"Invalid parameter: {p}")
+                raise ValueError(f"Invalid variable: {var}")
 
-        execute_args["variable_values"] = params
+        execute_args["variable_values"] = variables
 
     return execute_args
 
@@ -228,7 +228,7 @@ async def main(args: Namespace) -> int:
         transport = get_transport(args)
 
         # Get extra execute parameters from command line arguments
-        # (params, operation_name)
+        # (variables, operation_name)
         execute_args = get_execute_args(args)
 
     except ValueError as e:

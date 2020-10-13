@@ -377,7 +377,7 @@ async def test_aiohttp_using_cli_invalid_param(
     url = str(server.make_url("/"))
 
     parser = get_parser(with_examples=True)
-    args = parser.parse_args([url, "--params", "invalid_param"])
+    args = parser.parse_args([url, "--variables", "invalid_param"])
 
     # Monkeypatching sys.stdin to simulate getting the query
     # via the standard input
@@ -392,7 +392,7 @@ async def test_aiohttp_using_cli_invalid_param(
     captured_err = str(captured.err).strip()
     print(f"Captured: {captured_err}")
 
-    expected_error = "Error: Invalid parameter: invalid_param"
+    expected_error = "Error: Invalid variable: invalid_param"
 
     assert expected_error in captured_err
 

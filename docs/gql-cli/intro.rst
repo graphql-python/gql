@@ -38,7 +38,7 @@ Query with variable
 
 .. code-block:: shell
 
-    $ echo 'query getContinent($code:ID!) { continent(code:$code) { name } }' | gql-cli https://countries.trevorblades.com --params code:AF
+    $ echo 'query getContinent($code:ID!) { continent(code:$code) { name } }' | gql-cli https://countries.trevorblades.com --variables code:AF
     {"continent": {"name": "Africa"}}
 
 Interactive usage
@@ -48,7 +48,7 @@ Insert your query in the terminal, then press Ctrl-D to execute it.
 
 .. code-block:: shell
 
-    $ gql-cli wss://countries.trevorblades.com/graphql --params code:AF
+    $ gql-cli wss://countries.trevorblades.com/graphql --variables code:AF
 
 Execute query saved in a file
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
