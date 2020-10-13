@@ -8,11 +8,11 @@ from gql.cli import get_parser, main
 parser = get_parser(with_examples=True)
 args = parser.parse_args()
 
-# Execute the script
 try:
+    # Execute the script
     exit_code = asyncio.run(main(args))
+
+    # Return with the correct exit code
+    sys.exit(exit_code)
 except KeyboardInterrupt:
     pass
-
-# Return with the correct exit code
-sys.exit(exit_code)
