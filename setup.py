@@ -7,7 +7,7 @@ install_requires = [
     "graphql-core>=3.1,<3.2",
     "requests>=2.23,<3",
     "websockets>=8.1,<9",
-    "yarl>=1.4,<2.0",
+    "yarl>=1.4,<1.6",
 ]
 
 scripts = [
