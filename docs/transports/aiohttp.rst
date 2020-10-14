@@ -1,3 +1,5 @@
+.. _aiohttp_transport:
+
 AIOHTTPTransport
 ================
 

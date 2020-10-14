@@ -11,6 +11,8 @@ from gql.transport.exceptions import (
     TransportServerError,
 )
 
+from .conftest import TemporaryFile
+
 query1_str = """
     query getContinents {
       continents {
@@ -321,3 +323,360 @@ async def test_aiohttp_subscribe_running_in_thread(
                 pass
 
     await run_sync_test(event_loop, server, test_code)
+
+
+file_upload_server_answer = '{"data":{"success":true}}'
+
+file_upload_mutation_1 = """
+    mutation($file: Upload!) {
+      uploadFile(input:{other_var:$other_var, file:$file}) {
+        success
+      }
+    }
+"""
+
+file_upload_mutation_1_operations = (
+    '{"query": "mutation ($file: Upload!) {\\n  uploadFile(input: {other_var: '
+    '$other_var, file: $file}) {\\n    success\\n  }\\n}\\n", "variables": '
+    '{"file": null, "other_var": 42}}'
+)
+
+file_upload_mutation_1_map = '{"0": ["variables.file"]}'
+
+file_1_content = """
+This is a test file
+This file will be sent in the GraphQL mutation
+"""
+
+
+async def single_upload_handler(request):
+
+    reader = await request.multipart()
+
+    field_0 = await reader.next()
+    assert field_0.name == "operations"
+    field_0_text = await field_0.text()
+    assert field_0_text == file_upload_mutation_1_operations
+
+    field_1 = await reader.next()
+    assert field_1.name == "map"
+    field_1_text = await field_1.text()
+    assert field_1_text == file_upload_mutation_1_map
+
+    field_2 = await reader.next()
+    assert field_2.name == "0"
+    field_2_text = await field_2.text()
+    assert field_2_text == file_1_content
+
+    field_3 = await reader.next()
+    assert field_3 is None
+
+    return web.Response(text=file_upload_server_answer, content_type="application/json")
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_file_upload(event_loop, aiohttp_server):
+    app = web.Application()
+    app.router.add_route("POST", "/", single_upload_handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    sample_transport = AIOHTTPTransport(url=url, timeout=10)
+
+    with TemporaryFile(file_1_content) as test_file:
+
+        async with Client(transport=sample_transport,) as session:
+
+            query = gql(file_upload_mutation_1)
+
+            file_path = test_file.filename
+
+            with open(file_path, "rb") as f:
+
+                params = {"file": f, "other_var": 42}
+
+                # Execute query asynchronously
+                result = await session.execute(
+                    query, variable_values=params, upload_files=True
+                )
+
+            success = result["success"]
+
+            assert success
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_file_upload_without_session(
+    event_loop, aiohttp_server, run_sync_test
+):
+
+    app = web.Application()
+    app.router.add_route("POST", "/", single_upload_handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    def test_code():
+        sample_transport = AIOHTTPTransport(url=url, timeout=10)
+
+        with TemporaryFile(file_1_content) as test_file:
+
+            client = Client(transport=sample_transport,)
+
+            query = gql(file_upload_mutation_1)
+
+            file_path = test_file.filename
+
+            with open(file_path, "rb") as f:
+
+                params = {"file": f, "other_var": 42}
+
+                result = client.execute(
+                    query, variable_values=params, upload_files=True
+                )
+
+                success = result["success"]
+
+                assert success
+
+    await run_sync_test(event_loop, server, test_code)
+
+
+# This is a sample binary file content containing all possible byte values
+binary_file_content = bytes(range(0, 256))
+
+
+async def binary_upload_handler(request):
+
+    reader = await request.multipart()
+
+    field_0 = await reader.next()
+    assert field_0.name == "operations"
+    field_0_text = await field_0.text()
+    assert field_0_text == file_upload_mutation_1_operations
+
+    field_1 = await reader.next()
+    assert field_1.name == "map"
+    field_1_text = await field_1.text()
+    assert field_1_text == file_upload_mutation_1_map
+
+    field_2 = await reader.next()
+    assert field_2.name == "0"
+    field_2_binary = await field_2.read()
+    assert field_2_binary == binary_file_content
+
+    field_3 = await reader.next()
+    assert field_3 is None
+
+    return web.Response(text=file_upload_server_answer, content_type="application/json")
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_binary_file_upload(event_loop, aiohttp_server):
+    app = web.Application()
+    app.router.add_route("POST", "/", binary_upload_handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    sample_transport = AIOHTTPTransport(url=url, timeout=10)
+
+    with TemporaryFile(binary_file_content) as test_file:
+
+        async with Client(transport=sample_transport,) as session:
+
+            query = gql(file_upload_mutation_1)
+
+            file_path = test_file.filename
+
+            with open(file_path, "rb") as f:
+
+                params = {"file": f, "other_var": 42}
+
+                # Execute query asynchronously
+                result = await session.execute(
+                    query, variable_values=params, upload_files=True
+                )
+
+            success = result["success"]
+
+            assert success
+
+
+file_upload_mutation_2 = """
+    mutation($file1: Upload!, $file2: Upload!) {
+      uploadFile(input:{file1:$file, file2:$file}) {
+        success
+      }
+    }
+"""
+
+file_upload_mutation_2_operations = (
+    '{"query": "mutation ($file1: Upload!, $file2: Upload!) {\\n  '
+    'uploadFile(input: {file1: $file, file2: $file}) {\\n    success\\n  }\\n}\\n", '
+    '"variables": {"file1": null, "file2": null}}'
+)
+
+file_upload_mutation_2_map = '{"0": ["variables.file1"], "1": ["variables.file2"]}'
+
+file_2_content = """
+This is a second test file
+This file will also be sent in the GraphQL mutation
+"""
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_file_upload_two_files(event_loop, aiohttp_server):
+    async def handler(request):
+
+        reader = await request.multipart()
+
+        field_0 = await reader.next()
+        assert field_0.name == "operations"
+        field_0_text = await field_0.text()
+        assert field_0_text == file_upload_mutation_2_operations
+
+        field_1 = await reader.next()
+        assert field_1.name == "map"
+        field_1_text = await field_1.text()
+        assert field_1_text == file_upload_mutation_2_map
+
+        field_2 = await reader.next()
+        assert field_2.name == "0"
+        field_2_text = await field_2.text()
+        assert field_2_text == file_1_content
+
+        field_3 = await reader.next()
+        assert field_3.name == "1"
+        field_3_text = await field_3.text()
+        assert field_3_text == file_2_content
+
+        field_4 = await reader.next()
+        assert field_4 is None
+
+        return web.Response(
+            text=file_upload_server_answer, content_type="application/json"
+        )
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    sample_transport = AIOHTTPTransport(url=url, timeout=10)
+
+    with TemporaryFile(file_1_content) as test_file_1:
+        with TemporaryFile(file_2_content) as test_file_2:
+
+            async with Client(transport=sample_transport,) as session:
+
+                query = gql(file_upload_mutation_2)
+
+                file_path_1 = test_file_1.filename
+                file_path_2 = test_file_2.filename
+
+                f1 = open(file_path_1, "rb")
+                f2 = open(file_path_2, "rb")
+
+                params = {
+                    "file1": f1,
+                    "file2": f2,
+                }
+
+                result = await session.execute(
+                    query, variable_values=params, upload_files=True
+                )
+
+                f1.close()
+                f2.close()
+
+                success = result["success"]
+
+                assert success
+
+
+file_upload_mutation_3 = """
+    mutation($files: [Upload!]!) {
+      uploadFiles(input:{files:$files}) {
+        success
+      }
+    }
+"""
+
+file_upload_mutation_3_operations = (
+    '{"query": "mutation ($files: [Upload!]!) {\\n  uploadFiles(input: {files: $files})'
+    ' {\\n    success\\n  }\\n}\\n", "variables": {"files": [null, null]}}'
+)
+
+file_upload_mutation_3_map = '{"0": ["variables.files.0"], "1": ["variables.files.1"]}'
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_file_upload_list_of_two_files(event_loop, aiohttp_server):
+    async def handler(request):
+
+        reader = await request.multipart()
+
+        field_0 = await reader.next()
+        assert field_0.name == "operations"
+        field_0_text = await field_0.text()
+        assert field_0_text == file_upload_mutation_3_operations
+
+        field_1 = await reader.next()
+        assert field_1.name == "map"
+        field_1_text = await field_1.text()
+        assert field_1_text == file_upload_mutation_3_map
+
+        field_2 = await reader.next()
+        assert field_2.name == "0"
+        field_2_text = await field_2.text()
+        assert field_2_text == file_1_content
+
+        field_3 = await reader.next()
+        assert field_3.name == "1"
+        field_3_text = await field_3.text()
+        assert field_3_text == file_2_content
+
+        field_4 = await reader.next()
+        assert field_4 is None
+
+        return web.Response(
+            text=file_upload_server_answer, content_type="application/json"
+        )
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    sample_transport = AIOHTTPTransport(url=url, timeout=10)
+
+    with TemporaryFile(file_1_content) as test_file_1:
+        with TemporaryFile(file_2_content) as test_file_2:
+
+            async with Client(transport=sample_transport,) as session:
+
+                query = gql(file_upload_mutation_3)
+
+                file_path_1 = test_file_1.filename
+                file_path_2 = test_file_2.filename
+
+                f1 = open(file_path_1, "rb")
+                f2 = open(file_path_2, "rb")
+
+                params = {"files": [f1, f2]}
+
+                # Execute query asynchronously
+                result = await session.execute(
+                    query, variable_values=params, upload_files=True
+                )
+
+                f1.close()
+                f2.close()
+
+                success = result["success"]
+
+                assert success
