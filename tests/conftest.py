@@ -4,6 +4,7 @@ import logging
 import os
 import pathlib
 import ssl
+import sys
 import tempfile
 import types
 from concurrent.futures import ThreadPoolExecutor
@@ -239,7 +240,7 @@ def get_server_handler(request):
 
                 for answer in answers:
                     result = await ws.recv()
-                    print(f"Server received: {result}")
+                    print(f"Server received: {result}", file=sys.stderr)
 
                     if isinstance(answer, str) and "{query_id}" in answer:
                         answer_format_params = {"query_id": query_id}

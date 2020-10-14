@@ -10,10 +10,10 @@ all_tests:
 	pytest tests --cov=gql --cov-report=term-missing --run-online -vv
 
 check:
-	isort --recursive gql tests
-	black gql tests
-	flake8 gql tests
-	mypy gql tests
+	isort --recursive gql tests scripts/gql-cli
+	black gql tests scripts/gql-cli
+	flake8 gql tests scripts/gql-cli
+	mypy gql tests scripts/gql-cli
 	check-manifest
 
 docs:

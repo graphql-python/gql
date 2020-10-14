@@ -1,6 +1,7 @@
 import asyncio
 import json
 import ssl
+import sys
 from typing import Dict
 
 import pytest
@@ -25,6 +26,14 @@ query1_str = """
       }
     }
 """
+
+query1_server_answer_data = (
+    '{"continents":['
+    '{"code":"AF","name":"Africa"},{"code":"AN","name":"Antarctica"},'
+    '{"code":"AS","name":"Asia"},{"code":"EU","name":"Europe"},'
+    '{"code":"NA","name":"North America"},{"code":"OC","name":"Oceania"},'
+    '{"code":"SA","name":"South America"}]}'
+)
 
 query1_server_answer = (
     '{{"type":"data","id":"{query_id}","payload":{{"data":{{"continents":['
@@ -155,9 +164,9 @@ async def test_websocket_two_queries_in_series(
 async def server1_two_queries_in_parallel(ws, path):
     await WebSocketServerHelper.send_connection_ack(ws)
     result = await ws.recv()
-    print(f"Server received: {result}")
+    print(f"Server received: {result}", file=sys.stderr)
     result = await ws.recv()
-    print(f"Server received: {result}")
+    print(f"Server received: {result}", file=sys.stderr)
     await ws.send(query1_server_answer.format(query_id=1))
     await ws.send(query1_server_answer.format(query_id=2))
     await WebSocketServerHelper.send_complete(ws, 1)
@@ -202,7 +211,7 @@ async def test_websocket_two_queries_in_parallel(
 async def server_closing_while_we_are_doing_something_else(ws, path):
     await WebSocketServerHelper.send_connection_ack(ws)
     result = await ws.recv()
-    print(f"Server received: {result}")
+    print(f"Server received: {result}", file=sys.stderr)
     await ws.send(query1_server_answer.format(query_id=1))
     await WebSocketServerHelper.send_complete(ws, 1)
     await asyncio.sleep(1 * MS)
@@ -348,7 +357,7 @@ async def server_with_authentication_in_connection_init_payload(ws, path):
             await ws.send('{"type":"connection_ack"}')
 
             result = await ws.recv()
-            print(f"Server received: {result}")
+            print(f"Server received: {result}", file=sys.stderr)
             await ws.send(query1_server_answer.format(query_id=1))
             await WebSocketServerHelper.send_complete(ws, 1)
         else:
@@ -481,7 +490,7 @@ async def server_sending_keep_alive_before_connection_ack(ws, path):
     await WebSocketServerHelper.send_keepalive(ws)
     await WebSocketServerHelper.send_connection_ack(ws)
     result = await ws.recv()
-    print(f"Server received: {result}")
+    print(f"Server received: {result}", file=sys.stderr)
     await ws.send(query1_server_answer.format(query_id=1))
     await WebSocketServerHelper.send_complete(ws, 1)
     await ws.wait_closed()
@@ -512,3 +521,39 @@ async def test_websocket_non_regression_bug_108(
     africa = continents[0]
 
     assert africa["code"] == "AF"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("server", [server1_answers], indirect=True)
+async def test_websocket_using_cli(event_loop, server, monkeypatch, capsys):
+
+    url = f"ws://{server.hostname}:{server.port}/graphql"
+    print(f"url = {url}")
+
+    from gql.cli import main, get_parser
+    import io
+    import json
+
+    parser = get_parser(with_examples=True)
+    args = parser.parse_args([url])
+
+    # Monkeypatching sys.stdin to simulate getting the query
+    # via the standard input
+    monkeypatch.setattr("sys.stdin", io.StringIO(query1_str))
+
+    # Flush captured output
+    captured = capsys.readouterr()
+
+    exit_code = await main(args)
+
+    assert exit_code == 0
+
+    # Check that the result has been printed on stdout
+    captured = capsys.readouterr()
+    captured_out = str(captured.out).strip()
+
+    expected_answer = json.loads(query1_server_answer_data)
+    print(f"Captured: {captured_out}")
+    received_answer = json.loads(captured_out)
+
+    assert received_answer == expected_answer
