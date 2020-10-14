@@ -9,3 +9,4 @@ Usage
    subscriptions
    variables
    headers
+   file_upload

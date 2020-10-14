@@ -1,79 +1,18 @@
 #!/usr/bin/env python3
-
-from gql import gql, Client
-from gql.transport.websockets import WebsocketsTransport
-from gql.transport.aiohttp import AIOHTTPTransport
-from yarl import URL
 import asyncio
-import argparse
 import sys
-import json
 
-parser = argparse.ArgumentParser(
-    description="Send GraphQL queries from command line using http(s) or websockets"
-)
-parser.add_argument(
-    "server", help="the server url starting with http://, https://, ws:// or wss://"
-)
-parser.add_argument(
-    "-p", "--params", nargs="*", help="query parameters in the form param:json_value"
-)
+from gql.cli import get_parser, main
+
+# Get arguments from command line
+parser = get_parser(with_examples=True)
 args = parser.parse_args()
 
+try:
+    # Execute the script
+    exit_code = asyncio.run(main(args))
 
-async def main():
-
-    # Parse the params argument
-    params = {}
-    if args.params is not None:
-        for p in args.params:
-
-            try:
-                # Split only the first colon (throw a ValueError if no colon is present)
-                param_key, param_json_value = p.split(':', 1)
-
-                # Extract the json value, trying with double quotes if it does not work
-                try:
-                    param_value = json.loads(param_json_value)
-                except json.JSONDecodeError:
-                    try:
-                        param_value = json.loads(f'"{param_json_value}"')
-                    except json.JSONDecodeError:
-                        raise ValueError
-
-                # Save the value in the params dict
-                params[param_key] = param_value
-
-            except ValueError:
-                print (f"Invalid parameter: {p}", file=sys.stderr)
-                return 1
-
-    url = URL(args.server)
-
-    scheme = url.scheme
-
-    if scheme in ["ws", "wss"]:
-        transport = WebsocketsTransport(url=args.server, ssl=(scheme == "wss"))
-    elif scheme in ["http", "https"]:
-        transport = AIOHTTPTransport(url=args.server)
-    else:
-        raise ValueError("URL protocol should be one of: http, https, ws, wss")
-
-    async with Client(transport=transport) as session:
-
-        while True:
-            try:
-                query_str = input()
-            except EOFError:
-                break
-
-            query = gql(query_str)
-
-            if scheme in ["ws", "wss"]:
-                async for result in session.subscribe(query, variable_values=params):
-                    print(result)
-            else:
-                result = await session.execute(query, variable_values=params)
-                print(result)
-
-asyncio.run(main())
+    # Return with the correct exit code
+    sys.exit(exit_code)
+except KeyboardInterrupt:
+    pass

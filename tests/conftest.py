@@ -4,8 +4,11 @@ import logging
 import os
 import pathlib
 import ssl
+import sys
+import tempfile
 import types
 from concurrent.futures import ThreadPoolExecutor
+from typing import Union
 
 import pytest
 import websockets
@@ -187,6 +190,35 @@ class PhoenixChannelServerHelper:
         await ws.send('{"event":"phx_reply", "payload": {"status": "ok"}, "ref": 1}')
 
 
+class TemporaryFile:
+    """Class used to generate temporary files for the tests"""
+
+    def __init__(self, content: Union[str, bytearray]):
+
+        mode = "w" if isinstance(content, str) else "wb"
+
+        # We need to set the newline to '' so that the line returns
+        # are not replaced by '\r\n' on windows
+        newline = "" if isinstance(content, str) else None
+
+        self.file = tempfile.NamedTemporaryFile(
+            mode=mode, newline=newline, delete=False
+        )
+
+        with self.file as f:
+            f.write(content)
+
+    @property
+    def filename(self):
+        return self.file.name
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        os.unlink(self.filename)
+
+
 def get_server_handler(request):
     """Get the server handler.
 
@@ -208,7 +240,7 @@ def get_server_handler(request):
 
                 for answer in answers:
                     result = await ws.recv()
-                    print(f"Server received: {result}")
+                    print(f"Server received: {result}", file=sys.stderr)
 
                     if isinstance(answer, str) and "{query_id}" in answer:
                         answer_format_params = {"query_id": query_id}
