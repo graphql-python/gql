@@ -3,7 +3,7 @@
 Schema validation
 =================
 
-It a GraphQL schema is provided, gql will validate the queries locally before sending them to the backend.
+If a GraphQL schema is provided, gql will validate the queries locally before sending them to the backend.
 If no schema is provided, gql will send the query to the backend without local validation.
 
 You can either provide a schema yourself, or you can request gql to get the schema
