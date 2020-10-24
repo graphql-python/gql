@@ -3,7 +3,7 @@ import os
 from setuptools import setup, find_packages
 
 install_requires = [
-    "aiohttp==3.6.2",
+    "aiohttp==3.7.0",
     "graphql-core>=3.1,<3.2",
     "requests>=2.23,<3",
     "websockets>=8.1,<9",
