@@ -204,12 +204,20 @@ class AIOHTTPTransport(AsyncTransport):
                     resp.raise_for_status()
 
                 except ClientResponseError as e:
-                    raise TransportServerError from e
+                    raise TransportServerError(str(e)) from e
 
-                raise TransportProtocolError("Server did not return a GraphQL result")
+                result_text = await resp.text()
+                raise TransportProtocolError(
+                    f"Server did not return a GraphQL result: {result_text}"
+                )
 
             if "errors" not in result and "data" not in result:
-                raise TransportProtocolError("Server did not return a GraphQL result")
+                result_text = await resp.text()
+                raise TransportProtocolError(
+                    "Server did not return a GraphQL result: "
+                    'No "data" or "error" keys in answer: '
+                    f"{result_text}"
+                )
 
             return ExecutionResult(errors=result.get("errors"), data=result.get("data"))
 
