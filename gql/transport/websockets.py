@@ -325,7 +325,7 @@ class WebsocketsTransport(AsyncTransport):
 
         except ValueError as e:
             raise TransportProtocolError(
-                "Server did not return a GraphQL result"
+                f"Server did not return a GraphQL result: {answer}"
             ) from e
 
         return answer_type, answer_id, execution_result

@@ -83,8 +83,10 @@ async def test_aiohttp_error_code_500(event_loop, aiohttp_server):
 
         query = gql(query1_str)
 
-        with pytest.raises(TransportServerError):
+        with pytest.raises(TransportServerError) as exc_info:
             await session.execute(query)
+
+        assert "500, message='Internal Server Error'" in str(exc_info.value)
 
 
 query1_server_error_answer = '{"errors": ["Error 1", "Error 2"]}'
@@ -114,15 +116,34 @@ async def test_aiohttp_error_code(event_loop, aiohttp_server):
 
 
 invalid_protocol_responses = [
-    "{}",
-    "qlsjfqsdlkj",
-    '{"not_data_or_errors": 35}',
+    {
+        "response": "{}",
+        "expected_exception": (
+            "Server did not return a GraphQL result: "
+            'No "data" or "error" keys in answer: {}'
+        ),
+    },
+    {
+        "response": "qlsjfqsdlkj",
+        "expected_exception": (
+            "Server did not return a GraphQL result: " "qlsjfqsdlkj"
+        ),
+    },
+    {
+        "response": '{"not_data_or_errors": 35}',
+        "expected_exception": (
+            "Server did not return a GraphQL result: "
+            'No "data" or "error" keys in answer: {"not_data_or_errors": 35}'
+        ),
+    },
 ]
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("response", invalid_protocol_responses)
-async def test_aiohttp_invalid_protocol(event_loop, aiohttp_server, response):
+@pytest.mark.parametrize("param", invalid_protocol_responses)
+async def test_aiohttp_invalid_protocol(event_loop, aiohttp_server, param):
+    response = param["response"]
+
     async def handler(request):
         return web.Response(text=response, content_type="application/json")
 
@@ -138,8 +159,10 @@ async def test_aiohttp_invalid_protocol(event_loop, aiohttp_server, response):
 
         query = gql(query1_str)
 
-        with pytest.raises(TransportProtocolError):
+        with pytest.raises(TransportProtocolError) as exc_info:
             await session.execute(query)
+
+        assert param["expected_exception"] in str(exc_info.value)
 
 
 @pytest.mark.asyncio
