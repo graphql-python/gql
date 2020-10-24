@@ -7,13 +7,23 @@ execute GraphQL requests:
  - all the transports classes implementing different communication protocols
 """
 
+from contextlib import suppress
+
 from .__version__ import __version__
 from .client import Client
 from .gql import gql
-from .transport.aiohttp import AIOHTTPTransport
-from .transport.phoenix_channel_websockets import PhoenixChannelWebsocketsTransport
-from .transport.requests import RequestsHTTPTransport
-from .transport.websockets import WebsocketsTransport
+
+with suppress(ModuleNotFoundError):
+    from .transport.aiohttp import AIOHTTPTransport
+
+with suppress(ModuleNotFoundError):
+    from .transport.phoenix_channel_websockets import PhoenixChannelWebsocketsTransport
+
+with suppress(ModuleNotFoundError):
+    from .transport.requests import RequestsHTTPTransport
+
+with suppress(ModuleNotFoundError):
+    from .transport.websockets import WebsocketsTransport
 
 __all__ = [
     "__version__",
