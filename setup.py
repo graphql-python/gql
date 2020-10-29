@@ -3,7 +3,7 @@ import os
 from setuptools import setup, find_packages
 
 install_requires = [
-    "aiohttp==3.6.2",
+    "aiohttp==3.7.1",
     "graphql-core>=3.1,<3.2",
     "requests>=2.23,<3",
     "websockets>=8.1,<9",
@@ -58,6 +58,7 @@ setup(
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: Implementation :: PyPy",
     ],
     keywords="api graphql protocol rest relay gql client",
