@@ -1,4 +1,4 @@
-from gql import gql, Client
+from gql import Client, gql
 from gql.transport.aiohttp import AIOHTTPTransport
 
 # Select your transport with a defined url endpoint

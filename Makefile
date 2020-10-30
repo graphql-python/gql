@@ -1,5 +1,7 @@
 .PHONY: clean tests docs
 
+SRC_PYTHON := gql tests scripts/gql-cli docs/code_examples
+
 dev-setup:
 	python pip install -e ".[test]"
 
@@ -10,10 +12,10 @@ all_tests:
 	pytest tests --cov=gql --cov-report=term-missing --run-online -vv
 
 check:
-	isort --recursive gql tests scripts/gql-cli
-	black gql tests scripts/gql-cli
-	flake8 gql tests scripts/gql-cli
-	mypy gql tests scripts/gql-cli
+	isort --recursive $(SRC_PYTHON)
+	black $(SRC_PYTHON)
+	flake8 $(SRC_PYTHON)
+	mypy $(SRC_PYTHON)
 	check-manifest
 
 docs:
