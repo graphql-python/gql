@@ -6,7 +6,8 @@ from graphql import build_ast_schema, parse
 from urllib3.exceptions import NewConnectionError
 
 from gql import Client, gql
-from gql.transport.requests import RequestsHTTPTransport, Transport
+from gql.transport import Transport
+from gql.transport.requests import RequestsHTTPTransport
 
 
 @pytest.fixture

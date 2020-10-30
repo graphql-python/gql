@@ -119,11 +119,3 @@ def test_named_query(client):
     with use_cassette("queries"):
         result = client.execute(query, operation_name="Planet2")
     assert result == expected
-
-
-def test_import_transports_directly_from_gql():
-    from gql import AIOHTTPTransport, RequestsHTTPTransport, WebsocketsTransport
-
-    assert AIOHTTPTransport
-    assert RequestsHTTPTransport
-    assert WebsocketsTransport

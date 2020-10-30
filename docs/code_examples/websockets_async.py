@@ -1,7 +1,8 @@
 import logging
 logging.basicConfig(level=logging.INFO)
 
-from gql import gql, Client, WebsocketsTransport
+from gql import gql, Client
+from gql.transport.websockets import WebsocketsTransport
 import asyncio
 
 async def main():

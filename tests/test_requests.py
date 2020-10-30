@@ -1,7 +1,7 @@
 import pytest
 from aiohttp import web
 
-from gql import Client, RequestsHTTPTransport, gql
+from gql import Client, gql
 from gql.transport.exceptions import (
     TransportAlreadyConnected,
     TransportClosed,
@@ -9,6 +9,7 @@ from gql.transport.exceptions import (
     TransportQueryError,
     TransportServerError,
 )
+from gql.transport.requests import RequestsHTTPTransport
 
 query1_str = """
     query getContinents {

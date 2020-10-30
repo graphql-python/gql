@@ -1,4 +1,5 @@
-from gql import gql, AIOHTTPTransport, Client
+from gql import gql, Client
+from gql.transport.aiohttp import AIOHTTPTransport
 import asyncio
 
 async def main():
