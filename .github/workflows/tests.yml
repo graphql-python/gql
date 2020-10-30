@@ -38,8 +38,9 @@ jobs:
   single_extra:
     runs-on: ubuntu-latest
     strategy:
-      dependency: ["aiohttp", "requests", "websockets"]
       fail-fast: false
+      matrix:
+        dependency: ["aiohttp", "requests", "websockets"]
 
     steps:
       - uses: actions/checkout@v2
