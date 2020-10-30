@@ -1,3 +1,5 @@
+import json
+import logging
 from typing import Any, Dict, Optional, Union
 
 import requests
@@ -14,6 +16,8 @@ from .exceptions import (
     TransportProtocolError,
     TransportServerError,
 )
+
+log = logging.getLogger(__name__)
 
 
 class RequestsHTTPTransport(Transport):
@@ -135,6 +139,10 @@ class RequestsHTTPTransport(Transport):
             data_key: payload,
         }
 
+        # Log the payload
+        if log.isEnabledFor(logging.INFO):
+            log.info(">>> %s", json.dumps(payload))
+
         # Pass kwargs to requests post method
         post_args.update(self.kwargs)
 
@@ -144,6 +152,9 @@ class RequestsHTTPTransport(Transport):
         )
         try:
             result = response.json()
+
+            if log.isEnabledFor(logging.INFO):
+                log.info("<<< %s", response.text)
         except Exception:
             # We raise a TransportServerError if the status code is 400 or higher
             # We raise a TransportProtocolError in the other cases
