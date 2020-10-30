@@ -2,13 +2,12 @@ import asyncio
 import json
 
 import pytest
-import websockets
 from parse import search
 
 from gql import Client, gql
-from gql.transport.phoenix_channel_websockets import PhoenixChannelWebsocketsTransport
 
-from .conftest import MS, PhoenixChannelServerHelper
+# Marking all tests in this file with the websockets marker
+pytestmark = pytest.mark.websockets
 
 subscription_server_answer = (
     '{"event":"phx_reply",'
@@ -29,6 +28,9 @@ countdown_server_answer = (
 
 
 async def server_countdown(ws, path):
+    import websockets
+    from .conftest import MS, PhoenixChannelServerHelper
+
     try:
         await PhoenixChannelServerHelper.send_connection_ack(ws)
 
@@ -99,6 +101,9 @@ countdown_subscription_str = """
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_phoenix_channel_subscription(event_loop, server, subscription_str):
+    from gql.transport.phoenix_channel_websockets import (
+        PhoenixChannelWebsocketsTransport,
+    )
 
     path = "/graphql"
     url = f"ws://{server.hostname}:{server.port}{path}"
@@ -130,6 +135,8 @@ heartbeat_server_answer = (
 
 
 async def phoenix_heartbeat_server(ws, path):
+    from .conftest import PhoenixChannelServerHelper
+
     await PhoenixChannelServerHelper.send_connection_ack(ws)
     await ws.recv()
     await ws.send(subscription_server_answer)
@@ -157,6 +164,9 @@ heartbeat_subscription_str = """
 @pytest.mark.parametrize("server", [phoenix_heartbeat_server], indirect=True)
 @pytest.mark.parametrize("subscription_str", [heartbeat_subscription_str])
 async def test_phoenix_channel_heartbeat(event_loop, server, subscription_str):
+    from gql.transport.phoenix_channel_websockets import (
+        PhoenixChannelWebsocketsTransport,
+    )
 
     path = "/graphql"
     url = f"ws://{server.hostname}:{server.port}{path}"

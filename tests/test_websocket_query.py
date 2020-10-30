@@ -5,7 +5,6 @@ import sys
 from typing import Dict
 
 import pytest
-import websockets
 
 from gql import Client, gql
 from gql.transport.exceptions import (
@@ -14,9 +13,11 @@ from gql.transport.exceptions import (
     TransportQueryError,
     TransportServerError,
 )
-from gql.transport.websockets import WebsocketsTransport
 
 from .conftest import MS, WebSocketServerHelper
+
+# Marking all tests in this file with the websockets marker
+pytestmark = pytest.mark.websockets
 
 query1_str = """
     query getContinents {
@@ -51,6 +52,8 @@ server1_answers = [
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server1_answers], indirect=True)
 async def test_websocket_starting_client_in_context_manager(event_loop, server):
+    import websockets
+    from gql.transport.websockets import WebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
@@ -84,6 +87,8 @@ async def test_websocket_starting_client_in_context_manager(event_loop, server):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("ws_ssl_server", [server1_answers], indirect=True)
 async def test_websocket_using_ssl_connection(event_loop, ws_ssl_server):
+    import websockets
+    from gql.transport.websockets import WebsocketsTransport
 
     server = ws_ssl_server
 
@@ -291,6 +296,7 @@ async def assert_client_is_working(session):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server1_answers], indirect=True)
 async def test_websocket_multiple_connections_in_series(event_loop, server):
+    from gql.transport.websockets import WebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
@@ -313,6 +319,7 @@ async def test_websocket_multiple_connections_in_series(event_loop, server):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server1_answers], indirect=True)
 async def test_websocket_multiple_connections_in_parallel(event_loop, server):
+    from gql.transport.websockets import WebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
@@ -333,6 +340,7 @@ async def test_websocket_multiple_connections_in_parallel(event_loop, server):
 async def test_websocket_trying_to_connect_to_already_connected_transport(
     event_loop, server
 ):
+    from gql.transport.websockets import WebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
@@ -380,6 +388,7 @@ async def server_with_authentication_in_connection_init_payload(ws, path):
 async def test_websocket_connect_success_with_authentication_in_connection_init(
     event_loop, server, query_str
 ):
+    from gql.transport.websockets import WebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
@@ -414,6 +423,7 @@ async def test_websocket_connect_success_with_authentication_in_connection_init(
 async def test_websocket_connect_failed_with_authentication_in_connection_init(
     event_loop, server, query_str, init_payload
 ):
+    from gql.transport.websockets import WebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
@@ -429,6 +439,7 @@ async def test_websocket_connect_failed_with_authentication_in_connection_init(
 
 @pytest.mark.parametrize("server", [server1_answers], indirect=True)
 def test_websocket_execute_sync(server):
+    from gql.transport.websockets import WebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
@@ -471,6 +482,7 @@ def test_websocket_execute_sync(server):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server1_answers], indirect=True)
 async def test_websocket_add_extra_parameters_to_connect(event_loop, server):
+    from gql.transport.websockets import WebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
 

@@ -1,5 +1,4 @@
 import pytest
-from aiohttp import web
 
 from gql import Client, gql
 from gql.transport.exceptions import (
@@ -9,7 +8,9 @@ from gql.transport.exceptions import (
     TransportQueryError,
     TransportServerError,
 )
-from gql.transport.requests import RequestsHTTPTransport
+
+# Marking all tests in this file with the requests marker
+pytestmark = pytest.mark.requests
 
 query1_str = """
     query getContinents {
@@ -29,8 +30,12 @@ query1_server_answer = (
 )
 
 
+@pytest.mark.aiohttp
 @pytest.mark.asyncio
 async def test_requests_query(event_loop, aiohttp_server, run_sync_test):
+    from aiohttp import web
+    from gql.transport.requests import RequestsHTTPTransport
+
     async def handler(request):
         return web.Response(text=query1_server_answer, content_type="application/json")
 
@@ -59,8 +64,12 @@ async def test_requests_query(event_loop, aiohttp_server, run_sync_test):
     await run_sync_test(event_loop, server, test_code)
 
 
+@pytest.mark.aiohttp
 @pytest.mark.asyncio
 async def test_requests_error_code_500(event_loop, aiohttp_server, run_sync_test):
+    from aiohttp import web
+    from gql.transport.requests import RequestsHTTPTransport
+
     async def handler(request):
         # Will generate http error code 500
         raise Exception("Server error")
@@ -87,8 +96,12 @@ async def test_requests_error_code_500(event_loop, aiohttp_server, run_sync_test
 query1_server_error_answer = '{"errors": ["Error 1", "Error 2"]}'
 
 
+@pytest.mark.aiohttp
 @pytest.mark.asyncio
 async def test_requests_error_code(event_loop, aiohttp_server, run_sync_test):
+    from aiohttp import web
+    from gql.transport.requests import RequestsHTTPTransport
+
     async def handler(request):
         return web.Response(
             text=query1_server_error_answer, content_type="application/json"
@@ -120,11 +133,15 @@ invalid_protocol_responses = [
 ]
 
 
+@pytest.mark.aiohttp
 @pytest.mark.asyncio
 @pytest.mark.parametrize("response", invalid_protocol_responses)
 async def test_requests_invalid_protocol(
     event_loop, aiohttp_server, response, run_sync_test
 ):
+    from aiohttp import web
+    from gql.transport.requests import RequestsHTTPTransport
+
     async def handler(request):
         return web.Response(text=response, content_type="application/json")
 
@@ -147,8 +164,12 @@ async def test_requests_invalid_protocol(
     await run_sync_test(event_loop, server, test_code)
 
 
+@pytest.mark.aiohttp
 @pytest.mark.asyncio
 async def test_requests_cannot_connect_twice(event_loop, aiohttp_server, run_sync_test):
+    from aiohttp import web
+    from gql.transport.requests import RequestsHTTPTransport
+
     async def handler(request):
         return web.Response(text=query1_server_answer, content_type="application/json")
 
@@ -169,10 +190,14 @@ async def test_requests_cannot_connect_twice(event_loop, aiohttp_server, run_syn
     await run_sync_test(event_loop, server, test_code)
 
 
+@pytest.mark.aiohttp
 @pytest.mark.asyncio
 async def test_requests_cannot_execute_if_not_connected(
     event_loop, aiohttp_server, run_sync_test
 ):
+    from aiohttp import web
+    from gql.transport.requests import RequestsHTTPTransport
+
     async def handler(request):
         return web.Response(text=query1_server_answer, content_type="application/json")
 

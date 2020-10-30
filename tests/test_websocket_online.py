@@ -7,9 +7,11 @@ import pytest
 
 from gql import Client, gql
 from gql.transport.exceptions import TransportError, TransportQueryError
-from gql.transport.websockets import WebsocketsTransport
 
 from .conftest import MS
+
+# Marking all tests in this file with the websockets marker
+pytestmark = pytest.mark.websockets
 
 logging.basicConfig(level=logging.INFO)
 
@@ -17,6 +19,7 @@ logging.basicConfig(level=logging.INFO)
 @pytest.mark.online
 @pytest.mark.asyncio
 async def test_websocket_simple_query():
+    from gql.transport.websockets import WebsocketsTransport
 
     # Get Websockets transport
     sample_transport = WebsocketsTransport(
@@ -56,6 +59,7 @@ async def test_websocket_simple_query():
 @pytest.mark.online
 @pytest.mark.asyncio
 async def test_websocket_invalid_query():
+    from gql.transport.websockets import WebsocketsTransport
 
     # Get Websockets transport
     sample_transport = WebsocketsTransport(
@@ -84,6 +88,7 @@ async def test_websocket_invalid_query():
 @pytest.mark.online
 @pytest.mark.asyncio
 async def test_websocket_sending_invalid_data():
+    from gql.transport.websockets import WebsocketsTransport
 
     # Get Websockets transport
     sample_transport = WebsocketsTransport(
@@ -118,6 +123,7 @@ async def test_websocket_sending_invalid_data():
 @pytest.mark.online
 @pytest.mark.asyncio
 async def test_websocket_sending_invalid_payload():
+    from gql.transport.websockets import WebsocketsTransport
 
     # Get Websockets transport
     sample_transport = WebsocketsTransport(
@@ -139,6 +145,7 @@ async def test_websocket_sending_invalid_payload():
 @pytest.mark.skipif(sys.version_info < (3, 8), reason="requires python3.8 or higher")
 @pytest.mark.asyncio
 async def test_websocket_sending_invalid_data_while_other_query_is_running():
+    from gql.transport.websockets import WebsocketsTransport
 
     # Get Websockets transport
     sample_transport = WebsocketsTransport(
@@ -189,6 +196,7 @@ async def test_websocket_sending_invalid_data_while_other_query_is_running():
 @pytest.mark.skipif(sys.version_info < (3, 8), reason="requires python3.8 or higher")
 @pytest.mark.asyncio
 async def test_websocket_two_queries_in_parallel_using_two_tasks():
+    from gql.transport.websockets import WebsocketsTransport
 
     # Get Websockets transport
     sample_transport = WebsocketsTransport(

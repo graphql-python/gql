@@ -4,13 +4,14 @@ import sys
 from typing import List
 
 import pytest
-import websockets
 from parse import search
 
 from gql import Client, gql
-from gql.transport.websockets import WebsocketsTransport
 
 from .conftest import MS, WebSocketServerHelper
+
+# Marking all tests in this file with the websockets marker
+pytestmark = pytest.mark.websockets
 
 countdown_server_answer = (
     '{{"type":"data","id":"{query_id}","payload":{{"data":{{"number":{number}}}}}}}'
@@ -24,6 +25,8 @@ logged_messages: List[str] = []
 
 
 async def server_countdown(ws, path):
+    import websockets
+
     logged_messages.clear()
 
     global WITH_KEEPALIVE
@@ -277,6 +280,7 @@ async def server_countdown_close_connection_in_middle(ws, path):
 async def test_websocket_subscription_server_connection_closed(
     event_loop, client_and_server, subscription_str
 ):
+    import websockets
 
     session, server = client_and_server
 
@@ -377,6 +381,7 @@ async def test_websocket_subscription_with_keepalive(
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 def test_websocket_subscription_sync(server, subscription_str):
+    from gql.transport.websockets import WebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
@@ -414,6 +419,7 @@ def test_websocket_subscription_sync_graceful_shutdown(server, subscription_str)
 
     This test does not work on Windows but the behaviour with Windows is correct.
     """
+    from gql.transport.websockets import WebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
@@ -454,6 +460,8 @@ def test_websocket_subscription_sync_graceful_shutdown(server, subscription_str)
 async def test_websocket_subscription_running_in_thread(
     event_loop, server, subscription_str, run_sync_test
 ):
+    from gql.transport.websockets import WebsocketsTransport
+
     def test_code():
         path = "/graphql"
         url = f"ws://{server.hostname}:{server.port}{path}"

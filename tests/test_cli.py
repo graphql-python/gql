@@ -3,8 +3,6 @@ import logging
 import pytest
 
 from gql.cli import get_execute_args, get_parser, get_transport, get_transport_args
-from gql.transport.aiohttp import AIOHTTPTransport
-from gql.transport.websockets import WebsocketsTransport
 
 
 @pytest.fixture
@@ -149,22 +147,34 @@ def test_cli_parse_variable_value_invalid_param(parser, param):
         get_execute_args(args)
 
 
+@pytest.mark.aiohttp
 @pytest.mark.parametrize(
-    "param",
-    [
-        {"args": ["http://your_server.com"], "class": AIOHTTPTransport},
-        {"args": ["https://your_server.com"], "class": AIOHTTPTransport},
-        {"args": ["ws://your_server.com/graphql"], "class": WebsocketsTransport},
-        {"args": ["wss://your_server.com/graphql"], "class": WebsocketsTransport},
-    ],
+    "url", ["http://your_server.com", "https://your_server.com"],
 )
-def test_cli_get_transport(parser, param):
+def test_cli_get_transport_aiohttp(parser, url):
 
-    args = parser.parse_args([*param["args"]])
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    args = parser.parse_args([url])
 
     transport = get_transport(args)
 
-    assert isinstance(transport, param["class"])
+    assert isinstance(transport, AIOHTTPTransport)
+
+
+@pytest.mark.websockets
+@pytest.mark.parametrize(
+    "url", ["ws://your_server.com", "wss://your_server.com"],
+)
+def test_cli_get_transport_websockets(parser, url):
+
+    from gql.transport.websockets import WebsocketsTransport
+
+    args = parser.parse_args([url])
+
+    transport = get_transport(args)
+
+    assert isinstance(transport, WebsocketsTransport)
 
 
 def test_cli_get_transport_no_protocol(parser):

@@ -11,6 +11,15 @@ tests:
 all_tests:
 	pytest tests --cov=gql --cov-report=term-missing --run-online -vv
 
+tests_aiohttp:
+	pytest tests --aiohttp-only
+
+tests_requests:
+	pytest tests --requests-only
+
+tests_websockets:
+	pytest tests --websockets-only
+
 check:
 	isort --recursive $(SRC_PYTHON)
 	black $(SRC_PYTHON)
