@@ -1,5 +1,6 @@
 import asyncio
 import json
+import warnings
 
 import graphql
 import pytest
@@ -93,7 +94,13 @@ async def test_async_client_validation(
 
     sample_transport = WebsocketsTransport(url=url)
 
-    async with Client(transport=sample_transport, **client_params) as session:
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore", message="type_def is deprecated; use schema instead"
+        )
+        client = Client(transport=sample_transport, **client_params)
+
+    async with client as session:
 
         variable_values = {"ep": "JEDI"}
 
@@ -136,7 +143,13 @@ async def test_async_client_validation_invalid_query(
 
     sample_transport = WebsocketsTransport(url=url)
 
-    async with Client(transport=sample_transport, **client_params) as session:
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore", message="type_def is deprecated; use schema instead"
+        )
+        client = Client(transport=sample_transport, **client_params)
+
+    async with client as session:
 
         variable_values = {"ep": "JEDI"}
 
