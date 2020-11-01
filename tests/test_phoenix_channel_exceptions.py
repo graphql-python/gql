@@ -6,9 +6,9 @@ from gql.transport.exceptions import (
     TransportQueryError,
     TransportServerError,
 )
-from gql.transport.phoenix_channel_websockets import PhoenixChannelWebsocketsTransport
 
-from .conftest import PhoenixChannelServerHelper
+# Marking all tests in this file with the websockets marker
+pytestmark = pytest.mark.websockets
 
 query1_str = """
     query getContinents {
@@ -61,6 +61,8 @@ timeout_server_answer = (
 def server(
     query_server_answer, subscription_server_answer=default_subscription_server_answer,
 ):
+    from .conftest import PhoenixChannelServerHelper
+
     async def phoenix_server(ws, path):
         await PhoenixChannelServerHelper.send_connection_ack(ws)
         await ws.recv()
@@ -85,6 +87,10 @@ def server(
 )
 @pytest.mark.parametrize("query_str", [query1_str])
 async def test_phoenix_channel_query_error(event_loop, server, query_str):
+
+    from gql.transport.phoenix_channel_websockets import (
+        PhoenixChannelWebsocketsTransport,
+    )
 
     path = "/graphql"
     url = f"ws://{server.hostname}:{server.port}{path}"
@@ -140,6 +146,8 @@ invalid_payload_subscription_server_answer = (
 
 
 async def no_connection_ack_phoenix_server(ws, path):
+    from .conftest import PhoenixChannelServerHelper
+
     await ws.recv()
     await PhoenixChannelServerHelper.send_close(ws)
     await ws.wait_closed()
@@ -161,6 +169,10 @@ async def no_connection_ack_phoenix_server(ws, path):
 )
 @pytest.mark.parametrize("query_str", [query1_str])
 async def test_phoenix_channel_protocol_error(event_loop, server, query_str):
+
+    from gql.transport.phoenix_channel_websockets import (
+        PhoenixChannelWebsocketsTransport,
+    )
 
     path = "/graphql"
     url = f"ws://{server.hostname}:{server.port}{path}"
@@ -185,6 +197,10 @@ server_error_subscription_server_answer = (
 )
 @pytest.mark.parametrize("query_str", [query1_str])
 async def test_phoenix_channel_server_error(event_loop, server, query_str):
+
+    from gql.transport.phoenix_channel_websockets import (
+        PhoenixChannelWebsocketsTransport,
+    )
 
     path = "/graphql"
     url = f"ws://{server.hostname}:{server.port}{path}"

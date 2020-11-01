@@ -1,9 +1,9 @@
 import pytest
 
 from gql import Client, gql
-from gql.transport.phoenix_channel_websockets import PhoenixChannelWebsocketsTransport
 
-from .conftest import PhoenixChannelServerHelper
+# Marking all tests in this file with the websockets marker
+pytestmark = pytest.mark.websockets
 
 query1_str = """
     query getContinents {
@@ -39,10 +39,14 @@ query1_server_answer = (
 
 @pytest.fixture
 def ws_server_helper(request):
+    from .conftest import PhoenixChannelServerHelper
+
     yield PhoenixChannelServerHelper
 
 
 async def phoenix_server(ws, path):
+    from .conftest import PhoenixChannelServerHelper
+
     await PhoenixChannelServerHelper.send_connection_ack(ws)
     await ws.recv()
     await ws.send(subscription_server_answer)
@@ -55,6 +59,9 @@ async def phoenix_server(ws, path):
 @pytest.mark.parametrize("server", [phoenix_server], indirect=True)
 @pytest.mark.parametrize("query_str", [query1_str])
 async def test_phoenix_channel_simple_query(event_loop, server, query_str):
+    from gql.transport.phoenix_channel_websockets import (
+        PhoenixChannelWebsocketsTransport,
+    )
 
     path = "/graphql"
     url = f"ws://{server.hostname}:{server.port}{path}"

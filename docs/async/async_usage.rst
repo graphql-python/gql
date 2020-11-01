@@ -17,7 +17,7 @@ Example:
 IPython
 -------
 
-.. Attention::
+.. warning::
 
     On some Python environments, like :emphasis:`Jupyter` or :emphasis:`Spyder`,
     which are using :emphasis:`IPython`,

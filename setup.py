@@ -3,10 +3,7 @@ import os
 from setuptools import setup, find_packages
 
 install_requires = [
-    "aiohttp==3.7.1",
     "graphql-core>=3.1,<3.2",
-    "requests>=2.23,<3",
-    "websockets>=8.1,<9",
     "yarl>=1.4,<1.6",
 ]
 
@@ -14,7 +11,7 @@ scripts = [
     "scripts/gql-cli",
 ]
 
-tests_require = [
+tests_requires = [
     "parse==1.15.0",
     "pytest==5.4.2",
     "pytest-asyncio==0.11.0",
@@ -32,7 +29,23 @@ dev_requires = [
     "sphinx>=3.0.0,<4",
     "sphinx_rtd_theme>=0.4,<1",
     "sphinx-argparse==0.2.5",
-] + tests_require
+] + tests_requires
+
+install_aiohttp_requires = [
+    "aiohttp==3.7.1",
+]
+
+install_requests_requires = [
+    "requests>=2.23,<3",
+]
+
+install_websockets_requires = [
+    "websockets>=8.1,<9",
+]
+
+install_all_requires = (
+    install_aiohttp_requires + install_requests_requires + install_websockets_requires
+)
 
 # Get version from __version__.py file
 current_folder = os.path.abspath(os.path.dirname(__file__))
@@ -64,8 +77,16 @@ setup(
     keywords="api graphql protocol rest relay gql client",
     packages=find_packages(include=["gql*"]),
     install_requires=install_requires,
-    tests_require=tests_require,
-    extras_require={"test": tests_require, "dev": dev_requires},
+    tests_require=install_all_requires + tests_requires,
+    extras_require={
+        "all": install_all_requires,
+        "test": install_all_requires + tests_requires,
+        "test_no_transport": tests_requires,
+        "dev": install_all_requires + dev_requires,
+        "aiohttp": install_aiohttp_requires,
+        "requests": install_requests_requires,
+        "websockets": install_websockets_requires,
+    },
     include_package_data=True,
     zip_safe=False,
     platforms="any",

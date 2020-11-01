@@ -4,10 +4,8 @@ import warnings
 
 import graphql
 import pytest
-import websockets
 
 from gql import Client, gql
-from gql.transport.websockets import WebsocketsTransport
 
 from .conftest import MS, WebSocketServerHelper
 from .starwars.schema import StarWarsIntrospection, StarWarsSchema, StarWarsTypeDef
@@ -26,6 +24,8 @@ starwars_expected_two = {
 
 
 async def server_starwars(ws, path):
+    import websockets
+
     await WebSocketServerHelper.send_connection_ack(ws)
 
     try:
@@ -74,6 +74,7 @@ starwars_invalid_subscription_str = """
 """
 
 
+@pytest.mark.websockets
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_starwars], indirect=True)
 @pytest.mark.parametrize("subscription_str", [starwars_subscription_str])
@@ -89,6 +90,8 @@ starwars_invalid_subscription_str = """
 async def test_async_client_validation(
     event_loop, server, subscription_str, client_params
 ):
+
+    from gql.transport.websockets import WebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
 
@@ -123,6 +126,7 @@ async def test_async_client_validation(
         assert expected[1] == starwars_expected_two
 
 
+@pytest.mark.websockets
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_starwars], indirect=True)
 @pytest.mark.parametrize("subscription_str", [starwars_invalid_subscription_str])
@@ -138,6 +142,8 @@ async def test_async_client_validation(
 async def test_async_client_validation_invalid_query(
     event_loop, server, subscription_str, client_params
 ):
+
+    from gql.transport.websockets import WebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
 
@@ -162,6 +168,7 @@ async def test_async_client_validation_invalid_query(
                 pass
 
 
+@pytest.mark.websockets
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_starwars], indirect=True)
 @pytest.mark.parametrize("subscription_str", [starwars_invalid_subscription_str])
@@ -176,6 +183,8 @@ async def test_async_client_validation_invalid_query(
 async def test_async_client_validation_different_schemas_parameters_forbidden(
     event_loop, server, subscription_str, client_params
 ):
+
+    from gql.transport.websockets import WebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
 
@@ -194,6 +203,7 @@ hero_server_answers = (
 )
 
 
+@pytest.mark.websockets
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [hero_server_answers], indirect=True)
 async def test_async_client_validation_fetch_schema_from_server_valid_query(
@@ -231,6 +241,7 @@ async def test_async_client_validation_fetch_schema_from_server_valid_query(
     assert result == expected
 
 
+@pytest.mark.websockets
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [hero_server_answers], indirect=True)
 async def test_async_client_validation_fetch_schema_from_server_invalid_query(
@@ -256,11 +267,15 @@ async def test_async_client_validation_fetch_schema_from_server_invalid_query(
         await session.execute(query)
 
 
+@pytest.mark.websockets
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [hero_server_answers], indirect=True)
 async def test_async_client_validation_fetch_schema_from_server_with_client_argument(
     event_loop, server
 ):
+
+    from gql.transport.websockets import WebsocketsTransport
+
     url = f"ws://{server.hostname}:{server.port}/graphql"
 
     sample_transport = WebsocketsTransport(url=url)

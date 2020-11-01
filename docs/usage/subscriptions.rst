@@ -5,7 +5,8 @@ Using the :ref:`websockets transport <websockets_transport>`, it is possible to 
 
 .. code-block:: python
 
-    from gql import gql, Client, WebsocketsTransport
+    from gql import gql, Client
+    from gql.transport.websockets import WebsocketsTransport
 
     transport = WebsocketsTransport(url='wss://your_server/graphql')
 

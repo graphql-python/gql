@@ -11,12 +11,14 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Union
 
 import pytest
-import websockets
-from aiohttp.test_utils import TestServer as AIOHTTPTestServer
-from websockets.exceptions import ConnectionClosed
 
 from gql import Client
-from gql.transport.websockets import WebsocketsTransport
+
+all_transport_dependencies = [
+    "aiohttp",
+    "requests",
+    "websockets",
+]
 
 
 def pytest_addoption(parser):
@@ -26,22 +28,53 @@ def pytest_addoption(parser):
         default=False,
         help="run tests necessitating online resources",
     )
+    for transport in all_transport_dependencies:
+        parser.addoption(
+            f"--{transport}-only",
+            action="store_true",
+            default=False,
+            help=f"run tests necessitating only the {transport} dependency",
+        )
 
 
 def pytest_configure(config):
     config.addinivalue_line(
         "markers", "online: mark test as necessitating external online resources"
     )
+    for transport in all_transport_dependencies:
+        config.addinivalue_line(
+            "markers",
+            f"{transport}: mark test as necessitating the {transport} dependency",
+        )
 
 
 def pytest_collection_modifyitems(config, items):
-    if config.getoption("--run-online"):
-        # --run-online given in cli: do not skip online tests
-        return
-    skip_online = pytest.mark.skip(reason="need --run-online option to run")
-    for item in items:
-        if "online" in item.keywords:
-            item.add_marker(skip_online)
+
+    # --run-online given in cli: do not skip online tests
+    if not config.getoption("--run-online"):
+        skip_online = pytest.mark.skip(reason="need --run-online option to run")
+        for item in items:
+            if "online" in item.keywords:
+                item.add_marker(skip_online)
+
+    # --aiohttp-only
+    # --requests-only
+    # --websockets-only
+    for transport in all_transport_dependencies:
+
+        other_transport_dependencies = [
+            t for t in all_transport_dependencies if t != transport
+        ]
+
+        if config.getoption(f"--{transport}-only"):
+            skip_transport = pytest.mark.skip(
+                reason=f"need another dependency than {transport}"
+            )
+            for item in items:
+                # Check if we have a dependency transport
+                # other than the requested transport
+                if any(t in item.keywords for t in other_transport_dependencies):
+                    item.add_marker(skip_transport)
 
 
 @pytest.fixture
@@ -50,6 +83,8 @@ async def aiohttp_server():
 
     aiohttp_server(app, **kwargs)
     """
+    from aiohttp.test_utils import TestServer as AIOHTTPTestServer
+
     servers = []
 
     async def go(app, *, port=None, **kwargs):  # type: ignore
@@ -89,6 +124,8 @@ class WebSocketServer:
         self.with_ssl = with_ssl
 
     async def start(self, handler):
+
+        import websockets
 
         print("Starting server")
 
@@ -226,6 +263,8 @@ def get_server_handler(request):
     if the test provides only an array of answers.
     """
 
+    from websockets.exceptions import ConnectionClosed
+
     if isinstance(request.param, types.FunctionType):
         server_handler = request.param
 
@@ -311,6 +350,8 @@ async def server(request):
 @pytest.fixture
 async def client_and_server(server):
     """Helper fixture to start a server and a client connected to its port."""
+
+    from gql.transport.websockets import WebsocketsTransport
 
     # Generate transport to connect to the server fixture
     path = "/graphql"

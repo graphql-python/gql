@@ -9,9 +9,7 @@ from yarl import URL
 
 from gql import Client, __version__, gql
 from gql.transport import AsyncTransport
-from gql.transport.aiohttp import AIOHTTPTransport
 from gql.transport.exceptions import TransportQueryError
-from gql.transport.websockets import WebsocketsTransport
 
 description = """
 Send GraphQL queries from the command line using http(s) or websockets.
@@ -201,10 +199,14 @@ def get_transport(args: Namespace) -> AsyncTransport:
     # Instanciate transport depending on url scheme
     transport: AsyncTransport
     if scheme in ["ws", "wss"]:
+        from gql.transport.websockets import WebsocketsTransport
+
         transport = WebsocketsTransport(
             url=args.server, ssl=(scheme == "wss"), **transport_args
         )
     elif scheme in ["http", "https"]:
+        from gql.transport.aiohttp import AIOHTTPTransport
+
         transport = AIOHTTPTransport(url=args.server, **transport_args)
     else:
         raise ValueError("URL protocol should be one of: http, https, ws, wss")
@@ -261,13 +263,12 @@ async def main(args: Namespace) -> int:
 
             # Execute or Subscribe the query depending on transport
             try:
-                if isinstance(transport, WebsocketsTransport):
-                    try:
-                        async for result in session.subscribe(query, **execute_args):
-                            print(json.dumps(result))
-                    except KeyboardInterrupt:  # pragma: no cover
-                        pass
-                else:
+                try:
+                    async for result in session.subscribe(query, **execute_args):
+                        print(json.dumps(result))
+                except KeyboardInterrupt:  # pragma: no cover
+                    pass
+                except NotImplementedError:
                     result = await session.execute(query, **execute_args)
                     print(json.dumps(result))
             except (GraphQLError, TransportQueryError) as e:

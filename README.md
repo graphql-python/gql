@@ -45,7 +45,9 @@ The main features of GQL are:
 
 > **WARNING**: Please note that the following documentation describes the current version which is currently only available as a pre-release and needs to be installed with
 
-    $ pip install --pre gql
+    $ pip install --pre gql[all]
+
+> **NOTE**: See also [the documentation](https://gql.readthedocs.io/en/latest/intro.html#less-dependencies) to install GQL with less extra dependencies
 
 ## Usage
 

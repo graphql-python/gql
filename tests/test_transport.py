@@ -1,31 +1,35 @@
 import os
 
 import pytest
-import requests
-import vcr
 
 from gql import Client, gql
-from gql.transport.requests import RequestsHTTPTransport
 
 # We serve https://github.com/graphql-python/swapi-graphene locally:
 URL = "http://127.0.0.1:8000/graphql"
 
-
-query_vcr = vcr.VCR(
-    cassette_library_dir=os.path.join(
-        os.path.dirname(__file__), "fixtures", "vcr_cassettes"
-    ),
-    record_mode="new_episodes",
-    match_on=["uri", "method", "body"],
-)
+# Marking all tests in this file with the requests marker
+pytestmark = pytest.mark.requests
 
 
 def use_cassette(name):
+    import vcr
+
+    query_vcr = vcr.VCR(
+        cassette_library_dir=os.path.join(
+            os.path.dirname(__file__), "fixtures", "vcr_cassettes"
+        ),
+        record_mode="new_episodes",
+        match_on=["uri", "method", "body"],
+    )
+
     return query_vcr.use_cassette(name + ".yaml")
 
 
 @pytest.fixture
 def client():
+    import requests
+    from gql.transport.requests import RequestsHTTPTransport
+
     with use_cassette("client"):
         response = requests.get(
             URL, headers={"Host": "swapi.graphene-python.org", "Accept": "text/html"}
@@ -119,11 +123,3 @@ def test_named_query(client):
     with use_cassette("queries"):
         result = client.execute(query, operation_name="Planet2")
     assert result == expected
-
-
-def test_import_transports_directly_from_gql():
-    from gql import AIOHTTPTransport, RequestsHTTPTransport, WebsocketsTransport
-
-    assert AIOHTTPTransport
-    assert RequestsHTTPTransport
-    assert WebsocketsTransport

@@ -1,4 +1,5 @@
-from gql import gql, Client, AIOHTTPTransport
+from gql import Client, gql
+from gql.transport.aiohttp import AIOHTTPTransport
 
 # Select your transport with a defined url endpoint
 transport = AIOHTTPTransport(url="https://countries.trevorblades.com/")
