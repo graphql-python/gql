@@ -54,7 +54,8 @@ The main features of GQL are:
 ### Basic usage
 
 ```python
-from gql import gql, Client, AIOHTTPTransport
+from gql import gql, Client
+from gql.transport.aiohttp import AIOHTTPTransport
 
 # Select your transport with a defined url endpoint
 transport = AIOHTTPTransport(url="https://countries.trevorblades.com/")
