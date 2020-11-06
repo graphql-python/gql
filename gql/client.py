@@ -56,7 +56,7 @@ class Client:
         :param fetch_schema_from_transport: Boolean to indicate that if we want to fetch
                 the schema from the transport using an introspection query
         :param execute_timeout: The maximum time in seconds for the execution of a
-                request before a TimeoutError is raised
+                request before a TimeoutError is raised. Only used for async transports.
         """
         assert not (
             type_def and introspection
@@ -103,7 +103,7 @@ class Client:
         # On async transports, we fetch the schema before executing the first query
         self.fetch_schema_from_transport: bool = fetch_schema_from_transport
 
-        # Enforced timeout of the execute function
+        # Enforced timeout of the execute function (only for async transports)
         self.execute_timeout = execute_timeout
 
         if isinstance(transport, Transport) and fetch_schema_from_transport:
@@ -249,6 +249,10 @@ class Client:
         if not hasattr(self, "session"):
             self.session = AsyncClientSession(client=self)
 
+        # Get schema from transport if needed
+        if self.fetch_schema_from_transport and not self.schema:
+            await self.session.fetch_schema()
+
         return self.session
 
     async def __aexit__(self, exc_type, exc, tb):
@@ -335,26 +339,13 @@ class AsyncClientSession:
         """:param client: the :class:`client <gql.client.Client>` used"""
         self.client = client
 
-    async def fetch_and_validate(self, document: DocumentNode):
-        """Fetch schema from transport if needed and validate document.
-
-        If no schema is present, the validation will be skipped.
-        """
-
-        # Get schema from transport if needed
-        if self.client.fetch_schema_from_transport and not self.client.schema:
-            await self.fetch_schema()
-
-        # Validate document
-        if self.client.schema:
-            self.client.validate(document)
-
     async def _subscribe(
         self, document: DocumentNode, *args, **kwargs
     ) -> AsyncGenerator[ExecutionResult, None]:
 
-        # Fetch schema from transport if needed and validate document if possible
-        await self.fetch_and_validate(document)
+        # Validate document
+        if self.client.schema:
+            self.client.validate(document)
 
         # Subscribe to the transport
         inner_generator: AsyncGenerator[
@@ -396,8 +387,10 @@ class AsyncClientSession:
     async def _execute(
         self, document: DocumentNode, *args, **kwargs
     ) -> ExecutionResult:
-        # Fetch schema from transport if needed and validate document if possible
-        await self.fetch_and_validate(document)
+
+        # Validate document
+        if self.client.schema:
+            self.client.validate(document)
 
         # Execute the query with the transport with a timeout
         return await asyncio.wait_for(
