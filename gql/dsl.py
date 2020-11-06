@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from collections.abc import Iterable
-from functools import partial
+from typing import Any, Callable, Dict, List, Optional, Tuple, cast
 
 from graphql import (
     ArgumentNode,
@@ -7,10 +9,14 @@ from graphql import (
     EnumValueNode,
     FieldNode,
     GraphQLEnumType,
+    GraphQLField,
     GraphQLInputField,
     GraphQLInputObjectType,
+    GraphQLInputType,
     GraphQLList,
     GraphQLNonNull,
+    GraphQLObjectType,
+    GraphQLScalarType,
     ListValueNode,
     NameNode,
     ObjectFieldNode,
@@ -18,6 +24,7 @@ from graphql import (
     OperationDefinitionNode,
     OperationType,
     SelectionSetNode,
+    ValueNode,
     ast_from_value,
     print_ast,
 )
@@ -26,7 +33,7 @@ from graphql.pyutils import FrozenList
 from .utils import to_camel_case
 
 
-class DSLSchema(object):
+class DSLSchema:
     def __init__(self, client):
         self.client = client
 
@@ -34,8 +41,8 @@ class DSLSchema(object):
     def schema(self):
         return self.client.schema
 
-    def __getattr__(self, name):
-        type_def = self.schema.get_type(name)
+    def __getattr__(self, name: str) -> DSLType:
+        type_def: GraphQLObjectType = self.schema.get_type(name)
         return DSLType(type_def)
 
     def query(self, *args, **kwargs):
@@ -48,15 +55,15 @@ class DSLSchema(object):
         return self.client.execute(document)
 
 
-class DSLType(object):
-    def __init__(self, type_):
-        self._type = type_
+class DSLType:
+    def __init__(self, type_: GraphQLObjectType):
+        self._type: GraphQLObjectType = type_
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> DSLField:
         formatted_name, field_def = self.get_field(name)
         return DSLField(formatted_name, field_def)
 
-    def get_field(self, name):
+    def get_field(self, name: str) -> Tuple[str, GraphQLField]:
         camel_cased_name = to_camel_case(name)
 
         if name in self._type.fields:
@@ -68,38 +75,60 @@ class DSLType(object):
         raise KeyError(f"Field {name} does not exist in type {self._type.name}.")
 
 
-def selections(*fields):
-    for _field in fields:
-        yield selection_field(_field).ast
+def get_ast_fields(fields: Iterable[DSLField]) -> List[FieldNode]:
+    """
+    Roughtly equivalent to: [field.ast_field for field in fields]
+    But with a type check for each field in the list
+
+    Raises a TypeError if any of the provided fields are not of the DSLField type
+    """
+    ast_fields = []
+    for field in fields:
+        if isinstance(field, DSLField):
+            ast_fields.append(field.ast_field)
+        else:
+            raise TypeError(f'Received incompatible query field: "{field}".')
+
+    return ast_fields
 
 
-class DSLField(object):
-    def __init__(self, name, field):
+class DSLField:
+
+    # Definition of field from the schema
+    field: GraphQLField
+
+    # Current selection in the query
+    ast_field: FieldNode
+
+    def __init__(self, name: str, field: GraphQLField):
         self.field = field
         self.ast_field = FieldNode(name=NameNode(value=name), arguments=FrozenList())
-        self.selection_set = None
 
-    def select(self, *fields):
-        selection_set = self.ast_field.selection_set
-        added_selections = selections(*fields)
-        if selection_set:
-            selection_set.selections = FrozenList(
-                selection_set.selections + list(added_selections)
-            )
-        else:
+    def select(self, *fields: DSLField) -> DSLField:
+
+        added_selections: List[FieldNode] = get_ast_fields(fields)
+
+        current_selection_set: Optional[SelectionSetNode] = self.ast_field.selection_set
+
+        if current_selection_set is None:
             self.ast_field.selection_set = SelectionSetNode(
                 selections=FrozenList(added_selections)
             )
+        else:
+            current_selection_set.selections = FrozenList(
+                current_selection_set.selections + added_selections
+            )
+
         return self
 
-    def __call__(self, **kwargs):
+    def __call__(self, **kwargs) -> DSLField:
         return self.args(**kwargs)
 
-    def alias(self, alias):
+    def alias(self, alias: str) -> DSLField:
         self.ast_field.alias = NameNode(value=alias)
         return self
 
-    def args(self, **kwargs):
+    def args(self, **kwargs) -> DSLField:
         added_args = []
         for name, value in kwargs.items():
             arg = self.field.args.get(name)
@@ -110,55 +139,41 @@ class DSLField(object):
             added_args.append(
                 ArgumentNode(name=NameNode(value=name), value=serialized_value)
             )
-        ast_field = self.ast_field
-        ast_field.arguments = FrozenList(ast_field.arguments + added_args)
+        self.ast_field.arguments = FrozenList(self.ast_field.arguments + added_args)
         return self
 
-    @property
-    def ast(self):
-        return self.ast_field
-
-    def __str__(self):
+    def __str__(self) -> str:
         return print_ast(self.ast_field)
 
 
-def selection_field(field):
-    if isinstance(field, DSLField):
-        return field
+def query(*fields: DSLField, operation: str = "query") -> DocumentNode:
 
-    raise TypeError(f'Received incompatible query field: "{field}".')
-
-
-def query(*fields, **kwargs):
-    if "operation" not in kwargs:
-        kwargs["operation"] = "query"
     return DocumentNode(
         definitions=[
             OperationDefinitionNode(
-                operation=OperationType(kwargs["operation"]),
+                operation=OperationType(operation),
                 selection_set=SelectionSetNode(
-                    selections=FrozenList(selections(*fields))
+                    selections=FrozenList(get_ast_fields(fields))
                 ),
             )
         ]
     )
 
 
-def serialize_list(serializer, list_values):
-    assert isinstance(
-        list_values, Iterable
-    ), f'Expected iterable, received "{list_values!r}".'
-    return ListValueNode(values=FrozenList(serializer(v) for v in list_values))
+Serializer = Callable[[Any], Optional[ValueNode]]
 
 
-def get_arg_serializer(arg_type, known_serializers):
+def get_arg_serializer(
+    arg_type: GraphQLInputType,
+    known_serializers: Dict[GraphQLInputType, Optional[Serializer]],
+) -> Serializer:
     if isinstance(arg_type, GraphQLNonNull):
         return get_arg_serializer(arg_type.of_type, known_serializers)
-    if isinstance(arg_type, GraphQLInputField):
+    elif isinstance(arg_type, GraphQLInputField):
         return get_arg_serializer(arg_type.type, known_serializers)
-    if isinstance(arg_type, GraphQLInputObjectType):
+    elif isinstance(arg_type, GraphQLInputObjectType):
         if arg_type in known_serializers:
-            return known_serializers[arg_type]
+            return cast(Serializer, known_serializers[arg_type])
         known_serializers[arg_type] = None
         serializers = {
             k: get_arg_serializer(v, known_serializers)
@@ -170,10 +185,17 @@ def get_arg_serializer(arg_type, known_serializers):
                 for k, v in value.items()
             )
         )
-        return known_serializers[arg_type]
-    if isinstance(arg_type, GraphQLList):
+        return cast(Serializer, known_serializers[arg_type])
+    elif isinstance(arg_type, GraphQLList):
         inner_serializer = get_arg_serializer(arg_type.of_type, known_serializers)
-        return partial(serialize_list, inner_serializer)
-    if isinstance(arg_type, GraphQLEnumType):
-        return lambda value: EnumValueNode(value=arg_type.serialize(value))
-    return lambda value: ast_from_value(arg_type.serialize(value), arg_type)
+        return lambda list_values: ListValueNode(
+            values=FrozenList(inner_serializer(v) for v in list_values)
+        )
+    elif isinstance(arg_type, GraphQLEnumType):
+        return lambda value: EnumValueNode(
+            value=cast(GraphQLEnumType, arg_type).serialize(value)
+        )
+
+    return lambda value: ast_from_value(
+        cast(GraphQLScalarType, arg_type).serialize(value), arg_type
+    )
