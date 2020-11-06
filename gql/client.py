@@ -106,10 +106,6 @@ class Client:
         # Enforced timeout of the execute function (only for async transports)
         self.execute_timeout = execute_timeout
 
-        if isinstance(transport, Transport) and fetch_schema_from_transport:
-            with self as session:
-                session.fetch_schema()
-
     def validate(self, document: DocumentNode):
         """:meta private:"""
         assert (
@@ -270,6 +266,10 @@ class Client:
 
         if not hasattr(self, "session"):
             self.session = SyncClientSession(client=self)
+
+        # Get schema from transport if needed
+        if self.fetch_schema_from_transport and not self.schema:
+            self.session.fetch_schema()
 
         return self.session
 
