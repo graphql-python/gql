@@ -60,10 +60,10 @@ class DSLType:
         self._type: GraphQLObjectType = type_
 
     def __getattr__(self, name: str) -> DSLField:
-        formatted_name, field_def = self.get_field(name)
+        formatted_name, field_def = self._get_field(name)
         return DSLField(formatted_name, field_def)
 
-    def get_field(self, name: str) -> Tuple[str, GraphQLField]:
+    def _get_field(self, name: str) -> Tuple[str, GraphQLField]:
         camel_cased_name = to_camel_case(name)
 
         if name in self._type.fields:
@@ -92,6 +92,9 @@ def get_ast_fields(fields: Iterable[DSLField]) -> List[FieldNode]:
     return ast_fields
 
 
+Serializer = Callable[[Any], Optional[ValueNode]]
+
+
 class DSLField:
 
     # Definition of field from the schema
@@ -100,9 +103,13 @@ class DSLField:
     # Current selection in the query
     ast_field: FieldNode
 
+    # Known serializers
+    known_serializers: Dict[GraphQLInputType, Optional[Serializer]]
+
     def __init__(self, name: str, field: GraphQLField):
         self.field = field
         self.ast_field = FieldNode(name=NameNode(value=name), arguments=FrozenList())
+        self.known_serializers = dict()
 
     def select(self, *fields: DSLField) -> DSLField:
 
@@ -134,13 +141,46 @@ class DSLField:
             arg = self.field.args.get(name)
             if not arg:
                 raise KeyError(f"Argument {name} does not exist in {self.field}.")
-            arg_type_serializer = get_arg_serializer(arg.type, known_serializers=dict())
+            arg_type_serializer = self._get_arg_serializer(arg.type)
             serialized_value = arg_type_serializer(value)
             added_args.append(
                 ArgumentNode(name=NameNode(value=name), value=serialized_value)
             )
         self.ast_field.arguments = FrozenList(self.ast_field.arguments + added_args)
         return self
+
+    def _get_arg_serializer(self, arg_type: GraphQLInputType,) -> Serializer:
+        if isinstance(arg_type, GraphQLNonNull):
+            return self._get_arg_serializer(arg_type.of_type)
+        elif isinstance(arg_type, GraphQLInputField):
+            return self._get_arg_serializer(arg_type.type)
+        elif isinstance(arg_type, GraphQLInputObjectType):
+            if arg_type in self.known_serializers:
+                return cast(Serializer, self.known_serializers[arg_type])
+            self.known_serializers[arg_type] = None
+            serializers = {
+                k: self._get_arg_serializer(v) for k, v in arg_type.fields.items()
+            }
+            self.known_serializers[arg_type] = lambda value: ObjectValueNode(
+                fields=FrozenList(
+                    ObjectFieldNode(name=NameNode(value=k), value=serializers[k](v))
+                    for k, v in value.items()
+                )
+            )
+            return cast(Serializer, self.known_serializers[arg_type])
+        elif isinstance(arg_type, GraphQLList):
+            inner_serializer = self._get_arg_serializer(arg_type.of_type)
+            return lambda list_values: ListValueNode(
+                values=FrozenList(inner_serializer(v) for v in list_values)
+            )
+        elif isinstance(arg_type, GraphQLEnumType):
+            return lambda value: EnumValueNode(
+                value=cast(GraphQLEnumType, arg_type).serialize(value)
+            )
+
+        return lambda value: ast_from_value(
+            cast(GraphQLScalarType, arg_type).serialize(value), arg_type
+        )
 
     def __str__(self) -> str:
         return print_ast(self.ast_field)
@@ -157,45 +197,4 @@ def query(*fields: DSLField, operation: str = "query") -> DocumentNode:
                 ),
             )
         ]
-    )
-
-
-Serializer = Callable[[Any], Optional[ValueNode]]
-
-
-def get_arg_serializer(
-    arg_type: GraphQLInputType,
-    known_serializers: Dict[GraphQLInputType, Optional[Serializer]],
-) -> Serializer:
-    if isinstance(arg_type, GraphQLNonNull):
-        return get_arg_serializer(arg_type.of_type, known_serializers)
-    elif isinstance(arg_type, GraphQLInputField):
-        return get_arg_serializer(arg_type.type, known_serializers)
-    elif isinstance(arg_type, GraphQLInputObjectType):
-        if arg_type in known_serializers:
-            return cast(Serializer, known_serializers[arg_type])
-        known_serializers[arg_type] = None
-        serializers = {
-            k: get_arg_serializer(v, known_serializers)
-            for k, v in arg_type.fields.items()
-        }
-        known_serializers[arg_type] = lambda value: ObjectValueNode(
-            fields=FrozenList(
-                ObjectFieldNode(name=NameNode(value=k), value=serializers[k](v))
-                for k, v in value.items()
-            )
-        )
-        return cast(Serializer, known_serializers[arg_type])
-    elif isinstance(arg_type, GraphQLList):
-        inner_serializer = get_arg_serializer(arg_type.of_type, known_serializers)
-        return lambda list_values: ListValueNode(
-            values=FrozenList(inner_serializer(v) for v in list_values)
-        )
-    elif isinstance(arg_type, GraphQLEnumType):
-        return lambda value: EnumValueNode(
-            value=cast(GraphQLEnumType, arg_type).serialize(value)
-        )
-
-    return lambda value: ast_from_value(
-        cast(GraphQLScalarType, arg_type).serialize(value), arg_type
     )
