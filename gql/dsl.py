@@ -1,5 +1,5 @@
 from collections.abc import Iterable
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, Callable, Dict, List, Optional, Union, cast
 
 from graphql import (
     ArgumentNode,
@@ -76,19 +76,18 @@ class DSLType:
         self._type: GraphQLTypeWithFields = type_
 
     def __getattr__(self, name: str) -> "DSLField":
-        formatted_name, field_def = self._get_field(name)
-        return DSLField(formatted_name, field_def)
-
-    def _get_field(self, name: str) -> Tuple[str, GraphQLField]:
         camel_cased_name = to_camel_case(name)
 
         if name in self._type.fields:
-            return name, self._type.fields[name]
+            formatted_name = name
+            field = self._type.fields[name]
+        elif camel_cased_name in self._type.fields:
+            formatted_name = camel_cased_name
+            field = self._type.fields[camel_cased_name]
+        else:
+            raise KeyError(f"Field {name} does not exist in type {self._type.name}.")
 
-        if camel_cased_name in self._type.fields:
-            return camel_cased_name, self._type.fields[camel_cased_name]
-
-        raise KeyError(f"Field {name} does not exist in type {self._type.name}.")
+        return DSLField(formatted_name, field)
 
 
 class DSLField:
