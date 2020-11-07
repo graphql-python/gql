@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from collections.abc import Iterable
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
 
@@ -48,7 +46,7 @@ class DSLSchema:
 
         self._schema: GraphQLSchema = schema
 
-    def __getattr__(self, name: str) -> DSLType:
+    def __getattr__(self, name: str) -> "DSLType":
 
         type_def: Optional[GraphQLNamedType] = self._schema.get_type(name)
 
@@ -58,7 +56,7 @@ class DSLSchema:
 
         return DSLType(type_def)
 
-    def gql(self, *fields: DSLField, operation: str = "query") -> DocumentNode:
+    def gql(self, *fields: "DSLField", operation: str = "query") -> DocumentNode:
 
         return DocumentNode(
             definitions=[
@@ -76,7 +74,7 @@ class DSLType:
     def __init__(self, type_: GraphQLTypeWithFields):
         self._type: GraphQLTypeWithFields = type_
 
-    def __getattr__(self, name: str) -> DSLField:
+    def __getattr__(self, name: str) -> "DSLField":
         formatted_name, field_def = self._get_field(name)
         return DSLField(formatted_name, field_def)
 
@@ -109,7 +107,7 @@ class DSLField:
         self.known_serializers = dict()
 
     @staticmethod
-    def get_ast_fields(fields: Iterable[DSLField]) -> List[FieldNode]:
+    def get_ast_fields(fields: Iterable) -> List[FieldNode]:
         """
         Equivalent to: [field.ast_field for field in fields]
         But with a type check for each field in the list
@@ -125,7 +123,7 @@ class DSLField:
 
         return ast_fields
 
-    def select(self, *fields: DSLField) -> DSLField:
+    def select(self, *fields: "DSLField") -> "DSLField":
 
         added_selections: List[FieldNode] = self.get_ast_fields(fields)
 
@@ -142,14 +140,14 @@ class DSLField:
 
         return self
 
-    def __call__(self, **kwargs) -> DSLField:
+    def __call__(self, **kwargs) -> "DSLField":
         return self.args(**kwargs)
 
-    def alias(self, alias: str) -> DSLField:
+    def alias(self, alias: str) -> "DSLField":
         self.ast_field.alias = NameNode(value=alias)
         return self
 
-    def args(self, **kwargs) -> DSLField:
+    def args(self, **kwargs) -> "DSLField":
         added_args = []
         for name, value in kwargs.items():
             arg = self.field.args.get(name)
