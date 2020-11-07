@@ -1,7 +1,7 @@
 import pytest
 
 from gql import Client
-from gql.dsl import DSLSchema
+from gql.dsl import DSLSchema, dsl_gql
 
 from .schema import StarWarsSchema
 
@@ -24,7 +24,7 @@ def test_invalid_field_on_type_query(ds):
 
 def test_incompatible_field(ds):
     with pytest.raises(Exception) as exc_info:
-        ds.gql("hero")
+        dsl_gql("hero")
     assert "Received incompatible field" in str(exc_info.value)
 
 
@@ -114,14 +114,14 @@ luke: human(id: "1000") {
 
 
 def test_hero_name_query_result(ds, client):
-    query = ds.gql(ds.Query.hero.select(ds.Character.name))
+    query = dsl_gql(ds.Query.hero.select(ds.Character.name))
     result = client.execute(query)
     expected = {"hero": {"name": "R2-D2"}}
     assert result == expected
 
 
 def test_arg_serializer_list(ds, client):
-    query = ds.gql(
+    query = dsl_gql(
         ds.Query.characters.args(ids=[1000, 1001, 1003]).select(ds.Character.name,)
     )
     result = client.execute(query)
@@ -136,7 +136,7 @@ def test_arg_serializer_list(ds, client):
 
 
 def test_arg_serializer_enum(ds, client):
-    query = ds.gql(ds.Query.hero.args(episode=5).select(ds.Character.name))
+    query = dsl_gql(ds.Query.hero.args(episode=5).select(ds.Character.name))
     result = client.execute(query)
     expected = {"hero": {"name": "Luke Skywalker"}}
     assert result == expected
@@ -144,7 +144,7 @@ def test_arg_serializer_enum(ds, client):
 
 def test_create_review_mutation_result(ds, client):
 
-    query = ds.gql(
+    query = dsl_gql(
         ds.Mutation.createReview.args(
             episode=6, review={"stars": 5, "commentary": "This is a great movie!"}
         ).select(ds.Review.stars, ds.Review.commentary),
@@ -160,3 +160,16 @@ def test_invalid_arg(ds):
         KeyError, match="Argument invalid_arg does not exist in Field: Character."
     ):
         ds.Query.hero.args(invalid_arg=5).select(ds.Character.name)
+
+
+def test_multiple_queries(ds, client):
+    query = dsl_gql(
+        ds.Query.hero.select(ds.Character.name),
+        ds.Query.hero(episode=5).alias("hero_of_episode_5").select(ds.Character.name),
+    )
+    result = client.execute(query)
+    expected = {
+        "hero": {"name": "R2-D2"},
+        "hero_of_episode_5": {"name": "Luke Skywalker"},
+    }
+    assert result == expected

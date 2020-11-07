@@ -37,6 +37,20 @@ GraphQLTypeWithFields = Union[GraphQLObjectType, GraphQLInterfaceType]
 Serializer = Callable[[Any], Optional[ValueNode]]
 
 
+def dsl_gql(*fields: "DSLField", operation: str = "query") -> DocumentNode:
+
+    return DocumentNode(
+        definitions=[
+            OperationDefinitionNode(
+                operation=OperationType(operation),
+                selection_set=SelectionSetNode(
+                    selections=FrozenList(DSLField.get_ast_fields(fields))
+                ),
+            )
+        ]
+    )
+
+
 class DSLSchema:
     def __init__(self, schema: GraphQLSchema):
 
@@ -55,19 +69,6 @@ class DSLSchema:
         )
 
         return DSLType(type_def)
-
-    def gql(self, *fields: "DSLField", operation: str = "query") -> DocumentNode:
-
-        return DocumentNode(
-            definitions=[
-                OperationDefinitionNode(
-                    operation=OperationType(operation),
-                    selection_set=SelectionSetNode(
-                        selections=FrozenList(DSLField.get_ast_fields(fields))
-                    ),
-                )
-            ]
-        )
 
 
 class DSLType:
