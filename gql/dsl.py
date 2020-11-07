@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Iterable
 from typing import Any, Callable, Dict, List, Optional, Union, cast
 
@@ -33,11 +34,29 @@ from graphql.pyutils import FrozenList
 
 from .utils import to_camel_case
 
+log = logging.getLogger(__name__)
+
 GraphQLTypeWithFields = Union[GraphQLObjectType, GraphQLInterfaceType]
 Serializer = Callable[[Any], Optional[ValueNode]]
 
 
-def dsl_gql(*fields: "DSLField", operation: str = "query") -> DocumentNode:
+def dsl_gql(*fields: "DSLField") -> DocumentNode:
+
+    # Check that we receive only arguments of type DSLField
+    # And that they are a root type
+    for field in fields:
+        if not isinstance(field, DSLField):
+            raise TypeError(
+                f"fields must be instances of DSLField. Received type: {type(field)}"
+            )
+        assert field.type_name in ["Query", "Mutation", "Subscription"], (
+            "fields should be root types (Query, Mutation or Subscription)\n"
+            f"Received: {field.type_name}"
+        )
+
+    # Get the operation from the first field
+    # All the fields must have the same operation
+    operation = fields[0].type_name.lower()
 
     return DocumentNode(
         definitions=[
@@ -54,15 +73,17 @@ def dsl_gql(*fields: "DSLField", operation: str = "query") -> DocumentNode:
 class DSLSchema:
     def __init__(self, schema: GraphQLSchema):
 
-        assert isinstance(
-            schema, GraphQLSchema
-        ), "DSLSchema needs a schema as parameter"
+        if not isinstance(schema, GraphQLSchema):
+            raise TypeError("DSLSchema needs a schema as parameter")
 
         self._schema: GraphQLSchema = schema
 
     def __getattr__(self, name: str) -> "DSLType":
 
         type_def: Optional[GraphQLNamedType] = self._schema.get_type(name)
+
+        if type_def is None:
+            raise AttributeError(f"Type '{name}' not found in the schema!")
 
         assert isinstance(type_def, GraphQLObjectType) or isinstance(
             type_def, GraphQLInterfaceType
@@ -74,6 +95,7 @@ class DSLSchema:
 class DSLType:
     def __init__(self, type_: GraphQLTypeWithFields):
         self._type: GraphQLTypeWithFields = type_
+        log.debug(f"DSLType({type_!r})")
 
     def __getattr__(self, name: str) -> "DSLField":
         camel_cased_name = to_camel_case(name)
@@ -85,9 +107,11 @@ class DSLType:
             formatted_name = camel_cased_name
             field = self._type.fields[camel_cased_name]
         else:
-            raise KeyError(f"Field {name} does not exist in type {self._type.name}.")
+            raise AttributeError(
+                f"Field {name} does not exist in type {self._type.name}."
+            )
 
-        return DSLField(formatted_name, field)
+        return DSLField(formatted_name, self._type, field)
 
 
 class DSLField:
@@ -101,10 +125,12 @@ class DSLField:
     # Known serializers
     known_serializers: Dict[GraphQLInputType, Optional[Serializer]]
 
-    def __init__(self, name: str, field: GraphQLField):
+    def __init__(self, name: str, type_: GraphQLTypeWithFields, field: GraphQLField):
+        self._type: GraphQLTypeWithFields = type_
         self.field = field
         self.ast_field = FieldNode(name=NameNode(value=name), arguments=FrozenList())
         self.known_serializers = dict()
+        log.debug(f"DSLField('{name}',{field!r})")
 
     @staticmethod
     def get_ast_fields(fields: Iterable) -> List[FieldNode]:
@@ -193,6 +219,10 @@ class DSLField:
         return lambda value: ast_from_value(
             cast(GraphQLScalarType, arg_type).serialize(value), arg_type
         )
+
+    @property
+    def type_name(self):
+        return self._type.name
 
     def __str__(self) -> str:
         return print_ast(self.ast_field)

@@ -17,14 +17,14 @@ def client():
 
 
 def test_invalid_field_on_type_query(ds):
-    with pytest.raises(KeyError) as exc_info:
+    with pytest.raises(AttributeError) as exc_info:
         ds.Query.extras.select(ds.Character.name)
     assert "Field extras does not exist in type Query." in str(exc_info.value)
 
 
 def test_incompatible_field(ds):
     with pytest.raises(Exception) as exc_info:
-        dsl_gql("hero")
+        ds.Query.hero.select("not_a_DSL_FIELD")
     assert "Received incompatible field" in str(exc_info.value)
 
 
@@ -147,8 +147,7 @@ def test_create_review_mutation_result(ds, client):
     query = dsl_gql(
         ds.Mutation.createReview.args(
             episode=6, review={"stars": 5, "commentary": "This is a great movie!"}
-        ).select(ds.Review.stars, ds.Review.commentary),
-        operation="mutation",
+        ).select(ds.Review.stars, ds.Review.commentary)
     )
     result = client.execute(query)
     expected = {"createReview": {"stars": 5, "commentary": "This is a great movie!"}}
@@ -173,3 +172,44 @@ def test_multiple_queries(ds, client):
         "hero_of_episode_5": {"name": "Luke Skywalker"},
     }
     assert result == expected
+
+
+def test_dsl_gql_all_fields_should_be_instances_of_DSLField(ds, client):
+    with pytest.raises(
+        TypeError, match="fields must be instances of DSLField. Received type:"
+    ):
+        dsl_gql(
+            ds.Query.hero.select(ds.Character.name),
+            ds.Query.hero(episode=5)
+            .alias("hero_of_episode_5")
+            .select(ds.Character.name),
+            "I am a string",
+        )
+
+
+def test_dsl_gql_all_fields_should_be_a_root_type(ds, client):
+    with pytest.raises(AssertionError,) as excinfo:
+        dsl_gql(
+            ds.Query.hero.select(ds.Character.name),
+            ds.Query.hero(episode=5)
+            .alias("hero_of_episode_5")
+            .select(ds.Character.name),
+            ds.Character.name,
+        )
+
+    assert (
+        "fields should be root types (Query, Mutation or Subscription)\n"
+        "Received: Character"
+    ) in str(excinfo.value)
+
+
+def test_DSLSchema_requires_a_schema(client):
+    with pytest.raises(TypeError, match="DSLSchema needs a schema as parameter"):
+        DSLSchema(client)
+
+
+def test_invalid_type(ds):
+    with pytest.raises(
+        AttributeError, match="Type 'invalid_type' not found in the schema!"
+    ):
+        ds.invalid_type
