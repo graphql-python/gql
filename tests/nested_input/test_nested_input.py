@@ -7,10 +7,14 @@ from tests.nested_input.schema import NestedInputSchema
 
 @pytest.fixture
 def ds():
-    client = Client(schema=NestedInputSchema)
-    ds = DSLSchema(client)
-    return ds
+    return DSLSchema(NestedInputSchema)
 
 
-def test_nested_input_with_new_get_arg_serializer(ds):
-    assert ds.query(ds.Query.foo.args(nested={"foo": 1})) == {"foo": 1}
+@pytest.fixture
+def client():
+    return Client(schema=NestedInputSchema)
+
+
+def test_nested_input_with_new_get_arg_serializer(ds, client):
+    query = ds.gql(ds.Query.foo.args(nested={"foo": 1}))
+    assert client.execute(query) == {"foo": 1}

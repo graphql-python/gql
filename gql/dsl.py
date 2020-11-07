@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import Any, Callable, Dict, List, Optional, Tuple, cast
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
 
 from graphql import (
     ArgumentNode,
@@ -13,10 +13,13 @@ from graphql import (
     GraphQLInputField,
     GraphQLInputObjectType,
     GraphQLInputType,
+    GraphQLInterfaceType,
     GraphQLList,
+    GraphQLNamedType,
     GraphQLNonNull,
     GraphQLObjectType,
     GraphQLScalarType,
+    GraphQLSchema,
     ListValueNode,
     NameNode,
     ObjectFieldNode,
@@ -32,32 +35,45 @@ from graphql.pyutils import FrozenList
 
 from .utils import to_camel_case
 
+GraphQLTypeWithFields = Union[GraphQLObjectType, GraphQLInterfaceType]
+
 
 class DSLSchema:
-    def __init__(self, client):
-        self.client = client
+    def __init__(self, schema: GraphQLSchema):
 
-    @property
-    def schema(self):
-        return self.client.schema
+        assert isinstance(
+            schema, GraphQLSchema
+        ), "DSLSchema needs a schema as parameter"
+
+        self._schema: GraphQLSchema = schema
 
     def __getattr__(self, name: str) -> DSLType:
-        type_def: GraphQLObjectType = self.schema.get_type(name)
+
+        type_def: Optional[GraphQLNamedType] = self._schema.get_type(name)
+
+        assert isinstance(type_def, GraphQLObjectType) or isinstance(
+            type_def, GraphQLInterfaceType
+        )
+
         return DSLType(type_def)
 
-    def query(self, *args, **kwargs):
-        return self.execute(query(*args, **kwargs))
+    def gql(self, *fields: DSLField, operation: str = "query") -> DocumentNode:
 
-    def mutate(self, *args, **kwargs):
-        return self.query(*args, operation="mutation", **kwargs)
-
-    def execute(self, document):
-        return self.client.execute(document)
+        return DocumentNode(
+            definitions=[
+                OperationDefinitionNode(
+                    operation=OperationType(operation),
+                    selection_set=SelectionSetNode(
+                        selections=FrozenList(get_ast_fields(fields))
+                    ),
+                )
+            ]
+        )
 
 
 class DSLType:
-    def __init__(self, type_: GraphQLObjectType):
-        self._type: GraphQLObjectType = type_
+    def __init__(self, type_: GraphQLTypeWithFields):
+        self._type: GraphQLTypeWithFields = type_
 
     def __getattr__(self, name: str) -> DSLField:
         formatted_name, field_def = self._get_field(name)
@@ -77,7 +93,7 @@ class DSLType:
 
 def get_ast_fields(fields: Iterable[DSLField]) -> List[FieldNode]:
     """
-    Roughtly equivalent to: [field.ast_field for field in fields]
+    Equivalent to: [field.ast_field for field in fields]
     But with a type check for each field in the list
 
     Raises a TypeError if any of the provided fields are not of the DSLField type
@@ -87,7 +103,7 @@ def get_ast_fields(fields: Iterable[DSLField]) -> List[FieldNode]:
         if isinstance(field, DSLField):
             ast_fields.append(field.ast_field)
         else:
-            raise TypeError(f'Received incompatible query field: "{field}".')
+            raise TypeError(f'Received incompatible field: "{field}".')
 
     return ast_fields
 
@@ -184,17 +200,3 @@ class DSLField:
 
     def __str__(self) -> str:
         return print_ast(self.ast_field)
-
-
-def query(*fields: DSLField, operation: str = "query") -> DocumentNode:
-
-    return DocumentNode(
-        definitions=[
-            OperationDefinitionNode(
-                operation=OperationType(operation),
-                selection_set=SelectionSetNode(
-                    selections=FrozenList(get_ast_fields(fields))
-                ),
-            )
-        ]
-    )

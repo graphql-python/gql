@@ -8,9 +8,12 @@ from .schema import StarWarsSchema
 
 @pytest.fixture
 def ds():
-    client = Client(schema=StarWarsSchema)
-    ds = DSLSchema(client)
-    return ds
+    return DSLSchema(StarWarsSchema)
+
+
+@pytest.fixture
+def client():
+    return Client(schema=StarWarsSchema)
 
 
 def test_invalid_field_on_type_query(ds):
@@ -19,10 +22,10 @@ def test_invalid_field_on_type_query(ds):
     assert "Field extras does not exist in type Query." in str(exc_info.value)
 
 
-def test_incompatible_query_field(ds):
+def test_incompatible_field(ds):
     with pytest.raises(Exception) as exc_info:
-        ds.query("hero")
-    assert "Received incompatible query field" in str(exc_info.value)
+        ds.gql("hero")
+    assert "Received incompatible field" in str(exc_info.value)
 
 
 def test_hero_name_query(ds):
@@ -110,16 +113,18 @@ luke: human(id: "1000") {
     assert query == str(query_dsl)
 
 
-def test_hero_name_query_result(ds):
-    result = ds.query(ds.Query.hero.select(ds.Character.name))
+def test_hero_name_query_result(ds, client):
+    query = ds.gql(ds.Query.hero.select(ds.Character.name))
+    result = client.execute(query)
     expected = {"hero": {"name": "R2-D2"}}
     assert result == expected
 
 
-def test_arg_serializer_list(ds):
-    result = ds.query(
+def test_arg_serializer_list(ds, client):
+    query = ds.gql(
         ds.Query.characters.args(ids=[1000, 1001, 1003]).select(ds.Character.name,)
     )
+    result = client.execute(query)
     expected = {
         "characters": [
             {"name": "Luke Skywalker"},
@@ -130,18 +135,22 @@ def test_arg_serializer_list(ds):
     assert result == expected
 
 
-def test_arg_serializer_enum(ds):
-    result = ds.query(ds.Query.hero.args(episode=5).select(ds.Character.name))
+def test_arg_serializer_enum(ds, client):
+    query = ds.gql(ds.Query.hero.args(episode=5).select(ds.Character.name))
+    result = client.execute(query)
     expected = {"hero": {"name": "Luke Skywalker"}}
     assert result == expected
 
 
-def test_create_review_mutation_result(ds):
-    result = ds.mutate(
+def test_create_review_mutation_result(ds, client):
+
+    query = ds.gql(
         ds.Mutation.createReview.args(
             episode=6, review={"stars": 5, "commentary": "This is a great movie!"}
-        ).select(ds.Review.stars, ds.Review.commentary)
+        ).select(ds.Review.stars, ds.Review.commentary),
+        operation="mutation",
     )
+    result = client.execute(query)
     expected = {"createReview": {"stars": 5, "commentary": "This is a great movie!"}}
     assert result == expected
 
@@ -150,4 +159,4 @@ def test_invalid_arg(ds):
     with pytest.raises(
         KeyError, match="Argument invalid_arg does not exist in Field: Character."
     ):
-        ds.query(ds.Query.hero.args(invalid_arg=5).select(ds.Character.name))
+        ds.Query.hero.args(invalid_arg=5).select(ds.Character.name)
