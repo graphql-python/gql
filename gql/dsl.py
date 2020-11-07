@@ -36,6 +36,7 @@ from graphql.pyutils import FrozenList
 from .utils import to_camel_case
 
 GraphQLTypeWithFields = Union[GraphQLObjectType, GraphQLInterfaceType]
+Serializer = Callable[[Any], Optional[ValueNode]]
 
 
 class DSLSchema:
@@ -64,7 +65,7 @@ class DSLSchema:
                 OperationDefinitionNode(
                     operation=OperationType(operation),
                     selection_set=SelectionSetNode(
-                        selections=FrozenList(get_ast_fields(fields))
+                        selections=FrozenList(DSLField.get_ast_fields(fields))
                     ),
                 )
             ]
@@ -91,26 +92,6 @@ class DSLType:
         raise KeyError(f"Field {name} does not exist in type {self._type.name}.")
 
 
-def get_ast_fields(fields: Iterable[DSLField]) -> List[FieldNode]:
-    """
-    Equivalent to: [field.ast_field for field in fields]
-    But with a type check for each field in the list
-
-    Raises a TypeError if any of the provided fields are not of the DSLField type
-    """
-    ast_fields = []
-    for field in fields:
-        if isinstance(field, DSLField):
-            ast_fields.append(field.ast_field)
-        else:
-            raise TypeError(f'Received incompatible field: "{field}".')
-
-    return ast_fields
-
-
-Serializer = Callable[[Any], Optional[ValueNode]]
-
-
 class DSLField:
 
     # Definition of field from the schema
@@ -127,9 +108,26 @@ class DSLField:
         self.ast_field = FieldNode(name=NameNode(value=name), arguments=FrozenList())
         self.known_serializers = dict()
 
+    @staticmethod
+    def get_ast_fields(fields: Iterable[DSLField]) -> List[FieldNode]:
+        """
+        Equivalent to: [field.ast_field for field in fields]
+        But with a type check for each field in the list
+
+        Raises a TypeError if any of the provided fields are not of the DSLField type
+        """
+        ast_fields = []
+        for field in fields:
+            if isinstance(field, DSLField):
+                ast_fields.append(field.ast_field)
+            else:
+                raise TypeError(f'Received incompatible field: "{field}".')
+
+        return ast_fields
+
     def select(self, *fields: DSLField) -> DSLField:
 
-        added_selections: List[FieldNode] = get_ast_fields(fields)
+        added_selections: List[FieldNode] = self.get_ast_fields(fields)
 
         current_selection_set: Optional[SelectionSetNode] = self.ast_field.selection_set
 
