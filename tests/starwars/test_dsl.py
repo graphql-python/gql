@@ -113,6 +113,27 @@ luke: human(id: "1000") {
     assert query == str(query_dsl)
 
 
+def test_fetch_name_aliased(ds: DSLSchema):
+    query = """
+human(id: "1000") {
+  my_name: name
+}
+    """.strip()
+    query_dsl = ds.Query.human.args(id=1000).select(ds.Character.name.alias("my_name"))
+    print(str(query_dsl))
+    assert query == str(query_dsl)
+
+
+def test_fetch_name_aliased_as_kwargs(ds: DSLSchema):
+    query = """
+human(id: "1000") {
+  my_name: name
+}
+    """.strip()
+    query_dsl = ds.Query.human.args(id=1000).select(my_name=ds.Character.name,)
+    assert query == str(query_dsl)
+
+
 def test_hero_name_query_result(ds, client):
     query = dsl_gql(ds.Query.hero.select(ds.Character.name))
     result = client.execute(query)

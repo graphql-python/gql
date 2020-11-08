@@ -154,7 +154,7 @@ class DSLType:
         """Initialize the DSLType with the GraphQL type.
 
         .. warning::
-            Don't instanciate this class yourself.
+            Don't instantiate this class yourself.
             Use attributes of the :class:`DSLSchema` instead.
 
         :param graphql_type: the GraphQL type definition from the schema
@@ -198,11 +198,12 @@ class DSLField:
         name: str,
         graphql_type: GraphQLTypeWithFields,
         graphql_field: GraphQLField,
+        alias: str = None,
     ):
         """Initialize the DSLField.
 
         .. warning::
-            Don't instanciate this class yourself.
+            Don't instantiate this class yourself.
             Use attributes of the :class:`DSLType` instead.
 
         :param name: the name of the field
@@ -212,7 +213,7 @@ class DSLField:
         self._type: GraphQLTypeWithFields = graphql_type
         self.field: GraphQLField = graphql_field
         self.ast_field: FieldNode = FieldNode(
-            name=NameNode(value=name), arguments=FrozenList()
+            name=NameNode(value=name), arguments=FrozenList(), alias=alias
         )
         self.known_arg_serializers: Dict[
             GraphQLInputType, Optional[Serializer]
@@ -239,7 +240,9 @@ class DSLField:
 
         return ast_fields
 
-    def select(self, *fields: "DSLField") -> "DSLField":
+    def select(
+        self, *fields: "DSLField", **fields_with_alias: "DSLField"
+    ) -> "DSLField":
         """Select the new children fields
         that we want to receive in the request.
 
@@ -255,16 +258,20 @@ class DSLField:
         """
 
         added_selections: List[FieldNode] = self.get_ast_fields(fields)
-
+        added_selections_with_alias: List[FieldNode] = self.get_ast_fields(
+            [field.alias(alias) for alias, field in fields_with_alias.items()]
+        )
         current_selection_set: Optional[SelectionSetNode] = self.ast_field.selection_set
 
         if current_selection_set is None:
             self.ast_field.selection_set = SelectionSetNode(
-                selections=FrozenList(added_selections)
+                selections=FrozenList(added_selections + added_selections_with_alias)
             )
         else:
             current_selection_set.selections = FrozenList(
-                current_selection_set.selections + added_selections
+                current_selection_set.selections
+                + added_selections
+                + added_selections_with_alias
             )
 
         log.debug(f"Added fields: {fields} in {self!r}")
@@ -276,6 +283,12 @@ class DSLField:
 
     def alias(self, alias: str) -> "DSLField":
         """Set an alias
+
+        .. note::
+            You can also pass the alias directly at the
+            :meth:`select <gql.dsl.DSLField.select>` method.
+            :code:`ds.Query.human.select(my_name=ds.Character.name)` is equivalent to:
+            :code:`ds.Query.human.select(ds.Character.name.alias("my_name"))`
 
         :param alias: the alias
         :type alias: str
@@ -291,7 +304,7 @@ class DSLField:
         The arguments are parsed to be stored in the AST of this field.
 
         .. note::
-            you can also call the field directly with your arguments.
+            You can also call the field directly with your arguments.
             :code:`ds.Query.human(id=1000)` is equivalent to:
             :code:`ds.Query.human.args(id=1000)`
 
