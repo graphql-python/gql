@@ -47,8 +47,8 @@ def dsl_gql(*fields: "DSLField") -> DocumentNode:
 
     Similar to the :func:`gql.gql` function but instead of parsing a python
     string to describe the request, we are using requests which have been generated
-    dynamically using instances of :class:`DSLField` which have been generated
-    by instances of :class:`DSLType` which themselves have been generated from
+    dynamically using instances of :class:`DSLField`, generated
+    by instances of :class:`DSLType` which themselves originated from
     a :class:`DSLSchema` class.
 
     The fields arguments should be fields of root GraphQL types
@@ -157,7 +157,7 @@ class DSLType:
             Don't instanciate this class yourself.
             Use attributes of the :class:`DSLSchema` instead.
 
-        :param graphql_type: ther GraphQL type definition from the schema
+        :param graphql_type: the GraphQL type definition from the schema
         """
         self._type: GraphQLTypeWithFields = graphql_type
         log.debug(f"Creating {self!r})")
