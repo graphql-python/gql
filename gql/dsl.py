@@ -155,10 +155,10 @@ class DSLType:
             Don't instanciate this class yourself.
             Use attributes of the :class:`DSLSchema` instead.
 
-        :param graphql_type: a GraphQL type
+        :param graphql_type: ther GraphQL type definition from the schema
         """
         self._type: GraphQLTypeWithFields = graphql_type
-        log.debug(f"DSLType({self._type!r})")
+        log.debug(f"Creating {self!r})")
 
     def __getattr__(self, name: str) -> "DSLField":
         camel_cased_name = to_camel_case(name)
@@ -175,6 +175,9 @@ class DSLType:
             )
 
         return DSLField(formatted_name, self._type, field)
+
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__} {self._type!r}>"
 
 
 class DSLField:
@@ -201,8 +204,8 @@ class DSLField:
             Use attributes of the :class:`DSLType` instead.
 
         :param name: the name of the field
-        :param graphql_type: the GraphQL type
-        :param graphql_field: the GraphQL field
+        :param graphql_type: the GraphQL type definition from the schema
+        :param graphql_field: the GraphQL field definition from the schema
         """
         self._type: GraphQLTypeWithFields = graphql_type
         self.field: GraphQLField = graphql_field
@@ -212,7 +215,7 @@ class DSLField:
         self.known_arg_serializers: Dict[
             GraphQLInputType, Optional[Serializer]
         ] = dict()
-        log.debug(f"DSLField('{name}',{self.field!r})")
+        log.debug(f"Creating {self!r}")
 
     @staticmethod
     def get_ast_fields(fields: Iterable) -> List[FieldNode]:
@@ -262,6 +265,8 @@ class DSLField:
                 current_selection_set.selections + added_selections
             )
 
+        log.debug(f"Added fields: {fields} in {self!r}")
+
         return self
 
     def __call__(self, **kwargs) -> "DSLField":
@@ -306,6 +311,7 @@ class DSLField:
                 ArgumentNode(name=NameNode(value=name), value=serialized_value)
             )
         self.ast_field.arguments = FrozenList(self.ast_field.arguments + added_args)
+        log.debug(f"Added arguments {kwargs} in field {self!r})")
         return self
 
     def _get_arg_serializer(self, arg_type: GraphQLInputType,) -> Serializer:
@@ -348,3 +354,9 @@ class DSLField:
 
     def __str__(self) -> str:
         return print_ast(self.ast_field)
+
+    def __repr__(self) -> str:
+        return (
+            f"<{self.__class__.__name__} {self._type.name}"
+            f"::{self.ast_field.name.value}>"
+        )
