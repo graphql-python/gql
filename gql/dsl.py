@@ -41,6 +41,32 @@ Serializer = Callable[[Any], Optional[ValueNode]]
 
 
 def dsl_gql(*fields: "DSLField") -> DocumentNode:
+    """Given arguments of type :class:`DSLField` containing GraphQL requests,
+    generate a Document which can be executed later in a
+    gql client or a gql session.
+
+    Similar to the :func:`gql.gql` function but instead of parsing a python
+    string to describe the request, we are using requests which have been generated
+    dynamically using instances of :class:`DSLField` which have been generated
+    by instances of :class:`DSLType` which themselves have been generated from
+    a :class:`DSLSchema` class.
+
+    The fields arguments should be fields of root GraphQL types
+    (Query, Mutation or Subscription).
+
+    They should all have the same root type
+    (you can't mix queries with mutations for example).
+
+    :param fields: root instances of the dynamically generated requests
+    :type fields: DSLField
+    :return: a Document which can be later executed or subscribed by a
+        :class:`Client <gql.client.Client>`, by an
+        :class:`async session <gql.client.AsyncClientSession>` or by a
+        :class:`sync session <gql.client.SyncClientSession>`
+
+    :raises TypeError: if an argument is not an instance of :class:`DSLField`
+    :raises AssertionError: if an argument is not a field of a root type
+    """
 
     # Check that we receive only arguments of type DSLField
     # And that they are a root type
@@ -71,7 +97,22 @@ def dsl_gql(*fields: "DSLField") -> DocumentNode:
 
 
 class DSLSchema:
+    """The DSLSchema is the root of the DSL code.
+
+    Attributes of the DSLSchema class are generated automatically
+    with the `__getattr__` dunder method in order to generate
+    instances of :class:`DSLType`
+    """
+
     def __init__(self, schema: GraphQLSchema):
+        """Initialize the DSLSchema with the given schema.
+
+        :param schema: a GraphQL Schema provided locally or fetched using
+                       an introspection query. Usually `client.schema`
+        :type schema: GraphQLSchema
+
+        :raises TypeError: if the argument is not an instance of :class:`GraphQLSchema`
+        """
 
         if not isinstance(schema, GraphQLSchema):
             raise TypeError("DSLSchema needs a schema as parameter")
@@ -93,9 +134,31 @@ class DSLSchema:
 
 
 class DSLType:
-    def __init__(self, type_: GraphQLTypeWithFields):
-        self._type: GraphQLTypeWithFields = type_
-        log.debug(f"DSLType({type_!r})")
+    """The DSLType represents a GraphQL type for the DSL code.
+
+    It can be a root type (Query, Mutation or Subscription).
+    Or it can be an interface type (Character in the StarWars schema).
+    Or it can be an object type (Human in the StarWars schema).
+
+    Instances of this class are generated for you automatically as attributes
+    of the :class:`DSLSchema`
+
+    Attributes of the DSLType class are generated automatically
+    with the `__getattr__` dunder method in order to generate
+    instances of :class:`DSLField`
+    """
+
+    def __init__(self, graphql_type: GraphQLTypeWithFields):
+        """Initialize the DSLType with the GraphQL type.
+
+        .. warning::
+            Don't instanciate this class yourself.
+            Use attributes of the :class:`DSLSchema` instead.
+
+        :param graphql_type: a GraphQL type
+        """
+        self._type: GraphQLTypeWithFields = graphql_type
+        log.debug(f"DSLType({self._type!r})")
 
     def __getattr__(self, name: str) -> "DSLField":
         camel_cased_name = to_camel_case(name)
@@ -115,30 +178,52 @@ class DSLType:
 
 
 class DSLField:
+    """The DSLField represents a GraphQL field for the DSL code.
 
-    # Definition of field from the schema
-    field: GraphQLField
+    Instances of this class are generated for you automatically as attributes
+    of the :class:`DSLType`
 
-    # Current selection in the query
-    ast_field: FieldNode
+    If this field contains children fields, then you need to select which ones
+    you want in the request using the :meth:`select <gql.dsl.DSLField.select>`
+    method.
+    """
 
-    # Known serializers
-    known_serializers: Dict[GraphQLInputType, Optional[Serializer]]
+    def __init__(
+        self,
+        name: str,
+        graphql_type: GraphQLTypeWithFields,
+        graphql_field: GraphQLField,
+    ):
+        """Initialize the DSLField.
 
-    def __init__(self, name: str, type_: GraphQLTypeWithFields, field: GraphQLField):
-        self._type: GraphQLTypeWithFields = type_
-        self.field = field
-        self.ast_field = FieldNode(name=NameNode(value=name), arguments=FrozenList())
-        self.known_serializers = dict()
-        log.debug(f"DSLField('{name}',{field!r})")
+        .. warning::
+            Don't instanciate this class yourself.
+            Use attributes of the :class:`DSLType` instead.
+
+        :param name: the name of the field
+        :param graphql_type: the GraphQL type
+        :param graphql_field: the GraphQL field
+        """
+        self._type: GraphQLTypeWithFields = graphql_type
+        self.field: GraphQLField = graphql_field
+        self.ast_field: FieldNode = FieldNode(
+            name=NameNode(value=name), arguments=FrozenList()
+        )
+        self.known_arg_serializers: Dict[
+            GraphQLInputType, Optional[Serializer]
+        ] = dict()
+        log.debug(f"DSLField('{name}',{self.field!r})")
 
     @staticmethod
     def get_ast_fields(fields: Iterable) -> List[FieldNode]:
         """
-        Equivalent to: [field.ast_field for field in fields]
-        But with a type check for each field in the list
+        :meta private:
 
-        Raises a TypeError if any of the provided fields are not of the DSLField type
+        Equivalent to: :code:`[field.ast_field for field in fields]`
+        But with a type check for each field in the list.
+
+        :raises TypeError: if any of the provided fields are not instances
+                           of the :class:`DSLField` class.
         """
         ast_fields = []
         for field in fields:
@@ -150,6 +235,19 @@ class DSLField:
         return ast_fields
 
     def select(self, *fields: "DSLField") -> "DSLField":
+        """Select the new children fields
+        that we want to receive in the request.
+
+        If used multiple times, we will add the new children fields
+        to the existing children fields
+
+        :param fields: new children fields
+        :type fields: DSLField
+        :return: itself
+
+        :raises TypeError: if any of the provided fields are not instances
+                           of the :class:`DSLField` class.
+        """
 
         added_selections: List[FieldNode] = self.get_ast_fields(fields)
 
@@ -170,10 +268,33 @@ class DSLField:
         return self.args(**kwargs)
 
     def alias(self, alias: str) -> "DSLField":
+        """Set an alias
+
+        :param alias: the alias
+        :type alias: str
+        :return: itself
+        """
+
         self.ast_field.alias = NameNode(value=alias)
         return self
 
     def args(self, **kwargs) -> "DSLField":
+        r"""Set the arguments of a field
+
+        The arguments are parsed to be stored in the AST of this field.
+
+        .. note::
+            you can also call the field directly with your arguments.
+            :code:`ds.Query.human(id=1000)` is equivalent to:
+            :code:`ds.Query.human.args(id=1000)`
+
+        :param \**kwargs: the arguments (keyword=value)
+        :return: itself
+
+        :raises KeyError: if any of the provided arguments does not exist
+                          for this field.
+        """
+
         added_args = []
         for name, value in kwargs.items():
             arg = self.field.args.get(name)
@@ -193,19 +314,19 @@ class DSLField:
         elif isinstance(arg_type, GraphQLInputField):
             return self._get_arg_serializer(arg_type.type)
         elif isinstance(arg_type, GraphQLInputObjectType):
-            if arg_type in self.known_serializers:
-                return cast(Serializer, self.known_serializers[arg_type])
-            self.known_serializers[arg_type] = None
+            if arg_type in self.known_arg_serializers:
+                return cast(Serializer, self.known_arg_serializers[arg_type])
+            self.known_arg_serializers[arg_type] = None
             serializers = {
                 k: self._get_arg_serializer(v) for k, v in arg_type.fields.items()
             }
-            self.known_serializers[arg_type] = lambda value: ObjectValueNode(
+            self.known_arg_serializers[arg_type] = lambda value: ObjectValueNode(
                 fields=FrozenList(
                     ObjectFieldNode(name=NameNode(value=k), value=serializers[k](v))
                     for k, v in value.items()
                 )
             )
-            return cast(Serializer, self.known_serializers[arg_type])
+            return cast(Serializer, self.known_arg_serializers[arg_type])
         elif isinstance(arg_type, GraphQLList):
             inner_serializer = self._get_arg_serializer(arg_type.of_type)
             return lambda list_values: ListValueNode(
@@ -222,6 +343,7 @@ class DSLField:
 
     @property
     def type_name(self):
+        """:meta private:"""
         return self._type.name
 
     def __str__(self) -> str:

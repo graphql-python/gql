@@ -1,5 +1,5 @@
-Transport
-=========
+gql.transport
+=============
 
 .. currentmodule:: gql.transport
 

@@ -20,3 +20,4 @@ Sub-Packages
 
    client
    transport
+   dsl
