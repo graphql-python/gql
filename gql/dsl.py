@@ -115,7 +115,9 @@ class DSLSchema:
         """
 
         if not isinstance(schema, GraphQLSchema):
-            raise TypeError("DSLSchema needs a schema as parameter")
+            raise TypeError(
+                f"DSLSchema needs a schema as parameter. Received: {type(schema)}"
+            )
 
         self._schema: GraphQLSchema = schema
 
