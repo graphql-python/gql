@@ -198,7 +198,6 @@ class DSLField:
         name: str,
         graphql_type: GraphQLTypeWithFields,
         graphql_field: GraphQLField,
-        alias: str = None,
     ):
         """Initialize the DSLField.
 
@@ -213,7 +212,7 @@ class DSLField:
         self._type: GraphQLTypeWithFields = graphql_type
         self.field: GraphQLField = graphql_field
         self.ast_field: FieldNode = FieldNode(
-            name=NameNode(value=name), arguments=FrozenList(), alias=alias
+            name=NameNode(value=name), arguments=FrozenList()
         )
         self.known_arg_serializers: Dict[
             GraphQLInputType, Optional[Serializer]
@@ -243,35 +242,37 @@ class DSLField:
     def select(
         self, *fields: "DSLField", **fields_with_alias: "DSLField"
     ) -> "DSLField":
-        """Select the new children fields
+        r"""Select the new children fields
         that we want to receive in the request.
 
         If used multiple times, we will add the new children fields
-        to the existing children fields
+        to the existing children fields.
 
-        :param fields: new children fields
-        :type fields: DSLField
+        :param \*fields: new children fields
+        :type \*fields: DSLField
+        :param \**fields_with_alias: new children fields with alias as key
+        :type \**fields_with_alias: DSLField
         :return: itself
 
         :raises TypeError: if any of the provided fields are not instances
                            of the :class:`DSLField` class.
         """
 
-        added_selections: List[FieldNode] = self.get_ast_fields(fields)
-        added_selections_with_alias: List[FieldNode] = self.get_ast_fields(
-            [field.alias(alias) for alias, field in fields_with_alias.items()]
-        )
+        added_fields: List["DSLField"] = list(fields) + [
+            field.alias(alias) for alias, field in fields_with_alias.items()
+        ]
+
+        added_selections: List[FieldNode] = self.get_ast_fields(added_fields)
+
         current_selection_set: Optional[SelectionSetNode] = self.ast_field.selection_set
 
         if current_selection_set is None:
             self.ast_field.selection_set = SelectionSetNode(
-                selections=FrozenList(added_selections + added_selections_with_alias)
+                selections=FrozenList(added_selections)
             )
         else:
             current_selection_set.selections = FrozenList(
-                current_selection_set.selections
-                + added_selections
-                + added_selections_with_alias
+                current_selection_set.selections + added_selections
             )
 
         log.debug(f"Added fields: {fields} in {self!r}")
