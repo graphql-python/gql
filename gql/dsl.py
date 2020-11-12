@@ -9,7 +9,6 @@ from graphql import (
     FieldNode,
     GraphQLEnumType,
     GraphQLField,
-    GraphQLInputField,
     GraphQLInputObjectType,
     GraphQLInputType,
     GraphQLInterfaceType,
@@ -330,16 +329,25 @@ class DSLField:
         return self
 
     def _get_arg_serializer(self, arg_type: GraphQLInputType) -> Serializer:
+        """Recursive function used to get a argument serializer function
+        for a specific GraphQL input type.
+
+        The only possible sort of types are:
+        GraphQLScalarType, GraphQLEnumType, GraphQLInputObjectType, GraphQLWrappingType
+        GraphQLWrappingType can be GraphQLList or GraphQLNonNull
+        """
+
+        log.debug(f"_get_arg_serializer({arg_type!r})")
+
         if isinstance(arg_type, GraphQLNonNull):
             return self._get_arg_serializer(arg_type.of_type)
-        elif isinstance(arg_type, GraphQLInputField):
-            return self._get_arg_serializer(arg_type.type)
+
         elif isinstance(arg_type, GraphQLInputObjectType):
             if arg_type in self.known_arg_serializers:
                 return cast(Serializer, self.known_arg_serializers[arg_type])
             self.known_arg_serializers[arg_type] = None
             serializers = {
-                k: self._get_arg_serializer(v) for k, v in arg_type.fields.items()
+                k: self._get_arg_serializer(v.type) for k, v in arg_type.fields.items()
             }
             self.known_arg_serializers[arg_type] = lambda value: ObjectValueNode(
                 fields=FrozenList(
@@ -348,18 +356,24 @@ class DSLField:
                 )
             )
             return cast(Serializer, self.known_arg_serializers[arg_type])
+
         elif isinstance(arg_type, GraphQLList):
             inner_serializer = self._get_arg_serializer(arg_type.of_type)
             return lambda list_values: ListValueNode(
                 values=FrozenList(inner_serializer(v) for v in list_values)
             )
+
         elif isinstance(arg_type, GraphQLEnumType):
             return lambda value: EnumValueNode(
                 value=cast(GraphQLEnumType, arg_type).serialize(value)
             )
 
+        # Impossible to be another type here
+        assert isinstance(arg_type, GraphQLScalarType)
+
         return lambda value: ast_from_value(
-            cast(GraphQLScalarType, arg_type).serialize(value), arg_type
+            cast(GraphQLScalarType, arg_type).serialize(value),
+            cast(GraphQLScalarType, arg_type),
         )
 
     @property
