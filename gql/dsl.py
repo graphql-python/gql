@@ -138,8 +138,8 @@ class DSLType:
     """The DSLType represents a GraphQL type for the DSL code.
 
     It can be a root type (Query, Mutation or Subscription).
+    Or it can be any other object type (Human in the StarWars schema).
     Or it can be an interface type (Character in the StarWars schema).
-    Or it can be an object type (Human in the StarWars schema).
 
     Instances of this class are generated for you automatically as attributes
     of the :class:`DSLSchema`
