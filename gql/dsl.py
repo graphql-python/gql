@@ -36,7 +36,6 @@ from .utils import to_camel_case
 
 log = logging.getLogger(__name__)
 
-GraphQLTypeWithFields = Union[GraphQLObjectType, GraphQLInterfaceType]
 Serializer = Callable[[Any], Optional[ValueNode]]
 
 
@@ -150,7 +149,7 @@ class DSLType:
     instances of :class:`DSLField`
     """
 
-    def __init__(self, graphql_type: GraphQLTypeWithFields):
+    def __init__(self, graphql_type: Union[GraphQLObjectType, GraphQLInterfaceType]):
         """Initialize the DSLType with the GraphQL type.
 
         .. warning::
@@ -159,7 +158,7 @@ class DSLType:
 
         :param graphql_type: the GraphQL type definition from the schema
         """
-        self._type: GraphQLTypeWithFields = graphql_type
+        self._type: Union[GraphQLObjectType, GraphQLInterfaceType] = graphql_type
         log.debug(f"Creating {self!r})")
 
     def __getattr__(self, name: str) -> "DSLField":
@@ -196,7 +195,7 @@ class DSLField:
     def __init__(
         self,
         name: str,
-        graphql_type: GraphQLTypeWithFields,
+        graphql_type: Union[GraphQLObjectType, GraphQLInterfaceType],
         graphql_field: GraphQLField,
     ):
         """Initialize the DSLField.
@@ -209,7 +208,7 @@ class DSLField:
         :param graphql_type: the GraphQL type definition from the schema
         :param graphql_field: the GraphQL field definition from the schema
         """
-        self._type: GraphQLTypeWithFields = graphql_type
+        self._type: Union[GraphQLObjectType, GraphQLInterfaceType] = graphql_type
         self.field: GraphQLField = graphql_field
         self.ast_field: FieldNode = FieldNode(
             name=NameNode(value=name), arguments=FrozenList()
@@ -330,7 +329,7 @@ class DSLField:
         log.debug(f"Added arguments {kwargs} in field {self!r})")
         return self
 
-    def _get_arg_serializer(self, arg_type: GraphQLInputType,) -> Serializer:
+    def _get_arg_serializer(self, arg_type: GraphQLInputType) -> Serializer:
         if isinstance(arg_type, GraphQLNonNull):
             return self._get_arg_serializer(arg_type.of_type)
         elif isinstance(arg_type, GraphQLInputField):
