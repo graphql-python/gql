@@ -15,6 +15,20 @@ def client():
     return Client(schema=NestedInputSchema)
 
 
-def test_nested_input_with_new_get_arg_serializer(ds, client):
-    query = dsl_gql(ds.Query.foo.args(nested={"foo": 1}))
-    assert client.execute(query) == {"foo": 1}
+def test_nested_input(ds, client):
+    query = dsl_gql(ds.Query.echo.args(nested={"foo": 1}))
+    assert client.execute(query) == {"echo": '{"foo": 1}'}
+
+
+def test_nested_input_2(ds, client):
+    query = dsl_gql(ds.Query.echo.args(nested={"foo": 1, "child": {"foo": 2}}))
+    assert client.execute(query) == {"echo": '{"foo": 1, "child": {"foo": 2}}'}
+
+
+def test_nested_input_3(ds, client):
+    query = dsl_gql(
+        ds.Query.echo.args(nested={"foo": 1, "child": {"foo": 2, "child": {"foo": 3}}})
+    )
+    assert client.execute(query) == {
+        "echo": '{"foo": 1, "child": {"foo": 2, "child": {"foo": 3}}}'
+    }

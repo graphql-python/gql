@@ -1,6 +1,6 @@
 import logging
 from collections.abc import Iterable
-from typing import Any, Callable, Dict, List, Optional, Union, cast
+from typing import Any, Callable, List, Optional, Union, cast
 
 from graphql import (
     ArgumentNode,
@@ -212,9 +212,6 @@ class DSLField:
         self.ast_field: FieldNode = FieldNode(
             name=NameNode(value=name), arguments=FrozenList()
         )
-        self.known_arg_serializers: Dict[
-            GraphQLInputType, Optional[Serializer]
-        ] = dict()
         log.debug(f"Creating {self!r}")
 
     @staticmethod
@@ -343,19 +340,19 @@ class DSLField:
             return self._get_arg_serializer(arg_type.of_type)
 
         elif isinstance(arg_type, GraphQLInputObjectType):
-            if arg_type in self.known_arg_serializers:
-                return cast(Serializer, self.known_arg_serializers[arg_type])
-            self.known_arg_serializers[arg_type] = None
-            serializers = {
-                k: self._get_arg_serializer(v.type) for k, v in arg_type.fields.items()
-            }
-            self.known_arg_serializers[arg_type] = lambda value: ObjectValueNode(
+            return lambda value: ObjectValueNode(
                 fields=FrozenList(
-                    ObjectFieldNode(name=NameNode(value=k), value=serializers[k](v))
+                    ObjectFieldNode(
+                        name=NameNode(value=k),
+                        value=(
+                            self._get_arg_serializer(
+                                cast(GraphQLInputObjectType, arg_type).fields[k].type
+                            )
+                        )(v),
+                    )
                     for k, v in value.items()
                 )
             )
-            return cast(Serializer, self.known_arg_serializers[arg_type])
 
         elif isinstance(arg_type, GraphQLList):
             inner_serializer = self._get_arg_serializer(arg_type.of_type)
