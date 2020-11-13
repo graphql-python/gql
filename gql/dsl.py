@@ -1,31 +1,21 @@
 import logging
 from collections.abc import Iterable
-from typing import Any, Callable, List, Optional, Union, cast
+from typing import List, Optional, Union
 
 from graphql import (
     ArgumentNode,
     DocumentNode,
-    EnumValueNode,
     FieldNode,
-    GraphQLEnumType,
+    GraphQLArgument,
     GraphQLField,
-    GraphQLInputObjectType,
-    GraphQLInputType,
     GraphQLInterfaceType,
-    GraphQLList,
     GraphQLNamedType,
-    GraphQLNonNull,
     GraphQLObjectType,
-    GraphQLScalarType,
     GraphQLSchema,
-    ListValueNode,
     NameNode,
-    ObjectFieldNode,
-    ObjectValueNode,
     OperationDefinitionNode,
     OperationType,
     SelectionSetNode,
-    ValueNode,
     ast_from_value,
     print_ast,
 )
@@ -34,8 +24,6 @@ from graphql.pyutils import FrozenList
 from .utils import to_camel_case
 
 log = logging.getLogger(__name__)
-
-Serializer = Callable[[Any], Optional[ValueNode]]
 
 
 def dsl_gql(*fields: "DSLField") -> DocumentNode:
@@ -311,67 +299,36 @@ class DSLField:
                           for this field.
         """
 
-        added_args = []
-        for name, value in kwargs.items():
-            arg = self.field.args.get(name)
-            if not arg:
-                raise KeyError(f"Argument {name} does not exist in {self.field}.")
-            arg_type_serializer = self._get_arg_serializer(arg.type)
-            serialized_value = arg_type_serializer(value)
-            added_args.append(
-                ArgumentNode(name=NameNode(value=name), value=serialized_value)
-            )
-        self.ast_field.arguments = FrozenList(self.ast_field.arguments + added_args)
+        assert self.ast_field.arguments is not None
+
+        self.ast_field.arguments = FrozenList(
+            self.ast_field.arguments
+            + [
+                ArgumentNode(
+                    name=NameNode(value=name),
+                    value=ast_from_value(value, self._get_argument(name).type),
+                )
+                for name, value in kwargs.items()
+            ]
+        )
+
         log.debug(f"Added arguments {kwargs} in field {self!r})")
+
         return self
 
-    def _get_arg_serializer(self, arg_type: GraphQLInputType) -> Serializer:
-        """Recursive function used to get a argument serializer function
-        for a specific GraphQL input type.
+    def _get_argument(self, name: str) -> GraphQLArgument:
+        """Method used to return the GraphQLArgument definition
+        of an argument from its name.
 
-        The only possible sort of types are:
-        GraphQLScalarType, GraphQLEnumType, GraphQLInputObjectType, GraphQLWrappingType
-        GraphQLWrappingType can be GraphQLList or GraphQLNonNull
+        :raises KeyError: if the provided argument does not exist
+                          for this field.
         """
+        arg = self.field.args.get(name)
 
-        log.debug(f"_get_arg_serializer({arg_type!r})")
+        if arg is None:
+            raise KeyError(f"Argument {name} does not exist in {self.field}.")
 
-        if isinstance(arg_type, GraphQLNonNull):
-            return self._get_arg_serializer(arg_type.of_type)
-
-        elif isinstance(arg_type, GraphQLInputObjectType):
-            return lambda value: ObjectValueNode(
-                fields=FrozenList(
-                    ObjectFieldNode(
-                        name=NameNode(value=k),
-                        value=(
-                            self._get_arg_serializer(
-                                cast(GraphQLInputObjectType, arg_type).fields[k].type
-                            )
-                        )(v),
-                    )
-                    for k, v in value.items()
-                )
-            )
-
-        elif isinstance(arg_type, GraphQLList):
-            inner_serializer = self._get_arg_serializer(arg_type.of_type)
-            return lambda list_values: ListValueNode(
-                values=FrozenList(inner_serializer(v) for v in list_values)
-            )
-
-        elif isinstance(arg_type, GraphQLEnumType):
-            return lambda value: EnumValueNode(
-                value=cast(GraphQLEnumType, arg_type).serialize(value)
-            )
-
-        # Impossible to be another type here
-        assert isinstance(arg_type, GraphQLScalarType)
-
-        return lambda value: ast_from_value(
-            cast(GraphQLScalarType, arg_type).serialize(value),
-            cast(GraphQLScalarType, arg_type),
-        )
+        return arg
 
     @property
     def type_name(self):
