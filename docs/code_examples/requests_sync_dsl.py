@@ -1,5 +1,5 @@
 from gql import Client
-from gql.dsl import DSLSchema, dsl_gql
+from gql.dsl import DSLQuery, DSLSchema, dsl_gql
 from gql.transport.requests import RequestsHTTPTransport
 
 transport = RequestsHTTPTransport(
@@ -21,7 +21,9 @@ with client as session:
     ds = DSLSchema(client.schema)
 
     # Create the query using dynamically generated attributes from ds
-    query = dsl_gql(ds.Query.continents.select(ds.Continent.code, ds.Continent.name))
+    query = dsl_gql(
+        DSLQuery(ds.Query.continents.select(ds.Continent.code, ds.Continent.name))
+    )
 
     result = session.execute(query)
     print(result)

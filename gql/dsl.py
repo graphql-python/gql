@@ -1,4 +1,5 @@
 import logging
+from abc import ABC
 from typing import Dict, Iterable, List, Optional, Tuple, Union
 
 from graphql import (
@@ -26,70 +27,59 @@ log = logging.getLogger(__name__)
 
 
 def dsl_gql(
-    *fields: "DSLField",
-    operation_name: Optional[str] = None,
-    **fields_with_alias: "DSLField",
+    *operations: "DSLOperation", **operations_with_name: "DSLOperation"
 ) -> DocumentNode:
-    r"""Given arguments of type :class:`DSLField` containing GraphQL requests,
+    r"""Given arguments instances of :class:`DSLOperation`
+    containing GraphQL operations,
     generate a Document which can be executed later in a
     gql client or a gql session.
 
     Similar to the :func:`gql.gql` function but instead of parsing a python
-    string to describe the request, we are using requests which have been generated
+    string to describe the request, we are using operations which have been generated
     dynamically using instances of :class:`DSLField`, generated
     by instances of :class:`DSLType` which themselves originated from
     a :class:`DSLSchema` class.
 
-    The fields arguments should be fields of root GraphQL types
-    (Query, Mutation or Subscription).
+    :param \*operations: the GraphQL operations
+    :type \*operations: DSLOperation (DSLQuery, DSLMutation, DSLSubscription)
+    :param \**operations_with_name: the GraphQL operations with an operation name
+    :type \**operations_with_name: DSLOperation (DSLQuery, DSLMutation, DSLSubscription)
 
-    They should all have the same root type
-    (you can't mix queries with mutations for example).
-
-    :param \*fields: root instances of the dynamically generated requests
-    :type \*fields: DSLField
-    :param \**fields_with_alias: root instances fields with alias as key
-    :type \**fields_with_alias: DSLField
-    :param operation_name: optional operation name
-    :type operation_name: str
     :return: a Document which can be later executed or subscribed by a
         :class:`Client <gql.client.Client>`, by an
         :class:`async session <gql.client.AsyncClientSession>` or by a
         :class:`sync session <gql.client.SyncClientSession>`
 
-    :raises TypeError: if an argument is not an instance of :class:`DSLField`
-    :raises AssertionError: if an argument is not a field of a root type
+    :raises TypeError: if an argument is not an instance of :class:`DSLOperation`
     """
 
-    all_fields: Tuple["DSLField", ...] = DSLField.get_aliased_fields(
-        fields, fields_with_alias
+    # Concatenate operations without and with name
+    all_operations: Tuple["DSLOperation", ...] = (
+        *operations,
+        *(operation for operation in operations_with_name.values()),
     )
 
-    # Check that we receive only arguments of type DSLField
-    # And that they are a root type
-    for field in all_fields:
-        if not isinstance(field, DSLField):
-            raise TypeError(
-                f"fields must be instances of DSLField. Received type: {type(field)}"
-            )
-        assert field.type_name in ["Query", "Mutation", "Subscription"], (
-            "fields should be root types (Query, Mutation or Subscription)\n"
-            f"Received: {field.type_name}"
-        )
+    # Set the operation name
+    for name, operation in operations_with_name.items():
+        operation.name = name
 
-    # Get the operation from the first field
-    # All the fields must have the same operation
-    operation = all_fields[0].type_name.lower()
+    # Check the type
+    for operation in all_operations:
+        if not isinstance(operation, DSLOperation):
+            raise TypeError(
+                "Operations should be instances of DSLOperation "
+                "(DSLQuery, DSLMutation or DSLSubscription).\n"
+                f"Received: {type(operation)}."
+            )
 
     return DocumentNode(
         definitions=[
             OperationDefinitionNode(
-                operation=OperationType(operation),
-                selection_set=SelectionSetNode(
-                    selections=FrozenList(DSLField.get_ast_fields(all_fields))
-                ),
-                **({"name": NameNode(value=operation_name)} if operation_name else {}),
+                operation=OperationType(operation.operation_type),
+                selection_set=operation.selection_set,
+                **({"name": NameNode(value=operation.name)} if operation.name else {}),
             )
+            for operation in all_operations
         ]
     )
 
@@ -131,6 +121,77 @@ class DSLSchema:
         )
 
         return DSLType(type_def)
+
+
+class DSLOperation(ABC):
+    """Interface for GraphQL operations.
+
+    Inherited by
+    :class:`DSLQuery <gql.dsl.DSLQuery>`,
+    :class:`DSLMutation <gql.dsl.DSLMutation>` and
+    :class:`DSLSubscription <gql.dsl.DSLSubscription>`
+    """
+
+    operation_type: OperationType
+
+    def __init__(
+        self, *fields: "DSLField", **fields_with_alias: "DSLField",
+    ):
+        r"""Given arguments of type :class:`DSLField` containing GraphQL requests,
+        generate an operation which can be converted to a Document
+        using the :func:`dsl_gql <gql.dsl.dsl_gql>`.
+
+        The fields arguments should be fields of root GraphQL types
+        (Query, Mutation or Subscription) and correspond to the
+        operation_type of this operation.
+
+        :param \*fields: root instances of the dynamically generated requests
+        :type \*fields: DSLField
+        :param \**fields_with_alias: root instances fields with alias as key
+        :type \**fields_with_alias: DSLField
+
+        :raises TypeError: if an argument is not an instance of :class:`DSLField`
+        :raises AssertionError: if an argument is not a field which correspond
+                                to the operation type
+        """
+
+        self.name: Optional[str] = None
+
+        # Concatenate fields without and with alias
+        all_fields: Tuple["DSLField", ...] = DSLField.get_aliased_fields(
+            fields, fields_with_alias
+        )
+
+        # Check that we receive only arguments of type DSLField
+        # And that the root type correspond to the operation
+        for field in all_fields:
+            if not isinstance(field, DSLField):
+                raise TypeError(
+                    (
+                        "fields must be instances of DSLField. "
+                        f"Received type: {type(field)}"
+                    )
+                )
+            assert field.type_name.upper() == self.operation_type.name, (
+                f"Invalid root field for operation {self.operation_type.name}.\n"
+                f"Received: {field.type_name}"
+            )
+
+        self.selection_set: SelectionSetNode = SelectionSetNode(
+            selections=FrozenList(DSLField.get_ast_fields(all_fields))
+        )
+
+
+class DSLQuery(DSLOperation):
+    operation_type = OperationType.QUERY
+
+
+class DSLMutation(DSLOperation):
+    operation_type = OperationType.MUTATION
+
+
+class DSLSubscription(DSLOperation):
+    operation_type = OperationType.SUBSCRIPTION
 
 
 class DSLType:
@@ -270,6 +331,7 @@ class DSLField:
                            of the :class:`DSLField` class.
         """
 
+        # Concatenate fields without and with alias
         added_fields: Tuple["DSLField", ...] = self.get_aliased_fields(
             fields, fields_with_alias
         )

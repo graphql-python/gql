@@ -11,10 +11,12 @@ The following code:
     ds = DSLSchema(StarWarsSchema)
 
     query = dsl_gql(
-        ds.Query.hero.select(
-            ds.Character.id,
-            ds.Character.name,
-            ds.Character.friends.select(ds.Character.name),
+        DSLQuery(
+            ds.Query.hero.select(
+                ds.Character.id,
+                ds.Character.name,
+                ds.Character.friends.select(ds.Character.name),
+            )
         )
     )
 
@@ -81,15 +83,31 @@ As you can select children fields of any object type, you can construct your com
         ds.Character.friends.select(ds.Character.name),
     )
 
-Once your query is completed and you have selected all the fields you want,
-use the :func:`dsl_gql <gql.dsl.dsl_gql>` function to convert your query into
-a document which will be able to get executed in the client or a session::
+Once your root query fields are defined, you can put them in an operation using
+:class:`DSLQuery <gql.dsl.DSLQuery>`,
+:class:`DSLMutation <gql.dsl.DSLMutation>` or
+:class:`DSLSubscription <gql.dsl.DSLSubscription>`::
 
-    query = dsl_gql(
+    DSLQuery(
         ds.Query.hero.select(
             ds.Character.id,
             ds.Character.name,
             ds.Character.friends.select(ds.Character.name),
+        )
+    )
+
+
+Once your operations are defined,
+use the :func:`dsl_gql <gql.dsl.dsl_gql>` function to convert your operations into
+a document which will be able to get executed in the client or a session::
+
+    query = dsl_gql(
+        DSLQuery(
+            ds.Query.hero.select(
+                ds.Character.id,
+                ds.Character.name,
+                ds.Character.friends.select(ds.Character.name),
+            )
         )
     )
 
@@ -107,36 +125,91 @@ It can also be done using the :meth:`args <gql.dsl.DSLField.args>` method::
 
     ds.Query.human.args(id="1000").select(ds.Human.name)
 
-Alias
-^^^^^
+Aliases
+^^^^^^^
 
 You can set an alias of a field using the :meth:`alias <gql.dsl.DSLField.alias>` method::
 
     ds.Query.human.args(id=1000).alias("luke").select(ds.Character.name)
 
+It is also possible to set the alias directly using keyword arguments of an operation::
+
+    DSLQuery(
+        luke=ds.Query.human.args(id=1000).select(ds.Character.name)
+    )
+
+Or using keyword arguments in the :meth:`select <gql.dsl.DSLField.select>` method::
+
+    ds.Query.hero.select(
+        my_name=ds.Character.name
+    )
+
 Mutations
 ^^^^^^^^^
 
-It works the same way for mutations. Example::
+For the mutations, you need to start from root fields starting from :code:`ds.Mutation`
+then you need to create the GraphQL operation using the class
+:class:`DSLMutation <gql.dsl.DSLMutation>`. Example::
 
     query = dsl_gql(
-        ds.Mutation.createReview.args(
-            episode=6, review={"stars": 5, "commentary": "This is a great movie!"}
-        ).select(ds.Review.stars, ds.Review.commentary)
+        DSLMutation(
+            ds.Mutation.createReview.args(
+                episode=6, review={"stars": 5, "commentary": "This is a great movie!"}
+            ).select(ds.Review.stars, ds.Review.commentary)
+        )
     )
 
-Multiple requests
-^^^^^^^^^^^^^^^^^
+Subscriptions
+^^^^^^^^^^^^^
 
-It is possible to create a document with multiple requests::
+For the subscriptions, you need to start from root fields starting from :code:`ds.Subscription`
+then you need to create the GraphQL operation using the class
+:class:`DSLSubscription <gql.dsl.DSLSubscription>`. Example::
 
     query = dsl_gql(
+        DSLSubscription(
+            ds.Subscription.reviewAdded(episode=6).select(ds.Review.stars, ds.Review.commentary)
+        )
+    )
+
+Multiple fields in an operation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+It is possible to create an operation with multiple fields::
+
+    DSLQuery(
         ds.Query.hero.select(ds.Character.name),
-        ds.Query.hero(episode=5).alias("hero_of_episode_5").select(ds.Character.name),
+        hero_of_episode_5=ds.Query.hero(episode=5).select(ds.Character.name),
     )
 
-But you have to take care that the root type is always the same. It is not possible
-to mix queries and mutations for example.
+Operation name
+^^^^^^^^^^^^^^
+
+You can set the operation name of an operation using a keyword argument
+to :func:`dsl_gql <gql.dsl.dsl_gql>`::
+
+    query = dsl_gql(
+        GetHeroName=DSLQuery(ds.Query.hero.select(ds.Character.name))
+    )
+
+will generate the request::
+
+    query GetHeroName {
+        hero {
+            name
+        }
+    }
+
+Multiple operations in a document
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+It is possible to create an Document with multiple operations::
+
+    query = dsl_gql(
+        operation_name_1=DSLQuery( ... ),
+        operation_name_2=DSLQuery( ... ),
+        operation_name_3=DSLMutation( ... ),
+    )
 
 Executable examples
 -------------------

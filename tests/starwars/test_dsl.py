@@ -1,7 +1,8 @@
 import pytest
+from graphql import print_ast
 
 from gql import Client
-from gql.dsl import DSLSchema, dsl_gql
+from gql.dsl import DSLMutation, DSLQuery, DSLSchema, DSLSubscription, dsl_gql
 
 from .schema import StarWarsSchema
 
@@ -135,7 +136,7 @@ human(id: "1000") {
 
 
 def test_hero_name_query_result(ds, client):
-    query = dsl_gql(ds.Query.hero.select(ds.Character.name))
+    query = dsl_gql(DSLQuery(ds.Query.hero.select(ds.Character.name)))
     result = client.execute(query)
     expected = {"hero": {"name": "R2-D2"}}
     assert result == expected
@@ -143,7 +144,9 @@ def test_hero_name_query_result(ds, client):
 
 def test_arg_serializer_list(ds, client):
     query = dsl_gql(
-        ds.Query.characters.args(ids=[1000, 1001, 1003]).select(ds.Character.name,)
+        DSLQuery(
+            ds.Query.characters.args(ids=[1000, 1001, 1003]).select(ds.Character.name,)
+        )
     )
     result = client.execute(query)
     expected = {
@@ -157,7 +160,7 @@ def test_arg_serializer_list(ds, client):
 
 
 def test_arg_serializer_enum(ds, client):
-    query = dsl_gql(ds.Query.hero.args(episode=5).select(ds.Character.name))
+    query = dsl_gql(DSLQuery(ds.Query.hero.args(episode=5).select(ds.Character.name)))
     result = client.execute(query)
     expected = {"hero": {"name": "Luke Skywalker"}}
     assert result == expected
@@ -166,13 +169,36 @@ def test_arg_serializer_enum(ds, client):
 def test_create_review_mutation_result(ds, client):
 
     query = dsl_gql(
-        ds.Mutation.createReview.args(
-            episode=6, review={"stars": 5, "commentary": "This is a great movie!"}
-        ).select(ds.Review.stars, ds.Review.commentary)
+        DSLMutation(
+            ds.Mutation.createReview.args(
+                episode=6, review={"stars": 5, "commentary": "This is a great movie!"}
+            ).select(ds.Review.stars, ds.Review.commentary)
+        )
     )
     result = client.execute(query)
     expected = {"createReview": {"stars": 5, "commentary": "This is a great movie!"}}
     assert result == expected
+
+
+def test_subscription(ds):
+
+    query = dsl_gql(
+        DSLSubscription(
+            ds.Subscription.reviewAdded(episode=6).select(
+                ds.Review.stars, ds.Review.commentary
+            )
+        )
+    )
+    assert (
+        print_ast(query)
+        == """subscription {
+  reviewAdded(episode: JEDI) {
+    stars
+    commentary
+  }
+}
+"""
+    )
 
 
 def test_invalid_arg(ds):
@@ -184,8 +210,12 @@ def test_invalid_arg(ds):
 
 def test_multiple_root_fields(ds, client):
     query = dsl_gql(
-        ds.Query.hero.select(ds.Character.name),
-        ds.Query.hero(episode=5).alias("hero_of_episode_5").select(ds.Character.name),
+        DSLQuery(
+            ds.Query.hero.select(ds.Character.name),
+            ds.Query.hero(episode=5)
+            .alias("hero_of_episode_5")
+            .select(ds.Character.name),
+        )
     )
     result = client.execute(query)
     expected = {
@@ -197,8 +227,10 @@ def test_multiple_root_fields(ds, client):
 
 def test_root_fields_aliased(ds, client):
     query = dsl_gql(
-        ds.Query.hero.select(ds.Character.name),
-        hero_of_episode_5=ds.Query.hero(episode=5).select(ds.Character.name),
+        DSLQuery(
+            ds.Query.hero.select(ds.Character.name),
+            hero_of_episode_5=ds.Query.hero(episode=5).select(ds.Character.name),
+        )
     )
     result = client.execute(query)
     expected = {
@@ -209,11 +241,7 @@ def test_root_fields_aliased(ds, client):
 
 
 def test_operation_name(ds):
-    query = dsl_gql(
-        ds.Query.hero.select(ds.Character.name), operation_name="GetHeroName",
-    )
-
-    from graphql import print_ast
+    query = dsl_gql(GetHeroName=DSLQuery(ds.Query.hero.select(ds.Character.name),))
 
     assert (
         print_ast(query)
@@ -226,33 +254,56 @@ def test_operation_name(ds):
     )
 
 
-def test_dsl_gql_all_fields_should_be_instances_of_DSLField(ds, client):
+def test_multiple_operations(ds):
+    query = dsl_gql(
+        GetHeroName=DSLQuery(ds.Query.hero.select(ds.Character.name)),
+        CreateReviewMutation=DSLMutation(
+            ds.Mutation.createReview.args(
+                episode=6, review={"stars": 5, "commentary": "This is a great movie!"}
+            ).select(ds.Review.stars, ds.Review.commentary)
+        ),
+    )
+
+    assert (
+        print_ast(query)
+        == """query GetHeroName {
+  hero {
+    name
+  }
+}
+
+mutation CreateReviewMutation {
+  createReview(episode: JEDI, review: {stars: 5, \
+commentary: "This is a great movie!"}) {
+    stars
+    commentary
+  }
+}
+"""
+    )
+
+
+def test_dsl_query_all_fields_should_be_instances_of_DSLField():
     with pytest.raises(
         TypeError, match="fields must be instances of DSLField. Received type:"
     ):
-        dsl_gql(
-            ds.Query.hero.select(ds.Character.name),
-            ds.Query.hero(episode=5)
-            .alias("hero_of_episode_5")
-            .select(ds.Character.name),
-            "I am a string",
-        )
+        DSLQuery("I am a string")
 
 
-def test_dsl_gql_all_fields_should_be_a_root_type(ds, client):
-    with pytest.raises(AssertionError,) as excinfo:
-        dsl_gql(
-            ds.Query.hero.select(ds.Character.name),
-            ds.Query.hero(episode=5)
-            .alias("hero_of_episode_5")
-            .select(ds.Character.name),
-            ds.Character.name,
-        )
+def test_dsl_query_all_fields_should_correspond_to_the_root_type(ds):
+    with pytest.raises(AssertionError) as excinfo:
+        DSLQuery(ds.Character.name)
 
-    assert (
-        "fields should be root types (Query, Mutation or Subscription)\n"
-        "Received: Character"
-    ) in str(excinfo.value)
+    assert ("Invalid root field for operation QUERY.\n" "Received: Character") in str(
+        excinfo.value
+    )
+
+
+def test_dsl_gql_all_arguments_should_be_operations():
+    with pytest.raises(
+        TypeError, match="Operations should be instances of DSLOperation "
+    ):
+        dsl_gql("I am a string")
 
 
 def test_DSLSchema_requires_a_schema(client):

@@ -1,7 +1,7 @@
 import asyncio
 
 from gql import Client
-from gql.dsl import DSLSchema, dsl_gql
+from gql.dsl import DSLQuery, DSLSchema, dsl_gql
 from gql.transport.aiohttp import AIOHTTPTransport
 
 
@@ -22,8 +22,10 @@ async def main():
 
         # Create the query using dynamically generated attributes from ds
         query = dsl_gql(
-            ds.Query.continents(filter={"code": {"eq": "EU"}}).select(
-                ds.Continent.code, ds.Continent.name
+            DSLQuery(
+                ds.Query.continents(filter={"code": {"eq": "EU"}}).select(
+                    ds.Continent.code, ds.Continent.name
+                )
             )
         )
 
@@ -43,7 +45,7 @@ async def main():
         query_continents.select(ds.Continent.name)
 
         # I generate a document from my query to be able to execute it
-        query = dsl_gql(query_continents)
+        query = dsl_gql(DSLQuery(query_continents))
 
         # Execute the query
         result = await session.execute(query)
