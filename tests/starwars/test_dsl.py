@@ -182,7 +182,7 @@ def test_invalid_arg(ds):
         ds.Query.hero.args(invalid_arg=5).select(ds.Character.name)
 
 
-def test_multiple_queries(ds, client):
+def test_multiple_root_fields(ds, client):
     query = dsl_gql(
         ds.Query.hero.select(ds.Character.name),
         ds.Query.hero(episode=5).alias("hero_of_episode_5").select(ds.Character.name),
@@ -193,6 +193,37 @@ def test_multiple_queries(ds, client):
         "hero_of_episode_5": {"name": "Luke Skywalker"},
     }
     assert result == expected
+
+
+def test_root_fields_aliased(ds, client):
+    query = dsl_gql(
+        ds.Query.hero.select(ds.Character.name),
+        hero_of_episode_5=ds.Query.hero(episode=5).select(ds.Character.name),
+    )
+    result = client.execute(query)
+    expected = {
+        "hero": {"name": "R2-D2"},
+        "hero_of_episode_5": {"name": "Luke Skywalker"},
+    }
+    assert result == expected
+
+
+def test_operation_name(ds):
+    query = dsl_gql(
+        ds.Query.hero.select(ds.Character.name), operation_name="GetHeroName",
+    )
+
+    from graphql import print_ast
+
+    assert (
+        print_ast(query)
+        == """query GetHeroName {
+  hero {
+    name
+  }
+}
+"""
+    )
 
 
 def test_dsl_gql_all_fields_should_be_instances_of_DSLField(ds, client):

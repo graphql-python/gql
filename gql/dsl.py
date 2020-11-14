@@ -1,6 +1,5 @@
 import logging
-from collections.abc import Iterable
-from typing import List, Optional, Union
+from typing import Dict, Iterable, List, Optional, Tuple, Union
 
 from graphql import (
     ArgumentNode,
@@ -26,8 +25,12 @@ from .utils import to_camel_case
 log = logging.getLogger(__name__)
 
 
-def dsl_gql(*fields: "DSLField") -> DocumentNode:
-    """Given arguments of type :class:`DSLField` containing GraphQL requests,
+def dsl_gql(
+    *fields: "DSLField",
+    operation_name: Optional[str] = None,
+    **fields_with_alias: "DSLField",
+) -> DocumentNode:
+    r"""Given arguments of type :class:`DSLField` containing GraphQL requests,
     generate a Document which can be executed later in a
     gql client or a gql session.
 
@@ -43,8 +46,12 @@ def dsl_gql(*fields: "DSLField") -> DocumentNode:
     They should all have the same root type
     (you can't mix queries with mutations for example).
 
-    :param fields: root instances of the dynamically generated requests
-    :type fields: DSLField
+    :param \*fields: root instances of the dynamically generated requests
+    :type \*fields: DSLField
+    :param \**fields_with_alias: root instances fields with alias as key
+    :type \**fields_with_alias: DSLField
+    :param operation_name: optional operation name
+    :type operation_name: str
     :return: a Document which can be later executed or subscribed by a
         :class:`Client <gql.client.Client>`, by an
         :class:`async session <gql.client.AsyncClientSession>` or by a
@@ -54,9 +61,13 @@ def dsl_gql(*fields: "DSLField") -> DocumentNode:
     :raises AssertionError: if an argument is not a field of a root type
     """
 
+    all_fields: Tuple["DSLField", ...] = DSLField.get_aliased_fields(
+        fields, fields_with_alias
+    )
+
     # Check that we receive only arguments of type DSLField
     # And that they are a root type
-    for field in fields:
+    for field in all_fields:
         if not isinstance(field, DSLField):
             raise TypeError(
                 f"fields must be instances of DSLField. Received type: {type(field)}"
@@ -68,15 +79,16 @@ def dsl_gql(*fields: "DSLField") -> DocumentNode:
 
     # Get the operation from the first field
     # All the fields must have the same operation
-    operation = fields[0].type_name.lower()
+    operation = all_fields[0].type_name.lower()
 
     return DocumentNode(
         definitions=[
             OperationDefinitionNode(
                 operation=OperationType(operation),
                 selection_set=SelectionSetNode(
-                    selections=FrozenList(DSLField.get_ast_fields(fields))
+                    selections=FrozenList(DSLField.get_ast_fields(all_fields))
                 ),
+                **({"name": NameNode(value=operation_name)} if operation_name else {}),
             )
         ]
     )
@@ -203,7 +215,7 @@ class DSLField:
         log.debug(f"Creating {self!r}")
 
     @staticmethod
-    def get_ast_fields(fields: Iterable) -> List[FieldNode]:
+    def get_ast_fields(fields: Iterable["DSLField"]) -> List[FieldNode]:
         """
         :meta private:
 
@@ -221,6 +233,23 @@ class DSLField:
                 raise TypeError(f'Received incompatible field: "{field}".')
 
         return ast_fields
+
+    @staticmethod
+    def get_aliased_fields(
+        fields: Iterable["DSLField"], fields_with_alias: Dict[str, "DSLField"]
+    ) -> Tuple["DSLField", ...]:
+        """
+        :meta private:
+
+        Concatenate all the fields (with or without alias) in a Tuple.
+
+        Set the requested alias for the fields with alias.
+        """
+
+        return (
+            *fields,
+            *(field.alias(alias) for alias, field in fields_with_alias.items()),
+        )
 
     def select(
         self, *fields: "DSLField", **fields_with_alias: "DSLField"
@@ -241,9 +270,9 @@ class DSLField:
                            of the :class:`DSLField` class.
         """
 
-        added_fields: List["DSLField"] = list(fields) + [
-            field.alias(alias) for alias, field in fields_with_alias.items()
-        ]
+        added_fields: Tuple["DSLField", ...] = self.get_aliased_fields(
+            fields, fields_with_alias
+        )
 
         added_selections: List[FieldNode] = self.get_ast_fields(added_fields)
 
