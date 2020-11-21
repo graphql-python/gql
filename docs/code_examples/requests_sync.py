@@ -1,11 +1,11 @@
 from gql import Client, gql
 from gql.transport.requests import RequestsHTTPTransport
 
-sample_transport = RequestsHTTPTransport(
+transport = RequestsHTTPTransport(
     url="https://countries.trevorblades.com/", verify=True, retries=3,
 )
 
-client = Client(transport=sample_transport, fetch_schema_from_transport=True,)
+client = Client(transport=transport, fetch_schema_from_transport=True)
 
 query = gql(
     """
