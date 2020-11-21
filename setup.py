@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 install_requires = [
     "graphql-core>=3.1,<3.2",
-    "yarl>=1.4,<1.6",
+    "yarl>=1.6,<2.0",
 ]
 
 scripts = [
@@ -32,7 +32,7 @@ dev_requires = [
 ] + tests_requires
 
 install_aiohttp_requires = [
-    "aiohttp==3.7.1",
+    "aiohttp>=3.7.1,<3.8.0",
 ]
 
 install_requests_requires = [
