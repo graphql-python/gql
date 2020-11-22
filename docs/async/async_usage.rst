@@ -14,4 +14,31 @@ Example:
 
 .. literalinclude:: ../code_examples/aiohttp_async.py
 
+IPython
+-------
+
+.. warning::
+
+    On some Python environments, like :emphasis:`Jupyter` or :emphasis:`Spyder`,
+    which are using :emphasis:`IPython`,
+    an asyncio event loop is already created for you by the environment.
+
+In this case, running the above code might generate the following error::
+
+    RuntimeError: asyncio.run() cannot be called from a running event loop
+
+If that happens, depending on the environment,
+you should replace :code:`asyncio.run(main())` by either:
+
+.. code-block:: python
+
+    await main()
+
+OR:
+
+.. code-block:: python
+
+    loop = asyncio.get_running_loop()
+    loop.create_task(main())
+
 .. _asyncio: https://docs.python.org/3/library/asyncio.html

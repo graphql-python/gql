@@ -1,3 +1,5 @@
+.. _requests_transport:
+
 RequestsHTTPTransport
 =====================
 

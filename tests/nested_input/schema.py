@@ -1,3 +1,5 @@
+import json
+
 from graphql import (
     GraphQLArgument,
     GraphQLField,
@@ -6,6 +8,7 @@ from graphql import (
     GraphQLInt,
     GraphQLObjectType,
     GraphQLSchema,
+    GraphQLString,
 )
 
 nestedInput = GraphQLInputObjectType(
@@ -19,10 +22,10 @@ nestedInput.fields["child"] = GraphQLInputField(nestedInput, description="child"
 queryType = GraphQLObjectType(
     "Query",
     fields=lambda: {
-        "foo": GraphQLField(
+        "echo": GraphQLField(
             args={"nested": GraphQLArgument(type_=nestedInput)},
-            resolve=lambda *args, **kwargs: 1,
-            type_=GraphQLInt,
+            resolve=lambda *args, **kwargs: json.dumps(kwargs["nested"]),
+            type_=GraphQLString,
         ),
     },
 )

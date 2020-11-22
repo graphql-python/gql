@@ -2,11 +2,9 @@ import io
 import json
 
 import pytest
-from aiohttp import DummyCookieJar, web
 
 from gql import Client, gql
 from gql.cli import get_parser, main
-from gql.transport.aiohttp import AIOHTTPTransport
 from gql.transport.exceptions import (
     TransportAlreadyConnected,
     TransportClosed,
@@ -37,9 +35,15 @@ query1_server_answer_data = (
 
 query1_server_answer = f'{{"data":{query1_server_answer_data}}}'
 
+# Marking all tests in this file with the aiohttp marker
+pytestmark = pytest.mark.aiohttp
+
 
 @pytest.mark.asyncio
 async def test_aiohttp_query(event_loop, aiohttp_server):
+    from aiohttp import web
+    from gql.transport.aiohttp import AIOHTTPTransport
+
     async def handler(request):
         return web.Response(text=query1_server_answer, content_type="application/json")
 
@@ -67,6 +71,9 @@ async def test_aiohttp_query(event_loop, aiohttp_server):
 
 @pytest.mark.asyncio
 async def test_aiohttp_error_code_500(event_loop, aiohttp_server):
+    from aiohttp import web
+    from gql.transport.aiohttp import AIOHTTPTransport
+
     async def handler(request):
         # Will generate http error code 500
         raise Exception("Server error")
@@ -83,8 +90,10 @@ async def test_aiohttp_error_code_500(event_loop, aiohttp_server):
 
         query = gql(query1_str)
 
-        with pytest.raises(TransportServerError):
+        with pytest.raises(TransportServerError) as exc_info:
             await session.execute(query)
+
+        assert "500, message='Internal Server Error'" in str(exc_info.value)
 
 
 query1_server_error_answer = '{"errors": ["Error 1", "Error 2"]}'
@@ -92,6 +101,9 @@ query1_server_error_answer = '{"errors": ["Error 1", "Error 2"]}'
 
 @pytest.mark.asyncio
 async def test_aiohttp_error_code(event_loop, aiohttp_server):
+    from aiohttp import web
+    from gql.transport.aiohttp import AIOHTTPTransport
+
     async def handler(request):
         return web.Response(
             text=query1_server_error_answer, content_type="application/json"
@@ -114,15 +126,37 @@ async def test_aiohttp_error_code(event_loop, aiohttp_server):
 
 
 invalid_protocol_responses = [
-    "{}",
-    "qlsjfqsdlkj",
-    '{"not_data_or_errors": 35}',
+    {
+        "response": "{}",
+        "expected_exception": (
+            "Server did not return a GraphQL result: "
+            'No "data" or "error" keys in answer: {}'
+        ),
+    },
+    {
+        "response": "qlsjfqsdlkj",
+        "expected_exception": (
+            "Server did not return a GraphQL result: " "qlsjfqsdlkj"
+        ),
+    },
+    {
+        "response": '{"not_data_or_errors": 35}',
+        "expected_exception": (
+            "Server did not return a GraphQL result: "
+            'No "data" or "error" keys in answer: {"not_data_or_errors": 35}'
+        ),
+    },
 ]
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("response", invalid_protocol_responses)
-async def test_aiohttp_invalid_protocol(event_loop, aiohttp_server, response):
+@pytest.mark.parametrize("param", invalid_protocol_responses)
+async def test_aiohttp_invalid_protocol(event_loop, aiohttp_server, param):
+    from aiohttp import web
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    response = param["response"]
+
     async def handler(request):
         return web.Response(text=response, content_type="application/json")
 
@@ -138,12 +172,17 @@ async def test_aiohttp_invalid_protocol(event_loop, aiohttp_server, response):
 
         query = gql(query1_str)
 
-        with pytest.raises(TransportProtocolError):
+        with pytest.raises(TransportProtocolError) as exc_info:
             await session.execute(query)
+
+        assert param["expected_exception"] in str(exc_info.value)
 
 
 @pytest.mark.asyncio
 async def test_aiohttp_subscribe_not_supported(event_loop, aiohttp_server):
+    from aiohttp import web
+    from gql.transport.aiohttp import AIOHTTPTransport
+
     async def handler(request):
         return web.Response(text="does not matter", content_type="application/json")
 
@@ -166,6 +205,9 @@ async def test_aiohttp_subscribe_not_supported(event_loop, aiohttp_server):
 
 @pytest.mark.asyncio
 async def test_aiohttp_cannot_connect_twice(event_loop, aiohttp_server):
+    from aiohttp import web
+    from gql.transport.aiohttp import AIOHTTPTransport
+
     async def handler(request):
         return web.Response(text=query1_server_answer, content_type="application/json")
 
@@ -185,6 +227,9 @@ async def test_aiohttp_cannot_connect_twice(event_loop, aiohttp_server):
 
 @pytest.mark.asyncio
 async def test_aiohttp_cannot_execute_if_not_connected(event_loop, aiohttp_server):
+    from aiohttp import web
+    from gql.transport.aiohttp import AIOHTTPTransport
+
     async def handler(request):
         return web.Response(text=query1_server_answer, content_type="application/json")
 
@@ -204,6 +249,9 @@ async def test_aiohttp_cannot_execute_if_not_connected(event_loop, aiohttp_serve
 
 @pytest.mark.asyncio
 async def test_aiohttp_extra_args(event_loop, aiohttp_server):
+    from aiohttp import web
+    from gql.transport.aiohttp import AIOHTTPTransport
+
     async def handler(request):
         return web.Response(text=query1_server_answer, content_type="application/json")
 
@@ -214,6 +262,8 @@ async def test_aiohttp_extra_args(event_loop, aiohttp_server):
     url = server.make_url("/")
 
     # passing extra arguments to aiohttp.ClientSession
+    from aiohttp import DummyCookieJar
+
     jar = DummyCookieJar()
     sample_transport = AIOHTTPTransport(
         url=url, timeout=10, client_session_args={"version": "1.1", "cookie_jar": jar}
@@ -246,6 +296,9 @@ query2_server_answer = '{"data": {"continent": {"name": "Europe"}}}'
 
 @pytest.mark.asyncio
 async def test_aiohttp_query_variable_values(event_loop, aiohttp_server):
+    from aiohttp import web
+    from gql.transport.aiohttp import AIOHTTPTransport
+
     async def handler(request):
         return web.Response(text=query2_server_answer, content_type="application/json")
 
@@ -277,6 +330,9 @@ async def test_aiohttp_query_variable_values(event_loop, aiohttp_server):
 async def test_aiohttp_execute_running_in_thread(
     event_loop, aiohttp_server, run_sync_test
 ):
+    from aiohttp import web
+    from gql.transport.aiohttp import AIOHTTPTransport
+
     async def handler(request):
         return web.Response(text=query1_server_answer, content_type="application/json")
 
@@ -302,6 +358,9 @@ async def test_aiohttp_execute_running_in_thread(
 async def test_aiohttp_subscribe_running_in_thread(
     event_loop, aiohttp_server, run_sync_test
 ):
+    from aiohttp import web
+    from gql.transport.aiohttp import AIOHTTPTransport
+
     async def handler(request):
         return web.Response(text=query1_server_answer, content_type="application/json")
 
@@ -358,6 +417,8 @@ This file will be sent in the GraphQL mutation
 
 async def single_upload_handler(request):
 
+    from aiohttp import web
+
     reader = await request.multipart()
 
     field_0 = await reader.next()
@@ -383,6 +444,9 @@ async def single_upload_handler(request):
 
 @pytest.mark.asyncio
 async def test_aiohttp_file_upload(event_loop, aiohttp_server):
+    from aiohttp import web
+    from gql.transport.aiohttp import AIOHTTPTransport
+
     app = web.Application()
     app.router.add_route("POST", "/", single_upload_handler)
     server = await aiohttp_server(app)
@@ -417,6 +481,8 @@ async def test_aiohttp_file_upload(event_loop, aiohttp_server):
 async def test_aiohttp_file_upload_without_session(
     event_loop, aiohttp_server, run_sync_test
 ):
+    from aiohttp import web
+    from gql.transport.aiohttp import AIOHTTPTransport
 
     app = web.Application()
     app.router.add_route("POST", "/", single_upload_handler)
@@ -456,6 +522,8 @@ binary_file_content = bytes(range(0, 256))
 
 async def binary_upload_handler(request):
 
+    from aiohttp import web
+
     reader = await request.multipart()
 
     field_0 = await reader.next()
@@ -481,6 +549,9 @@ async def binary_upload_handler(request):
 
 @pytest.mark.asyncio
 async def test_aiohttp_binary_file_upload(event_loop, aiohttp_server):
+    from aiohttp import web
+    from gql.transport.aiohttp import AIOHTTPTransport
+
     app = web.Application()
     app.router.add_route("POST", "/", binary_upload_handler)
     server = await aiohttp_server(app)
@@ -535,6 +606,9 @@ This file will also be sent in the GraphQL mutation
 
 @pytest.mark.asyncio
 async def test_aiohttp_file_upload_two_files(event_loop, aiohttp_server):
+    from aiohttp import web
+    from gql.transport.aiohttp import AIOHTTPTransport
+
     async def handler(request):
 
         reader = await request.multipart()
@@ -622,6 +696,9 @@ file_upload_mutation_3_map = '{"0": ["variables.files.0"], "1": ["variables.file
 
 @pytest.mark.asyncio
 async def test_aiohttp_file_upload_list_of_two_files(event_loop, aiohttp_server):
+    from aiohttp import web
+    from gql.transport.aiohttp import AIOHTTPTransport
+
     async def handler(request):
 
         reader = await request.multipart()
@@ -691,6 +768,8 @@ async def test_aiohttp_file_upload_list_of_two_files(event_loop, aiohttp_server)
 
 @pytest.mark.asyncio
 async def test_aiohttp_using_cli(event_loop, aiohttp_server, monkeypatch, capsys):
+    from aiohttp import web
+
     async def handler(request):
         return web.Response(text=query1_server_answer, content_type="application/json")
 
@@ -726,6 +805,8 @@ async def test_aiohttp_using_cli(event_loop, aiohttp_server, monkeypatch, capsys
 async def test_aiohttp_using_cli_invalid_param(
     event_loop, aiohttp_server, monkeypatch, capsys
 ):
+    from aiohttp import web
+
     async def handler(request):
         return web.Response(text=query1_server_answer, content_type="application/json")
 
@@ -760,6 +841,8 @@ async def test_aiohttp_using_cli_invalid_param(
 async def test_aiohttp_using_cli_invalid_query(
     event_loop, aiohttp_server, monkeypatch, capsys
 ):
+    from aiohttp import web
+
     async def handler(request):
         return web.Response(text=query1_server_answer, content_type="application/json")
 

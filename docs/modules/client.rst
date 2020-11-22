@@ -1,5 +1,5 @@
-Client
-======
+gql.client
+==========
 
 .. currentmodule:: gql.client
 

@@ -4,7 +4,6 @@ import types
 from typing import List
 
 import pytest
-import websockets
 
 from gql import Client, gql
 from gql.transport.exceptions import (
@@ -13,9 +12,11 @@ from gql.transport.exceptions import (
     TransportProtocolError,
     TransportQueryError,
 )
-from gql.transport.websockets import WebsocketsTransport
 
 from .conftest import MS, WebSocketServerHelper
+
+# Marking all tests in this file with the websockets marker
+pytestmark = pytest.mark.websockets
 
 invalid_query_str = """
     query getContinents {
@@ -112,6 +113,7 @@ async def server_no_ack(ws, path):
 @pytest.mark.parametrize("server", [server_no_ack], indirect=True)
 @pytest.mark.parametrize("query_str", [invalid_query_str])
 async def test_websocket_server_does_not_send_ack(event_loop, server, query_str):
+    from gql.transport.websockets import WebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
 
@@ -248,6 +250,7 @@ async def server_without_ack(ws, path):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_without_ack], indirect=True)
 async def test_websocket_server_does_not_ack(event_loop, server):
+    from gql.transport.websockets import WebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
@@ -266,6 +269,8 @@ async def server_closing_directly(ws, path):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_closing_directly], indirect=True)
 async def test_websocket_server_closing_directly(event_loop, server):
+    import websockets
+    from gql.transport.websockets import WebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
@@ -285,6 +290,8 @@ async def server_closing_after_ack(ws, path):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_closing_after_ack], indirect=True)
 async def test_websocket_server_closing_after_ack(event_loop, client_and_server):
+
+    import websockets
 
     session, server = client_and_server
 
@@ -312,6 +319,8 @@ async def server_sending_invalid_query_errors(ws, path):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_sending_invalid_query_errors], indirect=True)
 async def test_websocket_server_sending_invalid_query_errors(event_loop, server):
+    from gql.transport.websockets import WebsocketsTransport
+
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
@@ -325,6 +334,7 @@ async def test_websocket_server_sending_invalid_query_errors(event_loop, server)
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_sending_invalid_query_errors], indirect=True)
 async def test_websocket_non_regression_bug_105(event_loop, server):
+    from gql.transport.websockets import WebsocketsTransport
 
     # This test will check a fix to a race condition which happens if the user is trying
     # to connect using the same client twice at the same time

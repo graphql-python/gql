@@ -1,12 +1,15 @@
 import os
+from contextlib import suppress
 
 import mock
 import pytest
 from graphql import build_ast_schema, parse
-from urllib3.exceptions import NewConnectionError
 
 from gql import Client, gql
-from gql.transport.requests import RequestsHTTPTransport, Transport
+from gql.transport import Transport
+
+with suppress(ModuleNotFoundError):
+    from urllib3.exceptions import NewConnectionError
 
 
 @pytest.fixture
@@ -33,6 +36,7 @@ def test_request_transport_not_implemented(http_transport_query):
     assert "Any Transport subclass must implement execute method" == str(exc_info.value)
 
 
+@pytest.mark.requests
 @mock.patch("urllib3.connection.HTTPConnection._new_conn")
 def test_retries_on_transport(execute_mock):
     """Testing retries on the transport level
@@ -40,6 +44,8 @@ def test_retries_on_transport(execute_mock):
     This forces us to override low-level APIs because the retry mechanism on the urllib3
     (which uses requests) is pretty low-level itself.
     """
+    from gql.transport.requests import RequestsHTTPTransport
+
     expected_retries = 3
     execute_mock.side_effect = NewConnectionError(
         "Should be HTTPConnection", "Fake connection error"
@@ -78,7 +84,10 @@ def test_no_schema_exception():
     )
 
 
+@pytest.mark.requests
 def test_execute_result_error():
+
+    from gql.transport.requests import RequestsHTTPTransport
 
     client = Client(
         transport=RequestsHTTPTransport(url="https://countries.trevorblades.com/"),
@@ -101,7 +110,10 @@ def test_execute_result_error():
     assert 'Cannot query field "id" on type "Continent".' in str(exc_info.value)
 
 
+@pytest.mark.requests
 def test_http_transport_raise_for_status_error(http_transport_query):
+    from gql.transport.requests import RequestsHTTPTransport
+
     with Client(
         transport=RequestsHTTPTransport(
             url="https://countries.trevorblades.com/",
@@ -114,7 +126,10 @@ def test_http_transport_raise_for_status_error(http_transport_query):
     assert "400 Client Error: Bad Request for url" in str(exc_info.value)
 
 
+@pytest.mark.requests
 def test_http_transport_verify_error(http_transport_query):
+    from gql.transport.requests import RequestsHTTPTransport
+
     with Client(
         transport=RequestsHTTPTransport(
             url="https://countries.trevorblades.com/", verify=False,
@@ -126,7 +141,10 @@ def test_http_transport_verify_error(http_transport_query):
     assert "Unverified HTTPS request is being made to host" in str(record[0].message)
 
 
+@pytest.mark.requests
 def test_http_transport_specify_method_valid(http_transport_query):
+    from gql.transport.requests import RequestsHTTPTransport
+
     with Client(
         transport=RequestsHTTPTransport(
             url="https://countries.trevorblades.com/", method="POST",
@@ -136,7 +154,10 @@ def test_http_transport_specify_method_valid(http_transport_query):
     assert result is not None
 
 
+@pytest.mark.requests
 def test_http_transport_specify_method_invalid(http_transport_query):
+    from gql.transport.requests import RequestsHTTPTransport
+
     with Client(
         transport=RequestsHTTPTransport(
             url="https://countries.trevorblades.com/", method="GET",

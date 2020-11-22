@@ -1,3 +1,5 @@
+.. _phoenix_transport:
+
 PhoenixChannelWebsocketsTransport
 =================================
 

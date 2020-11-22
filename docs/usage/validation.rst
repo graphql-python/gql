@@ -3,7 +3,7 @@
 Schema validation
 =================
 
-It a GraphQL schema is provided, gql will validate the queries locally before sending them to the backend.
+If a GraphQL schema is provided, gql will validate the queries locally before sending them to the backend.
 If no schema is provided, gql will send the query to the backend without local validation.
 
 You can either provide a schema yourself, or you can request gql to get the schema
@@ -37,7 +37,7 @@ Using introspection
 
 In order to get the schema directly from the GraphQL Server API using the transport, you need
 to set the `fetch_schema_from_transport` argument of Client to True, and the client will
-fetch the schema before the execution of the first query.
+fetch the schema directly after the first connection to the backend.
 
 .. _introspection: https://graphql.org/learn/introspection
 .. _tests/starwars/schema.py: https://github.com/graphql-python/gql/blob/master/tests/starwars/schema.py

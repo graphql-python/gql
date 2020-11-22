@@ -1,10 +1,9 @@
 import pytest
 
 from gql import Client, gql
-from gql.transport.aiohttp import AIOHTTPTransport
-from gql.transport.requests import RequestsHTTPTransport
 
 
+@pytest.mark.aiohttp
 @pytest.mark.online
 @pytest.mark.asyncio
 @pytest.mark.parametrize("protocol", ["http", "https"])
@@ -12,6 +11,8 @@ from gql.transport.requests import RequestsHTTPTransport
 async def test_async_client_async_transport(
     event_loop, protocol, fetch_schema_from_transport
 ):
+
+    from gql.transport.aiohttp import AIOHTTPTransport
 
     # Create http or https url
     url = f"{protocol}://countries.trevorblades.com/graphql"
@@ -49,10 +50,13 @@ async def test_async_client_async_transport(
             assert session.client.schema is not None
 
 
+@pytest.mark.requests
 @pytest.mark.online
 @pytest.mark.asyncio
 @pytest.mark.parametrize("fetch_schema_from_transport", [True, False])
 async def test_async_client_sync_transport(event_loop, fetch_schema_from_transport):
+
+    from gql.transport.requests import RequestsHTTPTransport
 
     url = "http://countries.trevorblades.com/graphql"
 
@@ -70,10 +74,13 @@ async def test_async_client_sync_transport(event_loop, fetch_schema_from_transpo
     sample_transport.close()
 
 
+@pytest.mark.aiohttp
 @pytest.mark.online
 @pytest.mark.parametrize("protocol", ["http", "https"])
 @pytest.mark.parametrize("fetch_schema_from_transport", [True, False])
 def test_sync_client_async_transport(protocol, fetch_schema_from_transport):
+
+    from gql.transport.aiohttp import AIOHTTPTransport
 
     # Create http or https url
     url = f"{protocol}://countries.trevorblades.com/graphql"
@@ -111,10 +118,13 @@ def test_sync_client_async_transport(protocol, fetch_schema_from_transport):
         assert client.schema is not None
 
 
+@pytest.mark.requests
 @pytest.mark.online
 @pytest.mark.parametrize("protocol", ["http", "https"])
 @pytest.mark.parametrize("fetch_schema_from_transport", [True, False])
 def test_sync_client_sync_transport(protocol, fetch_schema_from_transport):
+
+    from gql.transport.requests import RequestsHTTPTransport
 
     # Create http or https url
     url = f"{protocol}://countries.trevorblades.com/graphql"

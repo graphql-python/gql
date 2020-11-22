@@ -36,22 +36,27 @@ The main features of GQL are:
 
 * Execute GraphQL queries using [different protocols](https://gql.readthedocs.io/en/latest/transports/index.html) (http, websockets, ...)
 * Possibility to [validate the queries locally](https://gql.readthedocs.io/en/latest/usage/validation.html) using a GraphQL schema provided locally or fetched from the backend using an instrospection query
-* Supports GraphQL queries, mutations and subscriptions
+* Supports GraphQL queries, mutations and [subscriptions](https://gql.readthedocs.io/en/latest/usage/subscriptions.html)
 * Supports [sync or async usage](https://gql.readthedocs.io/en/latest/async/index.html), [allowing concurrent requests](https://gql.readthedocs.io/en/latest/advanced/async_advanced_usage.html#async-advanced-usage)
 * Supports [File uploads](https://gql.readthedocs.io/en/latest/usage/file_upload.html)
+* [gql-cli script](https://gql.readthedocs.io/en/latest/gql-cli/intro.html) to execute GraphQL queries from the command line
+* [DSL module](https://gql.readthedocs.io/en/latest/advanced/dsl_module.html) to compose GraphQL queries dynamically
 
 ## Installation
 
 > **WARNING**: Please note that the following documentation describes the current version which is currently only available as a pre-release and needs to be installed with
 
-    $ pip install --pre gql
+    $ pip install --pre gql[all]
+
+> **NOTE**: See also [the documentation](https://gql.readthedocs.io/en/latest/intro.html#less-dependencies) to install GQL with less extra dependencies
 
 ## Usage
 
 ### Basic usage
 
 ```python
-from gql import gql, Client, AIOHTTPTransport
+from gql import gql, Client
+from gql.transport.aiohttp import AIOHTTPTransport
 
 # Select your transport with a defined url endpoint
 transport = AIOHTTPTransport(url="https://countries.trevorblades.com/")
