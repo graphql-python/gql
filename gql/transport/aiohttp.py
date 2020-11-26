@@ -144,7 +144,9 @@ class AIOHTTPTransport(AsyncTransport):
 
             # If we upload files, we will extract the files present in the
             # variable_values dict and replace them by null values
-            nulled_variable_values, files = extract_files(variable_values)
+            nulled_variable_values, files = extract_files(
+                variable_values, (aiohttp.StreamReader,)
+            )
 
             # Save the nulled variable values in the payload
             payload["variables"] = nulled_variable_values
