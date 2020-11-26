@@ -175,7 +175,8 @@ class AIOHTTPTransport(AsyncTransport):
             data.add_field("map", file_map_str, content_type="application/json")
 
             # Add the extracted files as remaining fields
-            data.add_fields(*file_streams.items())
+            for k, v in file_streams.items():
+                data.add_field(k, v, filename=k)
 
             post_args: Dict[str, Any] = {"data": data}
 

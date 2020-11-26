@@ -3,6 +3,8 @@
 import io
 from typing import Any, Dict, Tuple
 
+from aiohttp import StreamReader
+
 
 # From this response in Stackoverflow
 # http://stackoverflow.com/a/19053800/1072990
@@ -14,8 +16,8 @@ def to_camel_case(snake_str):
 
 
 def is_file_like(value: Any) -> bool:
-    """Check if a value represents a file like object"""
-    return isinstance(value, io.IOBase)
+    """Check if a value represents a file like object or StreamReader"""
+    return isinstance(value, io.IOBase) or isinstance(value, StreamReader)
 
 
 def extract_files(variables: Dict) -> Tuple[Dict, Dict]:
