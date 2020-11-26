@@ -13,7 +13,9 @@ def to_camel_case(snake_str):
     return components[0] + "".join(x.title() if x else "_" for x in components[1:])
 
 
-def is_file_like(value: Any, additional_file_like_instances: Tuple[Any]) -> bool:
+def is_file_like(
+    value: Any, additional_file_like_instances: Optional[Tuple[Any]] = None
+) -> bool:
     """Check if a value represents a file like object"""
     if additional_file_like_instances:
         return isinstance(value, io.IOBase) or isinstance(
@@ -23,7 +25,7 @@ def is_file_like(value: Any, additional_file_like_instances: Tuple[Any]) -> bool
 
 
 def extract_files(
-    variables: Dict, additional_file_like_instances: Optional[Tuple[Any]]
+    variables: Dict, additional_file_like_instances: Optional[Tuple[Any]] = None
 ) -> Tuple[Dict, Dict]:
     files = {}
 

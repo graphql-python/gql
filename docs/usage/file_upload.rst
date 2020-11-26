@@ -67,3 +67,34 @@ It is also possible to upload multiple files using a list.
 
     f1.close()
     f2.close()
+
+
+Aiohttp StreamReader
+--------------------
+
+In order to upload a aiohttp StreamReader, you need to:
+
+* get response from aiohttp request and then get StreamReader from `resp.content`
+* provide the StreamReader to the `variable_values` argument of `execute`
+* set the `upload_files` argument to True
+
+
+.. code-block:: python
+
+   async with ClientSession() as client:
+       async with client.get('YOUR_URL') as resp:
+           transport = AIOHTTPTransport(url='YOUR_URL')
+           client = Client(transport=transport)
+           query = gql('''
+             mutation($file: Upload!) {
+               singleUpload(file: $file) {
+                 id
+               }
+             }
+           ''')
+
+           params = {"file": resp.content}
+
+           result = client.execute(
+               query, variable_values=params, upload_files=True
+           )
