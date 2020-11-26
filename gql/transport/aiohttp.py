@@ -29,6 +29,7 @@ class AIOHTTPTransport(AsyncTransport):
 
     This transport use the aiohttp library with asyncio.
     """
+    file_classes = (io.IOBase, aiohttp.StreamReader)
 
     def __init__(
         self,
@@ -147,7 +148,7 @@ class AIOHTTPTransport(AsyncTransport):
             # variable_values dict and replace them by null values
             nulled_variable_values, files = extract_files(
                 variables=variable_values,
-                file_classes=(io.IOBase, aiohttp.StreamReader),
+                file_classes=self.file_classes,
             )
 
             # Save the nulled variable values in the payload
