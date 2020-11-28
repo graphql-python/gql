@@ -98,3 +98,40 @@ In order to upload a aiohttp StreamReader, you need to:
            result = client.execute(
                query, variable_values=params, upload_files=True
            )
+
+Asynchronous Generator
+----------------------
+
+In order to upload a single file use asynchronous generator(https://docs.aiohttp.org/en/stable/client_quickstart.html#streaming-uploads), you need to:
+
+* сreate a asynchronous generator
+* set the generator as a variable value in the mutation
+* provide the opened file to the `variable_values` argument of `execute`
+* set the `upload_files` argument to True
+
+.. code-block:: python
+
+    transport = AIOHTTPTransport(url='YOUR_URL')
+
+    client = Client(transport=sample_transport)
+
+    query = gql('''
+      mutation($file: Upload!) {
+        singleUpload(file: $file) {
+          id
+        }
+      }
+    ''')
+
+    async def file_sender(file_name=None):
+        async with aiofiles.open(file_name, 'rb') as f:
+            chunk = await f.read(64*1024)
+                while chunk:
+                    yield chunk
+                    chunk = await f.read(64*1024)
+
+    params = {"file": file_sender(file_name='YOUR_FILE_PATH')}
+
+    result = client.execute(
+		query, variable_values=params, upload_files=True
+	)

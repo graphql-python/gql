@@ -2,7 +2,7 @@ import io
 import json
 import logging
 from ssl import SSLContext
-from typing import Any, AsyncGenerator, Dict, Optional, Union
+from typing import Any, AsyncGenerator, Dict, Optional, Tuple, Type, Union
 
 import aiohttp
 from aiohttp.client_exceptions import ClientResponseError
@@ -30,7 +30,11 @@ class AIOHTTPTransport(AsyncTransport):
     This transport use the aiohttp library with asyncio.
     """
 
-    file_classes = (io.IOBase, aiohttp.StreamReader)
+    file_classes: Tuple[Type[Any], ...] = (
+        io.IOBase,
+        aiohttp.StreamReader,
+        AsyncGenerator,
+    )
 
     def __init__(
         self,
