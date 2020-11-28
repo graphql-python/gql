@@ -583,7 +583,7 @@ async def test_aiohttp_binary_file_upload(event_loop, aiohttp_server):
 
 
 @pytest.mark.asyncio
-async def test_aiohttp_stream_response_upload(event_loop, aiohttp_server):
+async def test_aiohttp_stream_reader_upload(event_loop, aiohttp_server):
     from aiohttp import web, ClientSession
     from gql.transport.aiohttp import AIOHTTPTransport
 
