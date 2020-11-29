@@ -641,7 +641,7 @@ async def test_aiohttp_async_generator_upload(event_loop, aiohttp_server):
 
             file_path = test_file.filename
 
-            async def file_sender(file_name=None):
+            async def file_sender(file_name):
                 async with aiofiles.open(file_name, "rb") as f:
                     chunk = await f.read(64 * 1024)
                     while chunk:
