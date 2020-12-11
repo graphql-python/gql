@@ -1,7 +1,8 @@
+import io
 import json
 import logging
 from ssl import SSLContext
-from typing import Any, AsyncGenerator, Dict, Optional, Union
+from typing import Any, AsyncGenerator, Dict, Optional, Tuple, Type, Union
 
 import aiohttp
 from aiohttp.client_exceptions import ClientResponseError
@@ -28,6 +29,12 @@ class AIOHTTPTransport(AsyncTransport):
 
     This transport use the aiohttp library with asyncio.
     """
+
+    file_classes: Tuple[Type[Any], ...] = (
+        io.IOBase,
+        aiohttp.StreamReader,
+        AsyncGenerator,
+    )
 
     def __init__(
         self,
@@ -144,7 +151,9 @@ class AIOHTTPTransport(AsyncTransport):
 
             # If we upload files, we will extract the files present in the
             # variable_values dict and replace them by null values
-            nulled_variable_values, files = extract_files(variable_values)
+            nulled_variable_values, files = extract_files(
+                variables=variable_values, file_classes=self.file_classes,
+            )
 
             # Save the nulled variable values in the payload
             payload["variables"] = nulled_variable_values
@@ -175,7 +184,8 @@ class AIOHTTPTransport(AsyncTransport):
             data.add_field("map", file_map_str, content_type="application/json")
 
             # Add the extracted files as remaining fields
-            data.add_fields(*file_streams.items())
+            for k, v in file_streams.items():
+                data.add_field(k, v, filename=k)
 
             post_args: Dict[str, Any] = {"data": data}
 

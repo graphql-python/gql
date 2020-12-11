@@ -18,6 +18,7 @@ tests_requires = [
     "pytest-cov==2.8.1",
     "mock==4.0.2",
     "vcrpy==4.0.2",
+    "aiofiles",
 ]
 
 dev_requires = [

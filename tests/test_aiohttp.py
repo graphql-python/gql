@@ -582,6 +582,84 @@ async def test_aiohttp_binary_file_upload(event_loop, aiohttp_server):
             assert success
 
 
+@pytest.mark.asyncio
+async def test_aiohttp_stream_reader_upload(event_loop, aiohttp_server):
+    from aiohttp import web, ClientSession
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    async def binary_data_handler(request):
+        return web.Response(
+            body=binary_file_content, content_type="binary/octet-stream"
+        )
+
+    app = web.Application()
+    app.router.add_route("POST", "/", binary_upload_handler)
+    app.router.add_route("GET", "/binary_data", binary_data_handler)
+
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+    binary_data_url = server.make_url("/binary_data")
+
+    sample_transport = AIOHTTPTransport(url=url, timeout=10)
+
+    async with Client(transport=sample_transport) as session:
+        query = gql(file_upload_mutation_1)
+        async with ClientSession() as client:
+            async with client.get(binary_data_url) as resp:
+                params = {"file": resp.content, "other_var": 42}
+
+                # Execute query asynchronously
+                result = await session.execute(
+                    query, variable_values=params, upload_files=True
+                )
+
+    success = result["success"]
+
+    assert success
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_async_generator_upload(event_loop, aiohttp_server):
+    import aiofiles
+    from aiohttp import web
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    app = web.Application()
+    app.router.add_route("POST", "/", binary_upload_handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    sample_transport = AIOHTTPTransport(url=url, timeout=10)
+
+    with TemporaryFile(binary_file_content) as test_file:
+
+        async with Client(transport=sample_transport,) as session:
+
+            query = gql(file_upload_mutation_1)
+
+            file_path = test_file.filename
+
+            async def file_sender(file_name):
+                async with aiofiles.open(file_name, "rb") as f:
+                    chunk = await f.read(64 * 1024)
+                    while chunk:
+                        yield chunk
+                        chunk = await f.read(64 * 1024)
+
+            params = {"file": file_sender(file_path), "other_var": 42}
+
+            # Execute query asynchronously
+            result = await session.execute(
+                query, variable_values=params, upload_files=True
+            )
+
+            success = result["success"]
+
+            assert success
+
+
 file_upload_mutation_2 = """
     mutation($file1: Upload!, $file2: Upload!) {
       uploadFile(input:{file1:$file, file2:$file}) {
