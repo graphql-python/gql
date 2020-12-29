@@ -8,11 +8,17 @@ import sys
 import tempfile
 import types
 from concurrent.futures import ThreadPoolExecutor
+from types import ModuleType
 from typing import Union
 
 import pytest
+import requests
+from graphql import build_client_schema, get_introspection_query
 
+import tests.testmodule as testmodule
 from gql import Client
+from gql.compiler.query_parser import QueryParser
+from gql.compiler.renderer_dataclasses import DataclassesRenderer
 
 all_transport_dependencies = [
     "aiohttp",
@@ -380,3 +386,76 @@ async def run_sync_test():
             await server.close()
 
     return run_sync_test_inner
+
+
+def load_introspection_from_server(url):
+    query = get_introspection_query()
+    request = requests.post(url, json={"query": query})
+    if request.status_code == 200:
+        return request.json()["data"]
+
+    raise Exception(
+        f"Request failure with {request.status_code} status code for query {query}"
+    )
+
+
+def load_introspection_from_file(filename):
+    with open(filename, "r", encoding="utf8") as fin:
+        return json.load(fin)
+
+
+def load_schema(uri):
+    introspection = (
+        load_introspection_from_file(uri)
+        if os.path.isfile(uri)
+        else load_introspection_from_server(uri)
+    )
+    return build_client_schema(introspection)
+
+
+@pytest.fixture
+async def swapi_schema():
+    filename = os.path.join(os.path.dirname(__file__), "fixtures/swapi-schema.graphql")
+    return load_schema(filename)
+
+
+@pytest.fixture
+async def swapi_parser(swapi_schema):
+    return QueryParser(swapi_schema)
+
+
+@pytest.fixture
+async def config_path(swapi_schema):
+    return os.path.join(os.path.dirname(__file__), "testmodule/config.py")
+
+
+@pytest.fixture
+async def swapi_dataclass_renderer(swapi_schema, config_path):
+    return DataclassesRenderer(swapi_schema, config_path)
+
+
+@pytest.fixture
+async def github_schema():
+    filename = os.path.join(os.path.dirname(__file__), "fixtures/github-schema.graphql")
+    return load_schema(filename)
+
+
+@pytest.fixture
+async def github_parser(github_schema):
+    return QueryParser(github_schema)
+
+
+@pytest.fixture
+async def github_dataclass_renderer(github_schema):
+    return DataclassesRenderer(github_schema)
+
+
+def load_module(code, module_name=None):
+    compiled = compile(code, "", "exec")
+    module = testmodule
+    if module_name is not None:
+        module_name = ".".join([testmodule.__name__, module_name])
+        module = ModuleType(module_name)
+        sys.modules[module_name] = module
+    exec(compiled, module.__dict__)
+    return testmodule
