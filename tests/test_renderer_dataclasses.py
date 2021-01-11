@@ -2,6 +2,7 @@ import json
 from datetime import datetime
 from unittest.mock import MagicMock
 
+import pytest
 from graphql import (
     GraphQLArgument,
     GraphQLEnumType,
@@ -18,7 +19,6 @@ from graphql import (
     GraphQLString,
 )
 
-import pytest
 from gql.compiler.query_parser import QueryParser
 from gql.compiler.renderer_dataclasses import DataclassesRenderer
 from gql.compiler.runtime.enum_utils import MissingEnumException
