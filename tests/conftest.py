@@ -11,19 +11,15 @@ from concurrent.futures import ThreadPoolExecutor
 from types import ModuleType
 from typing import Union
 
-import pytest
 from graphql import build_client_schema, get_introspection_query
 
+import pytest
 import tests.testmodule as testmodule
 from gql import Client
 from gql.compiler.query_parser import QueryParser
 from gql.compiler.renderer_dataclasses import DataclassesRenderer
 
-all_transport_dependencies = [
-    "aiohttp",
-    "requests",
-    "websockets",
-]
+all_transport_dependencies = ["aiohttp", "requests", "websockets"]
 
 
 def pytest_addoption(parser):

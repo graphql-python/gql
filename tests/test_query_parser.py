@@ -2,7 +2,6 @@ from dataclasses import asdict
 
 import pytest
 from deepdiff import DeepDiff
-
 from gql.compiler.query_parser import (
     InvalidQueryError,
     ParsedEnum,

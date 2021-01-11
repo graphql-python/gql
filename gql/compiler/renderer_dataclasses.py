@@ -81,7 +81,9 @@ class DataclassesRenderer:
         for enum in parsed_query.enums:
             enum_names.add(enum.name)
         if enum_names:
-            buffer.write("from gql.compiler.runtime.enum_utils import enum_field_metadata")
+            buffer.write(
+                "from gql.compiler.runtime.enum_utils import enum_field_metadata"
+            )
             for enum_name in sorted(enum_names):
                 importpath = enum_name_to_importpath[enum_name]
                 buffer.write(f"from {importpath} import {enum_name}")
@@ -172,7 +174,9 @@ class DataclassesRenderer:
             for enum in input_object.input_enums:
                 enum_names.add(enum.name)
             if enum_names:
-                buffer.write("from gql.compiler.runtime.enum_utils import enum_field_metadata")
+                buffer.write(
+                    "from gql.compiler.runtime.enum_utils import enum_field_metadata"
+                )
                 for enum_name in sorted(enum_names):
                     buffer.write(
                         f"from ..enum.{camel_case_to_lower_case(enum_name)}"
