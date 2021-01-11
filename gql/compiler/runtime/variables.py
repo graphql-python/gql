@@ -3,7 +3,7 @@ from typing import Any, Dict, Union
 
 from dataclasses_json import DataClassJsonMixin
 
-from .compiler.renderer_dataclasses import CustomScalar
+from ..renderer_dataclasses import CustomScalar
 from .enum_utils import MissingEnumException
 
 

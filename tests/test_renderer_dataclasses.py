@@ -22,7 +22,7 @@ from graphql import (
 from gql.compiler.query_parser import QueryParser
 from gql.compiler.renderer_dataclasses import DataclassesRenderer
 from gql.compiler.utils_codegen import camel_case_to_lower_case
-from gql.enum_utils import MissingEnumException
+from gql.compiler.runtime.enum_utils import MissingEnumException
 
 from .conftest import load_module
 

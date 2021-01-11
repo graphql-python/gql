@@ -6,7 +6,6 @@ from graphql import GraphQLSchema, build_ast_schema
 from graphql.language.parser import parse
 
 from gql.compiler.cli import run
-from gql.compiler.utils_schema import compile_schema_library
 
 
 def compile_schema_library(schema_library: str) -> GraphQLSchema:

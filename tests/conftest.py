@@ -12,7 +12,6 @@ from types import ModuleType
 from typing import Union
 
 import pytest
-import requests
 from graphql import build_client_schema, get_introspection_query
 
 import tests.testmodule as testmodule
@@ -388,35 +387,20 @@ async def run_sync_test():
     return run_sync_test_inner
 
 
-def load_introspection_from_server(url):
-    query = get_introspection_query()
-    request = requests.post(url, json={"query": query})
-    if request.status_code == 200:
-        return request.json()["data"]
-
-    raise Exception(
-        f"Request failure with {request.status_code} status code for query {query}"
-    )
-
-
 def load_introspection_from_file(filename):
     with open(filename, "r", encoding="utf8") as fin:
         return json.load(fin)
 
 
-def load_schema(uri):
-    introspection = (
-        load_introspection_from_file(uri)
-        if os.path.isfile(uri)
-        else load_introspection_from_server(uri)
-    )
+def load_schema_from_file(file_path):
+    introspection = load_introspection_from_file(file_path)
     return build_client_schema(introspection)
 
 
 @pytest.fixture
 async def swapi_schema():
     filename = os.path.join(os.path.dirname(__file__), "fixtures/swapi-schema.graphql")
-    return load_schema(filename)
+    return load_schema_from_file(filename)
 
 
 @pytest.fixture
@@ -437,7 +421,7 @@ async def swapi_dataclass_renderer(swapi_schema, config_path):
 @pytest.fixture
 async def github_schema():
     filename = os.path.join(os.path.dirname(__file__), "fixtures/github-schema.graphql")
-    return load_schema(filename)
+    return load_schema_from_file(filename)
 
 
 @pytest.fixture

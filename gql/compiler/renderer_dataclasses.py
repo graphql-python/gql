@@ -60,7 +60,7 @@ class DataclassesRenderer:
         self.__write_file_header(buffer)
         buffer.write("from dataclasses import dataclass, field as _field")
         self.__render_customer_scalars_imports(buffer, config_importpath)
-        buffer.write("from gql.variables import encode_variables")
+        buffer.write("from gql.compiler.runtime.variables import encode_variables")
         buffer.write("from gql import gql, Client")
         buffer.write("from gql.transport.exceptions import TransportQueryError")
         buffer.write("from functools import partial")
@@ -68,7 +68,6 @@ class DataclassesRenderer:
         buffer.write(
             "from typing import Any, AsyncGenerator, Dict, List, Generator, Optional"
         )
-        buffer.write("from time import perf_counter")
         buffer.write("from dataclasses_json import DataClassJsonMixin, config")
         buffer.write("")
         for fragment_name in sorted(set(parsed_query.used_fragments)):
@@ -82,7 +81,7 @@ class DataclassesRenderer:
         for enum in parsed_query.enums:
             enum_names.add(enum.name)
         if enum_names:
-            buffer.write("from gql.enum_utils import enum_field_metadata")
+            buffer.write("from gql.compiler.runtime.enum_utils import enum_field_metadata")
             for enum_name in sorted(enum_names):
                 importpath = enum_name_to_importpath[enum_name]
                 buffer.write(f"from {importpath} import {enum_name}")
@@ -173,7 +172,7 @@ class DataclassesRenderer:
             for enum in input_object.input_enums:
                 enum_names.add(enum.name)
             if enum_names:
-                buffer.write("from gql.enum_utils import enum_field_metadata")
+                buffer.write("from gql.compiler.runtime.enum_utils import enum_field_metadata")
                 for enum_name in sorted(enum_names):
                     buffer.write(
                         f"from ..enum.{camel_case_to_lower_case(enum_name)}"

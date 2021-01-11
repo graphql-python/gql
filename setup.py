@@ -19,7 +19,6 @@ tests_requires = [
     "mock==4.0.2",
     "vcrpy==4.0.2",
     "aiofiles",
-    "requests",
     "deepdiff>=4.3.2",
     "dataclasses==0.6",
     "dataclasses-json==0.5.2",

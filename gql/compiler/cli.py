@@ -40,7 +40,7 @@ def assert_rendered_file(file_name: str, file_content: str, rendered: str) -> No
         rendered == file_content
     ), f"""Generated file name {file_name} does
             not match compilation result:
-            exising file:
+            existing file:
             {file_content}
             compilation result:
             {rendered}"""
@@ -59,9 +59,6 @@ def add_init_file(pkg_name: str) -> None:
         with open(init_file_path, "w") as outfile:
             buffer = CodeChunk()
             buffer.write("#!/usr/bin/env python3")
-            buffer.write("# Copyright (c) 2004-present Facebook All rights reserved.")
-            buffer.write("# Use of this source code is governed by a BSD-style")
-            buffer.write("# license that can be found in the LICENSE file.")
             buffer.write("")
             outfile.write(str(buffer))
 
