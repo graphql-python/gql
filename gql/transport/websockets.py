@@ -303,7 +303,8 @@ class WebsocketsTransport(AsyncTransport):
                             and "extensions" not in payload
                         ):
                             raise ValueError(
-                                "payload does not contain 'data' or 'errors' or 'extensions' fields"
+                                "payload does not contain 'data' or 'errors' "
+                                "or 'extensions' fields"
                             )
 
                         execution_result = ExecutionResult(
