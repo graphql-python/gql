@@ -228,7 +228,11 @@ class AIOHTTPTransport(AsyncTransport):
                     f"Server did not return a GraphQL result: {result_text}"
                 )
 
-            if "errors" not in result and "data" not in result:
+            if (
+                "errors" not in result
+                and "data" not in result
+                and "extensions" not in result
+            ):
                 result_text = await resp.text()
                 raise TransportProtocolError(
                     "Server did not return a GraphQL result: "
@@ -236,7 +240,11 @@ class AIOHTTPTransport(AsyncTransport):
                     f"{result_text}"
                 )
 
-            return ExecutionResult(errors=result.get("errors"), data=result.get("data"))
+            return ExecutionResult(
+                errors=result.get("errors"),
+                data=result.get("data"),
+                extensions=result.get("extensions"),
+            )
 
     def subscribe(
         self,
