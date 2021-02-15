@@ -297,14 +297,9 @@ class WebsocketsTransport(AsyncTransport):
 
                     if answer_type == "data":
 
-                        if (
-                            "errors" not in payload
-                            and "data" not in payload
-                            and "extensions" not in payload
-                        ):
+                        if "errors" not in payload and "data" not in payload:
                             raise ValueError(
-                                "payload does not contain 'data' or 'errors' "
-                                "or 'extensions' fields"
+                                "payload does not contain 'data' or 'errors' fields"
                             )
 
                         execution_result = ExecutionResult(

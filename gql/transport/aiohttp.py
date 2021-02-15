@@ -228,11 +228,7 @@ class AIOHTTPTransport(AsyncTransport):
                     f"Server did not return a GraphQL result: {result_text}"
                 )
 
-            if (
-                "errors" not in result
-                and "data" not in result
-                and "extensions" not in result
-            ):
+            if "errors" not in result and "data" not in result:
                 result_text = await resp.text()
                 raise TransportProtocolError(
                     "Server did not return a GraphQL result: "

@@ -168,11 +168,7 @@ class RequestsHTTPTransport(Transport):
 
             raise TransportProtocolError("Server did not return a GraphQL result")
 
-        if (
-            "errors" not in result
-            and "data" not in result
-            and "extensions" not in result
-        ):
+        if "errors" not in result and "data" not in result:
             raise TransportProtocolError("Server did not return a GraphQL result")
 
         return ExecutionResult(
