@@ -1,15 +1,16 @@
+from ssl import SSLContext
+
+import aiohttp
 import io
 import json
 import logging
-from ssl import SSLContext
-from typing import Any, AsyncGenerator, Dict, Optional, Tuple, Type, Union
-
-import aiohttp
 from aiohttp.client_exceptions import ClientResponseError
 from aiohttp.client_reqrep import Fingerprint
 from aiohttp.helpers import BasicAuth
 from aiohttp.typedefs import LooseCookies, LooseHeaders
 from graphql import DocumentNode, ExecutionResult, print_ast
+from typing import Any, AsyncGenerator, Dict, Optional, Tuple, Type, Union
+from json.decoder import JSONDecodeError
 
 from ..utils import extract_files
 from .async_transport import AsyncTransport
@@ -152,7 +153,8 @@ class AIOHTTPTransport(AsyncTransport):
             # If we upload files, we will extract the files present in the
             # variable_values dict and replace them by null values
             nulled_variable_values, files = extract_files(
-                variables=variable_values, file_classes=self.file_classes,
+                variables=variable_values,
+                file_classes=self.file_classes,
             )
 
             # Save the nulled variable values in the payload
@@ -207,22 +209,24 @@ class AIOHTTPTransport(AsyncTransport):
 
         async with self.session.post(self.url, ssl=self.ssl, **post_args) as resp:
             try:
-                result = await resp.json()
+                if resp.content_type == 'application/json':
+                    result = await resp.json()
+
+                # We raise a TransportServerError if the status code is 400 or higher
+                # We raise a TransportProtocolError in the other cases
+                if resp.content_type != 'application/json' or (result is not None and "errors" not in result):
+                    resp.raise_for_status()
 
                 if log.isEnabledFor(logging.INFO):
                     result_text = await resp.text()
                     log.info("<<< %s", result_text)
+            except ClientResponseError as e:
+
+                # Check if the received response text is json pareable
+                # use the parsed text or str(e) as the exception message
+
+                raise TransportServerError(str(e), e.status) from e
             except Exception:
-                # We raise a TransportServerError if the status code is 400 or higher
-                # We raise a TransportProtocolError in the other cases
-
-                try:
-                    # Raise a ClientResponseError if response status is 400 or higher
-                    resp.raise_for_status()
-
-                except ClientResponseError as e:
-                    raise TransportServerError(str(e)) from e
-
                 result_text = await resp.text()
                 raise TransportProtocolError(
                     f"Server did not return a GraphQL result: {result_text}"

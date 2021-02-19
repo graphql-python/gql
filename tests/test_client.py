@@ -7,6 +7,9 @@ from graphql import build_ast_schema, parse
 
 from gql import Client, gql
 from gql.transport import Transport
+from gql.transport.exceptions import (
+    TransportQueryError,
+)
 
 with suppress(ModuleNotFoundError):
     from urllib3.exceptions import NewConnectionError
@@ -105,7 +108,7 @@ def test_execute_result_error():
         """
     )
 
-    with pytest.raises(Exception) as exc_info:
+    with pytest.raises(TransportQueryError) as exc_info:
         client.execute(failing_query)
     assert 'Cannot query field "id" on type "Continent".' in str(exc_info.value)
 

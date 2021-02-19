@@ -1,12 +1,12 @@
 import json
 import logging
-from typing import Any, Dict, Optional, Union
-
 import requests
 from graphql import DocumentNode, ExecutionResult, print_ast
 from requests.adapters import HTTPAdapter, Retry
 from requests.auth import AuthBase
 from requests.cookies import RequestsCookieJar
+from typing import Any, Dict, Optional, Union
+from json.decoder import JSONDecodeError
 
 from gql.transport import Transport
 
@@ -151,21 +151,31 @@ class RequestsHTTPTransport(Transport):
             self.method, self.url, **post_args  # type: ignore
         )
         try:
-            result = response.json()
+            type = response.headers.get('Content-Type', None)
+            if 'application/json' in type:
+                result = response.json()
+
+            # We raise a TransportServerError if the status code is 400 or higher
+            # We raise a TransportProtocolError in the other cases
+            # Raise a requests.HTTPerror if response status is 400 or higher
+            if 'application/json' not in type or (result is not None and "errors" not in result):
+                response.raise_for_status()
 
             if log.isEnabledFor(logging.INFO):
                 log.info("<<< %s", response.text)
-        except Exception:
-            # We raise a TransportServerError if the status code is 400 or higher
-            # We raise a TransportProtocolError in the other cases
+        except requests.HTTPError as e:
+
+            # Check if the received response text is json pareable
+            # use the parsed text or str(e) as the exception message
 
             try:
-                # Raise a requests.HTTPerror if response status is 400 or higher
-                response.raise_for_status()
+                message = response.json()
+                return ExecutionResult(errors=message.get("errors"), data=message.get("data"))
+            except JSONDecodeError:
+                message = str(e)
 
-            except requests.HTTPError as e:
-                raise TransportServerError(str(e))
-
+            raise TransportServerError(message, e.response.status_code) from e
+        except Exception:
             raise TransportProtocolError("Server did not return a GraphQL result")
 
         if "errors" not in result and "data" not in result:
