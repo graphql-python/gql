@@ -10,7 +10,6 @@ from aiohttp.helpers import BasicAuth
 from aiohttp.typedefs import LooseCookies, LooseHeaders
 from graphql import DocumentNode, ExecutionResult, print_ast
 from typing import Any, AsyncGenerator, Dict, Optional, Tuple, Type, Union
-from json.decoder import JSONDecodeError
 
 from ..utils import extract_files
 from .async_transport import AsyncTransport
@@ -209,12 +208,14 @@ class AIOHTTPTransport(AsyncTransport):
 
         async with self.session.post(self.url, ssl=self.ssl, **post_args) as resp:
             try:
-                if resp.content_type == 'application/json':
+                if resp.content_type == "application/json":
                     result = await resp.json()
 
                 # We raise a TransportServerError if the status code is 400 or higher
                 # We raise a TransportProtocolError in the other cases
-                if resp.content_type != 'application/json' or (result is not None and "errors" not in result):
+                if resp.content_type != "application/json" or (
+                    result is not None and "errors" not in result
+                ):
                     resp.raise_for_status()
 
                 if log.isEnabledFor(logging.INFO):

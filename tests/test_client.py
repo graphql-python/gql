@@ -1,15 +1,12 @@
-import os
-from contextlib import suppress
-
 import mock
+import os
 import pytest
+from contextlib import suppress
 from graphql import build_ast_schema, parse
 
 from gql import Client, gql
 from gql.transport import Transport
-from gql.transport.exceptions import (
-    TransportQueryError,
-)
+from gql.transport.exceptions import TransportQueryError
 
 with suppress(ModuleNotFoundError):
     from urllib3.exceptions import NewConnectionError
@@ -54,7 +51,8 @@ def test_retries_on_transport(execute_mock):
         "Should be HTTPConnection", "Fake connection error"
     )
     transport = RequestsHTTPTransport(
-        url="http://127.0.0.1:8000/graphql", retries=expected_retries,
+        url="http://127.0.0.1:8000/graphql",
+        retries=expected_retries,
     )
     client = Client(transport=transport)
 
@@ -135,7 +133,8 @@ def test_http_transport_verify_error(http_transport_query):
 
     with Client(
         transport=RequestsHTTPTransport(
-            url="https://countries.trevorblades.com/", verify=False,
+            url="https://countries.trevorblades.com/",
+            verify=False,
         )
     ) as client:
         with pytest.warns(Warning) as record:
@@ -150,7 +149,8 @@ def test_http_transport_specify_method_valid(http_transport_query):
 
     with Client(
         transport=RequestsHTTPTransport(
-            url="https://countries.trevorblades.com/", method="POST",
+            url="https://countries.trevorblades.com/",
+            method="POST",
         )
     ) as client:
         result = client.execute(http_transport_query)
@@ -163,7 +163,8 @@ def test_http_transport_specify_method_invalid(http_transport_query):
 
     with Client(
         transport=RequestsHTTPTransport(
-            url="https://countries.trevorblades.com/", method="GET",
+            url="https://countries.trevorblades.com/",
+            method="GET",
         )
     ) as client:
         with pytest.raises(Exception) as exc_info:
