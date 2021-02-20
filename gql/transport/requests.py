@@ -173,9 +173,10 @@ class RequestsHTTPTransport(Transport):
 
             try:
                 message = response.json()
-                return ExecutionResult(
-                    errors=message.get("errors"), data=message.get("data")
-                )
+                if "errors" in "message":
+                    return ExecutionResult(
+                        errors=message.get("errors"), data=message.get("data")
+                    )
             except JSONDecodeError:
                 message = str(e)
 
