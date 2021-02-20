@@ -1,15 +1,15 @@
-from ssl import SSLContext
-
-import aiohttp
 import io
 import json
 import logging
+from ssl import SSLContext
+from typing import Any, AsyncGenerator, Dict, Optional, Tuple, Type, Union
+
+import aiohttp
 from aiohttp.client_exceptions import ClientResponseError
 from aiohttp.client_reqrep import Fingerprint
 from aiohttp.helpers import BasicAuth
 from aiohttp.typedefs import LooseCookies, LooseHeaders
 from graphql import DocumentNode, ExecutionResult, print_ast
-from typing import Any, AsyncGenerator, Dict, Optional, Tuple, Type, Union
 
 from ..utils import extract_files
 from .async_transport import AsyncTransport

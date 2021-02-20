@@ -1,12 +1,13 @@
 import json
+from json.decoder import JSONDecodeError
 import logging
+from typing import Any, Dict, Optional, Union
+
 import requests
 from graphql import DocumentNode, ExecutionResult, print_ast
-from json.decoder import JSONDecodeError
 from requests.adapters import HTTPAdapter, Retry
 from requests.auth import AuthBase
 from requests.cookies import RequestsCookieJar
-from typing import Any, Dict, Optional, Union
 
 from gql.transport import Transport
 
