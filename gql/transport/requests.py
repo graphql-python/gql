@@ -1,6 +1,6 @@
 import json
-from json.decoder import JSONDecodeError
 import logging
+from json.decoder import JSONDecodeError
 from typing import Any, Dict, Optional, Union
 
 import requests
