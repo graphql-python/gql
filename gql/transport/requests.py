@@ -1,6 +1,5 @@
 import json
 import logging
-from json.decoder import JSONDecodeError
 from typing import Any, Dict, Optional, Union
 
 import requests
@@ -167,20 +166,7 @@ class RequestsHTTPTransport(Transport):
             if log.isEnabledFor(logging.INFO):
                 log.info("<<< %s", response.text)
         except requests.HTTPError as e:
-
-            # Check if the received response text is json pareable
-            # use the parsed text or str(e) as the exception message
-
-            try:
-                message = response.json()
-                if "errors" in "message":
-                    return ExecutionResult(
-                        errors=message.get("errors"), data=message.get("data")
-                    )
-            except JSONDecodeError:
-                message = str(e)
-
-            raise TransportServerError(message, e.response.status_code) from e
+            raise TransportServerError(str(e), e.response.status_code) from e
         except Exception:
             raise TransportProtocolError("Server did not return a GraphQL result")
 

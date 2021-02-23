@@ -152,8 +152,7 @@ class AIOHTTPTransport(AsyncTransport):
             # If we upload files, we will extract the files present in the
             # variable_values dict and replace them by null values
             nulled_variable_values, files = extract_files(
-                variables=variable_values,
-                file_classes=self.file_classes,
+                variables=variable_values, file_classes=self.file_classes,
             )
 
             # Save the nulled variable values in the payload
@@ -222,10 +221,6 @@ class AIOHTTPTransport(AsyncTransport):
                     result_text = await resp.text()
                     log.info("<<< %s", result_text)
             except ClientResponseError as e:
-
-                # Check if the received response text is json pareable
-                # use the parsed text or str(e) as the exception message
-
                 raise TransportServerError(str(e), e.status) from e
             except Exception:
                 result_text = await resp.text()
