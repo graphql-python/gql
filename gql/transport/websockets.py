@@ -1,7 +1,7 @@
 import asyncio
-from contextlib import suppress
 import json
 import logging
+from contextlib import suppress
 from ssl import SSLContext
 from typing import Any, AsyncGenerator, Dict, Optional, Tuple, Union, cast
 
@@ -346,7 +346,9 @@ class WebsocketsTransport(AsyncTransport):
 
         try:
             while True:
-                await asyncio.wait_for(self._next_keep_alive_message.wait(), self.keep_alive_timeout)
+                await asyncio.wait_for(
+                    self._next_keep_alive_message.wait(), self.keep_alive_timeout
+                )
 
                 # Reset for the next iteration
                 self._next_keep_alive_message.clear()
@@ -409,10 +411,12 @@ class WebsocketsTransport(AsyncTransport):
             if self._keep_alive_not_received:
                 # No keep-alive message in the appriopriate interval, close with error
                 # while trying to notify the server of a proper close (in case the keep-alive interval of the client or server was not aligned the connection still remains)
-                e = TransportServerError(
-                    "No keep-alive message has been received within the expected interval ('keep_alive_timeout' parameter)")
-
-                await self._fail(e, clean_close=True)
+                await self._fail(
+                    TransportServerError(
+                        "No keep-alive message has been received within the expected interval ('keep_alive_timeout' parameter)"
+                    ),
+                    clean_close=True,
+                )
             else:
                 raise err
         finally:
@@ -594,7 +598,8 @@ class WebsocketsTransport(AsyncTransport):
             # If specified, create a task to check liveness of the connection (through keep-alive messages)
             if self.keep_alive_timeout > 0:
                 self.check_keep_alive_task = asyncio.ensure_future(
-                    self._check_ws_liveness())
+                    self._check_ws_liveness()
+                )
 
             # Create a task to listen to the incoming websocket messages
             self.receive_data_task = asyncio.ensure_future(self._receive_data_loop())
