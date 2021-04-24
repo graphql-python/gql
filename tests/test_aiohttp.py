@@ -70,6 +70,39 @@ async def test_aiohttp_query(event_loop, aiohttp_server):
 
 
 @pytest.mark.asyncio
+async def test_aiohttp_cookies(event_loop, aiohttp_server):
+    from aiohttp import web
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    async def handler(request):
+        assert "COOKIE" in request.headers
+        assert "cookie1=val1" == request.headers["COOKIE"]
+
+        return web.Response(text=query1_server_answer, content_type="application/json")
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    sample_transport = AIOHTTPTransport(url=url, cookies={"cookie1": "val1"})
+
+    async with Client(transport=sample_transport,) as session:
+
+        query = gql(query1_str)
+
+        # Execute query asynchronously
+        result = await session.execute(query)
+
+        continents = result["continents"]
+
+        africa = continents[0]
+
+        assert africa["code"] == "AF"
+
+
+@pytest.mark.asyncio
 async def test_aiohttp_error_code_500(event_loop, aiohttp_server):
     from aiohttp import web
     from gql.transport.aiohttp import AIOHTTPTransport
