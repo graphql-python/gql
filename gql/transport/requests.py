@@ -180,7 +180,11 @@ class RequestsHTTPTransport(Transport):
         if "errors" not in result and "data" not in result:
             raise_response_error(response, 'No "data" or "errors" keys in answer')
 
-        return ExecutionResult(errors=result.get("errors"), data=result.get("data"))
+        return ExecutionResult(
+            errors=result.get("errors"),
+            data=result.get("data"),
+            extensions=result.get("extensions"),
+        )
 
     def close(self):
         """Closing the transport by closing the inner session"""
