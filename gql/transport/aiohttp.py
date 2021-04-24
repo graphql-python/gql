@@ -235,7 +235,7 @@ class AIOHTTPTransport(AsyncTransport):
                 await raise_response_error(resp, "Not a JSON answer")
 
             if "errors" not in result and "data" not in result:
-                await raise_response_error(resp, 'No "data" or "error" keys in answer')
+                await raise_response_error(resp, 'No "data" or "errors" keys in answer')
 
             return ExecutionResult(errors=result.get("errors"), data=result.get("data"))
 

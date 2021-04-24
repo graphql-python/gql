@@ -161,7 +161,7 @@ invalid_protocol_responses = [
         "response": "{}",
         "expected_exception": (
             "Server did not return a GraphQL result: "
-            'No "data" or "error" keys in answer: {}'
+            'No "data" or "errors" keys in answer: {}'
         ),
     },
     {
@@ -174,7 +174,7 @@ invalid_protocol_responses = [
         "response": '{"not_data_or_errors": 35}',
         "expected_exception": (
             "Server did not return a GraphQL result: "
-            'No "data" or "error" keys in answer: {"not_data_or_errors": 35}'
+            'No "data" or "errors" keys in answer: {"not_data_or_errors": 35}'
         ),
     },
 ]

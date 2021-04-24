@@ -178,7 +178,7 @@ class RequestsHTTPTransport(Transport):
             raise_response_error(response, "Not a JSON answer")
 
         if "errors" not in result and "data" not in result:
-            raise_response_error(response, 'No "data" or "error" keys in answer')
+            raise_response_error(response, 'No "data" or "errors" keys in answer')
 
         return ExecutionResult(errors=result.get("errors"), data=result.get("data"))
 
