@@ -206,35 +206,36 @@ class AIOHTTPTransport(AsyncTransport):
             raise TransportClosed("Transport is not connected")
 
         async with self.session.post(self.url, ssl=self.ssl, **post_args) as resp:
-            try:
-                if resp.content_type == "application/json":
-                    result = await resp.json()
 
+            async def raise_response_error(resp: aiohttp.ClientResponse, reason: str):
                 # We raise a TransportServerError if the status code is 400 or higher
                 # We raise a TransportProtocolError in the other cases
-                if resp.content_type != "application/json" or (
-                    result is not None and "errors" not in result
-                ):
+
+                try:
+                    # Raise a ClientResponseError if response status is 400 or higher
                     resp.raise_for_status()
+                except ClientResponseError as e:
+                    raise TransportServerError(str(e), e.status) from e
+
+                result_text = await resp.text()
+                raise TransportProtocolError(
+                    f"Server did not return a GraphQL result: "
+                    f"{reason}: "
+                    f"{result_text}"
+                )
+
+            try:
+                result = await resp.json()
 
                 if log.isEnabledFor(logging.INFO):
                     result_text = await resp.text()
                     log.info("<<< %s", result_text)
-            except ClientResponseError as e:
-                raise TransportServerError(str(e), e.status) from e
+
             except Exception:
-                result_text = await resp.text()
-                raise TransportProtocolError(
-                    f"Server did not return a GraphQL result: {result_text}"
-                )
+                await raise_response_error(resp, "Not a JSON answer")
 
             if "errors" not in result and "data" not in result:
-                result_text = await resp.text()
-                raise TransportProtocolError(
-                    "Server did not return a GraphQL result: "
-                    'No "data" or "error" keys in answer: '
-                    f"{result_text}"
-                )
+                await raise_response_error(resp, 'No "data" or "error" keys in answer')
 
             return ExecutionResult(errors=result.get("errors"), data=result.get("data"))
 

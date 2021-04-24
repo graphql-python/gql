@@ -167,7 +167,7 @@ invalid_protocol_responses = [
     {
         "response": "qlsjfqsdlkj",
         "expected_exception": (
-            "Server did not return a GraphQL result: " "qlsjfqsdlkj"
+            "Server did not return a GraphQL result: Not a JSON answer: qlsjfqsdlkj"
         ),
     },
     {

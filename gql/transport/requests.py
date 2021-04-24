@@ -38,7 +38,7 @@ class RequestsHTTPTransport(Transport):
         verify: bool = True,
         retries: int = 0,
         method: str = "POST",
-        **kwargs: Any
+        **kwargs: Any,
     ):
         """Initialize the transport with the given request parameters.
 
@@ -150,28 +150,35 @@ class RequestsHTTPTransport(Transport):
         response = self.session.request(
             self.method, self.url, **post_args  # type: ignore
         )
-        try:
-            type = response.headers.get("Content-Type", None)
-            if "application/json" in type:
-                result = response.json()
 
+        def raise_response_error(resp: requests.Response, reason: str):
             # We raise a TransportServerError if the status code is 400 or higher
             # We raise a TransportProtocolError in the other cases
-            # Raise a requests.HTTPerror if response status is 400 or higher
-            if "application/json" not in type or (
-                result is not None and "errors" not in result
-            ):
-                response.raise_for_status()
+
+            try:
+                # Raise a HTTPError if response status is 400 or higher
+                resp.raise_for_status()
+            except requests.HTTPError as e:
+                raise TransportServerError(str(e), e.response.status_code) from e
+
+            result_text = resp.text
+            raise TransportProtocolError(
+                f"Server did not return a GraphQL result: "
+                f"{reason}: "
+                f"{result_text}"
+            )
+
+        try:
+            result = response.json()
 
             if log.isEnabledFor(logging.INFO):
                 log.info("<<< %s", response.text)
-        except requests.HTTPError as e:
-            raise TransportServerError(str(e), e.response.status_code) from e
+
         except Exception:
-            raise TransportProtocolError("Server did not return a GraphQL result")
+            raise_response_error(response, "Not a JSON answer")
 
         if "errors" not in result and "data" not in result:
-            raise TransportProtocolError("Server did not return a GraphQL result")
+            raise_response_error(response, 'No "data" or "error" keys in answer')
 
         return ExecutionResult(errors=result.get("errors"), data=result.get("data"))
 
