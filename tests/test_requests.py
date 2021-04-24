@@ -216,3 +216,47 @@ async def test_requests_cannot_execute_if_not_connected(
             sample_transport.execute(query)
 
     await run_sync_test(event_loop, server, test_code)
+
+
+query1_server_answer_with_extensions = (
+    '{"data":{"continents":['
+    '{"code":"AF","name":"Africa"},{"code":"AN","name":"Antarctica"},'
+    '{"code":"AS","name":"Asia"},{"code":"EU","name":"Europe"},'
+    '{"code":"NA","name":"North America"},{"code":"OC","name":"Oceania"},'
+    '{"code":"SA","name":"South America"}]},'
+    '"extensions": {"key1": "val1"}'
+    "}"
+)
+
+
+@pytest.mark.aiohttp
+@pytest.mark.asyncio
+async def test_requests_query_with_extensions(
+    event_loop, aiohttp_server, run_sync_test
+):
+    from aiohttp import web
+    from gql.transport.requests import RequestsHTTPTransport
+
+    async def handler(request):
+        return web.Response(
+            text=query1_server_answer_with_extensions, content_type="application/json"
+        )
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    def test_code():
+        sample_transport = RequestsHTTPTransport(url=url)
+
+        with Client(transport=sample_transport,) as session:
+
+            query = gql(query1_str)
+
+            execution_result = session._execute(query)
+
+            assert execution_result.extensions["key1"] == "val1"
+
+    await run_sync_test(event_loop, server, test_code)

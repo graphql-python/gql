@@ -948,3 +948,35 @@ async def test_aiohttp_using_cli_invalid_query(
     expected_error = "Syntax Error: Unexpected Name 'BLAHBLAH'"
 
     assert expected_error in captured_err
+
+
+query1_server_answer_with_extensions = (
+    f'{{"data":{query1_server_answer_data}, "extensions":{{"key1": "val1"}}}}'
+)
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_query_with_extensions(event_loop, aiohttp_server):
+    from aiohttp import web
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    async def handler(request):
+        return web.Response(
+            text=query1_server_answer_with_extensions, content_type="application/json"
+        )
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    sample_transport = AIOHTTPTransport(url=url, timeout=10)
+
+    async with Client(transport=sample_transport,) as session:
+
+        query = gql(query1_str)
+
+        execution_result = await session._execute(query)
+
+        assert execution_result.extensions["key1"] == "val1"
