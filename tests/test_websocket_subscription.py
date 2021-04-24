@@ -439,8 +439,6 @@ async def test_websocket_subscription_with_keepalive_with_timeout_nok(
 
         assert "No keep-alive message has been received" in str(exc_info.value)
 
-        assert count == 9
-
 
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
