@@ -206,35 +206,36 @@ class AIOHTTPTransport(AsyncTransport):
             raise TransportClosed("Transport is not connected")
 
         async with self.session.post(self.url, ssl=self.ssl, **post_args) as resp:
-            try:
-                result = await resp.json()
 
-                if log.isEnabledFor(logging.INFO):
-                    result_text = await resp.text()
-                    log.info("<<< %s", result_text)
-            except Exception:
+            async def raise_response_error(resp: aiohttp.ClientResponse, reason: str):
                 # We raise a TransportServerError if the status code is 400 or higher
                 # We raise a TransportProtocolError in the other cases
 
                 try:
                     # Raise a ClientResponseError if response status is 400 or higher
                     resp.raise_for_status()
-
                 except ClientResponseError as e:
-                    raise TransportServerError(str(e)) from e
+                    raise TransportServerError(str(e), e.status) from e
 
                 result_text = await resp.text()
                 raise TransportProtocolError(
-                    f"Server did not return a GraphQL result: {result_text}"
-                )
-
-            if "errors" not in result and "data" not in result:
-                result_text = await resp.text()
-                raise TransportProtocolError(
-                    "Server did not return a GraphQL result: "
-                    'No "data" or "error" keys in answer: '
+                    f"Server did not return a GraphQL result: "
+                    f"{reason}: "
                     f"{result_text}"
                 )
+
+            try:
+                result = await resp.json()
+
+                if log.isEnabledFor(logging.INFO):
+                    result_text = await resp.text()
+                    log.info("<<< %s", result_text)
+
+            except Exception:
+                await raise_response_error(resp, "Not a JSON answer")
+
+            if "errors" not in result and "data" not in result:
+                await raise_response_error(resp, 'No "data" or "errors" keys in answer')
 
             return ExecutionResult(
                 errors=result.get("errors"),

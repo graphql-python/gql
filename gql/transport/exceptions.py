@@ -18,6 +18,10 @@ class TransportServerError(TransportError):
     This exception will close the transport connection.
     """
 
+    def __init__(self, message=None, code=None):
+        super(TransportServerError, self).__init__(message)
+        self.code = code
+
 
 class TransportQueryError(Exception):
     """The server returned an error for a specific query.

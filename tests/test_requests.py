@@ -103,6 +103,41 @@ async def test_requests_cookies(event_loop, aiohttp_server, run_sync_test):
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
+async def test_requests_error_code_401(event_loop, aiohttp_server, run_sync_test):
+    from aiohttp import web
+    from gql.transport.requests import RequestsHTTPTransport
+
+    async def handler(request):
+        # Will generate http error code 401
+        return web.Response(
+            text='{"error":"Unauthorized","message":"401 Client Error: Unauthorized"}',
+            content_type="application/json",
+            status=401,
+        )
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    def test_code():
+        sample_transport = RequestsHTTPTransport(url=url)
+
+        with Client(transport=sample_transport,) as session:
+
+            query = gql(query1_str)
+
+            with pytest.raises(TransportServerError) as exc_info:
+                session.execute(query)
+
+            assert "401 Client Error: Unauthorized" in str(exc_info.value)
+
+    await run_sync_test(event_loop, server, test_code)
+
+
+@pytest.mark.aiohttp
+@pytest.mark.asyncio
 async def test_requests_error_code_500(event_loop, aiohttp_server, run_sync_test):
     from aiohttp import web
     from gql.transport.requests import RequestsHTTPTransport
