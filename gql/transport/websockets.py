@@ -95,7 +95,7 @@ class WebsocketsTransport(AsyncTransport):
         connect_timeout: int = 10,
         close_timeout: int = 10,
         ack_timeout: int = 10,
-        keep_alive_timeout: int = 0,
+        keep_alive_timeout: Optional[int] = None,
         connect_args: Dict[str, Any] = {},
     ) -> None:
         """Initialize the transport with the given parameters.
@@ -109,8 +109,8 @@ class WebsocketsTransport(AsyncTransport):
         :param close_timeout: Timeout in seconds for the close.
         :param ack_timeout: Timeout in seconds to wait for the connection_ack message
             from the server.
-        :param keep_alive_timeout: Timeout in seconds to receive a sign of liveness
-            from the server.
+        :param keep_alive_timeout: Optional Timeout in seconds to receive
+            a sign of liveness from the server.
         :param connect_args: Other parameters forwarded to websockets.connect
         """
         self.url: str = url
@@ -121,7 +121,7 @@ class WebsocketsTransport(AsyncTransport):
         self.connect_timeout: int = connect_timeout
         self.close_timeout: int = close_timeout
         self.ack_timeout: int = ack_timeout
-        self.keep_alive_timeout: int = keep_alive_timeout
+        self.keep_alive_timeout: Optional[int] = keep_alive_timeout
 
         self.connect_args = connect_args
 
@@ -147,10 +147,10 @@ class WebsocketsTransport(AsyncTransport):
         self._no_more_listeners: asyncio.Event = asyncio.Event()
         self._no_more_listeners.set()
 
-        self._next_keep_alive_message: asyncio.Event = asyncio.Event()
-        self._next_keep_alive_message.set()
+        if self.keep_alive_timeout is not None:
+            self._next_keep_alive_message: asyncio.Event = asyncio.Event()
+            self._next_keep_alive_message.set()
 
-        self._keep_alive_not_received: bool = False
         self._connecting: bool = False
 
         self.close_exception: Optional[Exception] = None
@@ -356,16 +356,22 @@ class WebsocketsTransport(AsyncTransport):
 
                 # Reset for the next iteration
                 self._next_keep_alive_message.clear()
-        except asyncio.TimeoutError:
-            # No keep-alive message in the appriopriate interval,
-            # make the receive loop stopping properly by knowing from where it comes
-            self._keep_alive_not_received = True
 
-            if self.receive_data_task is not None:
-                # More info: https://stackoverflow.com/a/43810272/1113207
-                self.receive_data_task.cancel()
-                with suppress(asyncio.CancelledError):
-                    await self.receive_data_task
+        except asyncio.TimeoutError:
+            # No keep-alive message in the appriopriate interval, close with error
+            # while trying to notify the server of a proper close (in case
+            # the keep-alive interval of the client or server was not aligned
+            # the connection still remains)
+
+            # If the timeout happens during a close already in progress, do nothing
+            if self.close_task is None:
+                await self._fail(
+                    TransportServerError(
+                        "No keep-alive message has been received within "
+                        "the expected interval ('keep_alive_timeout' parameter)"
+                    ),
+                    clean_close=False,
+                )
 
         except asyncio.CancelledError:
             # The client is probably closing, handle it properly
@@ -412,21 +418,6 @@ class WebsocketsTransport(AsyncTransport):
 
                 await self._handle_answer(answer_type, answer_id, execution_result)
 
-        except Exception as err:
-            if self._keep_alive_not_received:
-                # No keep-alive message in the appriopriate interval, close with error
-                # while trying to notify the server of a proper close (in case
-                # the keep-alive interval of the client or server was not aligned
-                # the connection still remains)
-                await self._fail(
-                    TransportServerError(
-                        "No keep-alive message has been received within "
-                        "the expected interval ('keep_alive_timeout' parameter)"
-                    ),
-                    clean_close=True,
-                )
-            else:
-                raise err
         finally:
             log.debug("Exiting _receive_data_loop()")
 
@@ -589,7 +580,6 @@ class WebsocketsTransport(AsyncTransport):
 
             self.next_query_id = 1
             self.close_exception = None
-            self._keep_alive_not_received = False
             self._wait_closed.clear()
 
             # Send the init message and wait for the ack from the server
@@ -605,7 +595,7 @@ class WebsocketsTransport(AsyncTransport):
 
             # If specified, create a task to check liveness of the connection
             # through keep-alive messages
-            if self.keep_alive_timeout > 0:
+            if self.keep_alive_timeout is not None:
                 self.check_keep_alive_task = asyncio.ensure_future(
                     self._check_ws_liveness()
                 )

@@ -7,6 +7,7 @@ import pytest
 from parse import search
 
 from gql import Client, gql
+from gql.transport.exceptions import TransportServerError
 
 from .conftest import MS, WebSocketServerHelper
 
@@ -376,6 +377,69 @@ async def test_websocket_subscription_with_keepalive(
         count -= 1
 
     assert count == -1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("server", [server_countdown], indirect=True)
+@pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
+async def test_websocket_subscription_with_keepalive_with_timeout_ok(
+    event_loop, server, subscription_str
+):
+
+    from gql.transport.websockets import WebsocketsTransport
+
+    path = "/graphql"
+    url = f"ws://{server.hostname}:{server.port}{path}"
+    sample_transport = WebsocketsTransport(url=url, keep_alive_timeout=(500 * MS))
+
+    client = Client(transport=sample_transport)
+
+    count = 10
+    subscription = gql(subscription_str.format(count=count))
+
+    async with client as session:
+        async for result in session.subscribe(subscription):
+
+            number = result["number"]
+            print(f"Number received: {number}")
+
+            assert number == count
+            count -= 1
+
+    assert count == -1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("server", [server_countdown], indirect=True)
+@pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
+async def test_websocket_subscription_with_keepalive_with_timeout_nok(
+    event_loop, server, subscription_str
+):
+
+    from gql.transport.websockets import WebsocketsTransport
+
+    path = "/graphql"
+    url = f"ws://{server.hostname}:{server.port}{path}"
+    sample_transport = WebsocketsTransport(url=url, keep_alive_timeout=(1 * MS))
+
+    client = Client(transport=sample_transport)
+
+    count = 10
+    subscription = gql(subscription_str.format(count=count))
+
+    async with client as session:
+        with pytest.raises(TransportServerError) as exc_info:
+            async for result in session.subscribe(subscription):
+
+                number = result["number"]
+                print(f"Number received: {number}")
+
+                assert number == count
+                count -= 1
+
+        assert "No keep-alive message has been received" in str(exc_info.value)
+
+        assert count == 9
 
 
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
