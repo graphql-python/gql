@@ -189,7 +189,9 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
                 answer_type = "data"
 
                 execution_result = ExecutionResult(
-                    errors=payload.get("errors"), data=result.get("data")
+                    errors=payload.get("errors"),
+                    data=result.get("data"),
+                    extensions=payload.get("extensions"),
                 )
 
             elif event == "phx_reply":

@@ -313,7 +313,9 @@ class WebsocketsTransport(AsyncTransport):
                             )
 
                         execution_result = ExecutionResult(
-                            errors=payload.get("errors"), data=payload.get("data")
+                            errors=payload.get("errors"),
+                            data=payload.get("data"),
+                            extensions=payload.get("extensions"),
                         )
 
                     elif answer_type == "error":

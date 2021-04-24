@@ -236,7 +236,11 @@ class AIOHTTPTransport(AsyncTransport):
                     f"{result_text}"
                 )
 
-            return ExecutionResult(errors=result.get("errors"), data=result.get("data"))
+            return ExecutionResult(
+                errors=result.get("errors"),
+                data=result.get("data"),
+                extensions=result.get("extensions"),
+            )
 
     def subscribe(
         self,
