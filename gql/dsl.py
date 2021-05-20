@@ -6,6 +6,8 @@ from graphql import (
     ArgumentNode,
     DocumentNode,
     FieldNode,
+    GraphQLNonNull,
+    GraphQLList,
     GraphQLArgument,
     GraphQLField,
     GraphQLInterfaceType,
@@ -13,11 +15,17 @@ from graphql import (
     GraphQLObjectType,
     GraphQLSchema,
     NameNode,
+    ListTypeNode,
+    NonNullTypeNode,
+    NamedTypeNode,
+    VariableNode,
+    VariableDefinitionNode,
     OperationDefinitionNode,
     OperationType,
     SelectionSetNode,
     ast_from_value,
     print_ast,
+    is_wrapping_type,
 )
 from graphql.pyutils import FrozenList
 
@@ -77,6 +85,7 @@ def dsl_gql(
             OperationDefinitionNode(
                 operation=OperationType(operation.operation_type),
                 selection_set=operation.selection_set,
+                variable_definitions=operation.variable_definitions.nodes,
                 **({"name": NameNode(value=operation.name)} if operation.name else {}),
             )
             for operation in all_operations
@@ -156,6 +165,7 @@ class DSLOperation(ABC):
         """
 
         self.name: Optional[str] = None
+        self.variable_definitions: Optional[DSLVariableDefinitions] = None
 
         # Concatenate fields without and with alias
         all_fields: Tuple["DSLField", ...] = DSLField.get_aliased_fields(
@@ -192,6 +202,50 @@ class DSLMutation(DSLOperation):
 
 class DSLSubscription(DSLOperation):
     operation_type = OperationType.SUBSCRIPTION
+
+
+class DSLVariable:
+    def __init__(self, name, *, default=None):
+        self.type = None
+
+        self.name = name
+        self.default = default
+        self.node = VariableNode(name=NameNode(value=self.name))
+
+    def to_named_type(self, type_):
+        if is_wrapping_type(type_):
+            if isinstance(type_, GraphQLList):
+                return ListTypeNode(type=self.to_named_type(type_.of_type))
+            elif isinstance(type_, GraphQLNonNull):
+                return NonNullTypeNode(type=self.to_named_type(type_.of_type))
+        return NamedTypeNode(name=NameNode(value=type_.name))
+
+    def set_type(self, type_) -> "DSLVariable":
+        self.type = self.to_named_type(type_)
+        return self
+
+
+class DSLVariableDefinitions:
+    def __init__(self):
+        self.variables: Dict[str, DSLVariable] = {}
+
+    def __getattr__(self, name: str) -> "DSLVariable":
+        self.variables[name] = DSLVariable(name)
+        return self.variables[name]
+
+    @property
+    def nodes(self):
+        return FrozenList(
+            [
+                VariableDefinitionNode(
+                    type=variable.type,
+                    variable=variable.node,
+                    default_value=None,
+                )
+                for variable in self.variables.values()
+                if variable.type is not None  # only variables used
+            ]
+        )
 
 
 class DSLType:
@@ -397,7 +451,11 @@ class DSLField:
             + [
                 ArgumentNode(
                     name=NameNode(value=name),
-                    value=ast_from_value(value, self._get_argument(name).type),
+                    value=(
+                        value.set_type(self._get_argument(name).type).node
+                        if isinstance(value, DSLVariable)
+                        else ast_from_value(value, self._get_argument(name).type)
+                    ),
                 )
                 for name, value in kwargs.items()
             ]

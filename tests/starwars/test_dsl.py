@@ -2,8 +2,14 @@ import pytest
 from graphql import print_ast
 
 from gql import Client
-from gql.dsl import DSLMutation, DSLQuery, DSLSchema, DSLSubscription, dsl_gql
-
+from gql.dsl import (
+    DSLMutation,
+    DSLQuery,
+    DSLSchema,
+    DSLSubscription,
+    DSLVariableDefinitions,
+    dsl_gql,
+)
 from .schema import StarWarsSchema
 
 
@@ -15,6 +21,60 @@ def ds():
 @pytest.fixture
 def client():
     return Client(schema=StarWarsSchema)
+
+
+def test_use_variable_definition_multiple_times(ds):
+    var = DSLVariableDefinitions()
+
+    # `episode` variable is used in both fields
+    op = DSLMutation(
+        ds.Mutation.createReview.alias('badReview').args(
+            review=var.badReview, episode=var.episode
+        ).select(ds.Review.stars, ds.Review.commentary),
+
+        ds.Mutation.createReview.alias('goodReview').args(
+            review=var.goodReview, episode=var.episode
+        ).select(ds.Review.stars, ds.Review.commentary)
+    )
+    op.variable_definitions = var
+    query = dsl_gql(op)
+
+    assert (
+            print_ast(query)
+            == """mutation ($badReview: ReviewInput, $episode: Episode, $goodReview: ReviewInput) {
+  badReview: createReview(review: $badReview, episode: $episode) {
+    stars
+    commentary
+  }
+  goodReview: createReview(review: $goodReview, episode: $episode) {
+    stars
+    commentary
+  }
+}
+"""
+    )
+
+
+def test_add_variable_definitions(ds):
+    var = DSLVariableDefinitions()
+    op = DSLMutation(
+        ds.Mutation.createReview.args(
+            review=var.review, episode=var.episode
+        ).select(ds.Review.stars, ds.Review.commentary)
+    )
+    op.variable_definitions = var
+    query = dsl_gql(op)
+
+    assert (
+        print_ast(query)
+        == """mutation ($review: ReviewInput, $episode: Episode) {
+  createReview(review: $review, episode: $episode) {
+    stars
+    commentary
+  }
+}
+"""
+    )
 
 
 def test_invalid_field_on_type_query(ds):
@@ -273,8 +333,10 @@ def test_multiple_operations(ds):
 }
 
 mutation CreateReviewMutation {
-  createReview(episode: JEDI, review: {stars: 5, \
-commentary: "This is a great movie!"}) {
+  createReview(
+    episode: JEDI
+    review: {stars: 5, commentary: "This is a great movie!"}
+  ) {
     stars
     commentary
   }
