@@ -28,20 +28,19 @@ def test_use_variable_definition_multiple_times(ds):
 
     # `episode` variable is used in both fields
     op = DSLMutation(
-        ds.Mutation.createReview.alias('badReview').args(
-            review=var.badReview, episode=var.episode
-        ).select(ds.Review.stars, ds.Review.commentary),
-
-        ds.Mutation.createReview.alias('goodReview').args(
-            review=var.goodReview, episode=var.episode
-        ).select(ds.Review.stars, ds.Review.commentary)
+        ds.Mutation.createReview.alias("badReview")
+        .args(review=var.badReview, episode=var.episode)
+        .select(ds.Review.stars, ds.Review.commentary),
+        ds.Mutation.createReview.alias("goodReview")
+        .args(review=var.goodReview, episode=var.episode)
+        .select(ds.Review.stars, ds.Review.commentary),
     )
     op.variable_definitions = var
     query = dsl_gql(op)
 
     assert (
-            print_ast(query)
-            == """mutation ($badReview: ReviewInput, $episode: Episode, $goodReview: ReviewInput) {
+        print_ast(query)
+        == """mutation ($badReview: ReviewInput, $episode: Episode, $goodReview: ReviewInput) {
   badReview: createReview(review: $badReview, episode: $episode) {
     stars
     commentary
@@ -58,9 +57,9 @@ def test_use_variable_definition_multiple_times(ds):
 def test_add_variable_definitions(ds):
     var = DSLVariableDefinitions()
     op = DSLMutation(
-        ds.Mutation.createReview.args(
-            review=var.review, episode=var.episode
-        ).select(ds.Review.stars, ds.Review.commentary)
+        ds.Mutation.createReview.args(review=var.review, episode=var.episode).select(
+            ds.Review.stars, ds.Review.commentary
+        )
     )
     op.variable_definitions = var
     query = dsl_gql(op)

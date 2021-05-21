@@ -85,7 +85,9 @@ def dsl_gql(
             OperationDefinitionNode(
                 operation=OperationType(operation.operation_type),
                 selection_set=operation.selection_set,
-                variable_definitions=operation.variable_definitions.nodes,
+                variable_definitions=FrozenList(
+                    operation.variable_definitions.get_ast_definitions()
+                ),
                 **({"name": NameNode(value=operation.name)} if operation.name else {}),
             )
             for operation in all_operations
@@ -165,7 +167,7 @@ class DSLOperation(ABC):
         """
 
         self.name: Optional[str] = None
-        self.variable_definitions: Optional[DSLVariableDefinitions] = None
+        self.variable_definitions: DSLVariableDefinitions = DSLVariableDefinitions()
 
         # Concatenate fields without and with alias
         all_fields: Tuple["DSLField", ...] = DSLField.get_aliased_fields(
@@ -205,47 +207,66 @@ class DSLSubscription(DSLOperation):
 
 
 class DSLVariable:
-    def __init__(self, name, *, default=None):
+    """The DSLVariable represents a single variable defined in a GraphQL operation
+
+    Instances of this class are generated for you automatically as attributes
+    of the :class:`DSLVariableDefinitions`
+
+    The type of the variable is set by the :class:`DSLField` instance that receives it
+    in the `args` method.
+    """
+
+    def __init__(self, name):
         self.type = None
-
         self.name = name
-        self.default = default
-        self.node = VariableNode(name=NameNode(value=self.name))
+        self.ast_variable = VariableNode(name=NameNode(value=self.name))
 
-    def to_named_type(self, type_):
+    def to_ast_type(self, type_):
         if is_wrapping_type(type_):
             if isinstance(type_, GraphQLList):
-                return ListTypeNode(type=self.to_named_type(type_.of_type))
+                return ListTypeNode(type=self.to_ast_type(type_.of_type))
             elif isinstance(type_, GraphQLNonNull):
-                return NonNullTypeNode(type=self.to_named_type(type_.of_type))
+                return NonNullTypeNode(type=self.to_ast_type(type_.of_type))
         return NamedTypeNode(name=NameNode(value=type_.name))
 
     def set_type(self, type_) -> "DSLVariable":
-        self.type = self.to_named_type(type_)
+        self.type = self.to_ast_type(type_)
         return self
 
 
 class DSLVariableDefinitions:
+    """The DSLVariableDefinitions represents variable definitions in a GraphQL operation
+
+    Instances of this class have to be created and set as the `variable_definitions`
+    attribute of a DSLOperation instance
+
+    Attributes of the DSLVariableDefinitions class are generated automatically
+    with the `__getattr__` dunder method in order to generate
+    instances of :class:`DSLVariable`, that can then be used as values in the
+    `DSLField.args` method
+    """
+
     def __init__(self):
         self.variables: Dict[str, DSLVariable] = {}
 
     def __getattr__(self, name: str) -> "DSLVariable":
-        self.variables[name] = DSLVariable(name)
+        if name not in self.variables:
+            self.variables[name] = DSLVariable(name)
         return self.variables[name]
 
-    @property
-    def nodes(self):
-        return FrozenList(
-            [
-                VariableDefinitionNode(
-                    type=variable.type,
-                    variable=variable.node,
-                    default_value=None,
-                )
-                for variable in self.variables.values()
-                if variable.type is not None  # only variables used
-            ]
-        )
+    def get_ast_definitions(self) -> List[VariableDefinitionNode]:
+        """
+        :meta private:
+
+        Return a list of VariableDefinitionNodes for each variable with a type
+        """
+        return [
+            VariableDefinitionNode(
+                type=var.type, variable=var.ast_variable, default_value=None,
+            )
+            for var in self.variables.values()
+            if var.type is not None  # only variables used
+        ]
 
 
 class DSLType:
@@ -452,7 +473,7 @@ class DSLField:
                 ArgumentNode(
                     name=NameNode(value=name),
                     value=(
-                        value.set_type(self._get_argument(name).type).node
+                        value.set_type(self._get_argument(name).type).ast_variable
                         if isinstance(value, DSLVariable)
                         else ast_from_value(value, self._get_argument(name).type)
                     ),
