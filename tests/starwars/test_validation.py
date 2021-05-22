@@ -77,7 +77,17 @@ def validation_errors(client, query):
 def test_incompatible_request_gql(client):
     with pytest.raises(TypeError) as exc_info:
         gql(123)
-    assert "body must be a string" in str(exc_info.value)
+
+    """
+    The error generated depends on graphql-core version
+    < 3.1.5: "body must be a string"
+    >= 3.1.5: "object of type 'int' has no len()"
+
+    Just accepting both cases for now
+    """
+    assert ("body must be a string" in str(exc_info.value)) or (
+        "object of type 'int' has no len()" in str(exc_info.value)
+    )
 
 
 def test_nested_query_with_fragment(client):
