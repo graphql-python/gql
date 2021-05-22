@@ -10,6 +10,7 @@ from gql.dsl import (
     DSLVariableDefinitions,
     dsl_gql,
 )
+
 from .schema import StarWarsSchema
 
 
