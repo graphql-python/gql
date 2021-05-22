@@ -339,10 +339,8 @@ def test_multiple_operations(ds):
 }
 
 mutation CreateReviewMutation {
-  createReview(
-    episode: JEDI
-    review: {stars: 5, commentary: "This is a great movie!"}
-  ) {
+  createReview(episode: JEDI, review: {stars: 5, \
+commentary: "This is a great movie!"}) {
     stars
     commentary
   }
