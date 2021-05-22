@@ -264,9 +264,15 @@ def test_multiple_operations(ds):
         ),
     )
 
+    """
+    From graphql-core version 3.1.5, print_ast() break arguments over multiple lines
+    Accepting both cases here
+    """
+
     assert (
-        print_ast(query)
-        == """query GetHeroName {
+        (
+            print_ast(query)
+            == """query GetHeroName {
   hero {
     name
   }
@@ -280,6 +286,26 @@ commentary: "This is a great movie!"}) {
   }
 }
 """
+        )
+        or (
+            print_ast(query)
+            == """query GetHeroName {
+  hero {
+    name
+  }
+}
+
+mutation CreateReviewMutation {
+  createReview(
+    episode: JEDI
+    review: {stars: 5, commentary: "This is a great movie!"}
+  ) {
+    stars
+    commentary
+  }
+}
+"""
+        )
     )
 
 
