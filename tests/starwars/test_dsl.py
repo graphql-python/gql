@@ -77,6 +77,29 @@ def test_add_variable_definitions(ds):
     )
 
 
+def test_add_variable_definitions_in_input_object(ds):
+    var = DSLVariableDefinitions()
+    op = DSLMutation(
+        ds.Mutation.createReview.args(
+            review={"stars": var.stars, "commentary": var.commentary},
+            episode=var.episode,
+        ).select(ds.Review.stars, ds.Review.commentary)
+    )
+    op.variable_definitions = var
+    query = dsl_gql(op)
+
+    assert (
+        print_ast(query)
+        == """mutation ($stars: Int, $commentary: String, $episode: Episode) {
+  createReview(review: {stars: $stars, commentary: $commentary}, episode: $episode) {
+    stars
+    commentary
+  }
+}
+"""
+    )
+
+
 def test_invalid_field_on_type_query(ds):
     with pytest.raises(AttributeError) as exc_info:
         ds.Query.extras.select(ds.Character.name)
