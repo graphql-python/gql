@@ -1,6 +1,6 @@
 import logging
 from abc import ABC
-from typing import Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 from graphql import (
     ArgumentNode,
@@ -8,6 +8,7 @@ from graphql import (
     FieldNode,
     GraphQLArgument,
     GraphQLField,
+    GraphQLInputType,
     GraphQLInterfaceType,
     GraphQLList,
     GraphQLNamedType,
@@ -23,12 +24,12 @@ from graphql import (
     SelectionSetNode,
     VariableDefinitionNode,
     VariableNode,
-    ast_from_value,
     is_wrapping_type,
     print_ast,
 )
 from graphql.pyutils import FrozenList
 
+from .ast_from_value_overwrite import ast_from_value_overwrite
 from .utils import to_camel_case
 
 log = logging.getLogger(__name__)
@@ -448,6 +449,14 @@ class DSLField:
         self.ast_field.alias = NameNode(value=alias)
         return self
 
+    @staticmethod
+    def overwrite_ast_for_variables(value: Any, type_: GraphQLInputType):
+
+        if isinstance(value, DSLVariable):
+            return value.set_type(type_).ast_variable
+
+        return None
+
     def args(self, **kwargs) -> "DSLField":
         r"""Set the arguments of a field
 
@@ -472,10 +481,10 @@ class DSLField:
             + [
                 ArgumentNode(
                     name=NameNode(value=name),
-                    value=(
-                        value.set_type(self._get_argument(name).type).ast_variable
-                        if isinstance(value, DSLVariable)
-                        else ast_from_value(value, self._get_argument(name).type)
+                    value=ast_from_value_overwrite(
+                        value,
+                        self._get_argument(name).type,
+                        overwrite=self.overwrite_ast_for_variables,
                     ),
                 )
                 for name, value in kwargs.items()
