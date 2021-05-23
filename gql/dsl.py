@@ -1,6 +1,6 @@
 import logging
 from abc import ABC
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple, Union, cast
 
 from graphql import (
     ArgumentNode,
@@ -8,6 +8,7 @@ from graphql import (
     FieldNode,
     GraphQLArgument,
     GraphQLField,
+    GraphQLInputObjectType,
     GraphQLInputType,
     GraphQLInterfaceType,
     GraphQLList,
@@ -16,23 +17,92 @@ from graphql import (
     GraphQLObjectType,
     GraphQLSchema,
     ListTypeNode,
-    NamedTypeNode,
+    ListValueNode,
     NameNode,
+    NamedTypeNode,
     NonNullTypeNode,
+    NullValueNode,
+    ObjectFieldNode,
+    ObjectValueNode,
     OperationDefinitionNode,
     OperationType,
     SelectionSetNode,
+    Undefined,
+    ValueNode,
     VariableDefinitionNode,
     VariableNode,
+    is_input_object_type,
+    is_list_type,
+    is_non_null_type,
     is_wrapping_type,
     print_ast,
 )
 from graphql.pyutils import FrozenList
+from graphql.utilities import ast_from_value as default_ast_from_value
 
-from .ast_from_value_overwrite import ast_from_value_overwrite
 from .utils import to_camel_case
 
 log = logging.getLogger(__name__)
+
+
+def ast_from_value(value: Any, type_: GraphQLInputType) -> Optional[ValueNode]:
+    """
+    This is a partial copy paste of the ast_from_value function in
+    graphql-core utilities/ast_from_value.py
+
+    Overwrite the if blocks that use recursion and add a new case to return a
+    VariableNode when value is a DSLVariable
+
+    Produce a GraphQL Value AST given a Python object.
+    """
+    if isinstance(value, DSLVariable):
+        return value.set_type(type_).ast_variable
+
+    if is_non_null_type(type_):
+        type_ = cast(GraphQLNonNull, type_)
+        ast_value = ast_from_value(value, type_.of_type)
+        if isinstance(ast_value, NullValueNode):
+            return None
+        return ast_value
+
+    # only explicit None, not Undefined or NaN
+    if value is None:
+        return NullValueNode()
+
+    # undefined
+    if value is Undefined:
+        return None
+
+    # Convert Python list to GraphQL list. If the GraphQLType is a list, but the value
+    # is not a list, convert the value using the list's item type.
+    if is_list_type(type_):
+        type_ = cast(GraphQLList, type_)
+        item_type = type_.of_type
+        if isinstance(value, Iterable) and not isinstance(value, str):
+            maybe_value_nodes = (ast_from_value(item, item_type) for item in value)
+            value_nodes = filter(None, maybe_value_nodes)
+            return ListValueNode(values=FrozenList(value_nodes))
+        return ast_from_value(value, item_type)
+
+    # Populate the fields of the input object by creating ASTs from each value in the
+    # Python dict according to the fields in the input type.
+    if is_input_object_type(type_):
+        if value is None or not isinstance(value, Mapping):
+            return None
+        type_ = cast(GraphQLInputObjectType, type_)
+        field_items = (
+            (field_name, ast_from_value(value[field_name], field.type))
+            for field_name, field in type_.fields.items()
+            if field_name in value
+        )
+        field_nodes = (
+            ObjectFieldNode(name=NameNode(value=field_name), value=field_value)
+            for field_name, field_value in field_items
+            if field_value
+        )
+        return ObjectValueNode(fields=FrozenList(field_nodes))
+
+    return default_ast_from_value(value, type_)
 
 
 def dsl_gql(
@@ -449,14 +519,6 @@ class DSLField:
         self.ast_field.alias = NameNode(value=alias)
         return self
 
-    @staticmethod
-    def overwrite_ast_for_variables(value: Any, type_: GraphQLInputType):
-
-        if isinstance(value, DSLVariable):
-            return value.set_type(type_).ast_variable
-
-        return None
-
     def args(self, **kwargs) -> "DSLField":
         r"""Set the arguments of a field
 
@@ -481,11 +543,7 @@ class DSLField:
             + [
                 ArgumentNode(
                     name=NameNode(value=name),
-                    value=ast_from_value_overwrite(
-                        value,
-                        self._get_argument(name).type,
-                        overwrite=self.overwrite_ast_for_variables,
-                    ),
+                    value=ast_from_value(value, self._get_argument(name).type),
                 )
                 for name, value in kwargs.items()
             ]
