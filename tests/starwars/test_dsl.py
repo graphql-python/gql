@@ -91,7 +91,10 @@ def test_add_variable_definitions_in_input_object(ds):
     assert (
         print_ast(query)
         == """mutation ($stars: Int, $commentary: String, $episode: Episode) {
-  createReview(review: {stars: $stars, commentary: $commentary}, episode: $episode) {
+  createReview(
+    review: {stars: $stars, commentary: $commentary}
+    episode: $episode
+  ) {
     stars
     commentary
   }
