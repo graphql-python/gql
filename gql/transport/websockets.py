@@ -247,7 +247,7 @@ class WebsocketsTransport(AsyncTransport):
     async def _send_query(
         self,
         document: DocumentNode,
-        variable_values: Optional[Dict[str, str]] = None,
+        variable_values: Optional[Dict[str, Any]] = None,
         operation_name: Optional[str] = None,
     ) -> int:
         """Send a query to the provided websocket connection.
@@ -438,7 +438,7 @@ class WebsocketsTransport(AsyncTransport):
     async def subscribe(
         self,
         document: DocumentNode,
-        variable_values: Optional[Dict[str, str]] = None,
+        variable_values: Optional[Dict[str, Any]] = None,
         operation_name: Optional[str] = None,
         send_stop: Optional[bool] = True,
     ) -> AsyncGenerator[ExecutionResult, None]:
@@ -496,7 +496,7 @@ class WebsocketsTransport(AsyncTransport):
     async def execute(
         self,
         document: DocumentNode,
-        variable_values: Optional[Dict[str, str]] = None,
+        variable_values: Optional[Dict[str, Any]] = None,
         operation_name: Optional[str] = None,
     ) -> ExecutionResult:
         """Execute the provided document AST against the configured remote server
