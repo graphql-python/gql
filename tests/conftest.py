@@ -100,7 +100,7 @@ async def aiohttp_server():
 
 
 # Adding debug logs to websocket tests
-for name in ["websockets.server", "gql.transport.websockets", "gql.dsl"]:
+for name in ["websockets.legacy.server", "gql.transport.websockets", "gql.dsl"]:
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
 
@@ -125,7 +125,7 @@ class WebSocketServer:
 
     async def start(self, handler):
 
-        import websockets
+        from websockets.legacy import server
 
         print("Starting server")
 
@@ -149,9 +149,7 @@ class WebSocketServer:
             extra_serve_args["ssl"] = ssl_context
 
         # Start a server with a random open port
-        self.start_server = websockets.server.serve(
-            handler, "127.0.0.1", 0, **extra_serve_args
-        )
+        self.start_server = server.serve(handler, "127.0.0.1", 0, **extra_serve_args)
 
         # Wait that the server is started
         self.server = await self.start_server

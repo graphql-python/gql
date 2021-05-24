@@ -7,8 +7,8 @@ from typing import Any, AsyncGenerator, Dict, Optional, Tuple, Union, cast
 import websockets
 from graphql import DocumentNode, ExecutionResult, print_ast
 from websockets.client import WebSocketClientProtocol
+from websockets.datastructures import HeadersLike
 from websockets.exceptions import ConnectionClosed
-from websockets.http import HeadersLike
 from websockets.typing import Data, Subprotocol
 
 from .async_transport import AsyncTransport
@@ -529,7 +529,8 @@ class WebsocketsTransport(AsyncTransport):
             # Set the _connecting flag to False after in all cases
             try:
                 self.websocket = await asyncio.wait_for(
-                    websockets.connect(self.url, **connect_args,), self.connect_timeout,
+                    websockets.client.connect(self.url, **connect_args,),
+                    self.connect_timeout,
                 )
             finally:
                 self._connecting = False
