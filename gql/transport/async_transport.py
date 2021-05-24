@@ -1,5 +1,5 @@
 import abc
-from typing import AsyncGenerator, Dict, Optional
+from typing import Any, AsyncGenerator, Dict, Optional
 
 from graphql import DocumentNode, ExecutionResult
 
@@ -25,7 +25,7 @@ class AsyncTransport:
     async def execute(
         self,
         document: DocumentNode,
-        variable_values: Optional[Dict[str, str]] = None,
+        variable_values: Optional[Dict[str, Any]] = None,
         operation_name: Optional[str] = None,
     ) -> ExecutionResult:
         """Execute the provided document AST for either a remote or local GraphQL Schema.
@@ -38,7 +38,7 @@ class AsyncTransport:
     def subscribe(
         self,
         document: DocumentNode,
-        variable_values: Optional[Dict[str, str]] = None,
+        variable_values: Optional[Dict[str, Any]] = None,
         operation_name: Optional[str] = None,
     ) -> AsyncGenerator[ExecutionResult, None]:
         """Send a query and receive the results using an async generator
