@@ -114,7 +114,7 @@ class AIOHTTPTransport(AsyncTransport):
     async def execute(
         self,
         document: DocumentNode,
-        variable_values: Optional[Dict[str, str]] = None,
+        variable_values: Optional[Dict[str, Any]] = None,
         operation_name: Optional[str] = None,
         extra_args: Dict[str, Any] = None,
         upload_files: bool = False,
@@ -246,7 +246,7 @@ class AIOHTTPTransport(AsyncTransport):
     def subscribe(
         self,
         document: DocumentNode,
-        variable_values: Optional[Dict[str, str]] = None,
+        variable_values: Optional[Dict[str, Any]] = None,
         operation_name: Optional[str] = None,
     ) -> AsyncGenerator[ExecutionResult, None]:
         """Subscribe is not supported on HTTP.

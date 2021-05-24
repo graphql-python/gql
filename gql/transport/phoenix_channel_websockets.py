@@ -1,6 +1,6 @@
 import asyncio
 import json
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 from graphql import DocumentNode, ExecutionResult, print_ast
 from websockets.exceptions import ConnectionClosed
@@ -116,7 +116,7 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
     async def _send_query(
         self,
         document: DocumentNode,
-        variable_values: Optional[Dict[str, str]] = None,
+        variable_values: Optional[Dict[str, Any]] = None,
         operation_name: Optional[str] = None,
     ) -> int:
         """Send a query to the provided websocket connection.
