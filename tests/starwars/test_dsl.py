@@ -1,5 +1,17 @@
 import pytest
-from graphql import print_ast
+from graphql import (
+    GraphQLInt,
+    GraphQLList,
+    GraphQLNonNull,
+    IntValueNode,
+    ListTypeNode,
+    NamedTypeNode,
+    NameNode,
+    NonNullTypeNode,
+    NullValueNode,
+    Undefined,
+    print_ast,
+)
 
 from gql import Client
 from gql.dsl import (
@@ -7,7 +19,9 @@ from gql.dsl import (
     DSLQuery,
     DSLSchema,
     DSLSubscription,
+    DSLVariable,
     DSLVariableDefinitions,
+    ast_from_value,
     dsl_gql,
 )
 
@@ -22,6 +36,37 @@ def ds():
 @pytest.fixture
 def client():
     return Client(schema=StarWarsSchema)
+
+
+def test_ast_from_value_with_input_type_and_not_mapping_value():
+    obj_type = StarWarsSchema.get_type("ReviewInput")
+    assert ast_from_value(8, obj_type) is None
+
+
+def test_ast_from_value_with_list_type_and_non_iterable_value():
+    assert ast_from_value(5, GraphQLList(GraphQLInt)) == IntValueNode(value="5")
+
+
+def test_ast_from_value_with_none():
+    assert ast_from_value(None, GraphQLInt) == NullValueNode()
+
+
+def test_ast_from_value_with_undefined():
+    assert ast_from_value(Undefined, GraphQLInt) is None
+
+
+def test_ast_from_value_with_non_null_type_and_none():
+    typ = GraphQLNonNull(GraphQLInt)
+    assert ast_from_value(None, typ) is None
+
+
+def test_variable_to_ast_type_passing_wrapping_type():
+    wrapping_type = GraphQLNonNull(GraphQLList(StarWarsSchema.get_type("Droid")))
+    variable = DSLVariable("droids")
+    ast = variable.to_ast_type(wrapping_type)
+    assert ast == NonNullTypeNode(
+        type=ListTypeNode(type=NamedTypeNode(name=NameNode(value="Droid")))
+    )
 
 
 def test_use_variable_definition_multiple_times(ds):
