@@ -16,6 +16,7 @@ from graphql import (
     GraphQLNonNull,
     GraphQLObjectType,
     GraphQLSchema,
+    GraphQLWrappingType,
     ListTypeNode,
     ListValueNode,
     NamedTypeNode,
@@ -27,10 +28,12 @@ from graphql import (
     OperationDefinitionNode,
     OperationType,
     SelectionSetNode,
+    TypeNode,
     Undefined,
     ValueNode,
     VariableDefinitionNode,
     VariableNode,
+    assert_named_type,
     is_input_object_type,
     is_list_type,
     is_non_null_type,
@@ -287,20 +290,26 @@ class DSLVariable:
     in the `args` method.
     """
 
-    def __init__(self, name):
+    def __init__(self, name: str):
         self.type = None
         self.name = name
         self.ast_variable = VariableNode(name=NameNode(value=self.name))
 
-    def to_ast_type(self, type_):
+    def to_ast_type(
+        self, type_: Union[GraphQLWrappingType, GraphQLNamedType]
+    ) -> TypeNode:
         if is_wrapping_type(type_):
             if isinstance(type_, GraphQLList):
                 return ListTypeNode(type=self.to_ast_type(type_.of_type))
             elif isinstance(type_, GraphQLNonNull):
                 return NonNullTypeNode(type=self.to_ast_type(type_.of_type))
+
+        type_ = assert_named_type(type_)
         return NamedTypeNode(name=NameNode(value=type_.name))
 
-    def set_type(self, type_) -> "DSLVariable":
+    def set_type(
+        self, type_: Union[GraphQLWrappingType, GraphQLNamedType]
+    ) -> "DSLVariable":
         self.type = self.to_ast_type(type_)
         return self
 
