@@ -291,7 +291,7 @@ class DSLVariable:
     """
 
     def __init__(self, name: str):
-        self.type = None
+        self.type: Optional[TypeNode] = None
         self.name = name
         self.ast_variable = VariableNode(name=NameNode(value=self.name))
 
