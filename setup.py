@@ -41,7 +41,7 @@ install_requests_requires = [
 ]
 
 install_websockets_requires = [
-    "websockets>=8.1,<9",
+    "websockets>=9,<10",
 ]
 
 install_all_requires = (
