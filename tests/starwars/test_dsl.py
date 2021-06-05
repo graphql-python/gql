@@ -1,8 +1,29 @@
 import pytest
-from graphql import print_ast
+from graphql import (
+    GraphQLInt,
+    GraphQLList,
+    GraphQLNonNull,
+    IntValueNode,
+    ListTypeNode,
+    NamedTypeNode,
+    NameNode,
+    NonNullTypeNode,
+    NullValueNode,
+    Undefined,
+    print_ast,
+)
 
 from gql import Client
-from gql.dsl import DSLMutation, DSLQuery, DSLSchema, DSLSubscription, dsl_gql
+from gql.dsl import (
+    DSLMutation,
+    DSLQuery,
+    DSLSchema,
+    DSLSubscription,
+    DSLVariable,
+    DSLVariableDefinitions,
+    ast_from_value,
+    dsl_gql,
+)
 
 from .schema import StarWarsSchema
 
@@ -15,6 +36,116 @@ def ds():
 @pytest.fixture
 def client():
     return Client(schema=StarWarsSchema)
+
+
+def test_ast_from_value_with_input_type_and_not_mapping_value():
+    obj_type = StarWarsSchema.get_type("ReviewInput")
+    assert ast_from_value(8, obj_type) is None
+
+
+def test_ast_from_value_with_list_type_and_non_iterable_value():
+    assert ast_from_value(5, GraphQLList(GraphQLInt)) == IntValueNode(value="5")
+
+
+def test_ast_from_value_with_none():
+    assert ast_from_value(None, GraphQLInt) == NullValueNode()
+
+
+def test_ast_from_value_with_undefined():
+    assert ast_from_value(Undefined, GraphQLInt) is None
+
+
+def test_ast_from_value_with_non_null_type_and_none():
+    typ = GraphQLNonNull(GraphQLInt)
+    assert ast_from_value(None, typ) is None
+
+
+def test_variable_to_ast_type_passing_wrapping_type():
+    wrapping_type = GraphQLNonNull(GraphQLList(StarWarsSchema.get_type("Droid")))
+    variable = DSLVariable("droids")
+    ast = variable.to_ast_type(wrapping_type)
+    assert ast == NonNullTypeNode(
+        type=ListTypeNode(type=NamedTypeNode(name=NameNode(value="Droid")))
+    )
+
+
+def test_use_variable_definition_multiple_times(ds):
+    var = DSLVariableDefinitions()
+
+    # `episode` variable is used in both fields
+    op = DSLMutation(
+        ds.Mutation.createReview.alias("badReview")
+        .args(review=var.badReview, episode=var.episode)
+        .select(ds.Review.stars, ds.Review.commentary),
+        ds.Mutation.createReview.alias("goodReview")
+        .args(review=var.goodReview, episode=var.episode)
+        .select(ds.Review.stars, ds.Review.commentary),
+    )
+    op.variable_definitions = var
+    query = dsl_gql(op)
+
+    assert (
+        print_ast(query)
+        == """mutation ($badReview: ReviewInput, $episode: Episode, $goodReview: ReviewInput) {
+  badReview: createReview(review: $badReview, episode: $episode) {
+    stars
+    commentary
+  }
+  goodReview: createReview(review: $goodReview, episode: $episode) {
+    stars
+    commentary
+  }
+}
+"""
+    )
+
+
+def test_add_variable_definitions(ds):
+    var = DSLVariableDefinitions()
+    op = DSLMutation(
+        ds.Mutation.createReview.args(review=var.review, episode=var.episode).select(
+            ds.Review.stars, ds.Review.commentary
+        )
+    )
+    op.variable_definitions = var
+    query = dsl_gql(op)
+
+    assert (
+        print_ast(query)
+        == """mutation ($review: ReviewInput, $episode: Episode) {
+  createReview(review: $review, episode: $episode) {
+    stars
+    commentary
+  }
+}
+"""
+    )
+
+
+def test_add_variable_definitions_in_input_object(ds):
+    var = DSLVariableDefinitions()
+    op = DSLMutation(
+        ds.Mutation.createReview.args(
+            review={"stars": var.stars, "commentary": var.commentary},
+            episode=var.episode,
+        ).select(ds.Review.stars, ds.Review.commentary)
+    )
+    op.variable_definitions = var
+    query = dsl_gql(op)
+
+    assert (
+        print_ast(query)
+        == """mutation ($stars: Int, $commentary: String, $episode: Episode) {
+  createReview(
+    review: {stars: $stars, commentary: $commentary}
+    episode: $episode
+  ) {
+    stars
+    commentary
+  }
+}
+"""
+    )
 
 
 def test_invalid_field_on_type_query(ds):

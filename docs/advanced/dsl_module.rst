@@ -159,6 +159,47 @@ then you need to create the GraphQL operation using the class
         )
     )
 
+Variable arguments
+^^^^^^^^^^^^^^^^^^
+
+To provide variables instead of argument values directly for an operation, you have to:
+
+* Instanciate a :class:`DSLVariableDefinitions <gql.dsl.DSLVariableDefinitions>`::
+
+    var = DSLVariableDefinitions()
+
+* From this instance you can generate :class:`DSLVariable <gql.dsl.DSLVariable>` instances
+  and provide them as the value of the arguments::
+
+    ds.Mutation.createReview.args(review=var.review, episode=var.episode)
+
+* Once the operation has been defined, you have to save the variable definitions used
+  in it::
+
+    operation.variable_definitions = var
+
+The following code:
+
+.. code-block:: python
+
+    var = DSLVariableDefinitions()
+    op = DSLMutation(
+        ds.Mutation.createReview.args(review=var.review, episode=var.episode).select(
+            ds.Review.stars, ds.Review.commentary
+        )
+    )
+    op.variable_definitions = var
+    query = dsl_gql(op)
+
+will generate a query equivalent to::
+
+    mutation ($review: ReviewInput, $episode: Episode) {
+      createReview(review: $review, episode: $episode) {
+        stars
+        commentary
+      }
+    }
+
 Subscriptions
 ^^^^^^^^^^^^^
 

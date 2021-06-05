@@ -1,6 +1,6 @@
 import logging
 from abc import ABC
-from typing import Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple, Union, cast
 
 from graphql import (
     ArgumentNode,
@@ -8,22 +8,104 @@ from graphql import (
     FieldNode,
     GraphQLArgument,
     GraphQLField,
+    GraphQLInputObjectType,
+    GraphQLInputType,
     GraphQLInterfaceType,
+    GraphQLList,
     GraphQLNamedType,
+    GraphQLNonNull,
     GraphQLObjectType,
     GraphQLSchema,
+    GraphQLWrappingType,
+    ListTypeNode,
+    ListValueNode,
+    NamedTypeNode,
     NameNode,
+    NonNullTypeNode,
+    NullValueNode,
+    ObjectFieldNode,
+    ObjectValueNode,
     OperationDefinitionNode,
     OperationType,
     SelectionSetNode,
-    ast_from_value,
+    TypeNode,
+    Undefined,
+    ValueNode,
+    VariableDefinitionNode,
+    VariableNode,
+    assert_named_type,
+    is_input_object_type,
+    is_list_type,
+    is_non_null_type,
+    is_wrapping_type,
     print_ast,
 )
 from graphql.pyutils import FrozenList
+from graphql.utilities import ast_from_value as default_ast_from_value
 
 from .utils import to_camel_case
 
 log = logging.getLogger(__name__)
+
+
+def ast_from_value(value: Any, type_: GraphQLInputType) -> Optional[ValueNode]:
+    """
+    This is a partial copy paste of the ast_from_value function in
+    graphql-core utilities/ast_from_value.py
+
+    Overwrite the if blocks that use recursion and add a new case to return a
+    VariableNode when value is a DSLVariable
+
+    Produce a GraphQL Value AST given a Python object.
+    """
+    if isinstance(value, DSLVariable):
+        return value.set_type(type_).ast_variable
+
+    if is_non_null_type(type_):
+        type_ = cast(GraphQLNonNull, type_)
+        ast_value = ast_from_value(value, type_.of_type)
+        if isinstance(ast_value, NullValueNode):
+            return None
+        return ast_value
+
+    # only explicit None, not Undefined or NaN
+    if value is None:
+        return NullValueNode()
+
+    # undefined
+    if value is Undefined:
+        return None
+
+    # Convert Python list to GraphQL list. If the GraphQLType is a list, but the value
+    # is not a list, convert the value using the list's item type.
+    if is_list_type(type_):
+        type_ = cast(GraphQLList, type_)
+        item_type = type_.of_type
+        if isinstance(value, Iterable) and not isinstance(value, str):
+            maybe_value_nodes = (ast_from_value(item, item_type) for item in value)
+            value_nodes = filter(None, maybe_value_nodes)
+            return ListValueNode(values=FrozenList(value_nodes))
+        return ast_from_value(value, item_type)
+
+    # Populate the fields of the input object by creating ASTs from each value in the
+    # Python dict according to the fields in the input type.
+    if is_input_object_type(type_):
+        if value is None or not isinstance(value, Mapping):
+            return None
+        type_ = cast(GraphQLInputObjectType, type_)
+        field_items = (
+            (field_name, ast_from_value(value[field_name], field.type))
+            for field_name, field in type_.fields.items()
+            if field_name in value
+        )
+        field_nodes = (
+            ObjectFieldNode(name=NameNode(value=field_name), value=field_value)
+            for field_name, field_value in field_items
+            if field_value
+        )
+        return ObjectValueNode(fields=FrozenList(field_nodes))
+
+    return default_ast_from_value(value, type_)
 
 
 def dsl_gql(
@@ -77,6 +159,9 @@ def dsl_gql(
             OperationDefinitionNode(
                 operation=OperationType(operation.operation_type),
                 selection_set=operation.selection_set,
+                variable_definitions=FrozenList(
+                    operation.variable_definitions.get_ast_definitions()
+                ),
                 **({"name": NameNode(value=operation.name)} if operation.name else {}),
             )
             for operation in all_operations
@@ -156,6 +241,7 @@ class DSLOperation(ABC):
         """
 
         self.name: Optional[str] = None
+        self.variable_definitions: DSLVariableDefinitions = DSLVariableDefinitions()
 
         # Concatenate fields without and with alias
         all_fields: Tuple["DSLField", ...] = DSLField.get_aliased_fields(
@@ -192,6 +278,75 @@ class DSLMutation(DSLOperation):
 
 class DSLSubscription(DSLOperation):
     operation_type = OperationType.SUBSCRIPTION
+
+
+class DSLVariable:
+    """The DSLVariable represents a single variable defined in a GraphQL operation
+
+    Instances of this class are generated for you automatically as attributes
+    of the :class:`DSLVariableDefinitions`
+
+    The type of the variable is set by the :class:`DSLField` instance that receives it
+    in the `args` method.
+    """
+
+    def __init__(self, name: str):
+        self.type: Optional[TypeNode] = None
+        self.name = name
+        self.ast_variable = VariableNode(name=NameNode(value=self.name))
+
+    def to_ast_type(
+        self, type_: Union[GraphQLWrappingType, GraphQLNamedType]
+    ) -> TypeNode:
+        if is_wrapping_type(type_):
+            if isinstance(type_, GraphQLList):
+                return ListTypeNode(type=self.to_ast_type(type_.of_type))
+            elif isinstance(type_, GraphQLNonNull):
+                return NonNullTypeNode(type=self.to_ast_type(type_.of_type))
+
+        type_ = assert_named_type(type_)
+        return NamedTypeNode(name=NameNode(value=type_.name))
+
+    def set_type(
+        self, type_: Union[GraphQLWrappingType, GraphQLNamedType]
+    ) -> "DSLVariable":
+        self.type = self.to_ast_type(type_)
+        return self
+
+
+class DSLVariableDefinitions:
+    """The DSLVariableDefinitions represents variable definitions in a GraphQL operation
+
+    Instances of this class have to be created and set as the `variable_definitions`
+    attribute of a DSLOperation instance
+
+    Attributes of the DSLVariableDefinitions class are generated automatically
+    with the `__getattr__` dunder method in order to generate
+    instances of :class:`DSLVariable`, that can then be used as values in the
+    `DSLField.args` method
+    """
+
+    def __init__(self):
+        self.variables: Dict[str, DSLVariable] = {}
+
+    def __getattr__(self, name: str) -> "DSLVariable":
+        if name not in self.variables:
+            self.variables[name] = DSLVariable(name)
+        return self.variables[name]
+
+    def get_ast_definitions(self) -> List[VariableDefinitionNode]:
+        """
+        :meta private:
+
+        Return a list of VariableDefinitionNodes for each variable with a type
+        """
+        return [
+            VariableDefinitionNode(
+                type=var.type, variable=var.ast_variable, default_value=None,
+            )
+            for var in self.variables.values()
+            if var.type is not None  # only variables used
+        ]
 
 
 class DSLType:
