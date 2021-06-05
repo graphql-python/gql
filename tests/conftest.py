@@ -125,7 +125,7 @@ class WebSocketServer:
 
     async def start(self, handler):
 
-        from websockets.legacy import server
+        import websockets.server
 
         print("Starting server")
 
@@ -149,7 +149,9 @@ class WebSocketServer:
             extra_serve_args["ssl"] = ssl_context
 
         # Start a server with a random open port
-        self.start_server = server.serve(handler, "127.0.0.1", 0, **extra_serve_args)
+        self.start_server = websockets.server.serve(
+            handler, "127.0.0.1", 0, **extra_serve_args
+        )
 
         # Wait that the server is started
         self.server = await self.start_server
