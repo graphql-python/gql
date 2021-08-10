@@ -101,9 +101,13 @@ countdown_subscription_str = """
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_phoenix_channel_subscription(event_loop, server, subscription_str):
+    import logging
     from gql.transport.phoenix_channel_websockets import (
         PhoenixChannelWebsocketsTransport,
     )
+    from gql.transport.websockets import log as websockets_logger
+
+    websockets_logger.setLevel(logging.DEBUG)
 
     path = "/graphql"
     url = f"ws://{server.hostname}:{server.port}{path}"
