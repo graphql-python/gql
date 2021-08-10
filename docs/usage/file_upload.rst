@@ -92,7 +92,7 @@ See `Streaming uploads on aiohttp docs`_.
 
 
 In order to stream local files, instead of providing opened files to the
-`variables_values` argument of `execute`, you need to provide an async generator
+`variable_values` argument of `execute`, you need to provide an async generator
 which will provide parts of the files.
 
 You can use `aiofiles`_
