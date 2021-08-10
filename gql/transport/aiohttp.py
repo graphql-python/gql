@@ -128,7 +128,7 @@ class AIOHTTPTransport(AsyncTransport):
         :code:`execute` on a client or a session.
 
         :param document: the parsed GraphQL request
-        :param variables_values: An optional Dict of variable values
+        :param variable_values: An optional Dict of variable values
         :param operation_name: An optional Operation name for the request
         :param extra_args: additional arguments to send to the aiohttp post method
         :param upload_files: Set to True if you want to put files in the variable values
