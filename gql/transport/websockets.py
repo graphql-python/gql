@@ -175,8 +175,9 @@ class WebsocketsTransport(AsyncTransport):
         """Wait the next message from the websocket connection and log the answer
         """
 
-        # We should always have an active websocket connection here
-        assert self.websocket is not None
+        # It is possible that the websocket has been already closed in another task
+        if self.websocket is None:
+            raise TransportClosed("Transport is already closed")
 
         # Wait for the next websocket frame. Can raise ConnectionClosed
         data: Data = await self.websocket.recv()
@@ -386,6 +387,8 @@ class WebsocketsTransport(AsyncTransport):
                     answer = await self._receive()
                 except (ConnectionClosed, TransportProtocolError) as e:
                     await self._fail(e, clean_close=False)
+                    break
+                except TransportClosed:
                     break
 
                 # Parse the answer
