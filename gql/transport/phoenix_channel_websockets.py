@@ -34,6 +34,7 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
         """
         self.channel_name = channel_name
         self.heartbeat_interval = heartbeat_interval
+        self.heartbeat_task: Optional[asyncio.Future] = None
         self.subscription_ids_to_query_ids: Dict[str, int] = {}
         super(PhoenixChannelWebsocketsTransport, self).__init__(*args, **kwargs)
 
