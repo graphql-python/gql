@@ -36,7 +36,7 @@ channel_close_reply_template = (
     '{{'
         '"topic":"{channel_name}",'
         '"event":"phx_close",'
-        '"payload":{},'
+        '"payload":{{}},'
         '"ref":null'
     '}}'
 )
