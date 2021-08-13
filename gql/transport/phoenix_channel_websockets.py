@@ -27,7 +27,11 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
     """
 
     def __init__(
-        self, channel_name: str = "__absinthe__:control", heartbeat_interval: float = 30, *args, **kwargs
+        self,
+        channel_name: str = "__absinthe__:control",
+        heartbeat_interval: float = 30,
+        *args,
+        **kwargs,
     ) -> None:
         """Initialize the transport with the given parameters.
 
@@ -40,7 +44,7 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
         self.heartbeat_interval: float = heartbeat_interval
         self.heartbeat_task: Optional[asyncio.Future] = None
         self.subscription_ids_to_query_ids: Dict[str, int] = {}
-        self.unsubscribe_answer_ids: Dict[int, int] = {}
+        self.unsub_to_listener_query_ids: Dict[int, int] = {}
         super(PhoenixChannelWebsocketsTransport, self).__init__(*args, **kwargs)
 
     async def _send_init_message_and_wait_ack(self) -> None:
@@ -112,10 +116,12 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
                 break
 
         if subscription_id is None:
-            raise ValueError(f"No subscription for {listener_query_id}")
+            raise ValueError(
+                f"No subscription for {listener_query_id}"
+            )  # pragma: no cover
 
         # Save the ref so it can be matched in the reply
-        self.unsubscribe_answer_ids[query_id] = listener_query_id
+        self.unsub_to_listener_query_ids[query_id] = listener_query_id
         unsubscribe_message = json.dumps(
             {
                 "topic": self.channel_name,
@@ -128,8 +134,7 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
         await self._send(unsubscribe_message)
 
     async def _send_connection_terminate_message(self) -> None:
-        """Send a phx_leave message to disconnect from the provided channel.
-        """
+        """Send a phx_leave message to disconnect from the provided channel."""
 
         query_id = self.next_query_id
         self.next_query_id += 1
@@ -236,7 +241,9 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
                 status = str(payload.get("status"))
 
                 # Unsubscription reply?
-                unsubscribe_listener_id = self.unsubscribe_answer_ids.pop(answer_id, None)
+                listener_query_id = self.unsub_to_listener_query_ids.pop(
+                    answer_id, None
+                )
 
                 if status == "ok":
 
@@ -245,16 +252,24 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
 
                     if isinstance(response, dict) and "subscriptionId" in response:
                         subscription_id = str(response.get("subscriptionId"))
-                        if unsubscribe_listener_id is not None:
+                        if listener_query_id is not None:
 
-                            answer_id = unsubscribe_listener_id
+                            answer_id = listener_query_id
                             answer_type = "unsubscribe"
 
-                            if self.subscription_ids_to_query_ids.get(subscription_id) != unsubscribe_listener_id:
-                                raise ValueError(f"Listener {unsubscribe_listener_id} referenced in unsubscribe reply does not exist")
+                            if (
+                                self.subscription_ids_to_query_ids.get(subscription_id)
+                                != listener_query_id
+                            ):
+                                raise ValueError(
+                                    f"Listener {listener_query_id} "
+                                    "in unsubscribe reply does not exist"
+                                )
                         else:
                             # Subscription reply
-                            self.subscription_ids_to_query_ids[subscription_id] = answer_id
+                            self.subscription_ids_to_query_ids[
+                                subscription_id
+                            ] = answer_id
 
                 elif status == "error":
                     response = payload.get("response")
@@ -297,7 +312,6 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
         if answer_type == "unsubscribe":
             # Remove the listener here, to possibly signal
             # that it is the last listener in the session.
-            assert answer_id is not None
             self._remove_listener(answer_id)
         elif answer_type == "close":
             await self.close()

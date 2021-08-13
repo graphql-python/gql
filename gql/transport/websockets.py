@@ -611,7 +611,7 @@ class WebsocketsTransport(AsyncTransport):
         log.debug("connect: done")
 
     def _remove_listener(self, query_id) -> None:
-        """After exiting from a subscription, remove the listener and 
+        """After exiting from a subscription, remove the listener and
         signal an event if this was the last listener for the client.
         """
         if query_id in self.listeners:
