@@ -485,16 +485,14 @@ class WebsocketsTransport(AsyncTransport):
                     )
                     break
 
-        except (asyncio.CancelledError, GeneratorExit) as e:
+        except (asyncio.CancelledError, GeneratorExit, TransportClosed) as e:
             log.debug("Exception in subscribe: " + repr(e))
             if listener.send_stop:
                 await self._send_stop_message(query_id)
                 listener.send_stop = False
 
         finally:
-            del self.listeners[query_id]
-            if len(self.listeners) == 0:
-                self._no_more_listeners.set()
+            self._remove_listener(query_id)
 
     async def execute(
         self,
@@ -611,6 +609,19 @@ class WebsocketsTransport(AsyncTransport):
             raise TransportAlreadyConnected("Transport is already connected")
 
         log.debug("connect: done")
+
+    def _remove_listener(self, query_id) -> None:
+        """After exiting from a subscription, remove the listener and 
+        signal an event if this was the last listener for the client.
+        """
+        if query_id in self.listeners:
+            del self.listeners[query_id]
+
+        remaining = len(self.listeners)
+        log.debug(f"listener {query_id} deleted, {remaining} remaining")
+
+        if remaining == 0:
+            self._no_more_listeners.set()
 
     async def _clean_close(self, e: Exception) -> None:
         """Coroutine which will:
