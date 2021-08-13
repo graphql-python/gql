@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 from typing import Any, Dict, Optional, Tuple
 
 from graphql import DocumentNode, ExecutionResult, print_ast
@@ -11,6 +12,8 @@ from .exceptions import (
     TransportServerError,
 )
 from .websockets import WebsocketsTransport
+
+log = logging.getLogger(__name__)
 
 
 class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
@@ -32,8 +35,8 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
         :param heartbeat_interval: Interval in second between each heartbeat messages
             sent by the client
         """
-        self.channel_name = channel_name
-        self.heartbeat_interval = heartbeat_interval
+        self.channel_name: str = channel_name
+        self.heartbeat_interval: float = heartbeat_interval
         self.heartbeat_task: Optional[asyncio.Future] = None
         self.subscription_ids_to_query_ids: Dict[str, int] = {}
         super(PhoenixChannelWebsocketsTransport, self).__init__(*args, **kwargs)
@@ -179,7 +182,7 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
                     answer_id = self.subscription_ids_to_query_ids[subscription_id]
                 except KeyError:
                     raise ValueError(
-                        f"subscription '{subscription_id}' has not been registerd"
+                        f"subscription '{subscription_id}' has not been registered"
                     )
 
                 result = payload.get("result")
@@ -238,6 +241,7 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
                 raise ValueError
 
         except ValueError as e:
+            log.error(f"Error parsing answer '{answer}' " + repr(e))
             raise TransportProtocolError(
                 "Server did not return a GraphQL result"
             ) from e
