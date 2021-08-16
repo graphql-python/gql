@@ -283,7 +283,7 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
 
                             else:
 
-                                raise ValueError(
+                                log.error(
                                     "Unexpected listener_query_id for "
                                     f"subscriptionId={subscription_id}. "
                                     f"Expected={expected_id} "
