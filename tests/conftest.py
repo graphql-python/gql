@@ -100,7 +100,12 @@ async def aiohttp_server():
 
 
 # Adding debug logs to websocket tests
-for name in ["websockets.legacy.server", "gql.transport.websockets", "gql.dsl"]:
+for name in [
+    "websockets.legacy.server",
+    "gql.transport.websockets",
+    "gql.transport.phoenix_channel_websockets",
+    "gql.dsl",
+]:
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
 

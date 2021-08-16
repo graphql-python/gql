@@ -16,6 +16,14 @@ from .websockets import WebsocketsTransport
 log = logging.getLogger(__name__)
 
 
+class Subscription:
+    """Records listener_id and unsubscribe query_id for a subscription."""
+
+    def __init__(self, query_id: int) -> None:
+        self.listener_id: int = query_id
+        self.unsubscribe_id: Optional[int] = None
+
+
 class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
     """The PhoenixChannelWebsocketsTransport is an **EXPERIMENTAL** async transport
     which allows you to execute queries and subscriptions against an `Absinthe`_
@@ -43,8 +51,7 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
         self.channel_name: str = channel_name
         self.heartbeat_interval: float = heartbeat_interval
         self.heartbeat_task: Optional[asyncio.Future] = None
-        self.subscription_ids_to_query_ids: Dict[str, int] = {}
-        self.unsub_to_listener_query_ids: Dict[int, int] = {}
+        self.subscriptions: Dict[str, Subscription] = {}
         super(PhoenixChannelWebsocketsTransport, self).__init__(*args, **kwargs)
 
     async def _send_init_message_and_wait_ack(self) -> None:
@@ -99,35 +106,26 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
 
         self.heartbeat_task = asyncio.ensure_future(heartbeat_coro())
 
-    async def _send_stop_message(self, listener_query_id: int) -> None:
+    async def _send_stop_message(self, query_id: int) -> None:
         """Send an 'unsubscribe' message to the Phoenix Channel referencing
         the listener's query_id, saving the query_id of the message.
 
         The server should afterwards return a 'phx_reply' message with
         the same query_id and subscription_id of the 'unsubscribe' request.
         """
-        query_id = self.next_query_id
+        subscription_id = self._find_subscription_id(query_id)
+
+        unsubscribe_query_id = self.next_query_id
         self.next_query_id += 1
 
-        subscription_id = None
-        for sub_id, q_id in self.subscription_ids_to_query_ids.items():
-            if q_id == listener_query_id:
-                subscription_id = sub_id
-                break
-
-        if subscription_id is None:
-            raise ValueError(
-                f"No subscription for {listener_query_id}"
-            )  # pragma: no cover
-
         # Save the ref so it can be matched in the reply
-        self.unsub_to_listener_query_ids[query_id] = listener_query_id
+        self.subscriptions[subscription_id].unsubscribe_id = unsubscribe_query_id
         unsubscribe_message = json.dumps(
             {
                 "topic": self.channel_name,
                 "event": "unsubscribe",
                 "payload": {"subscriptionId": subscription_id},
-                "ref": query_id,
+                "ref": unsubscribe_query_id,
             }
         )
 
@@ -212,7 +210,7 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
 
                 subscription_id = str(payload.get("subscriptionId"))
                 try:
-                    answer_id = self.subscription_ids_to_query_ids[subscription_id]
+                    answer_id = self.subscriptions[subscription_id].listener_id
                 except KeyError:
                     raise ValueError(
                         f"subscription '{subscription_id}' has not been registered"
@@ -226,13 +224,20 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
                 answer_type = "data"
 
                 execution_result = ExecutionResult(
-                    errors=payload.get("errors"),
                     data=result.get("data"),
-                    extensions=payload.get("extensions"),
+                    errors=result.get("errors"),
+                    extensions=result.get("extensions"),
                 )
 
             elif event == "phx_reply":
-                answer_id = int(json_answer.get("ref"))
+                try:
+                    answer_id = int(json_answer.get("ref"))
+                except Exception:
+                    raise ValueError("ref is not an integer")
+
+                if answer_id == 0:
+                    raise ValueError("ref is zero")
+
                 payload = json_answer.get("payload")
 
                 if not isinstance(payload, dict):
@@ -240,36 +245,30 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
 
                 status = str(payload.get("status"))
 
-                # Unsubscription reply?
-                listener_query_id = self.unsub_to_listener_query_ids.pop(
-                    answer_id, None
-                )
-
                 if status == "ok":
-
+                    # join or leave answer
                     answer_type = "reply"
+
                     response = payload.get("response")
 
-                    if isinstance(response, dict) and "subscriptionId" in response:
-                        subscription_id = str(response.get("subscriptionId"))
-                        if listener_query_id is not None:
+                    if isinstance(response, dict):
+                        if "data" in response:
+                            # query or mutation result answer
+                            answer_type = "data"
 
-                            answer_id = listener_query_id
-                            answer_type = "unsubscribe"
+                            execution_result = ExecutionResult(
+                                data=response["data"],
+                                errors=response.get("errors"),
+                                extensions=response.get("extensions"),
+                            )
+                        elif "subscriptionId" in response:
+                            # subscribe or unsubscribe answer
+                            subscription_id = str(response.get("subscriptionId"))
 
-                            if (
-                                self.subscription_ids_to_query_ids.get(subscription_id)
-                                != listener_query_id
-                            ):
-                                raise ValueError(
-                                    f"Listener {listener_query_id} "
-                                    "in unsubscribe reply does not exist"
-                                )
-                        else:
-                            # Subscription reply
-                            self.subscription_ids_to_query_ids[
-                                subscription_id
-                            ] = answer_id
+                            # answer_type is "reply" or "unsubscribe"
+                            answer_type, answer_id = self._parse_subscription_answer(
+                                answer_id, subscription_id
+                            )
 
                 elif status == "error":
                     response = payload.get("response")
@@ -289,6 +288,9 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
                     raise TransportQueryError("reply timeout", query_id=answer_id)
 
             elif event == "phx_error":
+                # Sent if the channel has crashed
+                # answer_id will be the "join_ref" for the channel
+                # answer_id = int(json_answer.get("ref"))
                 raise TransportServerError("Server error")
             elif event == "phx_close":
                 answer_type = "close"
@@ -303,20 +305,65 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
 
         return answer_type, answer_id, execution_result
 
+    def _parse_subscription_answer(
+        self, answer_id: int, subscription_id: str
+    ) -> Tuple[str, int]:
+        if subscription_id in self.subscriptions:
+            # Unsubscribe reply
+            subscription = self.subscriptions[subscription_id]
+            unsubscribe_id = subscription.unsubscribe_id
+            if unsubscribe_id is None or unsubscribe_id != answer_id:
+                raise TransportProtocolError(
+                    "Unsubscription reply does not match an request"
+                )
+
+            answer_id = subscription.listener_id
+            answer_type = "unsubscribe"
+        else:
+            # Subscription reply
+            self.subscriptions[subscription_id] = Subscription(answer_id)
+
+            # Confirm unsubscribe for subscriptions
+            self.listeners[answer_id].send_stop = True
+
+            answer_type = "reply"
+
+        return answer_type, answer_id
+
     async def _handle_answer(
         self,
         answer_type: str,
         answer_id: Optional[int],
         execution_result: Optional[ExecutionResult],
     ) -> None:
-        if answer_type == "unsubscribe":
+        if answer_type == "close":
+            await self.close()
+        elif answer_type == "unsubscribe":
             # Remove the listener here, to possibly signal
             # that it is the last listener in the session.
             self._remove_listener(answer_id)
-        elif answer_type == "close":
-            await self.close()
         else:
             await super()._handle_answer(answer_type, answer_id, execution_result)
+
+    def _remove_listener(self, query_id) -> None:
+        try:
+            subscription_id = self._find_subscription_id(query_id)
+            del self.subscriptions[subscription_id]
+        except Exception:
+            pass
+        super()._remove_listener(query_id)
+
+    def _find_subscription_id(self, query_id: int) -> str:
+        """Perform a reverse lookup to find the subscription id matching
+        a listener's query_id.
+        """
+        for subscription_id, subscription in self.subscriptions.items():
+            if subscription.listener_id == query_id:
+                return subscription_id
+
+        raise TransportProtocolError(
+            f"No subscription matches listener {query_id}"
+        )  # pragma: no cover
 
     async def _close_coro(self, e: Exception, clean_close: bool = True) -> None:
         if self.heartbeat_task is not None:
