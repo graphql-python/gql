@@ -356,13 +356,11 @@ class AsyncClientSession:
         # before a break if python version is too old (pypy3 py 3.6.1)
         self._generator = inner_generator
 
-        async for result in inner_generator:
-            if result.errors:
-                # Note: we need to run generator.aclose() here or the finally block in
-                # transport.subscribe will not be reached in pypy3 (py 3.6.1)
-                await inner_generator.aclose()
-
-            yield result
+        try:
+            async for result in inner_generator:
+                yield result
+        finally:
+            await inner_generator.aclose()
 
     async def subscribe(
         self, document: DocumentNode, *args, **kwargs
@@ -372,17 +370,24 @@ class AsyncClientSession:
 
         The extra arguments are passed to the transport subscribe method."""
 
-        # Validate and subscribe on the transport
-        async for result in self._subscribe(document, *args, **kwargs):
+        inner_generator: AsyncGenerator[ExecutionResult, None] = self._subscribe(
+            document, *args, **kwargs
+        )
 
-            # Raise an error if an error is returned in the ExecutionResult object
-            if result.errors:
-                raise TransportQueryError(
-                    str(result.errors[0]), errors=result.errors, data=result.data
-                )
+        try:
+            # Validate and subscribe on the transport
+            async for result in inner_generator:
 
-            elif result.data is not None:
-                yield result.data
+                # Raise an error if an error is returned in the ExecutionResult object
+                if result.errors:
+                    raise TransportQueryError(
+                        str(result.errors[0]), errors=result.errors, data=result.data
+                    )
+
+                elif result.data is not None:
+                    yield result.data
+        finally:
+            await inner_generator.aclose()
 
     async def _execute(
         self, document: DocumentNode, *args, **kwargs
