@@ -317,7 +317,7 @@ async def test_phoenix_channel_heartbeat(event_loop, server, subscription_str):
     path = "/graphql"
     url = f"ws://{server.hostname}:{server.port}{path}"
     sample_transport = PhoenixChannelWebsocketsTransport(
-        channel_name=test_channel, url=url, heartbeat_interval=1
+        channel_name=test_channel, url=url, heartbeat_interval=0.1
     )
 
     subscription = gql(heartbeat_subscription_str)
