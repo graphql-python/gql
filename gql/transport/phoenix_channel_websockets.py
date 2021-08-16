@@ -240,11 +240,6 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
 
                 status = str(payload.get("status"))
 
-                # Unsubscription reply?
-                listener_query_id = self.unsub_to_listener_query_ids.pop(
-                    answer_id, None
-                )
-
                 if status == "ok":
 
                     answer_type = "reply"
@@ -252,24 +247,38 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
 
                     if isinstance(response, dict) and "subscriptionId" in response:
                         subscription_id = str(response.get("subscriptionId"))
-                        if listener_query_id is not None:
 
-                            answer_id = listener_query_id
-                            answer_type = "unsubscribe"
+                        listener_query_id = self.unsub_to_listener_query_ids.pop(
+                            answer_id, None
+                        )
 
-                            if (
-                                self.subscription_ids_to_query_ids.get(subscription_id)
-                                != listener_query_id
-                            ):
-                                raise ValueError(
-                                    f"Listener {listener_query_id} "
-                                    "in unsubscribe reply does not exist"
-                                )
-                        else:
+                        if listener_query_id is None:
                             # Subscription reply
+
                             self.subscription_ids_to_query_ids[
                                 subscription_id
                             ] = answer_id
+
+                        else:
+
+                            expected_id = self.subscription_ids_to_query_ids.get(
+                                subscription_id
+                            )
+
+                            if listener_query_id == expected_id:
+                                # Unsubscription reply
+
+                                answer_id = listener_query_id
+                                answer_type = "unsubscribe"
+
+                            else:
+
+                                raise ValueError(
+                                    "Unexpected listener_query_id for "
+                                    f"subscriptionId={subscription_id}. "
+                                    f"Expected={expected_id} "
+                                    f"Received={listener_query_id} "
+                                )
 
                 elif status == "error":
                     response = payload.get("response")
