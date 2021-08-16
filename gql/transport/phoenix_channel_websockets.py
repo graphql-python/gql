@@ -357,7 +357,7 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
                 raise ValueError("unrecognized event")
 
         except ValueError as e:
-            log.error(f"Error parsing answer '{answer}' " + repr(e))
+            log.error(f"Error parsing answer '{answer}': {e!r}")
             raise TransportProtocolError(
                 "Server did not return a GraphQL result: " + str(e)
             ) from e
