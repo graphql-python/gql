@@ -113,7 +113,7 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
         The server should afterwards return a 'phx_reply' message with
         the same query_id and subscription_id of the 'unsubscribe' request.
         """
-        subscription_id = self._find_subscription_id(query_id)
+        subscription_id = self._find_existing_subscription(query_id)
 
         unsubscribe_query_id = self.next_query_id
         self.next_query_id += 1
@@ -198,33 +198,62 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
         execution_result: Optional[ExecutionResult] = None
         subscription_id: Optional[str] = None
 
-        def _get_existing_subscription(d: dict) -> Subscription:
-            subscription_id = d.get("subscriptionId")
-            if subscription_id is not None:
-                subscription_id = str(subscription_id)
-            if subscription_id is None or subscription_id not in self.subscriptions:
-                raise ValueError("unregistered subscription id")
-            return self.subscriptions[subscription_id]
+        def _get_value(d: Any, key: str, label: str) -> Any:
+            if not isinstance(d, dict):
+                raise ValueError(f"{label} is not a dict")
+
+            return d.get(key)
+
+        def _required_value(d: Any, key: str, label: str) -> Any:
+            value = _get_value(d, key, label)
+            if value is None:
+                raise ValueError(f"null {key} in {label}")
+
+            return value
+
+        def _required_subscription_id(
+            d: Any, label: str, must_exist: bool = False, must_not_exist=False
+        ) -> str:
+            subscription_id = str(_required_value(d, "subscriptionId", label))
+            if must_exist and (subscription_id not in self.subscriptions):
+                raise ValueError("unregistered subscriptionId")
+            if must_not_exist and (subscription_id in self.subscriptions):
+                raise ValueError("previously registered subscriptionId")
+
+            return subscription_id
+
+        def _validate_response(d: Any, label: str) -> dict:
+            """Make sure query or mutation answer conforms.
+            The GraphQL spec says only three keys are permitted.
+            """
+            if not isinstance(d, dict):
+                raise ValueError(f"{label} is not a dict")
+
+            keys = set(d.keys())
+            invalid = keys - {"data", "errors", "extensions"}
+            if len(invalid) > 0:
+                raise ValueError(
+                    f"{label} contains invalid items: " + ", ".join(invalid)
+                )
+            return d
 
         try:
             json_answer = json.loads(answer)
 
-            event = str(json_answer.get("event"))
+            event = str(_required_value(json_answer, "event", "answer"))
 
             if event == "subscription:data":
-                payload = json_answer.get("payload")
+                payload = _required_value(json_answer, "payload", "answer")
 
-                if not isinstance(payload, dict):
-                    raise ValueError("payload is not a dict")
+                subscription_id = _required_subscription_id(
+                    payload, "payload", must_exist=True
+                )
 
-                subscription = _get_existing_subscription(payload)
-
-                result = payload.get("result")
-                if not isinstance(result, dict):
-                    raise ValueError("result is not a dict")
+                result = _validate_response(payload.get("result"), "result")
 
                 answer_type = "data"
 
+                subscription = self.subscriptions[subscription_id]
                 answer_id = subscription.listener_id
 
                 execution_result = ExecutionResult(
@@ -235,34 +264,31 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
 
             elif event == "phx_reply":
                 try:
-                    answer_id = int(json_answer.get("ref"))
-                except Exception:
+                    answer_id = int(_required_value(json_answer, "ref", "answer"))
+                except ValueError:  # pragma: no cover
+                    raise
+                except Exception:  # pragma: no cover
                     raise ValueError("ref is not an integer")
-
-                if answer_id == 0:
+                if answer_id == 0:  # pragma: no cover
                     raise ValueError("ref is zero")
 
-                payload = json_answer.get("payload")
+                payload = _required_value(json_answer, "payload", "answer")
 
-                if not isinstance(payload, dict):
-                    raise ValueError("payload is not a dict")
-
-                status = str(payload.get("status"))
+                status = _get_value(payload, "status", "payload")
+                if status is not None:
+                    status = str(status)
 
                 if status == "ok":
-                    response = payload.get("response")
-
                     answer_type = "reply"
 
                     if answer_id in self.listeners:
-                        # Query, mutation or subscription answer
-                        if not isinstance(response, dict):
-                            raise ValueError("response is not a dict")
-
-                        subscription_id = response.get("subscriptionId")
-                        if subscription_id is not None:
+                        operation_type = self.listeners[answer_id].operation
+                        if operation_type == "subscription":
                             # Subscription answer
-                            subscription_id = str(subscription_id)
+                            response = _required_value(payload, "response", "payload")
+                            subscription_id = _required_subscription_id(
+                                response, "response", must_not_exist=True
+                            )
                             self.subscriptions[subscription_id] = Subscription(
                                 answer_id
                             )
@@ -272,13 +298,8 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
                         else:
                             # Query or mutation answer
                             # GraphQL spec says only three keys are permitted
-                            keys = set(response.keys())
-                            invalid = keys - {"data", "errors", "extensions"}
-                            if len(invalid) > 0:
-                                raise ValueError(
-                                    "response contains invalid items: "
-                                    + ", ".join(invalid)
-                                )
+                            response = _required_value(payload, "response", "payload")
+                            response = _validate_response(response, "response")
 
                             answer_type = "data"
 
@@ -287,15 +308,23 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
                                 errors=response.get("errors"),
                                 extensions=response.get("extensions"),
                             )
+                    else:
+                        (
+                            registered_subscription_id,
+                            listener_id,
+                        ) = self._find_subscription(answer_id)
+                        if registered_subscription_id is not None:
+                            # Unsubscription answer
+                            response = _required_value(payload, "response", "payload")
+                            subscription_id = _required_subscription_id(
+                                response, "response"
+                            )
+                            if subscription_id != registered_subscription_id:
+                                raise ValueError("subscription id does not match")
 
-                    elif isinstance(response, dict) and "subscriptionId" in response:
-                        subscription = _get_existing_subscription(response)
-                        if answer_id != subscription.unsubscribe_id:
-                            raise ValueError("invalid unsubscribe answer id")
+                            answer_type = "unsubscribe"
 
-                        answer_type = "unsubscribe"
-
-                        answer_id = subscription.listener_id
+                            answer_id = listener_id
 
                 elif status == "error":
                     response = payload.get("response")
@@ -309,10 +338,13 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
                             raise TransportQueryError(
                                 str(response.get("reason")), query_id=answer_id
                             )
-                    raise ValueError("reply error")
+                    raise TransportQueryError("reply error", query_id=answer_id)
 
                 elif status == "timeout":
                     raise TransportQueryError("reply timeout", query_id=answer_id)
+                else:
+                    # missing or unrecognized status, just continue
+                    pass
 
             elif event == "phx_error":
                 # Sent if the channel has crashed
@@ -327,7 +359,7 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
         except ValueError as e:
             log.error(f"Error parsing answer '{answer}' " + repr(e))
             raise TransportProtocolError(
-                "Server did not return a GraphQL result"
+                "Server did not return a GraphQL result: " + str(e)
             ) from e
 
         return answer_type, answer_id, execution_result
@@ -348,24 +380,36 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
             await super()._handle_answer(answer_type, answer_id, execution_result)
 
     def _remove_listener(self, query_id) -> None:
+        """If the listener was a subscription, remove that information."""
         try:
-            subscription_id = self._find_subscription_id(query_id)
+            subscription_id = self._find_existing_subscription(query_id)
             del self.subscriptions[subscription_id]
         except Exception:
             pass
         super()._remove_listener(query_id)
 
-    def _find_subscription_id(self, query_id: int) -> str:
+    def _find_subscription(self, query_id: int) -> Tuple[Optional[str], int]:
         """Perform a reverse lookup to find the subscription id matching
         a listener's query_id.
         """
         for subscription_id, subscription in self.subscriptions.items():
-            if subscription.listener_id == query_id:
-                return subscription_id
+            if query_id == subscription.listener_id:
+                return subscription_id, query_id
+            if query_id == subscription.unsubscribe_id:
+                return subscription_id, subscription.listener_id
+        return None, query_id
 
-        raise TransportProtocolError(
-            f"No subscription registered for listener {query_id}"
-        )  # pragma: no cover
+    def _find_existing_subscription(self, query_id: int) -> str:
+        """Perform a reverse lookup to find the subscription id matching
+        a listener's query_id.
+        """
+        subscription_id, _listener_id = self._find_subscription(query_id)
+
+        if subscription_id is None:
+            raise TransportProtocolError(
+                f"No subscription registered for listener {query_id}"
+            )  # pragma: no cover
+        return subscription_id
 
     async def _close_coro(self, e: Exception, clean_close: bool = True) -> None:
         if self.heartbeat_task is not None:
