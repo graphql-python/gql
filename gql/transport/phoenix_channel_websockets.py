@@ -189,7 +189,7 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
 
         Returns a list consisting of:
             - the answer_type (between:
-              'heartbeat', 'data', 'reply', 'error', 'unsubscribe')
+              'heartbeat', 'data', 'reply', 'error', 'complete', 'close')
             - the answer id (Integer) if received or None
             - an execution Result if the answer_type is 'data' or None
         """
@@ -259,6 +259,11 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
                                 subscription_id
                             ] = answer_id
 
+                            log.debug(
+                                f"Saving query_id={answer_id} for "
+                                f"subscription_id={subscription_id}"
+                            )
+
                         else:
 
                             expected_id = self.subscription_ids_to_query_ids.get(
@@ -269,7 +274,12 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
                                 # Unsubscription reply
 
                                 answer_id = listener_query_id
-                                answer_type = "unsubscribe"
+                                answer_type = "complete"
+
+                                log.debug(
+                                    f"Sending complete with query_id={answer_id} "
+                                    f"for subscription_id={subscription_id}"
+                                )
 
                             else:
 
@@ -305,7 +315,7 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
                 raise ValueError
 
         except ValueError as e:
-            log.error(f"Error parsing answer '{answer}' " + repr(e))
+            log.error(f"Error parsing answer '{answer}': {e!r}")
             raise TransportProtocolError(
                 "Server did not return a GraphQL result"
             ) from e
@@ -318,11 +328,7 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
         answer_id: Optional[int],
         execution_result: Optional[ExecutionResult],
     ) -> None:
-        if answer_type == "unsubscribe":
-            # Remove the listener here, to possibly signal
-            # that it is the last listener in the session.
-            self._remove_listener(answer_id)
-        elif answer_type == "close":
+        if answer_type == "close":
             await self.close()
         else:
             await super()._handle_answer(answer_type, answer_id, execution_result)

@@ -130,7 +130,6 @@ async def server_countdown(ws, path):
                     assert subscription_id == test_subscription_id
 
                     print("Sending unsubscribe reply")
-                    counting_task.cancel()
                     await ws.send(
                         subscription_reply_template.format(
                             subscription_id=subscription_id,
@@ -138,6 +137,7 @@ async def server_countdown(ws, path):
                             query_id=query_id,
                         )
                     )
+                    counting_task.cancel()
 
         stopping_task = asyncio.ensure_future(stopping_coro())
 
@@ -146,12 +146,13 @@ async def server_countdown(ws, path):
         except asyncio.CancelledError:
             print("Now counting task is cancelled")
 
-        stopping_task.cancel()
-
+        # Waiting for a clean stop
         try:
-            await stopping_task
+            await asyncio.wait_for(stopping_task, 3)
         except asyncio.CancelledError:
             print("Now stopping task is cancelled")
+        except asyncio.TimeoutError:
+            print("Now stopping task is in timeout")
 
         # await PhoenixChannelServerHelper.send_close(ws)
     except websockets.exceptions.ConnectionClosedOK:
@@ -194,7 +195,7 @@ async def test_phoenix_channel_subscription(
     path = "/graphql"
     url = f"ws://{server.hostname}:{server.port}{path}"
     sample_transport = PhoenixChannelWebsocketsTransport(
-        channel_name=test_channel, url=url
+        channel_name=test_channel, url=url, close_timeout=5
     )
 
     count = 10
@@ -212,6 +213,7 @@ async def test_phoenix_channel_subscription(
                 # In more recent versions, 'break' will trigger __aexit__.
                 if sys.version_info < (3, 7):
                     await session._generator.aclose()
+                print("break")
                 break
 
             count -= 1

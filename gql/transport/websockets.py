@@ -486,12 +486,13 @@ class WebsocketsTransport(AsyncTransport):
                     break
 
         except (asyncio.CancelledError, GeneratorExit, TransportClosed) as e:
-            log.debug("Exception in subscribe: " + repr(e))
+            log.debug(f"Exception in subscribe: {e!r}")
             if listener.send_stop:
                 await self._send_stop_message(query_id)
                 listener.send_stop = False
 
         finally:
+            log.debug(f"In subscribe finally for query_id {query_id}")
             self._remove_listener(query_id)
 
     async def execute(
@@ -641,7 +642,7 @@ class WebsocketsTransport(AsyncTransport):
         try:
             await asyncio.wait_for(self._no_more_listeners.wait(), self.close_timeout)
         except asyncio.TimeoutError:  # pragma: no cover
-            pass
+            log.debug("Timer close_timeout fired")
 
         # Finally send the 'connection_terminate' message
         await self._send_connection_terminate_message()
