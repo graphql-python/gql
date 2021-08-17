@@ -502,7 +502,7 @@ class WebsocketsTransport(AsyncTransport):
                     )
                     break
 
-        except (asyncio.CancelledError, GeneratorExit, TransportClosed) as e:
+        except (asyncio.CancelledError, GeneratorExit) as e:
             log.debug(f"Exception in subscribe: {e!r}")
             if listener.send_stop:
                 await self._send_stop_message(query_id)

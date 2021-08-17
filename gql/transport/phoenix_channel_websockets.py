@@ -368,7 +368,7 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
         else:
             await super()._handle_answer(answer_type, answer_id, execution_result)
 
-    def _remove_listener(self, query_id) -> None:
+    def _remove_listener(self, query_id: int) -> None:
         """If the listener was a subscription, remove that information."""
         try:
             subscription_id = self._find_existing_subscription(query_id)
