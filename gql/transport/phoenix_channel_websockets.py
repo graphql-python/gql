@@ -187,7 +187,7 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
 
         Returns a list consisting of:
             - the answer_type (between:
-              'heartbeat', 'data', 'reply', 'error', 'unsubscribe')
+              'data', 'reply', 'complete', 'close')
             - the answer id (Integer) if received or None
             - an execution Result if the answer_type is 'data' or None
         """
@@ -293,8 +293,6 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
                                 answer_id
                             )
 
-                            # Confirm unsubscribe for subscriptions
-                            self.listeners[answer_id].send_stop = True
                         else:
                             # Query or mutation answer
                             # GraphQL spec says only three keys are permitted
@@ -322,7 +320,7 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
                             if subscription_id != registered_subscription_id:
                                 raise ValueError("subscription id does not match")
 
-                            answer_type = "unsubscribe"
+                            answer_type = "complete"
 
                             answer_id = listener_id
 
@@ -372,10 +370,6 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
     ) -> None:
         if answer_type == "close":
             await self.close()
-        elif answer_type == "unsubscribe":
-            # Remove the listener here, to possibly signal
-            # that it is the last listener in the session.
-            self._remove_listener(answer_id)
         else:
             await super()._handle_answer(answer_type, answer_id, execution_result)
 
