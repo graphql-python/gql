@@ -10,8 +10,6 @@ from gql.transport.exceptions import (
 # Marking all tests in this file with the websockets marker
 pytestmark = pytest.mark.websockets
 
-# 210, 219, 234, 239, 272-275, 277, 327
-
 
 def ensure_list(s):
     return (
