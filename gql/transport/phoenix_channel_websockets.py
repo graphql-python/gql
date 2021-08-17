@@ -263,20 +263,14 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
                 )
 
             elif event == "phx_reply":
-                try:
-                    answer_id = int(_required_value(json_answer, "ref", "answer"))
-                except ValueError:  # pragma: no cover
-                    raise
-                except Exception:  # pragma: no cover
-                    raise ValueError("ref is not an integer")
-                if answer_id == 0:  # pragma: no cover
-                    raise ValueError("ref is zero")
+
+                # Will generate a ValueError if 'ref' is not there
+                # or if it is not an integer
+                answer_id = int(_required_value(json_answer, "ref", "answer"))
 
                 payload = _required_value(json_answer, "payload", "answer")
 
                 status = _get_value(payload, "status", "payload")
-                if status is not None:
-                    status = str(status)
 
                 if status == "ok":
                     answer_type = "reply"
@@ -317,6 +311,7 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
                             subscription_id = _required_subscription_id(
                                 response, "response"
                             )
+
                             if subscription_id != registered_subscription_id:
                                 raise ValueError("subscription id does not match")
 
@@ -357,7 +352,7 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
         except ValueError as e:
             log.error(f"Error parsing answer '{answer}': {e!r}")
             raise TransportProtocolError(
-                "Server did not return a GraphQL result: " + str(e)
+                f"Server did not return a GraphQL result: {e!s}"
             ) from e
 
         return answer_type, answer_id, execution_result
@@ -402,7 +397,7 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
         if subscription_id is None:
             raise TransportProtocolError(
                 f"No subscription registered for listener {query_id}"
-            )  # pragma: no cover
+            )
         return subscription_id
 
     async def _close_coro(self, e: Exception, clean_close: bool = True) -> None:

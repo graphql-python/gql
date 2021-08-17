@@ -1,3 +1,5 @@
+import asyncio
+
 import pytest
 
 from gql import Client, gql
@@ -6,6 +8,8 @@ from gql.transport.exceptions import (
     TransportQueryError,
     TransportServerError,
 )
+
+from .conftest import MS
 
 # Marking all tests in this file with the websockets marker
 pytestmark = pytest.mark.websockets
@@ -223,6 +227,23 @@ default_subscription_server_answer = (
     '"topic":"test_topic"}'
 )
 
+ref_is_not_an_integer_server_answer = (
+    '{"event":"phx_reply",'
+    '"payload":'
+    '{"response":{"subscriptionId":"test_subscription"},'
+    '"status":"ok"},'
+    '"ref":"not_an_integer",'
+    '"topic":"test_topic"}'
+)
+
+missing_ref_server_answer = (
+    '{"event":"phx_reply",'
+    '"payload":'
+    '{"response":{"subscriptionId":"test_subscription"},'
+    '"status":"ok"},'
+    '"topic":"test_topic"}'
+)
+
 missing_subscription_id_server_answer = (
     '{"event":"phx_reply",'
     '"payload":'
@@ -377,6 +398,8 @@ def subscription_server(
         subscription_server(data_answers=missing_subscription_id_data_answer),
         subscription_server(data_answers=null_subscription_id_data_answer),
         subscription_server(data_answers=invalid_subscription_id_data_answer),
+        subscription_server(data_answers=ref_is_not_an_integer_server_answer),
+        subscription_server(data_answers=missing_ref_server_answer),
         subscription_server(data_answers=invalid_payload_data_answer),
         subscription_server(data_answers=invalid_result_data_answer),
         subscription_server(data_answers=invalid_result_keys_data_answer),
@@ -402,6 +425,7 @@ async def test_phoenix_channel_subscription_protocol_error(
     with pytest.raises(TransportProtocolError):
         async with Client(transport=sample_transport) as session:
             async for _result in session.subscribe(query):
+                await asyncio.sleep(10 * MS)
                 break
 
 
@@ -461,3 +485,33 @@ async def test_phoenix_channel_unsubscribe_error(event_loop, server, query_str):
     async with Client(transport=sample_transport) as session:
         async for _result in session.subscribe(query):
             break
+
+
+# We can force the error if somehow the generator is still running while
+# we receive a mismatched unsubscribe answer
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "server",
+    [subscription_server(unsubscribe_answers=mismatched_unsubscribe_answer)],
+    indirect=True,
+)
+@pytest.mark.parametrize("query_str", [query2_str])
+async def test_phoenix_channel_unsubscribe_error_forcing(event_loop, server, query_str):
+
+    from gql.transport.phoenix_channel_websockets import (
+        PhoenixChannelWebsocketsTransport,
+    )
+
+    path = "/graphql"
+    url = f"ws://{server.hostname}:{server.port}{path}"
+
+    sample_transport = PhoenixChannelWebsocketsTransport(
+        channel_name="test_channel", url=url, close_timeout=1
+    )
+
+    query = gql(query_str)
+    with pytest.raises(TransportProtocolError):
+        async with Client(transport=sample_transport) as session:
+            async for _result in session.subscribe(query):
+                await session.transport._send_stop_message(2)
+                await asyncio.sleep(10 * MS)
