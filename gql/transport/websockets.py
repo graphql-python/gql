@@ -6,8 +6,7 @@ from ssl import SSLContext
 from typing import Any, AsyncGenerator, Dict, Optional, Tuple, Union, cast
 
 import websockets
-from graphql import DocumentNode, ExecutionResult, OperationType, print_ast
-from graphql.utilities import get_operation_ast
+from graphql import DocumentNode, ExecutionResult, print_ast
 from websockets.client import WebSocketClientProtocol
 from websockets.datastructures import HeadersLike
 from websockets.exceptions import ConnectionClosed
@@ -35,17 +34,8 @@ class ListenerQueue:
     to the consumer once all the previous messages have been consumed from the queue
     """
 
-    def __init__(
-        self, query_id: int, operation_type: Optional[OperationType], send_stop: bool
-    ) -> None:
-        operation: str = "query"
-        if operation_type is not None:
-            if operation_type == OperationType.MUTATION:  # pragma: no cover
-                operation = "mutation"
-            elif operation_type == OperationType.SUBSCRIPTION:
-                operation = "subscription"
+    def __init__(self, query_id: int, send_stop: bool) -> None:
         self.query_id: int = query_id
-        self.operation: str = operation
         self.send_stop: bool = send_stop
         self._queue: asyncio.Queue = asyncio.Queue()
         self._closed: bool = False
@@ -468,14 +458,7 @@ class WebsocketsTransport(AsyncTransport):
         )
 
         # Create a queue to receive the answers for this query_id
-        operation_type = None
-        operation = get_operation_ast(document, operation_name)
-        if operation is not None:
-            operation_type = operation.operation
-
-        listener = ListenerQueue(
-            query_id, operation_type, send_stop=(send_stop is True)
-        )
+        listener = ListenerQueue(query_id, send_stop=(send_stop is True))
         self.listeners[query_id] = listener
 
         # We will need to wait at close for this query to clean properly

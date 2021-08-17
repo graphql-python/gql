@@ -222,8 +222,8 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
 
             return subscription_id
 
-        def _validate_response(d: Any, label: str) -> dict:
-            """Make sure query or mutation answer conforms.
+        def _validate_data_response(d: Any, label: str) -> dict:
+            """Make sure query, mutation or subscription answer conforms.
             The GraphQL spec says only three keys are permitted.
             """
             if not isinstance(d, dict):
@@ -249,7 +249,7 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
                     payload, "payload", must_exist=True
                 )
 
-                result = _validate_response(payload.get("result"), "result")
+                result = _validate_data_response(payload.get("result"), "result")
 
                 answer_type = "data"
 
@@ -276,13 +276,15 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
                     answer_type = "reply"
 
                     if answer_id in self.listeners:
-                        operation_type = self.listeners[answer_id].operation
-                        if operation_type == "subscription":
+                        response = _required_value(payload, "response", "payload")
+
+                        if isinstance(response, dict) and "subscriptionId" in response:
+
                             # Subscription answer
-                            response = _required_value(payload, "response", "payload")
                             subscription_id = _required_subscription_id(
                                 response, "response", must_not_exist=True
                             )
+
                             self.subscriptions[subscription_id] = Subscription(
                                 answer_id
                             )
@@ -290,8 +292,7 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
                         else:
                             # Query or mutation answer
                             # GraphQL spec says only three keys are permitted
-                            response = _required_value(payload, "response", "payload")
-                            response = _validate_response(response, "response")
+                            response = _validate_data_response(response, "response")
 
                             answer_type = "data"
 
