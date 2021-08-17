@@ -221,6 +221,64 @@ async def test_phoenix_channel_subscription(
     assert count == end_count
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("server", [server_countdown], indirect=True)
+@pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
+async def test_phoenix_channel_subscription_no_break(
+    event_loop, server, subscription_str
+):
+    import logging
+
+    from gql.transport.phoenix_channel_websockets import (
+        PhoenixChannelWebsocketsTransport,
+    )
+    from gql.transport.phoenix_channel_websockets import log as phoenix_logger
+    from gql.transport.websockets import log as websockets_logger
+
+    websockets_logger.setLevel(logging.DEBUG)
+    phoenix_logger.setLevel(logging.DEBUG)
+
+    path = "/graphql"
+    url = f"ws://{server.hostname}:{server.port}{path}"
+
+    async def testing_stopping_without_break():
+
+        sample_transport = PhoenixChannelWebsocketsTransport(
+            channel_name=test_channel, url=url, close_timeout=5
+        )
+
+        count = 10
+        subscription = gql(subscription_str.format(count=count))
+
+        async with Client(transport=sample_transport) as session:
+            async for result in session.subscribe(subscription):
+                number = result["countdown"]["number"]
+                print(f"Number received: {number}")
+
+                # Simulate a slow consumer
+                await asyncio.sleep(0.1)
+
+                if number == 9:
+                    # When we consume the number 9 here in the async generator,
+                    # all the 10 numbers have already been sent by the backend and
+                    # are present in the listener queue
+                    # we simulate here an unsubscribe message
+                    # In that case, all the 10 numbers should be consumed in the
+                    # generator and then the generator should be closed properly
+                    await session.transport._send_stop_message(2)
+
+                assert number == count
+
+                count -= 1
+
+        assert count == -1
+
+    try:
+        await asyncio.wait_for(testing_stopping_without_break(), timeout=5)
+    except asyncio.TimeoutError:
+        assert False, "The async generator did not stop"
+
+
 heartbeat_data_template = (
     "{{"
     '"topic":"{subscription_id}",'
