@@ -103,6 +103,7 @@ class RequestsHTTPTransport(Transport):
         variable_values: Optional[Dict[str, Any]] = None,
         operation_name: Optional[str] = None,
         timeout: Optional[int] = None,
+        extra_args: Dict[str, Any] = None,
     ) -> ExecutionResult:
         """Execute GraphQL query.
 
@@ -114,6 +115,7 @@ class RequestsHTTPTransport(Transport):
         :param operation_name: Name of the operation that shall be executed.
             Only required in multi-operation documents (Default: None).
         :param timeout: Specifies a default timeout for requests (Default: None).
+        :param extra_args: additional arguments to send to the http post method
         :return: The result of execution.
             `data` is the result of executing the query, `errors` is null
             if no errors occurred, and is a non-empty array if an error occurred.
@@ -145,7 +147,8 @@ class RequestsHTTPTransport(Transport):
 
         # Pass kwargs to requests post method
         post_args.update(self.kwargs)
-
+        if extra_args:
+            post_args.update(extra_args)
         # Using the created session to perform requests
         response = self.session.request(
             self.method, self.url, **post_args  # type: ignore
