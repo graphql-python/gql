@@ -175,8 +175,9 @@ class WebsocketsTransport(AsyncTransport):
         """Wait the next message from the websocket connection and log the answer
         """
 
-        # We should always have an active websocket connection here
-        assert self.websocket is not None
+        # It is possible that the websocket has been already closed in another task
+        if self.websocket is None:
+            raise TransportClosed("Transport is already closed")
 
         # Wait for the next websocket frame. Can raise ConnectionClosed
         data: Data = await self.websocket.recv()
@@ -387,6 +388,8 @@ class WebsocketsTransport(AsyncTransport):
                 except (ConnectionClosed, TransportProtocolError) as e:
                     await self._fail(e, clean_close=False)
                     break
+                except TransportClosed:
+                    break
 
                 # Parse the answer
                 try:
@@ -483,15 +486,14 @@ class WebsocketsTransport(AsyncTransport):
                     break
 
         except (asyncio.CancelledError, GeneratorExit) as e:
-            log.debug("Exception in subscribe: " + repr(e))
+            log.debug(f"Exception in subscribe: {e!r}")
             if listener.send_stop:
                 await self._send_stop_message(query_id)
                 listener.send_stop = False
 
         finally:
-            del self.listeners[query_id]
-            if len(self.listeners) == 0:
-                self._no_more_listeners.set()
+            log.debug(f"In subscribe finally for query_id {query_id}")
+            self._remove_listener(query_id)
 
     async def execute(
         self,
@@ -609,6 +611,19 @@ class WebsocketsTransport(AsyncTransport):
 
         log.debug("connect: done")
 
+    def _remove_listener(self, query_id) -> None:
+        """After exiting from a subscription, remove the listener and
+        signal an event if this was the last listener for the client.
+        """
+        if query_id in self.listeners:
+            del self.listeners[query_id]
+
+        remaining = len(self.listeners)
+        log.debug(f"listener {query_id} deleted, {remaining} remaining")
+
+        if remaining == 0:
+            self._no_more_listeners.set()
+
     async def _clean_close(self, e: Exception) -> None:
         """Coroutine which will:
 
@@ -627,7 +642,7 @@ class WebsocketsTransport(AsyncTransport):
         try:
             await asyncio.wait_for(self._no_more_listeners.wait(), self.close_timeout)
         except asyncio.TimeoutError:  # pragma: no cover
-            pass
+            log.debug("Timer close_timeout fired")
 
         # Finally send the 'connection_terminate' message
         await self._send_connection_terminate_message()
