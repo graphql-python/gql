@@ -338,4 +338,48 @@ interactions:
     status:
       code: 200
       message: OK
+- request:
+    body: '{"query": "query Planet($id: ID!) {\n  planet(id: $id) {\n    id\n    name\n  }\n}\n"}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '86'
+      Content-Type:
+      - application/json
+      Cookie:
+      - csrftoken=kAyQyUjNOGXZfkKUtWtvUROaFfDe2GBiV7yIRsqs3r2j9aYchRDXTNo3lHp72h5k;
+        csrftoken=kAyQyUjNOGXZfkKUtWtvUROaFfDe2GBiV7yIRsqs3r2j9aYchRDXTNo3lHp72h5k
+      User-Agent:
+      - python-requests/2.26.0
+      authorization:
+      - xxx-123
+    method: POST
+    uri: http://127.0.0.1:8000/graphql
+  response:
+    body:
+      string: '{"data":{"planet":{"id":"UGxhbmV0OjEx","name":"Geonosis"}}}'
+    headers:
+      Content-Length:
+      - '59'
+      Content-Type:
+      - application/json
+      Date:
+      - Fri, 06 Nov 2020 11:30:21 GMT
+      Server:
+      - WSGIServer/0.1 Python/2.7.18
+      Set-Cookie:
+      - csrftoken=kAyQyUjNOGXZfkKUtWtvUROaFfDe2GBiV7yIRsqs3r2j9aYchRDXTNo3lHp72h5k;
+        expires=Fri, 05-Nov-2021 11:30:21 GMT; Max-Age=31449600; Path=/
+      Vary:
+      - Cookie
+      X-Frame-Options:
+      - SAMEORIGIN
+    status:
+      code: 200
+      message: OK
 version: 1
