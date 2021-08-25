@@ -46,7 +46,7 @@ class Client:
         type_def: Optional[str] = None,
         transport: Optional[Union[Transport, AsyncTransport]] = None,
         fetch_schema_from_transport: bool = False,
-        execute_timeout: Optional[int] = 10,
+        execute_timeout: Optional[Union[int, float]] = 10,
     ):
         """Initialize the client with the given parameters.
 
@@ -57,6 +57,7 @@ class Client:
                 the schema from the transport using an introspection query
         :param execute_timeout: The maximum time in seconds for the execution of a
                 request before a TimeoutError is raised. Only used for async transports.
+                Passing None results in waiting forever for a response.
         """
         assert not (
             type_def and introspection
