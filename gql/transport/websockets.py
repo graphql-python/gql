@@ -92,10 +92,10 @@ class WebsocketsTransport(AsyncTransport):
         headers: Optional[HeadersLike] = None,
         ssl: Union[SSLContext, bool] = False,
         init_payload: Dict[str, Any] = {},
-        connect_timeout: int = 10,
-        close_timeout: int = 10,
-        ack_timeout: int = 10,
-        keep_alive_timeout: Optional[int] = None,
+        connect_timeout: Optional[Union[int, float]] = 10,
+        close_timeout: Optional[Union[int, float]] = 10,
+        ack_timeout: Optional[Union[int, float]] = 10,
+        keep_alive_timeout: Optional[Union[int, float]] = None,
         connect_args: Dict[str, Any] = {},
     ) -> None:
         """Initialize the transport with the given parameters.
@@ -105,10 +105,11 @@ class WebsocketsTransport(AsyncTransport):
         :param ssl: ssl_context of the connection. Use ssl=False to disable encryption
         :param init_payload: Dict of the payload sent in the connection_init message.
         :param connect_timeout: Timeout in seconds for the establishment
-            of the websocket connection.
-        :param close_timeout: Timeout in seconds for the close.
+            of the websocket connection. If None is provided this will wait forever.
+        :param close_timeout: Timeout in seconds for the close. If None is provided
+            this will wait forever.
         :param ack_timeout: Timeout in seconds to wait for the connection_ack message
-            from the server.
+            from the server. If None is provided this will wait forever.
         :param keep_alive_timeout: Optional Timeout in seconds to receive
             a sign of liveness from the server.
         :param connect_args: Other parameters forwarded to websockets.connect
@@ -118,10 +119,10 @@ class WebsocketsTransport(AsyncTransport):
         self.headers: Optional[HeadersLike] = headers
         self.init_payload: Dict[str, Any] = init_payload
 
-        self.connect_timeout: int = connect_timeout
-        self.close_timeout: int = close_timeout
-        self.ack_timeout: int = ack_timeout
-        self.keep_alive_timeout: Optional[int] = keep_alive_timeout
+        self.connect_timeout: Optional[Union[int, float]] = connect_timeout
+        self.close_timeout: Optional[Union[int, float]] = close_timeout
+        self.ack_timeout: Optional[Union[int, float]] = ack_timeout
+        self.keep_alive_timeout: Optional[Union[int, float]] = keep_alive_timeout
 
         self.connect_args = connect_args
 
@@ -156,8 +157,7 @@ class WebsocketsTransport(AsyncTransport):
         self.close_exception: Optional[Exception] = None
 
     async def _send(self, message: str) -> None:
-        """Send the provided message to the websocket connection and log the message
-        """
+        """Send the provided message to the websocket connection and log the message"""
 
         if not self.websocket:
             raise TransportClosed(
@@ -172,8 +172,7 @@ class WebsocketsTransport(AsyncTransport):
             raise e
 
     async def _receive(self) -> str:
-        """Wait the next message from the websocket connection and log the answer
-        """
+        """Wait the next message from the websocket connection and log the answer"""
 
         # It is possible that the websocket has been already closed in another task
         if self.websocket is None:
@@ -194,8 +193,7 @@ class WebsocketsTransport(AsyncTransport):
         return answer
 
     async def _wait_ack(self) -> None:
-        """Wait for the connection_ack message. Keep alive messages are ignored
-        """
+        """Wait for the connection_ack message. Keep alive messages are ignored"""
 
         while True:
             init_answer = await self._receive()
@@ -575,7 +573,7 @@ class WebsocketsTransport(AsyncTransport):
             # Set the _connecting flag to False after in all cases
             try:
                 self.websocket = await asyncio.wait_for(
-                    websockets.client.connect(self.url, **connect_args,),
+                    websockets.client.connect(self.url, **connect_args),
                     self.connect_timeout,
                 )
             finally:
