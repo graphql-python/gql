@@ -17,6 +17,7 @@ from graphql import (
     GraphQLObjectType,
     GraphQLSchema,
     GraphQLWrappingType,
+    InlineFragmentNode,
     ListTypeNode,
     ListValueNode,
     NamedTypeNode,
@@ -407,6 +408,10 @@ class DSLField:
     method.
     """
 
+    _type: Union[GraphQLObjectType, GraphQLInterfaceType]
+    ast_field: FieldNode
+    field: GraphQLField
+
     def __init__(
         self,
         name: str,
@@ -423,11 +428,9 @@ class DSLField:
         :param graphql_type: the GraphQL type definition from the schema
         :param graphql_field: the GraphQL field definition from the schema
         """
-        self._type: Union[GraphQLObjectType, GraphQLInterfaceType] = graphql_type
-        self.field: GraphQLField = graphql_field
-        self.ast_field: FieldNode = FieldNode(
-            name=NameNode(value=name), arguments=FrozenList()
-        )
+        self._type = graphql_type
+        self.field = graphql_field
+        self.ast_field = FieldNode(name=NameNode(value=name), arguments=FrozenList())
         log.debug(f"Creating {self!r}")
 
     @staticmethod
@@ -585,7 +588,25 @@ class DSLField:
         return print_ast(self.ast_field)
 
     def __repr__(self) -> str:
-        return (
-            f"<{self.__class__.__name__} {self._type.name}"
-            f"::{self.ast_field.name.value}>"
+        name = self._type.name
+        try:
+            name += f"::{self.ast_field.name.value}"
+        except AttributeError:
+            pass
+        return f"<{self.__class__.__name__} {name}>"
+
+
+class DSLFragment(DSLField):
+    def __init__(
+        self, type_condition: Optional[DSLType] = None,
+    ):
+        self.ast_field = InlineFragmentNode()  # type: ignore
+        if type_condition:
+            self.on(type_condition)
+
+    def on(self, type_condition: DSLType):
+        self._type = type_condition._type
+        self.ast_field.type_condition = NamedTypeNode(  # type: ignore
+            name=NameNode(value=self._type.name)
         )
+        return self

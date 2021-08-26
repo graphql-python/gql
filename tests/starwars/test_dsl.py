@@ -15,6 +15,7 @@ from graphql import (
 
 from gql import Client
 from gql.dsl import (
+    DSLFragment,
     DSLMutation,
     DSLQuery,
     DSLSchema,
@@ -414,6 +415,24 @@ mutation CreateReviewMutation {
 }
 """
     )
+
+
+def test_inline_fragments(ds):
+    query = """hero(episode: JEDI) {
+  name
+  ... on Droid {
+    primaryFunction
+  }
+  ... on Human {
+    homePlanet
+  }
+}"""
+    query_dsl = ds.Query.hero.args(episode=6).select(
+        ds.Character.name,
+        DSLFragment().on(ds.Droid).select(ds.Droid.primaryFunction),
+        DSLFragment().on(ds.Human).select(ds.Human.homePlanet),
+    )
+    assert query == str(query_dsl)
 
 
 def test_dsl_query_all_fields_should_be_instances_of_DSLField():
