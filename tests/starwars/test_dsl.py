@@ -188,6 +188,14 @@ hero {
     )
     assert query == str(query_dsl)
 
+    # Should also work with a chain of selects
+    query_dsl = (
+        ds.Query.hero.select(ds.Character.id)
+        .select(ds.Character.name)
+        .select(ds.Character.friends.select(ds.Character.name,),)
+    )
+    assert query == str(query_dsl)
+
 
 def test_hero_id_and_name(ds):
     query = """
@@ -243,6 +251,10 @@ luke: human(id: "1000") {
 }
     """.strip()
     query_dsl = ds.Query.human.args(id=1000).alias("luke").select(ds.Character.name,)
+    assert query == str(query_dsl)
+
+    # Should also work with select before alias
+    query_dsl = ds.Query.human.args(id=1000).select(ds.Character.name,).alias("luke")
     assert query == str(query_dsl)
 
 
