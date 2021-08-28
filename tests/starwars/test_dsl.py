@@ -435,6 +435,13 @@ def test_inline_fragments(ds):
     assert query == str(query_dsl)
 
 
+def test_inline_fragments_repr(ds):
+
+    assert repr(DSLFragment()) == "<DSLFragment>"
+
+    assert repr(DSLFragment().on(ds.Droid)) == "<DSLFragment on Droid>"
+
+
 def test_dsl_query_all_fields_should_be_instances_of_DSLField():
     with pytest.raises(
         TypeError, match="fields must be instances of DSLField. Received type:"

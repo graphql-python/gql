@@ -245,7 +245,7 @@ class DSLOperation(ABC):
         self.variable_definitions: DSLVariableDefinitions = DSLVariableDefinitions()
 
         # Concatenate fields without and with alias
-        all_fields: Tuple["DSLField", ...] = DSLField.get_aliased_fields(
+        all_fields: Tuple["DSLSelection", ...] = DSLField.get_aliased_fields(
             fields, fields_with_alias
         )
 
@@ -265,7 +265,7 @@ class DSLOperation(ABC):
             )
 
         self.selection_set: SelectionSetNode = SelectionSetNode(
-            selections=FrozenList(DSLField.get_ast_fields(all_fields))
+            selections=FrozenList(DSLSelection.get_ast_fields(all_fields))
         )
 
 
@@ -397,7 +397,111 @@ class DSLType:
         return f"<{self.__class__.__name__} {self._type!r}>"
 
 
-class DSLField:
+class DSLSelection(ABC):
+    """DSLSelection is an abstract class which define the
+    :meth:`select <gql.dsl.DSLSelection.select>` method to select
+    children fields in the query.
+
+    subclasses:
+        :class:`DSLField`
+        :class:`DSLFragment`
+    """
+
+    _type: Union[GraphQLObjectType, GraphQLInterfaceType]
+    ast_field: Union[FieldNode, InlineFragmentNode]
+
+    @staticmethod
+    def get_ast_fields(
+        fields: Iterable["DSLSelection"],
+    ) -> List[Union[FieldNode, InlineFragmentNode]]:
+        """
+        :meta private:
+
+        Equivalent to: :code:`[field.ast_field for field in fields]`
+        But with a type check for each field in the list.
+
+        :raises TypeError: if any of the provided fields are not instances
+                           of the :class:`DSLSelection` class.
+        """
+        ast_fields = []
+        for field in fields:
+            if isinstance(field, DSLSelection):
+                ast_fields.append(field.ast_field)
+            else:
+                raise TypeError(f'Received incompatible field: "{field}".')
+
+        return ast_fields
+
+    @staticmethod
+    def get_aliased_fields(
+        fields: Iterable["DSLSelection"], fields_with_alias: Dict[str, "DSLField"]
+    ) -> Tuple["DSLSelection", ...]:
+        """
+        :meta private:
+
+        Concatenate all the fields (with or without alias) in a Tuple.
+
+        Set the requested alias for the fields with alias.
+        """
+
+        return (
+            *fields,
+            *(field.alias(alias) for alias, field in fields_with_alias.items()),
+        )
+
+    def select(
+        self, *fields: "DSLSelection", **fields_with_alias: "DSLField"
+    ) -> "DSLSelection":
+        r"""Select the new children fields
+        that we want to receive in the request.
+
+        If used multiple times, we will add the new children fields
+        to the existing children fields.
+
+        :param \*fields: new children fields
+        :type \*fields: DSLSelection (DSLField or DSLFragment)
+        :param \**fields_with_alias: new children fields with alias as key
+        :type \**fields_with_alias: DSLField
+        :return: itself
+
+        :raises TypeError: if any of the provided fields are not instances
+                           of the :class:`DSLSelection` class.
+        """
+
+        # Concatenate fields without and with alias
+        added_fields: Tuple["DSLSelection", ...] = self.get_aliased_fields(
+            fields, fields_with_alias
+        )
+
+        added_selections: List[
+            Union[FieldNode, InlineFragmentNode]
+        ] = self.get_ast_fields(added_fields)
+
+        current_selection_set: Optional[SelectionSetNode] = self.ast_field.selection_set
+
+        if current_selection_set is None:
+            self.ast_field.selection_set = SelectionSetNode(
+                selections=FrozenList(added_selections)
+            )
+        else:
+            current_selection_set.selections = FrozenList(
+                current_selection_set.selections + added_selections
+            )
+
+        log.debug(f"Added fields: {fields} in {self!r}")
+
+        return self
+
+    @property
+    def type_name(self):
+        """:meta private:"""
+        return self._type.name
+
+    def __str__(self) -> str:
+        return print_ast(self.ast_field)
+
+
+class DSLField(DSLSelection):
     """The DSLField represents a GraphQL field for the DSL code.
 
     Instances of this class are generated for you automatically as attributes
@@ -408,7 +512,6 @@ class DSLField:
     method.
     """
 
-    _type: Union[GraphQLObjectType, GraphQLInterfaceType]
     ast_field: FieldNode
     field: GraphQLField
 
@@ -433,83 +536,13 @@ class DSLField:
         self.ast_field = FieldNode(name=NameNode(value=name), arguments=FrozenList())
         log.debug(f"Creating {self!r}")
 
-    @staticmethod
-    def get_ast_fields(fields: Iterable["DSLField"]) -> List[FieldNode]:
-        """
-        :meta private:
-
-        Equivalent to: :code:`[field.ast_field for field in fields]`
-        But with a type check for each field in the list.
-
-        :raises TypeError: if any of the provided fields are not instances
-                           of the :class:`DSLField` class.
-        """
-        ast_fields = []
-        for field in fields:
-            if isinstance(field, DSLField):
-                ast_fields.append(field.ast_field)
-            else:
-                raise TypeError(f'Received incompatible field: "{field}".')
-
-        return ast_fields
-
-    @staticmethod
-    def get_aliased_fields(
-        fields: Iterable["DSLField"], fields_with_alias: Dict[str, "DSLField"]
-    ) -> Tuple["DSLField", ...]:
-        """
-        :meta private:
-
-        Concatenate all the fields (with or without alias) in a Tuple.
-
-        Set the requested alias for the fields with alias.
-        """
-
-        return (
-            *fields,
-            *(field.alias(alias) for alias, field in fields_with_alias.items()),
-        )
-
     def select(
-        self, *fields: "DSLField", **fields_with_alias: "DSLField"
+        self, *fields: "DSLSelection", **fields_with_alias: "DSLField"
     ) -> "DSLField":
-        r"""Select the new children fields
-        that we want to receive in the request.
-
-        If used multiple times, we will add the new children fields
-        to the existing children fields.
-
-        :param \*fields: new children fields
-        :type \*fields: DSLField
-        :param \**fields_with_alias: new children fields with alias as key
-        :type \**fields_with_alias: DSLField
-        :return: itself
-
-        :raises TypeError: if any of the provided fields are not instances
-                           of the :class:`DSLField` class.
+        """Calling :meth:`select <gql.dsl.DSLSelection.select>` method with
+        corrected typing hints
         """
-
-        # Concatenate fields without and with alias
-        added_fields: Tuple["DSLField", ...] = self.get_aliased_fields(
-            fields, fields_with_alias
-        )
-
-        added_selections: List[FieldNode] = self.get_ast_fields(added_fields)
-
-        current_selection_set: Optional[SelectionSetNode] = self.ast_field.selection_set
-
-        if current_selection_set is None:
-            self.ast_field.selection_set = SelectionSetNode(
-                selections=FrozenList(added_selections)
-            )
-        else:
-            current_selection_set.selections = FrozenList(
-                current_selection_set.selections + added_selections
-            )
-
-        log.debug(f"Added fields: {fields} in {self!r}")
-
-        return self
+        return cast("DSLField", super().select(*fields, **fields_with_alias))
 
     def __call__(self, **kwargs) -> "DSLField":
         return self.args(**kwargs)
@@ -519,7 +552,7 @@ class DSLField:
 
         .. note::
             You can also pass the alias directly at the
-            :meth:`select <gql.dsl.DSLField.select>` method.
+            :meth:`select <gql.dsl.DSLSelection.select>` method.
             :code:`ds.Query.human.select(my_name=ds.Character.name)` is equivalent to:
             :code:`ds.Query.human.select(ds.Character.name.alias("my_name"))`
 
@@ -579,34 +612,41 @@ class DSLField:
 
         return arg
 
-    @property
-    def type_name(self):
-        """:meta private:"""
-        return self._type.name
-
-    def __str__(self) -> str:
-        return print_ast(self.ast_field)
-
     def __repr__(self) -> str:
-        name = self._type.name
-        try:
-            name += f"::{self.ast_field.name.value}"
-        except AttributeError:
-            pass
-        return f"<{self.__class__.__name__} {name}>"
+        return (
+            f"<{self.__class__.__name__} {self._type.name}"
+            f"::{self.ast_field.name.value}>"
+        )
 
 
-class DSLFragment(DSLField):
-    def __init__(
-        self, type_condition: Optional[DSLType] = None,
-    ):
-        self.ast_field = InlineFragmentNode()  # type: ignore
-        if type_condition:
-            self.on(type_condition)
+class DSLFragment(DSLSelection):
+
+    ast_field: InlineFragmentNode
+
+    def __init__(self):
+        self.ast_field = InlineFragmentNode()
+
+    def select(
+        self, *fields: "DSLSelection", **fields_with_alias: "DSLField"
+    ) -> "DSLFragment":
+        """Calling :meth:`select <gql.dsl.DSLSelection.select>` method with
+        corrected typing hints
+        """
+        return cast("DSLFragment", super().select(*fields, **fields_with_alias))
 
     def on(self, type_condition: DSLType):
         self._type = type_condition._type
-        self.ast_field.type_condition = NamedTypeNode(  # type: ignore
+        self.ast_field.type_condition = NamedTypeNode(
             name=NameNode(value=self._type.name)
         )
         return self
+
+    def __repr__(self) -> str:
+        type_info = ""
+
+        try:
+            type_info += f" on {self._type.name}"
+        except AttributeError:
+            pass
+
+        return f"<{self.__class__.__name__}{type_info}>"
