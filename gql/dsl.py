@@ -1,11 +1,13 @@
 import logging
-from abc import ABC
+from abc import ABC, abstractmethod
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple, Union, cast
 
 from graphql import (
     ArgumentNode,
     DocumentNode,
     FieldNode,
+    FragmentDefinitionNode,
+    FragmentSpreadNode,
     GraphQLArgument,
     GraphQLField,
     GraphQLInputObjectType,
@@ -110,10 +112,10 @@ def ast_from_value(value: Any, type_: GraphQLInputType) -> Optional[ValueNode]:
 
 
 def dsl_gql(
-    *operations: "DSLOperation", **operations_with_name: "DSLOperation"
+    *operations: "DSLExecutable", **operations_with_name: "DSLExecutable"
 ) -> DocumentNode:
-    r"""Given arguments instances of :class:`DSLOperation`
-    containing GraphQL operations,
+    r"""Given arguments instances of :class:`DSLExecutable`
+    containing GraphQL operations or fragments,
     generate a Document which can be executed later in a
     gql client or a gql session.
 
@@ -133,11 +135,11 @@ def dsl_gql(
         :class:`async session <gql.client.AsyncClientSession>` or by a
         :class:`sync session <gql.client.SyncClientSession>`
 
-    :raises TypeError: if an argument is not an instance of :class:`DSLOperation`
+    :raises TypeError: if an argument is not an instance of :class:`DSLExecutable`
     """
 
     # Concatenate operations without and with name
-    all_operations: Tuple["DSLOperation", ...] = (
+    all_operations: Tuple["DSLExecutable", ...] = (
         *operations,
         *(operation for operation in operations_with_name.values()),
     )
@@ -148,7 +150,7 @@ def dsl_gql(
 
     # Check the type
     for operation in all_operations:
-        if not isinstance(operation, DSLOperation):
+        if not isinstance(operation, DSLExecutable):
             raise TypeError(
                 "Operations should be instances of DSLOperation "
                 "(DSLQuery, DSLMutation or DSLSubscription).\n"
@@ -156,17 +158,7 @@ def dsl_gql(
             )
 
     return DocumentNode(
-        definitions=[
-            OperationDefinitionNode(
-                operation=OperationType(operation.operation_type),
-                selection_set=operation.selection_set,
-                variable_definitions=FrozenList(
-                    operation.variable_definitions.get_ast_definitions()
-                ),
-                **({"name": NameNode(value=operation.name)} if operation.name else {}),
-            )
-            for operation in all_operations
-        ]
+        definitions=[operation.executable_ast for operation in all_operations]
     )
 
 
@@ -202,23 +194,29 @@ class DSLSchema:
         if type_def is None:
             raise AttributeError(f"Type '{name}' not found in the schema!")
 
-        assert isinstance(type_def, GraphQLObjectType) or isinstance(
-            type_def, GraphQLInterfaceType
-        )
+        assert isinstance(type_def, (GraphQLObjectType, GraphQLInterfaceType))
 
         return DSLType(type_def)
 
 
-class DSLOperation(ABC):
-    """Interface for GraphQL operations.
+class DSLExecutable(ABC):
+    """Interface for the root elements which can be executed
+    in the :func:`dsl_gql <gql.dsl.dsl_gql>` function
 
     Inherited by
-    :class:`DSLQuery <gql.dsl.DSLQuery>`,
-    :class:`DSLMutation <gql.dsl.DSLMutation>` and
-    :class:`DSLSubscription <gql.dsl.DSLSubscription>`
+    :class:`DSLOperation <gql.dsl.DSLOperation>` and
+    :class:`DSLFragment <gql.dsl.DSLFragment>`
     """
 
-    operation_type: OperationType
+    variable_definitions: "DSLVariableDefinitions"
+    name: Optional[str]
+
+    @property
+    @abstractmethod
+    def executable_ast(self):
+        raise NotImplementedError(
+            "Any DSLExecutable subclass must have executable_ast property"
+        )  # pragma: no cover
 
     def __init__(
         self, *fields: "DSLSelectable", **fields_with_alias: "DSLSelectableWithAlias",
@@ -241,8 +239,8 @@ class DSLOperation(ABC):
                                 to the operation type
         """
 
-        self.name: Optional[str] = None
-        self.variable_definitions: DSLVariableDefinitions = DSLVariableDefinitions()
+        self.name = None
+        self.variable_definitions = DSLVariableDefinitions()
 
         # Concatenate fields without and with alias
         all_fields: Tuple["DSLSelectable", ...] = DSLField.get_aliased_fields(
@@ -259,13 +257,37 @@ class DSLOperation(ABC):
                         f"Received type: {type(field)}"
                     )
                 )
-            assert field.type_name.upper() == self.operation_type.name, (
-                f"Invalid root field for operation {self.operation_type.name}.\n"
-                f"Received: {field.type_name}"
-            )
+            if isinstance(self, DSLOperation):
+                assert field.type_name.upper() == self.operation_type.name, (
+                    f"Invalid root field for operation {self.operation_type.name}.\n"
+                    f"Received: {field.type_name}"
+                )
 
-        self.selection_set: SelectionSetNode = SelectionSetNode(
+        self.selection_set = SelectionSetNode(
             selections=FrozenList(DSLSelectable.get_ast_fields(all_fields))
+        )
+
+
+class DSLOperation(DSLExecutable):
+    """Interface for GraphQL operations.
+
+    Inherited by
+    :class:`DSLQuery <gql.dsl.DSLQuery>`,
+    :class:`DSLMutation <gql.dsl.DSLMutation>` and
+    :class:`DSLSubscription <gql.dsl.DSLSubscription>`
+    """
+
+    operation_type: OperationType
+
+    @property
+    def executable_ast(self) -> OperationDefinitionNode:
+        return OperationDefinitionNode(
+            operation=OperationType(self.operation_type),
+            selection_set=self.selection_set,
+            variable_definitions=FrozenList(
+                self.variable_definitions.get_ast_definitions()
+            ),
+            **({"name": NameNode(value=self.name)} if self.name else {}),
         )
 
 
@@ -405,15 +427,15 @@ class DSLSelectable(ABC):
     Inherited by
     :class:`DSLField <gql.dsl.DSLField>`,
     :class:`DSLFragment <gql.dsl.DSLFragment>`
+    :class:`DSLInlineFragment <gql.dsl.DSLInlineFragment>`
     """
 
-    _type: Union[GraphQLObjectType, GraphQLInterfaceType]
-    ast_field: Union[FieldNode, InlineFragmentNode]
+    ast_field: Union[FieldNode, InlineFragmentNode, FragmentSpreadNode]
 
     @staticmethod
     def get_ast_fields(
         fields: Iterable["DSLSelectable"],
-    ) -> List[Union[FieldNode, InlineFragmentNode]]:
+    ) -> List[Union[FieldNode, InlineFragmentNode, FragmentSpreadNode]]:
         """
         :meta private:
 
@@ -450,6 +472,9 @@ class DSLSelectable(ABC):
             *(field.alias(alias) for alias, field in fields_with_alias.items()),
         )
 
+    def __str__(self) -> str:
+        return print_ast(self.ast_field)
+
 
 class DSLSelector(ABC):
     """DSLSelector is an abstract class which defines the
@@ -458,10 +483,14 @@ class DSLSelector(ABC):
 
     Inherited by
     :class:`DSLField <gql.dsl.DSLField>`,
-    :class:`DSLFragment <gql.dsl.DSLFragment>`
+    :class:`DSLFragment <gql.dsl.DSLFragment>`,
+    :class:`DSLInlineFragment <gql.dsl.DSLInlineFragment>`
     """
 
-    ast_field: Union[FieldNode, InlineFragmentNode]
+    selection_set: SelectionSetNode
+
+    def __init__(self):
+        self.selection_set = SelectionSetNode(selections=FrozenList([]))
 
     def select(
         self, *fields: "DSLSelectable", **fields_with_alias: "DSLSelectableWithAlias"
@@ -487,32 +516,19 @@ class DSLSelector(ABC):
             fields, fields_with_alias
         )
 
+        # Get a list of AST Nodes for each added field
         added_selections: List[
-            Union[FieldNode, InlineFragmentNode]
+            Union[FieldNode, InlineFragmentNode, FragmentSpreadNode]
         ] = DSLSelectable.get_ast_fields(added_fields)
 
-        current_selection_set: Optional[SelectionSetNode] = self.ast_field.selection_set
+        # Update the current selection list with new selections
+        self.selection_set.selections = FrozenList(
+            self.selection_set.selections + added_selections
+        )
 
-        if current_selection_set is None:
-            self.ast_field.selection_set = SelectionSetNode(
-                selections=FrozenList(added_selections)
-            )
-        else:
-            current_selection_set.selections = FrozenList(
-                current_selection_set.selections + added_selections
-            )
-
-        log.debug(f"Added fields: {fields} in {self!r}")
+        log.debug(f"Added fields: {added_fields} in {self!r}")
 
         return self
-
-    @property
-    def type_name(self):
-        """:meta private:"""
-        return self._type.name
-
-    def __str__(self) -> str:
-        return print_ast(self.ast_field)
 
 
 class DSLSelectableWithAlias(DSLSelectable):
@@ -551,6 +567,7 @@ class DSLField(DSLSelectableWithAlias, DSLSelector):
     method.
     """
 
+    _type: Union[GraphQLObjectType, GraphQLInterfaceType]
     ast_field: FieldNode
     field: GraphQLField
 
@@ -570,6 +587,7 @@ class DSLField(DSLSelectableWithAlias, DSLSelector):
         :param graphql_type: the GraphQL type definition from the schema
         :param graphql_field: the GraphQL field definition from the schema
         """
+        DSLSelector.__init__(self)
         self._type = graphql_type
         self.field = graphql_field
         self.ast_field = FieldNode(name=NameNode(value=name), arguments=FrozenList())
@@ -632,7 +650,16 @@ class DSLField(DSLSelectableWithAlias, DSLSelector):
         """Calling :meth:`select <gql.dsl.DSLSelector.select>` method with
         corrected typing hints
         """
-        return cast("DSLField", super().select(*fields, **fields_with_alias))
+
+        super().select(*fields, **fields_with_alias)
+        self.ast_field.selection_set = self.selection_set
+
+        return self
+
+    @property
+    def type_name(self):
+        """:meta private:"""
+        return self._type.name
 
     def __repr__(self) -> str:
         return (
@@ -641,22 +668,32 @@ class DSLField(DSLSelectableWithAlias, DSLSelector):
         )
 
 
-class DSLFragment(DSLSelectable, DSLSelector):
+class DSLInlineFragment(DSLSelectable, DSLSelector):
 
+    _type: Union[GraphQLObjectType, GraphQLInterfaceType]
     ast_field: InlineFragmentNode
 
-    def __init__(self):
+    def __init__(
+        self, *fields: "DSLSelectable", **fields_with_alias: "DSLSelectableWithAlias",
+    ):
+
+        DSLSelector.__init__(self)
         self.ast_field = InlineFragmentNode()
+        self.select(*fields, **fields_with_alias)
 
     def select(
         self, *fields: "DSLSelectable", **fields_with_alias: "DSLSelectableWithAlias"
-    ) -> "DSLFragment":
+    ) -> "DSLInlineFragment":
         """Calling :meth:`select <gql.dsl.DSLSelector.select>` method with
         corrected typing hints
         """
-        return cast("DSLFragment", super().select(*fields, **fields_with_alias))
+        super().select(*fields, **fields_with_alias)
+        self.ast_field.selection_set = self.selection_set
 
-    def on(self, type_condition: DSLType):
+        return self
+
+    def on(self, type_condition: DSLType) -> "DSLInlineFragment":
+
         self._type = type_condition._type
         self.ast_field.type_condition = NamedTypeNode(
             name=NameNode(value=self._type.name)
@@ -672,3 +709,54 @@ class DSLFragment(DSLSelectable, DSLSelector):
             pass
 
         return f"<{self.__class__.__name__}{type_info}>"
+
+
+class DSLFragment(DSLSelectable, DSLSelector, DSLExecutable):
+
+    _type: Union[GraphQLObjectType, GraphQLInterfaceType]
+    ast_field: FragmentSpreadNode
+
+    def __init__(
+        self,
+        name: str,
+        *fields: "DSLSelectable",
+        **fields_with_alias: "DSLSelectableWithAlias",
+    ):
+
+        DSLSelector.__init__(self)
+        DSLExecutable.__init__(self, *fields, **fields_with_alias)
+        self.name = name
+        self.ast_field = FragmentSpreadNode()
+        self.ast_field.name = NameNode(value=self.name)
+
+    def select(
+        self, *fields: "DSLSelectable", **fields_with_alias: "DSLSelectableWithAlias"
+    ) -> "DSLFragment":
+        """Calling :meth:`select <gql.dsl.DSLSelector.select>` method with
+        corrected typing hints
+        """
+        super().select(*fields, **fields_with_alias)
+
+        return self
+
+    def on(self, type_condition: DSLType) -> "DSLFragment":
+
+        self._type = type_condition._type
+
+        return self
+
+    @property
+    def executable_ast(self) -> FragmentDefinitionNode:
+        assert self.name is not None
+
+        return FragmentDefinitionNode(
+            type_condition=NamedTypeNode(name=NameNode(value=self._type.name)),
+            selection_set=self.selection_set,
+            variable_definitions=FrozenList(
+                self.variable_definitions.get_ast_definitions()
+            ),
+            name=NameNode(value=self.name),
+        )
+
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__} {self.name!s}>"

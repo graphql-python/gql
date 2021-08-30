@@ -16,6 +16,7 @@ from graphql import (
 from gql import Client
 from gql.dsl import (
     DSLFragment,
+    DSLInlineFragment,
     DSLMutation,
     DSLQuery,
     DSLSchema,
@@ -441,17 +442,112 @@ def test_inline_fragments(ds):
 }"""
     query_dsl = ds.Query.hero.args(episode=6).select(
         ds.Character.name,
-        DSLFragment().on(ds.Droid).select(ds.Droid.primaryFunction),
-        DSLFragment().on(ds.Human).select(ds.Human.homePlanet),
+        DSLInlineFragment().on(ds.Droid).select(ds.Droid.primaryFunction),
+        DSLInlineFragment().on(ds.Human).select(ds.Human.homePlanet),
     )
     assert query == str(query_dsl)
 
 
-def test_inline_fragments_repr(ds):
+def test_fragments_repr(ds):
 
-    assert repr(DSLFragment()) == "<DSLFragment>"
+    assert repr(DSLInlineFragment()) == "<DSLInlineFragment>"
+    assert repr(DSLInlineFragment().on(ds.Droid)) == "<DSLInlineFragment on Droid>"
+    assert repr(DSLFragment("fragment_1")) == "<DSLFragment fragment_1>"
+    assert repr(DSLFragment("fragment_2").on(ds.Droid)) == "<DSLFragment fragment_2>"
 
-    assert repr(DSLFragment().on(ds.Droid)) == "<DSLFragment on Droid>"
+
+def test_fragments(ds):
+    query = """fragment NameAndAppearances on Character {
+  name
+  appearsIn
+}
+
+{
+  hero {
+    ...NameAndAppearances
+  }
+}
+"""
+
+    name_and_appearances = (
+        DSLFragment("NameAndAppearances")
+        .on(ds.Character)
+        .select(ds.Character.name, ds.Character.appearsIn)
+    )
+
+    query_dsl = DSLQuery(ds.Query.hero.select(name_and_appearances))
+
+    document = dsl_gql(name_and_appearances, query_dsl)
+
+    print(print_ast(document))
+
+    assert query == print_ast(document)
+
+
+def test_dsl_nested_query_with_fragment(ds):
+    query = """fragment NameAndAppearances on Character {
+  name
+  appearsIn
+}
+
+query NestedQueryWithFragment {
+  hero {
+    ...NameAndAppearances
+    friends {
+      ...NameAndAppearances
+      friends {
+        ...NameAndAppearances
+      }
+    }
+  }
+}
+"""
+
+    name_and_appearances = (
+        DSLFragment("NameAndAppearances")
+        .on(ds.Character)
+        .select(ds.Character.name, ds.Character.appearsIn)
+    )
+
+    query_dsl = DSLQuery(
+        ds.Query.hero.select(
+            name_and_appearances,
+            ds.Character.friends.select(
+                name_and_appearances, ds.Character.friends.select(name_and_appearances)
+            ),
+        )
+    )
+
+    document = dsl_gql(name_and_appearances, NestedQueryWithFragment=query_dsl)
+
+    print(print_ast(document))
+
+    assert query == print_ast(document)
+
+    # Same thing, but incrementaly
+
+    name_and_appearances = DSLFragment("NameAndAppearances")
+    name_and_appearances.on(ds.Character)
+    name_and_appearances.select(ds.Character.name)
+    name_and_appearances.select(ds.Character.appearsIn)
+
+    level_2 = ds.Character.friends
+    level_2.select(name_and_appearances)
+    level_1 = ds.Character.friends
+    level_1.select(name_and_appearances)
+    level_1.select(level_2)
+
+    hero = ds.Query.hero
+    hero.select(name_and_appearances)
+    hero.select(level_1)
+
+    query_dsl = DSLQuery(hero)
+
+    document = dsl_gql(name_and_appearances, NestedQueryWithFragment=query_dsl)
+
+    print(print_ast(document))
+
+    assert query == print_ast(document)
 
 
 def test_dsl_query_all_fields_should_be_instances_of_DSLField():
