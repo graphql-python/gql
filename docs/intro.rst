@@ -26,10 +26,9 @@ Less dependencies
 ^^^^^^^^^^^^^^^^^
 
 GQL supports multiple :ref:`transports <transports>` to communicate with the backend.
-Each transport can each necessitate specific dependencies.
-If you only need one transport, instead of using the "`all`" extra dependency
-as described above which installs everything,
-you might want to install only the dependency needed for your transport.
+Each transport can necessitate specific dependencies.
+If you only need one transport you might want to install only the dependency needed for your transport,
+instead of using the "`all`" extra dependency as described above, which installs everything.
 
 If for example you only need the :ref:`AIOHTTPTransport <aiohttp_transport>`,
 which needs the :code:`aiohttp` dependency, then you can install GQL with::
