@@ -136,6 +136,7 @@ def dsl_gql(
         :class:`sync session <gql.client.SyncClientSession>`
 
     :raises TypeError: if an argument is not an instance of :class:`DSLExecutable`
+    :raises AttributeError: if a type has not been provided in a :class:`DSLFragment`
     """
 
     # Concatenate operations without and with name
@@ -214,6 +215,7 @@ class DSLExecutable(ABC):
     @property
     @abstractmethod
     def executable_ast(self):
+        """Generates the ast for :func:`dsl_gql <gql.dsl.dsl_gql>`."""
         raise NotImplementedError(
             "Any DSLExecutable subclass must have executable_ast property"
         )  # pragma: no cover
@@ -281,6 +283,8 @@ class DSLOperation(DSLExecutable):
 
     @property
     def executable_ast(self) -> OperationDefinitionNode:
+        """Generates the ast for :func:`dsl_gql <gql.dsl.dsl_gql>`."""
+
         return OperationDefinitionNode(
             operation=OperationType(self.operation_type),
             selection_set=self.selection_set,
@@ -502,7 +506,7 @@ class DSLSelector(ABC):
         to the existing children fields.
 
         :param \*fields: new children fields
-        :type \*fields: DSLSelectable (DSLField or DSLFragment)
+        :type \*fields: DSLSelectable (DSLField, DSLFragment or DSLInlineFragment)
         :param \**fields_with_alias: new children fields with alias as key
         :type \**fields_with_alias: DSLField
         :return: itself
@@ -669,6 +673,7 @@ class DSLField(DSLSelectableWithAlias, DSLSelector):
 
 
 class DSLInlineFragment(DSLSelectable, DSLSelector):
+    """DSLInlineFragment represents an inline fragment for the DSL code."""
 
     _type: Union[GraphQLObjectType, GraphQLInterfaceType]
     ast_field: InlineFragmentNode
@@ -676,6 +681,13 @@ class DSLInlineFragment(DSLSelectable, DSLSelector):
     def __init__(
         self, *fields: "DSLSelectable", **fields_with_alias: "DSLSelectableWithAlias",
     ):
+        r"""Initialize the DSLInlineFragment.
+
+        :param \*fields: new children fields
+        :type \*fields: DSLSelectable (DSLField, DSLFragment or DSLInlineFragment)
+        :param \**fields_with_alias: new children fields with alias as key
+        :type \**fields_with_alias: DSLField
+        """
 
         DSLSelector.__init__(self)
         self.ast_field = InlineFragmentNode()
@@ -694,6 +706,7 @@ class DSLInlineFragment(DSLSelectable, DSLSelector):
         return self
 
     def on(self, type_condition: DSLType) -> "DSLInlineFragment":
+        """Provides the GraphQL type of this inline fragment."""
 
         self._type = type_condition._type
         self.ast_field.type_condition = NamedTypeNode(
@@ -713,6 +726,7 @@ class DSLInlineFragment(DSLSelectable, DSLSelector):
 
 
 class DSLFragment(DSLSelectable, DSLSelector, DSLExecutable):
+    """DSLFragment represents a named GraphQL fragment for the DSL code."""
 
     _type: Optional[Union[GraphQLObjectType, GraphQLInterfaceType]]
     ast_field: FragmentSpreadNode
@@ -724,6 +738,15 @@ class DSLFragment(DSLSelectable, DSLSelector, DSLExecutable):
         *fields: "DSLSelectable",
         **fields_with_alias: "DSLSelectableWithAlias",
     ):
+        r"""Initialize the DSLFragment.
+
+        :param name: the name of the fragment
+        :type name: str
+        :param \*fields: new children fields
+        :type \*fields: DSLSelectable (DSLField, DSLFragment or DSLInlineFragment)
+        :param \**fields_with_alias: new children fields with alias as key
+        :type \**fields_with_alias: DSLField
+        """
 
         DSLSelector.__init__(self)
         DSLExecutable.__init__(self, *fields, **fields_with_alias)
@@ -745,6 +768,11 @@ class DSLFragment(DSLSelectable, DSLSelector, DSLExecutable):
         return self
 
     def on(self, type_condition: DSLType) -> "DSLFragment":
+        """Provides the GraphQL type of this fragment.
+
+        :param type_condition: the provided type
+        :type type_condition: DSLType
+        """
 
         self._type = type_condition._type
 
@@ -752,6 +780,10 @@ class DSLFragment(DSLSelectable, DSLSelector, DSLExecutable):
 
     @property
     def executable_ast(self) -> FragmentDefinitionNode:
+        """Generates the ast for :func:`dsl_gql <gql.dsl.dsl_gql>`.
+
+        :raises AttributeError: if a type has not been provided
+        """
         assert self.name is not None
 
         if self._type is None:
