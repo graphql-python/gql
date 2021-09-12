@@ -164,7 +164,7 @@ Variable arguments
 
 To provide variables instead of argument values directly for an operation, you have to:
 
-* Instanciate a :class:`DSLVariableDefinitions <gql.dsl.DSLVariableDefinitions>`::
+* Instantiate a :class:`DSLVariableDefinitions <gql.dsl.DSLVariableDefinitions>`::
 
     var = DSLVariableDefinitions()
 
@@ -257,7 +257,7 @@ Fragments
 
 To define a `Fragment`_, you have to:
 
-* Instanciate a :class:`DSLFragment <gql.dsl.DSLFragment>` with a name::
+* Instantiate a :class:`DSLFragment <gql.dsl.DSLFragment>` with a name::
 
     name_and_appearances = DSLFragment("NameAndAppearances")
 
@@ -298,7 +298,7 @@ Inline Fragments
 
 To define an `Inline Fragment`_, you have to:
 
-* Instanciate a :class:`DSLInlineFragment <gql.dsl.DSLInlineFragment>`::
+* Instantiate a :class:`DSLInlineFragment <gql.dsl.DSLInlineFragment>`::
 
     human_fragment = DSLInlineFragment()
 

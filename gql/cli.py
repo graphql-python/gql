@@ -183,7 +183,7 @@ def get_execute_args(args: Namespace) -> Dict[str, Any]:
 
 
 def get_transport(args: Namespace) -> AsyncTransport:
-    """Instanciate a transport from the parsed command line arguments
+    """Instantiate a transport from the parsed command line arguments
 
     :param args: parsed command line arguments
     """
@@ -196,7 +196,7 @@ def get_transport(args: Namespace) -> AsyncTransport:
     # (headers)
     transport_args = get_transport_args(args)
 
-    # Instanciate transport depending on url scheme
+    # Instantiate transport depending on url scheme
     transport: AsyncTransport
     if scheme in ["ws", "wss"]:
         from gql.transport.websockets import WebsocketsTransport
@@ -226,7 +226,7 @@ async def main(args: Namespace) -> int:
         logging.basicConfig(level=args.loglevel)
 
     try:
-        # Instanciate transport from command line arguments
+        # Instantiate transport from command line arguments
         transport = get_transport(args)
 
         # Get extra execute parameters from command line arguments
