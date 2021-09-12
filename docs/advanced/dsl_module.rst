@@ -276,7 +276,7 @@ Once your fragment is defined, to use it you should:
 
     query_with_fragment = DSLQuery(ds.Query.hero.select(name_and_appearances))
 
-* add it as an attribute of :func:`dsl_gql <gql.dsl.dsl_gql>` with your query::
+* add it as an argument of :func:`dsl_gql <gql.dsl.dsl_gql>` with your query::
 
     query = dsl_gql(name_and_appearances, query_with_fragment)
 
@@ -311,7 +311,7 @@ To define an `Inline Fragment`_, you have to:
 
     human_fragment.select(ds.Human.homePlanet)
 
-Once your fragment is defined, to use it you should:
+Once your inline fragment is defined, to use it you should:
 
 * select it as a field somewhere in your query::
 
