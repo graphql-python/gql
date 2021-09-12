@@ -164,7 +164,7 @@ Variable arguments
 
 To provide variables instead of argument values directly for an operation, you have to:
 
-* Instanciate a :class:`DSLVariableDefinitions <gql.dsl.DSLVariableDefinitions>`::
+* Instantiate a :class:`DSLVariableDefinitions <gql.dsl.DSLVariableDefinitions>`::
 
     var = DSLVariableDefinitions()
 
@@ -252,6 +252,93 @@ It is possible to create an Document with multiple operations::
         operation_name_3=DSLMutation( ... ),
     )
 
+Fragments
+^^^^^^^^^
+
+To define a `Fragment`_, you have to:
+
+* Instantiate a :class:`DSLFragment <gql.dsl.DSLFragment>` with a name::
+
+    name_and_appearances = DSLFragment("NameAndAppearances")
+
+* Provide the GraphQL type of the fragment with the
+  :meth:`on <gql.dsl.DSLFragment.on>` method::
+
+    name_and_appearances.on(ds.Character)
+
+* Add children fields using the :meth:`select <gql.dsl.DSLFragment.select>` method::
+
+    name_and_appearances.select(ds.Character.name, ds.Character.appearsIn)
+
+Once your fragment is defined, to use it you should:
+
+* select it as a field somewhere in your query::
+
+    query_with_fragment = DSLQuery(ds.Query.hero.select(name_and_appearances))
+
+* add it as an argument of :func:`dsl_gql <gql.dsl.dsl_gql>` with your query::
+
+    query = dsl_gql(name_and_appearances, query_with_fragment)
+
+The above example will generate the following request::
+
+    fragment NameAndAppearances on Character {
+        name
+        appearsIn
+    }
+
+    {
+        hero {
+            ...NameAndAppearances
+        }
+    }
+
+Inline Fragments
+^^^^^^^^^^^^^^^^
+
+To define an `Inline Fragment`_, you have to:
+
+* Instantiate a :class:`DSLInlineFragment <gql.dsl.DSLInlineFragment>`::
+
+    human_fragment = DSLInlineFragment()
+
+* Provide the GraphQL type of the fragment with the
+  :meth:`on <gql.dsl.DSLInlineFragment.on>` method::
+
+    human_fragment.on(ds.Human)
+
+* Add children fields using the :meth:`select <gql.dsl.DSLInlineFragment.select>` method::
+
+    human_fragment.select(ds.Human.homePlanet)
+
+Once your inline fragment is defined, to use it you should:
+
+* select it as a field somewhere in your query::
+
+    query_with_inline_fragment = ds.Query.hero.args(episode=6).select(
+        ds.Character.name,
+        human_fragment
+    )
+
+The above example will generate the following request::
+
+    hero(episode: JEDI) {
+        name
+        ... on Human {
+          homePlanet
+        }
+    }
+
+Note: because the :meth:`on <gql.dsl.DSLInlineFragment.on>` and
+:meth:`select <gql.dsl.DSLInlineFragment.select>` methods return :code:`self`,
+this can be written in a concise manner::
+
+    query_with_inline_fragment = ds.Query.hero.args(episode=6).select(
+        ds.Character.name,
+        DSLInlineFragment().on(ds.Human).select(ds.Human.homePlanet)
+    )
+
+
 Executable examples
 -------------------
 
@@ -265,3 +352,5 @@ Sync example
 
 .. literalinclude:: ../code_examples/requests_sync_dsl.py
 
+.. _Fragment: https://graphql.org/learn/queries/#fragments
+.. _Inline Fragment: https://graphql.org/learn/queries/#inline-fragments

@@ -17,7 +17,7 @@ with client as session:
     # We should have received the schema now that the session is established
     assert client.schema is not None
 
-    # Instanciate the root of the DSL Schema as ds
+    # Instantiate the root of the DSL Schema as ds
     ds = DSLSchema(client.schema)
 
     # Create the query using dynamically generated attributes from ds
