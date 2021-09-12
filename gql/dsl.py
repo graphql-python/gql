@@ -753,9 +753,22 @@ class DSLFragment(DSLSelectable, DSLSelector, DSLExecutable):
 
         self.name = name
         self._type = None
-        self.ast_field = FragmentSpreadNode()
-        self.ast_field.name = NameNode(value=self.name)
+
         log.debug(f"Creating {self!r}")
+
+    @property  # type: ignore
+    def ast_field(self) -> FragmentSpreadNode:  # type: ignore
+        """ast_field property will generate a FragmentSpreadNode with the
+        provided name.
+
+        Note: We need to ignore the type because of
+        `issue #4125 of mypy <https://github.com/python/mypy/issues/4125>`_.
+        """
+
+        spread_node = FragmentSpreadNode()
+        spread_node.name = NameNode(value=self.name)
+
+        return spread_node
 
     def select(
         self, *fields: "DSLSelectable", **fields_with_alias: "DSLSelectableWithAlias"

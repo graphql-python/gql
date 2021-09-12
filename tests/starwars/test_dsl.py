@@ -499,6 +499,17 @@ def test_fragment_without_type_condition_error(ds):
         dsl_gql(name_and_appearances)
 
 
+def test_fragment_with_name_changed(ds):
+
+    fragment = DSLFragment("ABC")
+
+    assert str(fragment) == "...ABC"
+
+    fragment.name = "DEF"
+
+    assert str(fragment) == "...DEF"
+
+
 def test_dsl_nested_query_with_fragment(ds):
     query = """fragment NameAndAppearances on Character {
   name
