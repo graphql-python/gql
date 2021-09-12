@@ -125,10 +125,10 @@ def dsl_gql(
     by instances of :class:`DSLType` which themselves originated from
     a :class:`DSLSchema` class.
 
-    :param \*operations: the GraphQL operations
-    :type \*operations: DSLOperation (DSLQuery, DSLMutation, DSLSubscription)
+    :param \*operations: the GraphQL operations and fragments
+    :type \*operations: DSLQuery, DSLMutation, DSLSubscription, DSLFragment
     :param \**operations_with_name: the GraphQL operations with an operation name
-    :type \**operations_with_name: DSLOperation (DSLQuery, DSLMutation, DSLSubscription)
+    :type \**operations_with_name: DSLQuery, DSLMutation, DSLSubscription
 
     :return: a Document which can be later executed or subscribed by a
         :class:`Client <gql.client.Client>`, by an
@@ -152,8 +152,8 @@ def dsl_gql(
     for operation in all_operations:
         if not isinstance(operation, DSLExecutable):
             raise TypeError(
-                "Operations should be instances of DSLOperation "
-                "(DSLQuery, DSLMutation or DSLSubscription).\n"
+                "Operations should be instances of DSLExecutable "
+                "(DSLQuery, DSLMutation, DSLSubscription or DSLFragment).\n"
                 f"Received: {type(operation)}."
             )
 
@@ -680,6 +680,7 @@ class DSLInlineFragment(DSLSelectable, DSLSelector):
         DSLSelector.__init__(self)
         self.ast_field = InlineFragmentNode()
         self.select(*fields, **fields_with_alias)
+        log.debug(f"Creating {self!r}")
 
     def select(
         self, *fields: "DSLSelectable", **fields_with_alias: "DSLSelectableWithAlias"
@@ -713,8 +714,9 @@ class DSLInlineFragment(DSLSelectable, DSLSelector):
 
 class DSLFragment(DSLSelectable, DSLSelector, DSLExecutable):
 
-    _type: Union[GraphQLObjectType, GraphQLInterfaceType]
+    _type: Optional[Union[GraphQLObjectType, GraphQLInterfaceType]]
     ast_field: FragmentSpreadNode
+    name: str
 
     def __init__(
         self,
@@ -725,9 +727,12 @@ class DSLFragment(DSLSelectable, DSLSelector, DSLExecutable):
 
         DSLSelector.__init__(self)
         DSLExecutable.__init__(self, *fields, **fields_with_alias)
+
         self.name = name
+        self._type = None
         self.ast_field = FragmentSpreadNode()
         self.ast_field.name = NameNode(value=self.name)
+        log.debug(f"Creating {self!r}")
 
     def select(
         self, *fields: "DSLSelectable", **fields_with_alias: "DSLSelectableWithAlias"
@@ -748,6 +753,11 @@ class DSLFragment(DSLSelectable, DSLSelector, DSLExecutable):
     @property
     def executable_ast(self) -> FragmentDefinitionNode:
         assert self.name is not None
+
+        if self._type is None:
+            raise AttributeError(
+                "Missing type condition. Please use .on(type_condition) method"
+            )
 
         return FragmentDefinitionNode(
             type_condition=NamedTypeNode(name=NameNode(value=self._type.name)),

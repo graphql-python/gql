@@ -484,6 +484,21 @@ def test_fragments(ds):
     assert query == print_ast(document)
 
 
+def test_fragment_without_type_condition_error(ds):
+
+    # We create a fragment without using the .on(type_condition) method
+    name_and_appearances = DSLFragment("NameAndAppearances").select(
+        ds.Character.name, ds.Character.appearsIn
+    )
+
+    # If we try to use this fragment, gql generates an error
+    with pytest.raises(
+        AttributeError,
+        match=r"Missing type condition. Please use .on\(type_condition\) method",
+    ):
+        dsl_gql(name_and_appearances)
+
+
 def test_dsl_nested_query_with_fragment(ds):
     query = """fragment NameAndAppearances on Character {
   name
@@ -566,9 +581,9 @@ def test_dsl_query_all_fields_should_correspond_to_the_root_type(ds):
     )
 
 
-def test_dsl_gql_all_arguments_should_be_operations():
+def test_dsl_gql_all_arguments_should_be_operations_or_fragments():
     with pytest.raises(
-        TypeError, match="Operations should be instances of DSLOperation "
+        TypeError, match="Operations should be instances of DSLExecutable "
     ):
         dsl_gql("I am a string")
 
