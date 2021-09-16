@@ -86,6 +86,11 @@ class WebsocketsTransport(AsyncTransport):
     on a websocket connection.
     """
 
+    # This transport supports two subprotocols and will autodetect the
+    # subprotocol supported on the server
+    APOLLO_SUBPROTOCOL = cast(Subprotocol, "graphql-ws")
+    GRAPHQLWS_SUBPROTOCOL = cast(Subprotocol, "graphql-transport-ws")
+
     def __init__(
         self,
         url: str,
@@ -114,8 +119,6 @@ class WebsocketsTransport(AsyncTransport):
             a sign of liveness from the server.
         :param connect_args: Other parameters forwarded to websockets.connect
         """
-
-        self.subprotocol: Subprotocol = cast(Subprotocol, "graphql-ws")
 
         self.url: str = url
         self.ssl: Union[SSLContext, bool] = ssl
@@ -158,6 +161,11 @@ class WebsocketsTransport(AsyncTransport):
         self._connecting: bool = False
 
         self.close_exception: Optional[Exception] = None
+
+        self.supported_subprotocols = [
+            self.GRAPHQLWS_SUBPROTOCOL,
+            self.APOLLO_SUBPROTOCOL,
+        ]
 
     async def _send(self, message: str) -> None:
         """Send the provided message to the websocket connection and log the message"""
@@ -232,7 +240,12 @@ class WebsocketsTransport(AsyncTransport):
         The server should afterwards return a 'complete' message.
         """
 
-        stop_message = json.dumps({"id": str(query_id), "type": "stop"})
+        stop_message = "stop"
+
+        if self.subprotocol == self.GRAPHQLWS_SUBPROTOCOL:
+            stop_message = "complete"
+
+        stop_message = json.dumps({"id": str(query_id), "type": stop_message})
 
         await self._send(stop_message)
 
@@ -241,6 +254,9 @@ class WebsocketsTransport(AsyncTransport):
 
         This message indicates that the connection will disconnect.
         """
+
+        if self.subprotocol == self.GRAPHQLWS_SUBPROTOCOL:
+            return
 
         connection_terminate_message = json.dumps({"type": "connection_terminate"})
 
@@ -268,18 +284,101 @@ class WebsocketsTransport(AsyncTransport):
         if operation_name:
             payload["operationName"] = operation_name
 
+        query_type = "start"
+
+        if self.subprotocol == self.GRAPHQLWS_SUBPROTOCOL:
+            query_type = "subscribe"
+
         query_str = json.dumps(
-            {"id": str(query_id), "type": "start", "payload": payload}
+            {"id": str(query_id), "type": query_type, "payload": payload}
         )
 
         await self._send(query_str)
 
         return query_id
 
-    def _parse_answer(
+    def _parse_answer_graphqlws(
         self, answer: str
     ) -> Tuple[str, Optional[int], Optional[ExecutionResult]]:
-        """Parse the answer received from the server
+        """Parse the answer received from the server if the server supports the
+        graphql-ws protocol.
+
+        Returns a list consisting of:
+            - the answer_type (between:
+              'connection_ack', 'ping', 'pong', 'data', 'error', 'complete')
+            - the answer id (Integer) if received or None
+            - an execution Result if the answer_type is 'data' or None
+
+        Differences with the apollo websockets protocol (superclass):
+            - the "data" message is now called "next"
+            - the "stop" message is now called "complete"
+            - there is no connection_terminate or connection_error messages
+            - instead of a unidirectional keep-alive (ka) message from server to client,
+              there is now the possibility to send bidirectional ping/pong messages
+            - connection_ack has an optional payload
+        """
+
+        answer_type: str = ""
+        answer_id: Optional[int] = None
+        execution_result: Optional[ExecutionResult] = None
+
+        try:
+            json_answer = json.loads(answer)
+
+            answer_type = str(json_answer.get("type"))
+
+            if answer_type in ["next", "error", "complete"]:
+                answer_id = int(str(json_answer.get("id")))
+
+                if answer_type == "next" or answer_type == "error":
+
+                    payload = json_answer.get("payload")
+
+                    if not isinstance(payload, dict):
+                        raise ValueError("payload is not a dict")
+
+                    if answer_type == "next":
+
+                        if "errors" not in payload and "data" not in payload:
+                            raise ValueError(
+                                "payload does not contain 'data' or 'errors' fields"
+                            )
+
+                        execution_result = ExecutionResult(
+                            errors=payload.get("errors"),
+                            data=payload.get("data"),
+                            extensions=payload.get("extensions"),
+                        )
+
+                        # Saving answer_type as 'data' to be understood with superclass
+                        answer_type = "data"
+
+                    elif answer_type == "error":
+
+                        raise TransportQueryError(
+                            str(payload), query_id=answer_id, errors=[payload]
+                        )
+
+            elif answer_type in ["ping", "pong", "connection_ack"]:
+                # TODO: do something with the payloads here ?
+                # payload = json_answer.get("payload")
+                pass
+
+            else:
+                raise ValueError
+
+        except ValueError as e:
+            raise TransportProtocolError(
+                f"Server did not return a GraphQL result: {answer}"
+            ) from e
+
+        return answer_type, answer_id, execution_result
+
+    def _parse_answer_apollo(
+        self, answer: str
+    ) -> Tuple[str, Optional[int], Optional[ExecutionResult]]:
+        """Parse the answer received from the server if the server supports the
+        apollo websockets protocol.
 
         Returns a list consisting of:
             - the answer_type (between:
@@ -344,6 +443,17 @@ class WebsocketsTransport(AsyncTransport):
             ) from e
 
         return answer_type, answer_id, execution_result
+
+    def _parse_answer(
+        self, answer: str
+    ) -> Tuple[str, Optional[int], Optional[ExecutionResult]]:
+        """Parse the answer received from the server depending on
+        the detected subprotocol.
+        """
+        if self.subprotocol == self.GRAPHQLWS_SUBPROTOCOL:
+            return self._parse_answer_graphqlws(answer)
+
+        return self._parse_answer_apollo(answer)
 
     async def _check_ws_liveness(self) -> None:
         """Coroutine which will periodically check the liveness of the connection
@@ -563,7 +673,7 @@ class WebsocketsTransport(AsyncTransport):
             connect_args: Dict[str, Any] = {
                 "ssl": ssl,
                 "extra_headers": self.headers,
-                "subprotocols": [self.subprotocol],
+                "subprotocols": self.supported_subprotocols,
             }
 
             # Adding custom parameters passed from init
@@ -579,6 +689,20 @@ class WebsocketsTransport(AsyncTransport):
                 )
             finally:
                 self._connecting = False
+
+            self.websocket = cast(WebSocketClientProtocol, self.websocket)
+
+            # Find the backend subprotocol returned in the response headers
+
+            response_headers = self.websocket.response_headers
+            try:
+                self.subprotocol = response_headers["Sec-WebSocket-Protocol"]
+            except KeyError:
+                # If the server does not send the subprotocol header, using
+                # the apollo subprotocol by default
+                self.subprotocol = self.APOLLO_SUBPROTOCOL
+
+            log.debug(f"backend subprotocol returned: {self.subprotocol!r}")
 
             self.next_query_id = 1
             self.close_exception = None
