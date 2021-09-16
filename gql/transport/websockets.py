@@ -114,6 +114,9 @@ class WebsocketsTransport(AsyncTransport):
             a sign of liveness from the server.
         :param connect_args: Other parameters forwarded to websockets.connect
         """
+
+        self.subprotocol: Subprotocol = cast(Subprotocol, "graphql-ws")
+
         self.url: str = url
         self.ssl: Union[SSLContext, bool] = ssl
         self.headers: Optional[HeadersLike] = headers
@@ -540,8 +543,6 @@ class WebsocketsTransport(AsyncTransport):
         Should be cleaned with a call to the close coroutine
         """
 
-        GRAPHQLWS_SUBPROTOCOL: Subprotocol = cast(Subprotocol, "graphql-ws")
-
         log.debug("connect: starting")
 
         if self.websocket is None and not self._connecting:
@@ -562,7 +563,7 @@ class WebsocketsTransport(AsyncTransport):
             connect_args: Dict[str, Any] = {
                 "ssl": ssl,
                 "extra_headers": self.headers,
-                "subprotocols": [GRAPHQLWS_SUBPROTOCOL],
+                "subprotocols": [self.subprotocol],
             }
 
             # Adding custom parameters passed from init
