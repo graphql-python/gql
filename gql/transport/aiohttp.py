@@ -185,7 +185,7 @@ class AIOHTTPTransport(AsyncTransport):
 
             # Add the extracted files as remaining fields
             for k, v in file_streams.items():
-                data.add_field(k, v, filename=k)
+                data.add_field(k, v, filename=getattr(v, "name", k))
 
             post_args: Dict[str, Any] = {"data": data}
 
