@@ -82,6 +82,7 @@ class AppSyncWebsocketsTransport(WebsocketsTransport):
             self.authorization = authorization
         else:
             self.authorization = AppSyncIAMAuthorization()
+            url = self._munge_url_for_appsync_auth(url)
         super().__init__(
             url,
             ssl=ssl,
@@ -89,6 +90,19 @@ class AppSyncWebsocketsTransport(WebsocketsTransport):
             close_timeout=close_timeout,
             ack_timeout=ack_timeout,
             connect_args=connect_args,
+        )
+
+    def _munge_url_for_appsync_auth(self, url: str) -> str:
+        """Munge URL For Appsync Auth
+
+        :param url: The original URL where we replace 'https' and 'appsync-api' and append auth headers
+        :return: a new url used to establish websocket connections to the appsync-realtime-api
+        """
+        url_after_replacements=url.replace("https", "wss").replace("appsync-api", "appsync-realtime-api")
+        headers_from_auth=self.authorization.get_headers()
+        return '{url}?header={headers}&payload=e30='.format(
+            url=url_after_replacements,
+            headers=headers_from_auth
         )
 
     async def _wait_start_ack(self) -> None:
@@ -120,26 +134,20 @@ class AppSyncWebsocketsTransport(WebsocketsTransport):
         if operation_name:
             data["operationName"] = operation_name
 
-        data["extensions"] = {
-            "authorization": self.authorization.get_headers(data)
-        },
-        data = json.dumps(data, separators=(",", ":"))
-
         await self._send(
             json.dumps(
                 {
                     "id": str(query_id),
                     "type": "start",
-                    "payload": data,
+                    "payload": {
+                        "data": data,
+                        "extensions": {
+                            "authorization": self.authorization.get_headers(data)
+                        }
+                    }
                 },
                 separators=(",", ":"),
             )
         )
-
-        # Wait for the connection_ack message or raise a TimeoutError
-        await wait_for(self._wait_start_ack(), self.ack_timeout)
-
-        # Create a task to listen to the incoming websocket messages
-        self.receive_data_task = ensure_future(self._receive_data_loop())
 
         return query_id
