@@ -49,16 +49,17 @@ class AppSyncCognitoUserPoolAuthorization(AppSyncOIDCAuthorization):
 
 
 class AppSyncIAMAuthorization(AppSyncAuthorization):
-    def __init__(self, host: str, region_name=None, profile=None) -> None:
+    def __init__(self, host: str, region_name=None, profile=None, signer=None, request_creator=None) -> None:
         self._host = host
         self._session = Session(profile=profile)
         self._credentials = self._session.get_credentials()
         self._region_name = self._session._resolve_region_name(region_name, self._session.get_default_client_config())
         self._service_name = "appsync"
-        self._signer = SigV4Auth(self._credentials, self._service_name, self._region_name)
+        self._signer = signer if signer else SigV4Auth(self._credentials, self._service_name, self._region_name)
+        self._request_creator = request_creator if request_creator else create_request_object
 
-    def get_headers(self, data: Optional[str] = None) -> Dict:
-        request = create_request_object({
+    def get_headers(self, data: Optional[str] = None, request_creator: callable = None) -> Dict:
+        request = self._request_creator({
             'method': 'GET',
             'url': self._host,
             'body': data,
