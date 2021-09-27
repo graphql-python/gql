@@ -42,8 +42,8 @@ pytestmark = pytest.mark.appsyncwebsocket
 mock_transport_url = "https://appsyncapp.awsgateway.com.example.org"
 
 @pytest.mark.appsyncwebsocket
-def test_appsyncwebsocket_init_with_minimal_args():
-    sample_transport = AppSyncWebsocketsTransport(url=mock_transport_url)
+def test_appsyncwebsocket_init_with_minimal_args(fake_session_factory):
+    sample_transport = AppSyncWebsocketsTransport(url=mock_transport_url, session=fake_session_factory())
     assert isinstance(sample_transport.authorization, AppSyncIAMAuthorization)
     assert sample_transport.connect_timeout == 10
     assert sample_transport.close_timeout == 10

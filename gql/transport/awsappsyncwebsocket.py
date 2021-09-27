@@ -1,5 +1,6 @@
 from asyncio import wait_for, ensure_future
 
+import botocore.session
 from graphql import DocumentNode, print_ast
 
 from .exceptions import TransportProtocolError
@@ -9,7 +10,7 @@ from typing import Any, Dict, Union, Optional
 from abc import ABC, abstractmethod
 from base64 import b64encode
 from botocore.awsrequest import AWSRequest, create_request_object
-from botocore.session import Session
+from botocore.session import get_session
 from botocore.auth import SigV4Auth
 import json
 
@@ -63,10 +64,10 @@ class AppSyncCognitoUserPoolAuthorization(AppSyncOIDCAuthorization):
 
 
 class AppSyncIAMAuthorization(AppSyncAuthorization):
-    def __init__(self, host: str, region_name=None, profile=None, signer=None, request_creator=None) -> None:
+    def __init__(self, host: str, region_name=None, signer=None, request_creator=None, credentials=None, session=None) -> None:
         super().__init__(host)
-        self._session = Session(profile=profile)
-        self._credentials = self._session.get_credentials()
+        self._session = session if session else get_session()
+        self._credentials = credentials if credentials else self._session.get_credentials()
         self._region_name = self._session._resolve_region_name(region_name, self._session.get_default_client_config())
         self._service_name = "appsync"
         self._signer = signer if signer else SigV4Auth(self._credentials, self._service_name, self._region_name)
@@ -89,13 +90,14 @@ class AppSyncWebsocketsTransport(WebsocketsTransport):
         self,
         url: str,
         authorization: AppSyncAuthorization = None,
+        session: botocore.session.Session = None,
         ssl: Union[SSLContext, bool] = False,
         connect_timeout: int = 10,
         close_timeout: int = 10,
         ack_timeout: int = 10,
         connect_args: Dict[str, Any] = {},
     ) -> None:
-        self.authorization = authorization if authorization else AppSyncIAMAuthorization(host=url)
+        self.authorization = authorization if authorization else AppSyncIAMAuthorization(host=url, session=session)
         url = self.authorization.host_to_auth_url()
         super().__init__(
             url,
