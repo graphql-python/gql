@@ -2,8 +2,8 @@ from asyncio import wait_for, ensure_future
 
 from graphql import DocumentNode, print_ast
 
-from transport.exceptions import TransportProtocolError
-from transport.websockets import WebsocketsTransport
+from .exceptions import TransportProtocolError
+from .websockets import WebsocketsTransport
 from ssl import SSLContext
 from typing import Any, Dict, Union, Optional
 from abc import ABC, abstractmethod
@@ -15,10 +15,23 @@ import json
 
 
 class AppSyncAuthorization(ABC):
-    def on_connect(self) -> str:
-        return b64encode(
-            json.dumps(self.get_headers(), separators=(",", ":")).encode()
+    def __init__(self, host: str):
+        self._host = host
+
+    def host_to_auth_url(self) -> str:
+        """Munge Host For Appsync Auth
+
+        :return: a url used to establish websocket connections to the appsync-realtime-api
+        """
+        url_after_replacements=self._host.replace("https", "wss").replace("appsync-api", "appsync-realtime-api")
+        headers_from_auth=self.get_headers()
+        encoded_headers = b64encode(
+            json.dumps(headers_from_auth, separators=(",", ":")).encode()
         ).decode()
+        return '{url}?header={headers}&payload=e30='.format(
+            url=url_after_replacements,
+            headers=encoded_headers
+        )
 
     @abstractmethod
     def get_headers(self, data: Optional[str] = None) -> Dict:
@@ -27,20 +40,21 @@ class AppSyncAuthorization(ABC):
 
 class AppSyncApiKeyAuthorization(AppSyncAuthorization):
     def __init__(self, host: str, api_key: str) -> None:
-        self.host = host
+        super().__init__(host)
         self.api_key = api_key
 
     def get_headers(self, data: Optional[str] = None) -> Dict:
-        return {"host": self.host, "x-api-key": self.api_key}
+        return {"host": self._host, "x-api-key": self.api_key}
 
 
 class AppSyncOIDCAuthorization(AppSyncAuthorization):
     def __init__(self, host: str, jwt: str) -> None:
-        self.host = host
+        super().__init__(host)
         self.jwt = jwt
 
     def get_headers(self, data: Optional[str] = None) -> Dict:
-        return {"host": self.host, "Authorization": self.jwt}
+        return {"host": self._host, "Authorization": self.jwt}
+
 
 
 class AppSyncCognitoUserPoolAuthorization(AppSyncOIDCAuthorization):
@@ -50,7 +64,7 @@ class AppSyncCognitoUserPoolAuthorization(AppSyncOIDCAuthorization):
 
 class AppSyncIAMAuthorization(AppSyncAuthorization):
     def __init__(self, host: str, region_name=None, profile=None, signer=None, request_creator=None) -> None:
-        self._host = host
+        super().__init__(host)
         self._session = Session(profile=profile)
         self._credentials = self._session.get_credentials()
         self._region_name = self._session._resolve_region_name(region_name, self._session.get_default_client_config())
@@ -62,6 +76,8 @@ class AppSyncIAMAuthorization(AppSyncAuthorization):
         request = self._request_creator({
             'method': 'GET',
             'url': self._host,
+            'headers': {},
+            'context': {},
             'body': data,
         })
         self._signer.add_auth(request)
@@ -79,11 +95,8 @@ class AppSyncWebsocketsTransport(WebsocketsTransport):
         ack_timeout: int = 10,
         connect_args: Dict[str, Any] = {},
     ) -> None:
-        if authorization:
-            self.authorization = authorization
-        else:
-            self.authorization = AppSyncIAMAuthorization()
-            url = self._munge_url_for_appsync_auth(url)
+        self.authorization = authorization if authorization else AppSyncIAMAuthorization(host=url)
+        url = self.authorization.host_to_auth_url()
         super().__init__(
             url,
             ssl=ssl,
@@ -91,19 +104,6 @@ class AppSyncWebsocketsTransport(WebsocketsTransport):
             close_timeout=close_timeout,
             ack_timeout=ack_timeout,
             connect_args=connect_args,
-        )
-
-    def _munge_url_for_appsync_auth(self, url: str) -> str:
-        """Munge URL For Appsync Auth
-
-        :param url: The original URL where we replace 'https' and 'appsync-api' and append auth headers
-        :return: a new url used to establish websocket connections to the appsync-realtime-api
-        """
-        url_after_replacements=url.replace("https", "wss").replace("appsync-api", "appsync-realtime-api")
-        headers_from_auth=self.authorization.get_headers()
-        return '{url}?header={headers}&payload=e30='.format(
-            url=url_after_replacements,
-            headers=headers_from_auth
         )
 
     async def _wait_start_ack(self) -> None:

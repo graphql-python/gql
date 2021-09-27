@@ -1,8 +1,23 @@
-def fake_request_creator():
-    return FakeRequest()
+import pytest
+
+
+@pytest.fixture
+def fake_request_factory():
+    def _fake_request_factory():
+        return FakeRequest()
+    yield _fake_request_factory
+
+
+@pytest.fixture
+def fake_signer_factory(fake_request_factory):
+    def _fake_signer_factory(request=None):
+        return FakeSigner(request=request)
+    yield _fake_signer_factory
+
 
 class FakeRequest(object):
     headers = None
+
 
 class FakeSigner(object):
     def __init__(self, request=None) -> None:
