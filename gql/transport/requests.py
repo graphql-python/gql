@@ -1,15 +1,14 @@
 import io
 import json
 import logging
-from typing import Any, Dict, Generator, Optional, Tuple, Type, Union
+from typing import Any, Dict, Optional, Tuple, Type, Union
 
-import aiohttp
 import requests
-from requests_toolbelt.multipart.encoder import MultipartEncoder
 from graphql import DocumentNode, ExecutionResult, print_ast
 from requests.adapters import HTTPAdapter, Retry
 from requests.auth import AuthBase
 from requests.cookies import RequestsCookieJar
+from requests_toolbelt.multipart.encoder import MultipartEncoder
 
 from gql.transport import Transport
 
@@ -31,9 +30,7 @@ class RequestsHTTPTransport(Transport):
     The transport uses the requests library to send HTTP POST requests.
     """
 
-    file_classes: Tuple[Type[Any], ...] = (
-        io.IOBase,
-    )
+    file_classes: Tuple[Type[Any], ...] = (io.IOBase,)
 
     def __init__(
         self,
@@ -179,8 +176,7 @@ class RequestsHTTPTransport(Transport):
             file_map_str = json.dumps(file_map)
             log.debug("file_map %s", file_map_str)
 
-            fields = {"operations": operations_str,
-                      "map": file_map_str}
+            fields = {"operations": operations_str, "map": file_map_str}
 
             # Add the extracted files as remaining fields
             for k, v in file_streams.items():

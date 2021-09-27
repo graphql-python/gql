@@ -1,5 +1,3 @@
-from gql.transport import requests
-from tests.conftest import TemporaryFile
 import pytest
 
 from gql import Client, gql
@@ -10,6 +8,7 @@ from gql.transport.exceptions import (
     TransportQueryError,
     TransportServerError,
 )
+from tests.conftest import TemporaryFile
 
 # Marking all tests in this file with the requests marker
 pytestmark = pytest.mark.requests
@@ -389,7 +388,9 @@ async def test_requests_file_upload(event_loop, aiohttp_server, run_sync_test):
         field_3 = await reader.next()
         assert field_3 is None
 
-        return web.Response(text=file_upload_server_answer, content_type="application/json")
+        return web.Response(
+            text=file_upload_server_answer, content_type="application/json"
+        )
 
     app = web.Application()
     app.router.add_route("POST", "/", single_upload_handler)
@@ -401,8 +402,7 @@ async def test_requests_file_upload(event_loop, aiohttp_server, run_sync_test):
         sample_transport = RequestsHTTPTransport(url=url)
 
         with TemporaryFile(file_1_content) as test_file:
-            with Client(
-                    transport=sample_transport) as session:
+            with Client(transport=sample_transport) as session:
                 query = gql(file_upload_mutation_1)
 
                 file_path = test_file.filename
@@ -452,7 +452,9 @@ async def test_requests_binary_file_upload(event_loop, aiohttp_server, run_sync_
         field_3 = await reader.next()
         assert field_3 is None
 
-        return web.Response(text=file_upload_server_answer, content_type="application/json")
+        return web.Response(
+            text=file_upload_server_answer, content_type="application/json"
+        )
 
     app = web.Application()
     app.router.add_route("POST", "/", binary_upload_handler)
@@ -485,7 +487,9 @@ async def test_requests_binary_file_upload(event_loop, aiohttp_server, run_sync_
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_requests_file_upload_two_files(event_loop, aiohttp_server, run_sync_test):
+async def test_requests_file_upload_two_files(
+    event_loop, aiohttp_server, run_sync_test
+):
     from aiohttp import web
     from gql.transport.requests import RequestsHTTPTransport
 
@@ -582,7 +586,9 @@ async def test_requests_file_upload_two_files(event_loop, aiohttp_server, run_sy
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_requests_file_upload_list_of_two_files(event_loop, aiohttp_server, run_sync_test):
+async def test_requests_file_upload_list_of_two_files(
+    event_loop, aiohttp_server, run_sync_test
+):
     from aiohttp import web
     from gql.transport.requests import RequestsHTTPTransport
 
@@ -599,7 +605,9 @@ async def test_requests_file_upload_list_of_two_files(event_loop, aiohttp_server
         ' {\\n    success\\n  }\\n}\\n", "variables": {"files": [null, null]}}'
     )
 
-    file_upload_mutation_3_map = '{"0": ["variables.files.0"], "1": ["variables.files.1"]}'
+    file_upload_mutation_3_map = (
+        '{"0": ["variables.files.0"], "1": ["variables.files.1"]}'
+    )
 
     file_2_content = """
     This is a second test file
