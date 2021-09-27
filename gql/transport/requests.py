@@ -1,8 +1,11 @@
+import io
 import json
 import logging
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Generator, Optional, Tuple, Type, Union
 
+import aiohttp
 import requests
+from requests_toolbelt.multipart.encoder import MultipartEncoder
 from graphql import DocumentNode, ExecutionResult, print_ast
 from requests.adapters import HTTPAdapter, Retry
 from requests.auth import AuthBase
@@ -10,6 +13,7 @@ from requests.cookies import RequestsCookieJar
 
 from gql.transport import Transport
 
+from ..utils import extract_files
 from .exceptions import (
     TransportAlreadyConnected,
     TransportClosed,
@@ -26,6 +30,10 @@ class RequestsHTTPTransport(Transport):
 
     The transport uses the requests library to send HTTP POST requests.
     """
+
+    file_classes: Tuple[Type[Any], ...] = (
+        io.IOBase,
+    )
 
     def __init__(
         self,
@@ -104,6 +112,7 @@ class RequestsHTTPTransport(Transport):
         operation_name: Optional[str] = None,
         timeout: Optional[int] = None,
         extra_args: Dict[str, Any] = None,
+        upload_files: bool = False,
     ) -> ExecutionResult:
         """Execute GraphQL query.
 
@@ -116,6 +125,7 @@ class RequestsHTTPTransport(Transport):
             Only required in multi-operation documents (Default: None).
         :param timeout: Specifies a default timeout for requests (Default: None).
         :param extra_args: additional arguments to send to the requests post method
+        :param upload_files: Set to True if you want to put files in the variable values
         :return: The result of execution.
             `data` is the result of executing the query, `errors` is null
             if no errors occurred, and is a non-empty array if an error occurred.
@@ -126,20 +136,75 @@ class RequestsHTTPTransport(Transport):
 
         query_str = print_ast(document)
         payload: Dict[str, Any] = {"query": query_str}
-        if variable_values:
-            payload["variables"] = variable_values
+
         if operation_name:
             payload["operationName"] = operation_name
 
-        data_key = "json" if self.use_json else "data"
         post_args = {
             "headers": self.headers,
             "auth": self.auth,
             "cookies": self.cookies,
             "timeout": timeout or self.default_timeout,
             "verify": self.verify,
-            data_key: payload,
         }
+
+        if upload_files:
+            # If the upload_files flag is set, then we need variable_values
+            assert variable_values is not None
+
+            # If we upload files, we will extract the files present in the
+            # variable_values dict and replace them by null values
+            nulled_variable_values, files = extract_files(
+                variables=variable_values, file_classes=self.file_classes,
+            )
+
+            # Save the nulled variable values in the payload
+            payload["variables"] = nulled_variable_values
+
+            # Add the payload to the operations field
+            operations_str = json.dumps(payload)
+            log.debug("operations %s", operations_str)
+
+            # Generate the file map
+            # path is nested in a list because the spec allows multiple pointers
+            # to the same file. But we don't support that.
+            # Will generate something like {"0": ["variables.file"]}
+            file_map = {str(i): [path] for i, path in enumerate(files)}
+
+            # Enumerate the file streams
+            # Will generate something like {'0': <_io.BufferedReader ...>}
+            file_streams = {str(i): files[path] for i, path in enumerate(files)}
+
+            # Add the file map field
+            file_map_str = json.dumps(file_map)
+            log.debug("file_map %s", file_map_str)
+
+            fields = {"operations": operations_str,
+                      "map": file_map_str}
+
+            # Add the extracted files as remaining fields
+            for k, v in file_streams.items():
+                fields[k] = (getattr(v, "name", k), v)
+
+            # Prepare requests http to send multipart-encoded data
+            data = MultipartEncoder(fields=fields)
+
+            post_args["data"] = data
+
+            if self.headers is None:
+                post_args["headers"] = {"Content-Type": data.content_type}
+            else:
+                post_args["headers"]["Content-Type"] = data.content_type
+
+        else:
+            if variable_values:
+                payload["variables"] = variable_values
+
+            if log.isEnabledFor(logging.INFO):
+                log.info(">>> %s", json.dumps(payload))
+
+            data_key = "json" if self.use_json else "data"
+            post_args[data_key] = payload
 
         # Log the payload
         if log.isEnabledFor(logging.INFO):
