@@ -69,10 +69,8 @@ def test_appsyncwebsocket_init_with_iam_auth():
     assert sample_transport.authorization is authorization
 
 
-@pytest.fixture('aws.fake_request_creator')
-@pytest.fixture('aws.FakeSigner')
-def test_munge_url(fake_signer,fake_request_creator):
-    authorization = AppSyncIAMAuthorization(signer=fake_signer, request_creator=fake_request_creator)
+def test_munge_url(fake_signer_factory, fake_request_factory):
+    authorization = AppSyncIAMAuthorization(signer=fake_signer_factory(), request_creator=fake_request_factory())
     test_url = 'https://appsync-api.aws.example.org/some-other-params'
     expected_url = 'wss://appsync-realtime-api.aws.example.org/some-other-params?header={headers}&payload=e30='.format(headers=authorization.on_connect())
 
