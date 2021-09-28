@@ -485,6 +485,13 @@ async def test_requests_binary_file_upload(event_loop, aiohttp_server, run_sync_
     await run_sync_test(event_loop, server, test_code)
 
 
+file_upload_mutation_2_operations = (
+    '{"query": "mutation ($file1: Upload!, $file2: Upload!) {\\n  '
+    'uploadFile(input: {file1: $file, file2: $file}) {\\n    success\\n  }\\n}\\n", '
+    '"variables": {"file1": null, "file2": null}}'
+)
+
+
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
 async def test_requests_file_upload_two_files(
@@ -500,12 +507,6 @@ async def test_requests_file_upload_two_files(
       }
     }
     """
-
-    file_upload_mutation_2_operations = (
-        '{"query": "mutation ($file1: Upload!, $file2: Upload!) {\\n  '
-        'uploadFile(input: {file1: $file, file2: $file}) {\\n    success\\n  }\\n}\\n", '
-        '"variables": {"file1": null, "file2": null}}'
-    )
 
     file_upload_mutation_2_map = '{"0": ["variables.file1"], "1": ["variables.file2"]}'
 
@@ -584,6 +585,12 @@ async def test_requests_file_upload_two_files(
     await run_sync_test(event_loop, server, test_code)
 
 
+file_upload_mutation_3_operations = (
+    '{"query": "mutation ($files: [Upload!]!) {\\n  uploadFiles(input: {files: $files})'
+    ' {\\n    success\\n  }\\n}\\n", "variables": {"files": [null, null]}}'
+)
+
+
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
 async def test_requests_file_upload_list_of_two_files(
@@ -599,11 +606,6 @@ async def test_requests_file_upload_list_of_two_files(
       }
     }
     """
-
-    file_upload_mutation_3_operations = (
-        '{"query": "mutation ($files: [Upload!]!) {\\n  uploadFiles(input: {files: $files})'
-        ' {\\n    success\\n  }\\n}\\n", "variables": {"files": [null, null]}}'
-    )
 
     file_upload_mutation_3_map = (
         '{"0": ["variables.files.0"], "1": ["variables.files.1"]}'
