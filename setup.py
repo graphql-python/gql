@@ -38,7 +38,7 @@ install_aiohttp_requires = [
 
 install_requests_requires = [
     "requests>=2.23,<3",
-    "requests_toolbelt>=0.9.1",
+    "requests_toolbelt==0.9.1",
 ]
 
 install_websockets_requires = [
