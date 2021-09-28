@@ -187,10 +187,10 @@ class RequestsHTTPTransport(Transport):
 
             post_args["data"] = data
 
-            if self.headers is None:
-                post_args["headers"] = {"Content-Type": data.content_type}
-            else:
-                post_args["headers"]["Content-Type"] = data.content_type
+            if post_args["headers"] is None:
+                post_args["headers"] = {}
+
+            post_args["headers"]["Content-Type"] = data.content_type
 
         else:
             if variable_values:
