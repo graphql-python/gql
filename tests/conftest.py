@@ -385,3 +385,11 @@ async def run_sync_test():
             await server.close()
 
     return run_sync_test_inner
+
+pytest_plugins = [
+    "tests.fixtures.fake_logger",
+    "tests.fixtures.aws.fake_credentials",
+    "tests.fixtures.aws.fake_request",
+    "tests.fixtures.aws.fake_session",
+    "tests.fixtures.aws.fake_signer",
+]

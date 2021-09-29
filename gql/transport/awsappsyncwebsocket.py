@@ -1,4 +1,5 @@
 from asyncio import wait_for, ensure_future
+from logging import Logger
 
 import botocore.session
 from graphql import DocumentNode, print_ast
@@ -12,6 +13,7 @@ from base64 import b64encode
 from botocore.awsrequest import AWSRequest, create_request_object
 from botocore.session import get_session
 from botocore.auth import SigV4Auth
+from botocore.exceptions import NoCredentialsError
 import json
 
 
@@ -82,7 +84,7 @@ class AppSyncIAMAuthorization(AppSyncAuthorization):
             'body': data,
         })
         self._signer.add_auth(request)
-        return request.headers
+        return dict(request.headers)
 
 
 class AppSyncWebsocketsTransport(WebsocketsTransport):
@@ -96,9 +98,21 @@ class AppSyncWebsocketsTransport(WebsocketsTransport):
         close_timeout: int = 10,
         ack_timeout: int = 10,
         connect_args: Dict[str, Any] = {},
+        logger: Logger = None,
     ) -> None:
-        self.authorization = authorization if authorization else AppSyncIAMAuthorization(host=url, session=session)
-        url = self.authorization.host_to_auth_url()
+        self.logger = logger if logger else Logger('debug')
+        try:
+            self.authorization = authorization if authorization else AppSyncIAMAuthorization(host=url, session=session)
+            url = self.authorization.host_to_auth_url()
+        except botocore.exceptions.NoCredentialsError as e:
+            self.authorization = None
+            self.logger.log(0, 'Credentials not found.  Do you have default AWS credentials configured?')
+            raise e
+        except TypeError as e:
+            self.authorization = None
+            self.logger.log(0, 'A TypeError was raised.  The most likely reason for this is that the AWS region is missing from the credentials.')
+            raise MissingRegionError
+
         super().__init__(
             url,
             ssl=ssl,
@@ -154,3 +168,7 @@ class AppSyncWebsocketsTransport(WebsocketsTransport):
         )
 
         return query_id
+
+
+class MissingRegionError(Exception):
+    pass
