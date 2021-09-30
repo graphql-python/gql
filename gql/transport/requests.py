@@ -138,7 +138,7 @@ class RequestsHTTPTransport(Transport):
             payload["operationName"] = operation_name
 
         post_args = {
-            "headers": {**self.headers},
+            "headers": self.headers,
             "auth": self.auth,
             "cookies": self.cookies,
             "timeout": timeout or self.default_timeout,
@@ -189,6 +189,8 @@ class RequestsHTTPTransport(Transport):
 
             if post_args["headers"] is None:
                 post_args["headers"] = {}
+            else:
+                post_args["headers"] = {**post_args["headers"]}
 
             post_args["headers"]["Content-Type"] = data.content_type
 
