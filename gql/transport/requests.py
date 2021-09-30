@@ -3,7 +3,9 @@ import logging
 from typing import Any, Dict, Optional, Union
 
 import requests
-from graphql import DocumentNode, ExecutionResult, print_ast
+from graphql.language.ast import Document as DocumentNode
+from graphql.execution import ExecutionResult
+from graphql import print_ast
 from requests.adapters import HTTPAdapter, Retry
 from requests.auth import AuthBase
 from requests.cookies import RequestsCookieJar

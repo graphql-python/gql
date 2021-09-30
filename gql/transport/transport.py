@@ -1,6 +1,7 @@
 import abc
 
-from graphql import DocumentNode, ExecutionResult
+from graphql.language.ast import Document as DocumentNode
+from graphql.execution import ExecutionResult
 
 
 class Transport:

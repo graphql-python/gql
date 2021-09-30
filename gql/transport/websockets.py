@@ -6,7 +6,9 @@ from ssl import SSLContext
 from typing import Any, AsyncGenerator, Dict, Optional, Tuple, Union, cast
 
 import websockets
-from graphql import DocumentNode, ExecutionResult, print_ast
+from graphql.language.ast import Document as DocumentNode
+from graphql.execution import ExecutionResult
+from graphql import print_ast
 from websockets.client import WebSocketClientProtocol
 from websockets.datastructures import HeadersLike
 from websockets.exceptions import ConnectionClosed
@@ -166,7 +168,8 @@ class WebsocketsTransport(AsyncTransport):
 
         try:
             await self.websocket.send(message)
-            log.info(">>> %s", message)
+            if log.isEnabledFor(logging.INFO):
+                log.info(">>> %s", message)
         except ConnectionClosed as e:
             await self._fail(e, clean_close=False)
             raise e
@@ -188,7 +191,8 @@ class WebsocketsTransport(AsyncTransport):
 
         answer: str = data
 
-        log.info("<<< %s", answer)
+        if log.isEnabledFor(logging.INFO):
+            log.info("<<< %s", answer)
 
         return answer
 

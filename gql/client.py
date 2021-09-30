@@ -2,13 +2,17 @@ import asyncio
 import warnings
 from typing import Any, AsyncGenerator, Dict, Generator, Optional, Union
 
+from graphql.language.ast import Document as DocumentNode
+from graphql.execution import ExecutionResult
+from graphql.utils.introspection_query import introspection_query
+
+def get_introspection_query():
+    return introspection_query
+
 from graphql import (
-    DocumentNode,
-    ExecutionResult,
     GraphQLSchema,
     build_ast_schema,
     build_client_schema,
-    get_introspection_query,
     parse,
     validate,
 )
