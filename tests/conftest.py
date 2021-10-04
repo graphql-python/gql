@@ -14,11 +14,7 @@ import pytest
 
 from gql import Client
 
-all_transport_dependencies = [
-    "aiohttp",
-    "requests",
-    "websockets",
-]
+all_transport_dependencies = ["aiohttp", "requests", "websockets", "aws"]
 
 
 def pytest_addoption(parser):
@@ -385,6 +381,7 @@ async def run_sync_test():
             await server.close()
 
     return run_sync_test_inner
+
 
 pytest_plugins = [
     "tests.fixtures.fake_logger",
