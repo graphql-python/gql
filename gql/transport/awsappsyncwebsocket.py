@@ -1,20 +1,19 @@
-from asyncio import wait_for, ensure_future
+import json
+from abc import ABC, abstractmethod
+from base64 import b64encode
 from logging import Logger
+from ssl import SSLContext
+from typing import Any, Dict, Optional, Union
 
 import botocore.session
+from botocore.auth import SigV4Auth
+from botocore.awsrequest import create_request_object
+from botocore.exceptions import NoCredentialsError
+from botocore.session import get_session
 from graphql import DocumentNode, print_ast
 
 from .exceptions import TransportProtocolError
 from .websockets import WebsocketsTransport
-from ssl import SSLContext
-from typing import Any, Dict, Union, Optional
-from abc import ABC, abstractmethod
-from base64 import b64encode
-from botocore.awsrequest import AWSRequest, create_request_object
-from botocore.session import get_session
-from botocore.auth import SigV4Auth
-from botocore.exceptions import NoCredentialsError
-import json
 
 
 class AppSyncAuthorization(ABC):
@@ -24,16 +23,18 @@ class AppSyncAuthorization(ABC):
     def host_to_auth_url(self) -> str:
         """Munge Host For Appsync Auth
 
-        :return: a url used to establish websocket connections to the appsync-realtime-api
+        :return: a url used to establish websocket connections
+                 to the appsync-realtime-api
         """
-        url_after_replacements=self._host.replace("https", "wss").replace("appsync-api", "appsync-realtime-api")
-        headers_from_auth=self.get_headers()
+        url_after_replacements = self._host.replace("https", "wss").replace(
+            "appsync-api", "appsync-realtime-api"
+        )
+        headers_from_auth = self.get_headers()
         encoded_headers = b64encode(
             json.dumps(headers_from_auth, separators=(",", ":")).encode()
         ).decode()
-        return '{url}?header={headers}&payload=e30='.format(
-            url=url_after_replacements,
-            headers=encoded_headers
+        return "{url}?header={headers}&payload=e30=".format(
+            url=url_after_replacements, headers=encoded_headers
         )
 
     @abstractmethod
@@ -59,30 +60,52 @@ class AppSyncOIDCAuthorization(AppSyncAuthorization):
         return {"host": self._host, "Authorization": self.jwt}
 
 
-
 class AppSyncCognitoUserPoolAuthorization(AppSyncOIDCAuthorization):
     """Alias for AppSyncOIDCAuthorization"""
+
     pass
 
 
 class AppSyncIAMAuthorization(AppSyncAuthorization):
-    def __init__(self, host: str, region_name=None, signer=None, request_creator=None, credentials=None, session=None) -> None:
+    def __init__(
+        self,
+        host: str,
+        region_name=None,
+        signer=None,
+        request_creator=None,
+        credentials=None,
+        session=None,
+    ) -> None:
         super().__init__(host)
         self._session = session if session else get_session()
-        self._credentials = credentials if credentials else self._session.get_credentials()
-        self._region_name = self._session._resolve_region_name(region_name, self._session.get_default_client_config())
+        self._credentials = (
+            credentials if credentials else self._session.get_credentials()
+        )
+        self._region_name = self._session._resolve_region_name(
+            region_name, self._session.get_default_client_config()
+        )
         self._service_name = "appsync"
-        self._signer = signer if signer else SigV4Auth(self._credentials, self._service_name, self._region_name)
-        self._request_creator = request_creator if request_creator else create_request_object
+        self._signer = (
+            signer
+            if signer
+            else SigV4Auth(self._credentials, self._service_name, self._region_name)
+        )
+        self._request_creator = (
+            request_creator if request_creator else create_request_object
+        )
 
-    def get_headers(self, data: Optional[str] = None, request_creator: callable = None) -> Dict:
-        request = self._request_creator({
-            'method': 'GET',
-            'url': self._host,
-            'headers': {},
-            'context': {},
-            'body': data,
-        })
+    def get_headers(
+        self, data: Optional[str] = None, request_creator: callable = None
+    ) -> Dict:
+        request = self._request_creator(
+            {
+                "method": "GET",
+                "url": self._host,
+                "headers": {},
+                "context": {},
+                "body": data,
+            }
+        )
         self._signer.add_auth(request)
         return dict(request.headers)
 
@@ -100,17 +123,30 @@ class AppSyncWebsocketsTransport(WebsocketsTransport):
         connect_args: Dict[str, Any] = {},
         logger: Logger = None,
     ) -> None:
-        self.logger = logger if logger else Logger('debug')
+        self.logger = logger if logger else Logger("debug")
         try:
-            self.authorization = authorization if authorization else AppSyncIAMAuthorization(host=url, session=session)
+            self.authorization = (
+                authorization
+                if authorization
+                else AppSyncIAMAuthorization(host=url, session=session)
+            )
             url = self.authorization.host_to_auth_url()
-        except botocore.exceptions.NoCredentialsError as e:
+        except NoCredentialsError as e:
             self.authorization = None
-            self.logger.log(0, 'Credentials not found.  Do you have default AWS credentials configured?')
+            self.logger.log(
+                0,
+                "Credentials not found.  "
+                "Do you have default AWS credentials configured?",
+            )
             raise e
-        except TypeError as e:
+        except TypeError:
             self.authorization = None
-            self.logger.log(0, 'A TypeError was raised.  The most likely reason for this is that the AWS region is missing from the credentials.')
+            self.logger.log(
+                0,
+                "A TypeError was raised.  "
+                "The most likely reason for this is that the AWS "
+                "region is missing from the credentials.",
+            )
             raise MissingRegionError
 
         super().__init__(
@@ -160,8 +196,8 @@ class AppSyncWebsocketsTransport(WebsocketsTransport):
                         "data": data,
                         "extensions": {
                             "authorization": self.authorization.get_headers(data)
-                        }
-                    }
+                        },
+                    },
                 },
                 separators=(",", ":"),
             )
