@@ -11,7 +11,6 @@ class FakeLogger(object):
 
 @pytest.fixture
 def fake_logger_factory():
-
     def _fake_logger_factory(messages=None):
         return FakeLogger(messages=messages)
 

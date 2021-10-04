@@ -19,6 +19,6 @@ class FakeSession(object):
 @pytest.fixture
 def fake_session_factory(fake_credentials_factory):
     def _fake_session_factory(credentials=fake_credentials_factory()):
-        return FakeSession(credentials=credentials, region_name='fake-region')
+        return FakeSession(credentials=credentials, region_name="fake-region")
 
     yield _fake_session_factory

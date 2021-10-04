@@ -5,8 +5,9 @@ import pytest
 def fake_signer_factory(fake_request_factory):
     def _fake_signer_factory(request=None):
         if not request:
-            request=fake_request_factory()
+            request = fake_request_factory()
         return FakeSigner(request=request)
+
     yield _fake_signer_factory
 
 
