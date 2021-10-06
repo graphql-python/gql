@@ -175,7 +175,7 @@ class RequestsHTTPTransport(Transport):
             )
 
         try:
-            result = response.json()
+            result = response.json(content_type=None)
 
             if log.isEnabledFor(logging.INFO):
                 log.info("<<< %s", response.text)

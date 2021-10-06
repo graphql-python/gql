@@ -225,7 +225,7 @@ class AIOHTTPTransport(AsyncTransport):
                 )
 
             try:
-                result = await resp.json()
+                result = await resp.json(content_type=None)
 
                 if log.isEnabledFor(logging.INFO):
                     result_text = await resp.text()
