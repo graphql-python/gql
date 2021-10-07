@@ -77,8 +77,8 @@ setup(
     ],
     keywords="api graphql protocol rest relay gql client",
     packages=find_packages(include=["gql*"]),
-    install_requires=install_all_requires,
-    tests_require=install_all_requires,
+    install_requires=install_requires,
+    tests_require=install_all_requires + tests_requires,
     extras_require={
         "all": install_all_requires,
         "test": install_all_requires + tests_requires,
@@ -92,5 +92,4 @@ setup(
     zip_safe=False,
     platforms="any",
     scripts=scripts,
-    #test_suite='tests',
 )
