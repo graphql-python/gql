@@ -92,3 +92,6 @@ target/
 
 # VIM
 *.swp
+
+# venv
+gql_venv
