@@ -3,11 +3,11 @@ from abc import ABC, abstractmethod
 from base64 import b64encode
 from logging import Logger
 from ssl import SSLContext
-from typing import Any, Dict, Optional, Union
+from typing import Any, Callable, Dict, Optional, Union
 
 import botocore.session
 from botocore.auth import SigV4Auth
-from botocore.awsrequest import create_request_object
+from botocore.awsrequest import AWSRequest, create_request_object
 from botocore.exceptions import NoCredentialsError
 from botocore.session import get_session
 from graphql import DocumentNode, print_ast
@@ -38,7 +38,7 @@ class AppSyncAuthorization(ABC):
         )
 
     @abstractmethod
-    def get_headers(self, data: Optional[str] = None) -> Dict:
+    def get_headers(self, data: Optional[dict] = None) -> Dict:
         raise NotImplementedError()
 
 
@@ -47,7 +47,7 @@ class AppSyncApiKeyAuthorization(AppSyncAuthorization):
         super().__init__(host)
         self.api_key = api_key
 
-    def get_headers(self, data: Optional[str] = None) -> Dict:
+    def get_headers(self, data: Optional[dict] = None) -> Dict:
         return {"host": self._host, "x-api-key": self.api_key}
 
 
@@ -56,7 +56,7 @@ class AppSyncOIDCAuthorization(AppSyncAuthorization):
         super().__init__(host)
         self.jwt = jwt
 
-    def get_headers(self, data: Optional[str] = None) -> Dict:
+    def get_headers(self, data: Optional[dict] = None) -> Dict:
         return {"host": self._host, "Authorization": self.jwt}
 
 
@@ -95,7 +95,9 @@ class AppSyncIAMAuthorization(AppSyncAuthorization):
         )
 
     def get_headers(
-        self, data: Optional[str] = None, request_creator: callable = None
+        self,
+        data: Optional[dict] = None,
+        request_creator: Callable[[dict], AWSRequest] = None,
     ) -> Dict:
         request = self._request_creator(
             {
@@ -111,11 +113,13 @@ class AppSyncIAMAuthorization(AppSyncAuthorization):
 
 
 class AppSyncWebsocketsTransport(WebsocketsTransport):
+    authorization: Optional[AppSyncAuthorization]
+
     def __init__(
         self,
         url: str,
-        authorization: AppSyncAuthorization = None,
-        session: botocore.session.Session = None,
+        authorization: Optional[AppSyncAuthorization] = None,
+        session: Optional[botocore.session.Session] = None,
         ssl: Union[SSLContext, bool] = False,
         connect_timeout: int = 10,
         close_timeout: int = 10,
@@ -132,7 +136,7 @@ class AppSyncWebsocketsTransport(WebsocketsTransport):
             )
             url = self.authorization.host_to_auth_url()
         except NoCredentialsError as e:
-            self.authorization = None
+            del self.authorization
             self.logger.log(
                 0,
                 "Credentials not found.  "
@@ -140,7 +144,7 @@ class AppSyncWebsocketsTransport(WebsocketsTransport):
             )
             raise e
         except TypeError:
-            self.authorization = None
+            del self.authorization
             self.logger.log(
                 0,
                 "A TypeError was raised.  "
@@ -181,27 +185,24 @@ class AppSyncWebsocketsTransport(WebsocketsTransport):
         query_id = self.next_query_id
         self.next_query_id += 1
 
-        data = {"query": print_ast(document)}
+        data: Dict = {"query": print_ast(document)}
         if variable_values:
             data["variables"] = variable_values
         if operation_name:
             data["operationName"] = operation_name
 
-        await self._send(
-            json.dumps(
-                {
-                    "id": str(query_id),
-                    "type": "start",
-                    "payload": {
-                        "data": data,
-                        "extensions": {
-                            "authorization": self.authorization.get_headers(data)
-                        },
-                    },
-                },
-                separators=(",", ":"),
-            )
-        )
+        message: Dict = {
+            "id": str(query_id),
+            "type": "start",
+            "payload": {"data": data},
+        }
+
+        if self.authorization:
+            message["payload"]["extensions"] = {
+                "authorization": self.authorization.get_headers(data)
+            }
+
+            await self._send(json.dumps(message, separators=(",", ":"),))
 
         return query_id
 
