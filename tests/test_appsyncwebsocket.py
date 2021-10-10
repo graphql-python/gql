@@ -57,12 +57,12 @@ def test_appsyncwebsocket_init_with_apikey_auth():
     assert sample_transport.authorization is authorization
 
 
-def test_appsyncwebsocket_init_with_iam_auth():
-    authorization = AppSyncIAMAuthorization(host=mock_transport_url)
-    sample_transport = AppSyncWebsocketsTransport(
-        url=mock_transport_url, authorization=authorization
-    )
-    assert sample_transport.authorization is authorization
+def test_appsyncwebsocket_init_with_iam_auth_without_creds():
+    authorization = AppSyncIAMAuthorization(host=mock_transport_url, credentials=None)
+    with pytest.raises(botocore.exceptions.NoCredentialsError):
+        sample_transport = AppSyncWebsocketsTransport(
+            url=mock_transport_url, authorization=authorization
+        )
 
 
 def test_appsyncwebsocket_init_with_iam_auth_with_creds(fake_credentials_factory):
