@@ -1,0 +1,4 @@
+#!"C:\Users\Raq\Desktop\mirkan projects\aiohttp_memedatatype_fix\gql_venv\Scripts\python.exe"
+# EASY-INSTALL-SCRIPT: 'gql==3.0.0a7','gql-cli'
+__requires__ = 'gql==3.0.0a7'
+__import__('pkg_resources').run_script('gql==3.0.0a7', 'gql-cli')
