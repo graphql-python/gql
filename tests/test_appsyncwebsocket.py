@@ -9,6 +9,9 @@ from gql.transport.awsappsyncwebsocket import (
     MissingRegionError,
 )
 
+# Marking all tests in this file with the appsyncwebsockets marker
+pytestmark = pytest.mark.appsyncwebsockets
+
 mock_transport_url = "https://appsyncapp.awsgateway.com.example.org"
 
 

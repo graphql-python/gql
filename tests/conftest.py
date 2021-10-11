@@ -14,7 +14,7 @@ import pytest
 
 from gql import Client
 
-all_transport_dependencies = ["aiohttp", "requests", "websockets", "aws"]
+all_transport_dependencies = ["aiohttp", "requests", "websockets", "appsyncwebsockets"]
 
 
 def pytest_addoption(parser):
