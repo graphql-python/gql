@@ -70,6 +70,35 @@ async def test_aiohttp_query(event_loop, aiohttp_server):
 
 
 @pytest.mark.asyncio
+async def test_aiohttp_ignore_backend_content_type(event_loop, aiohttp_server):
+    from aiohttp import web
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    async def handler(request):
+        return web.Response(text=query1_server_answer, content_type="text/plain")
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    sample_transport = AIOHTTPTransport(url=url, timeout=10)
+
+    async with Client(transport=sample_transport,) as session:
+
+        query = gql(query1_str)
+
+        result = await session.execute(query)
+
+        continents = result["continents"]
+
+        africa = continents[0]
+
+        assert africa["code"] == "AF"
+
+
+@pytest.mark.asyncio
 async def test_aiohttp_cookies(event_loop, aiohttp_server):
     from aiohttp import web
     from gql.transport.aiohttp import AIOHTTPTransport
