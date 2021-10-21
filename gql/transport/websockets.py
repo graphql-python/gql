@@ -234,6 +234,28 @@ class WebsocketsTransport(AsyncTransport):
         # Wait for the connection_ack message or raise a TimeoutError
         await asyncio.wait_for(self._wait_ack(), self.ack_timeout)
 
+    async def _send_ping(self, payload: Optional[Any] = None) -> None:
+        """Send a ping message for the graphql-ws protocol
+        """
+
+        ping_message = {"type": "ping"}
+
+        if payload is not None:
+            ping_message["payload"] = payload
+
+        await self._send(json.dumps(ping_message))
+
+    async def _send_pong(self, payload: Optional[Any] = None) -> None:
+        """Send a pong message for the graphql-ws protocol
+        """
+
+        pong_message = {"type": "pong"}
+
+        if payload is not None:
+            pong_message["payload"] = payload
+
+        await self._send(json.dumps(pong_message))
+
     async def _send_stop_message(self, query_id: int) -> None:
         """Send stop message to the provided websocket connection and query_id.
 
@@ -249,14 +271,14 @@ class WebsocketsTransport(AsyncTransport):
 
         await self._send(stop_message)
 
+        if self.subprotocol == self.GRAPHQLWS_SUBPROTOCOL:
+            await self.listeners[query_id].put(("complete", None))
+
     async def _send_connection_terminate_message(self) -> None:
         """Send a connection_terminate message to the provided websocket connection.
 
         This message indicates that the connection will disconnect.
         """
-
-        if self.subprotocol == self.GRAPHQLWS_SUBPROTOCOL:
-            return
 
         connection_terminate_message = json.dumps({"type": "connection_terminate"})
 
@@ -366,6 +388,9 @@ class WebsocketsTransport(AsyncTransport):
 
             else:
                 raise ValueError
+
+            if self.check_keep_alive_task is not None:
+                self._next_keep_alive_message.set()
 
         except ValueError as e:
             raise TransportProtocolError(
@@ -541,6 +566,7 @@ class WebsocketsTransport(AsyncTransport):
         answer_id: Optional[int],
         execution_result: Optional[ExecutionResult],
     ) -> None:
+
         try:
             # Put the answer in the queue
             if answer_id is not None:
@@ -548,6 +574,10 @@ class WebsocketsTransport(AsyncTransport):
         except KeyError:
             # Do nothing if no one is listening to this query_id.
             pass
+
+        # Answer pong to ping for graphql-ws protocol
+        if answer_type == "ping":
+            await self._send_pong()
 
     async def subscribe(
         self,
@@ -767,8 +797,9 @@ class WebsocketsTransport(AsyncTransport):
         except asyncio.TimeoutError:  # pragma: no cover
             log.debug("Timer close_timeout fired")
 
-        # Finally send the 'connection_terminate' message
-        await self._send_connection_terminate_message()
+        if self.subprotocol == self.APOLLO_SUBPROTOCOL:
+            # Finally send the 'connection_terminate' message
+            await self._send_connection_terminate_message()
 
     async def _close_coro(self, e: Exception, clean_close: bool = True) -> None:
         """Coroutine which will:

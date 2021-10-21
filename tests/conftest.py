@@ -193,7 +193,8 @@ class WebSocketServerHelper:
         await ws.send('{"type":"ka"}')
 
     @staticmethod
-    async def send_graphqlws_keepalive(ws):
+    async def send_ping(ws):
+        print("send_ping")
         await ws.send('{"type":"ping"}')
 
     @staticmethod

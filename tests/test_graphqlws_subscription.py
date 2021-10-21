@@ -33,8 +33,6 @@ async def server_countdown(ws, path):
     global WITH_KEEPALIVE
     try:
         await WebSocketServerHelper.send_connection_ack(ws)
-        if WITH_KEEPALIVE:
-            await WebSocketServerHelper.send_graphqlws_keepalive(ws)
 
         result = await ws.recv()
         logged_messages.append(result)
@@ -49,6 +47,8 @@ async def server_countdown(ws, path):
         count = count_found[0]
         print(f"Countdown started from: {count}")
 
+        pong_received: asyncio.Event = asyncio.Event()
+
         async def counting_coro():
             for number in range(count, -1, -1):
                 await ws.send(
@@ -57,6 +57,27 @@ async def server_countdown(ws, path):
                 await asyncio.sleep(2 * MS)
 
         counting_task = asyncio.ensure_future(counting_coro())
+
+        async def keepalive_coro():
+            while True:
+                await asyncio.sleep(5 * MS)
+                try:
+                    # Send a ping
+                    await WebSocketServerHelper.send_ping(ws)
+
+                    # Wait for a pong
+                    try:
+                        await asyncio.wait_for(pong_received.wait(), 2 * MS)
+                    except asyncio.TimeoutError:
+                        print("\nNo pong received in time!\n")
+
+                    pong_received.clear()
+
+                except websockets.exceptions.ConnectionClosed:
+                    break
+
+        if WITH_KEEPALIVE:
+            keepalive_task = asyncio.ensure_future(keepalive_coro())
 
         async def stopping_coro():
             nonlocal counting_task
@@ -70,22 +91,17 @@ async def server_countdown(ws, path):
 
                 json_result = json.loads(result)
 
-                if json_result["type"] == "complete" and json_result["id"] == str(
-                    query_id
-                ):
+                answer_type = json_result["type"]
+                if answer_type == "complete" and json_result["id"] == str(query_id):
                     print("Cancelling counting task now")
                     counting_task.cancel()
-
-        async def keepalive_coro():
-            while True:
-                await asyncio.sleep(5 * MS)
-                try:
-                    await WebSocketServerHelper.send_graphqlws_keepalive(ws)
-                except websockets.exceptions.ConnectionClosed:
-                    break
+                    if WITH_KEEPALIVE:
+                        print("Cancelling keep alive task now")
+                        keepalive_task.cancel()
+                elif answer_type == "pong":
+                    pong_received.set()
 
         stopping_task = asyncio.ensure_future(stopping_coro())
-        keepalive_task = asyncio.ensure_future(keepalive_coro())
 
         try:
             await counting_task
@@ -109,6 +125,8 @@ async def server_countdown(ws, path):
         await WebSocketServerHelper.send_complete(ws, query_id)
     except websockets.exceptions.ConnectionClosedOK:
         pass
+    except AssertionError as e:
+        print(f"\nAssertion failed: {e!s}\n")
     finally:
         await ws.wait_closed()
 
