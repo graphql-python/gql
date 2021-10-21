@@ -20,6 +20,9 @@ countdown_server_answer = (
 
 WITH_KEEPALIVE = False
 
+COUNTING_DELAY = 2 * MS
+PING_SENDING_DELAY = 5 * MS
+PONG_TIMEOUT = 2 * MS
 
 # List which can used to store received messages by the server
 logged_messages: List[str] = []
@@ -54,20 +57,20 @@ async def server_countdown(ws, path):
                 await ws.send(
                     countdown_server_answer.format(query_id=query_id, number=number)
                 )
-                await asyncio.sleep(2 * MS)
+                await asyncio.sleep(COUNTING_DELAY)
 
         counting_task = asyncio.ensure_future(counting_coro())
 
         async def keepalive_coro():
             while True:
-                await asyncio.sleep(5 * MS)
+                await asyncio.sleep(PING_SENDING_DELAY)
                 try:
                     # Send a ping
                     await WebSocketServerHelper.send_ping(ws)
 
                     # Wait for a pong
                     try:
-                        await asyncio.wait_for(pong_received.wait(), 2 * MS)
+                        await asyncio.wait_for(pong_received.wait(), PONG_TIMEOUT)
                     except asyncio.TimeoutError:
                         print("\nNo pong received in time!\n")
 
@@ -221,7 +224,7 @@ async def test_graphqlws_subscription_task_cancel(
     async def cancel_task_coro():
         nonlocal task
 
-        await asyncio.sleep(11 * MS)
+        await asyncio.sleep(5.5 * COUNTING_DELAY)
 
         task.cancel()
 
@@ -260,7 +263,7 @@ async def test_graphqlws_subscription_close_transport(
     async def close_transport_task_coro():
         nonlocal task
 
-        await asyncio.sleep(11 * MS)
+        await asyncio.sleep(5.5 * COUNTING_DELAY)
 
         await session.transport.close()
 
@@ -287,7 +290,7 @@ async def server_countdown_close_connection_in_middle(ws, path):
     print(f"Countdown started from: {count}, stopping server before {stopping_before}")
     for number in range(count, stopping_before, -1):
         await ws.send(countdown_server_answer.format(query_id=query_id, number=number))
-        await asyncio.sleep(2 * MS)
+        await asyncio.sleep(COUNTING_DELAY)
 
     print("Closing server while subscription is still running now")
     await ws.close()
@@ -387,7 +390,9 @@ async def test_graphqlws_subscription_with_keepalive_with_timeout_ok(
 
     path = "/graphql"
     url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}{path}"
-    sample_transport = WebsocketsTransport(url=url, keep_alive_timeout=(10 * MS))
+    sample_transport = WebsocketsTransport(
+        url=url, keep_alive_timeout=(5 * COUNTING_DELAY)
+    )
 
     client = Client(transport=sample_transport)
 
@@ -417,7 +422,9 @@ async def test_graphqlws_subscription_with_keepalive_with_timeout_nok(
 
     path = "/graphql"
     url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}{path}"
-    sample_transport = WebsocketsTransport(url=url, keep_alive_timeout=(1 * MS))
+    sample_transport = WebsocketsTransport(
+        url=url, keep_alive_timeout=(COUNTING_DELAY / 2)
+    )
 
     client = Client(transport=sample_transport)
 
