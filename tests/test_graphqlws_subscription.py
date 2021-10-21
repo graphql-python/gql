@@ -73,6 +73,7 @@ async def server_countdown(ws, path):
                         await asyncio.wait_for(pong_received.wait(), PONG_TIMEOUT)
                     except asyncio.TimeoutError:
                         print("\nNo pong received in time!\n")
+                        break
 
                     pong_received.clear()
 
