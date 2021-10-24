@@ -101,6 +101,8 @@ class WebsocketsTransport(AsyncTransport):
         close_timeout: Optional[Union[int, float]] = 10,
         ack_timeout: Optional[Union[int, float]] = 10,
         keep_alive_timeout: Optional[Union[int, float]] = None,
+        ping_interval: Optional[Union[int, float]] = None,
+        pong_timeout: Optional[Union[int, float]] = None,
         connect_args: Dict[str, Any] = {},
     ) -> None:
         """Initialize the transport with the given parameters.
@@ -117,6 +119,12 @@ class WebsocketsTransport(AsyncTransport):
             from the server. If None is provided this will wait forever.
         :param keep_alive_timeout: Optional Timeout in seconds to receive
             a sign of liveness from the server.
+        :param ping_interval: Delay in seconds between pings sent by the client to
+            the backend for the graphql-ws protocol. None (by default) means that
+            we don't send pings.
+        :param pong_timeout: Delay in seconds to receive a pong from the backend
+            after we sent a ping (only for the graphql-ws protocol).
+            By default equal to half of the ping_interval.
         :param connect_args: Other parameters forwarded to websockets.connect
         """
 
@@ -129,6 +137,15 @@ class WebsocketsTransport(AsyncTransport):
         self.close_timeout: Optional[Union[int, float]] = close_timeout
         self.ack_timeout: Optional[Union[int, float]] = ack_timeout
         self.keep_alive_timeout: Optional[Union[int, float]] = keep_alive_timeout
+        self.ping_interval: Optional[Union[int, float]] = ping_interval
+
+        self.pong_timeout: Optional[Union[int, float]]
+
+        if ping_interval is not None:
+            if pong_timeout is None:
+                self.pong_timeout = ping_interval / 2
+            else:
+                self.pong_timeout = pong_timeout
 
         self.connect_args = connect_args
 
@@ -138,6 +155,7 @@ class WebsocketsTransport(AsyncTransport):
 
         self.receive_data_task: Optional[asyncio.Future] = None
         self.check_keep_alive_task: Optional[asyncio.Future] = None
+        self.send_ping_task: Optional[asyncio.Future] = None
         self.close_task: Optional[asyncio.Future] = None
 
         # We need to set an event loop here if there is none
@@ -157,6 +175,19 @@ class WebsocketsTransport(AsyncTransport):
         if self.keep_alive_timeout is not None:
             self._next_keep_alive_message: asyncio.Event = asyncio.Event()
             self._next_keep_alive_message.set()
+
+        self.ping_received: asyncio.Event = asyncio.Event()
+        """ping_received is an asyncio Event which will fire  each time
+        a ping is received with the graphql-ws protocol"""
+
+        self.pong_received: asyncio.Event = asyncio.Event()
+        """pong_received is an asyncio Event which will fire  each time
+        a pong is received with the graphql-ws protocol"""
+
+        self.payloads: Dict[str, Any] = {}
+        """payloads is a dict which will contain the payloads received
+        with the graphql-ws protocol.
+        Possible keys are: 'ping', 'pong', 'connection_ack'"""
 
         self._connecting: bool = False
 
@@ -382,9 +413,7 @@ class WebsocketsTransport(AsyncTransport):
                         )
 
             elif answer_type in ["ping", "pong", "connection_ack"]:
-                # TODO: do something with the payloads here ?
-                # payload = json_answer.get("payload")
-                pass
+                self.payloads[answer_type] = json_answer.get("payload", None)
 
             else:
                 raise ValueError
@@ -514,6 +543,39 @@ class WebsocketsTransport(AsyncTransport):
             # The client is probably closing, handle it properly
             pass
 
+    async def _send_ping_coro(self) -> None:
+        """Coroutine to periodically send a ping from the client to the backend.
+
+        Only used for the graphql-ws protocol.
+
+        Send a ping every ping_interval seconds.
+        Close the connection if a pong is not received within pong_timeout seconds.
+        """
+
+        assert self.ping_interval is not None
+
+        try:
+            while True:
+                await asyncio.sleep(self.ping_interval)
+
+                await self._send_ping()
+
+                await asyncio.wait_for(self.pong_received.wait(), self.pong_timeout)
+
+                # Reset for the next iteration
+                self.pong_received.clear()
+
+        except asyncio.TimeoutError:
+            # No pong received in the appriopriate time, close with error
+            # If the timeout happens during a close already in progress, do nothing
+            if self.close_task is None:
+                await self._fail(
+                    TransportServerError(
+                        f"No pong received after {self.pong_timeout!r} seconds"
+                    ),
+                    clean_close=False,
+                )
+
     async def _receive_data_loop(self) -> None:
         try:
             while True:
@@ -577,7 +639,11 @@ class WebsocketsTransport(AsyncTransport):
 
         # Answer pong to ping for graphql-ws protocol
         if answer_type == "ping":
+            self.ping_received.set()
             await self._send_pong()
+
+        elif answer_type == "pong":
+            self.pong_received.set()
 
     async def subscribe(
         self,
@@ -756,6 +822,13 @@ class WebsocketsTransport(AsyncTransport):
                     self._check_ws_liveness()
                 )
 
+            if (
+                self.subprotocol == self.GRAPHQLWS_SUBPROTOCOL
+                and self.ping_interval is not None
+            ):
+
+                self.send_ping_task = asyncio.ensure_future(self._send_ping_coro())
+
             # Create a task to listen to the incoming websocket messages
             self.receive_data_task = asyncio.ensure_future(self._receive_data_loop())
 
@@ -825,6 +898,12 @@ class WebsocketsTransport(AsyncTransport):
                 with suppress(asyncio.CancelledError):
                     await self.check_keep_alive_task
 
+            # Properly shut down the send ping task if enabled
+            if self.send_ping_task is not None:
+                self.send_ping_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await self.send_ping_task
+
             # Saving exception to raise it later if trying to use the transport
             # after it has already closed.
             self.close_exception = e
@@ -858,6 +937,7 @@ class WebsocketsTransport(AsyncTransport):
             self.websocket = None
             self.close_task = None
             self.check_keep_alive_task = None
+            self.send_ping_task = None
 
             self._wait_closed.set()
 
