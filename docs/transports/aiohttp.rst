@@ -5,6 +5,8 @@ AIOHTTPTransport
 
 This transport uses the `aiohttp`_ library and allows you to send GraphQL queries using the HTTP protocol.
 
+Reference: :py:class:`gql.transport.aiohttp.AIOHTTPTransport`
+
 .. note::
 
     GraphQL subscriptions are not supported on the HTTP transport.

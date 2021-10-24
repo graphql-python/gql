@@ -235,6 +235,8 @@ async def test_phoenix_channel_subscription_no_break(
     from gql.transport.phoenix_channel_websockets import log as phoenix_logger
     from gql.transport.websockets import log as websockets_logger
 
+    from .conftest import MS
+
     websockets_logger.setLevel(logging.DEBUG)
     phoenix_logger.setLevel(logging.DEBUG)
 
@@ -244,7 +246,7 @@ async def test_phoenix_channel_subscription_no_break(
     async def testing_stopping_without_break():
 
         sample_transport = PhoenixChannelWebsocketsTransport(
-            channel_name=test_channel, url=url, close_timeout=5
+            channel_name=test_channel, url=url, close_timeout=(5000 * MS)
         )
 
         count = 10
@@ -256,7 +258,8 @@ async def test_phoenix_channel_subscription_no_break(
                 print(f"Number received: {number}")
 
                 # Simulate a slow consumer
-                await asyncio.sleep(0.1)
+                if number == 10:
+                    await asyncio.sleep(50 * MS)
 
                 if number == 9:
                     # When we consume the number 9 here in the async generator,
@@ -274,7 +277,7 @@ async def test_phoenix_channel_subscription_no_break(
         assert count == -1
 
     try:
-        await asyncio.wait_for(testing_stopping_without_break(), timeout=5)
+        await asyncio.wait_for(testing_stopping_without_break(), timeout=(5000 * MS))
     except asyncio.TimeoutError:
         assert False, "The async generator did not stop"
 

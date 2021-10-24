@@ -128,13 +128,14 @@ class WebSocketServer:
     def __init__(self, with_ssl: bool = False):
         self.with_ssl = with_ssl
 
-    async def start(self, handler):
+    async def start(self, handler, extra_serve_args=None):
 
         import websockets.server
 
         print("Starting server")
 
-        extra_serve_args = {}
+        if extra_serve_args is None:
+            extra_serve_args = {}
 
         if self.with_ssl:
             # This is a copy of certificate from websockets tests folder
@@ -192,7 +193,21 @@ class WebSocketServerHelper:
         await ws.send('{"type":"ka"}')
 
     @staticmethod
-    async def send_connection_ack(ws):
+    async def send_ping(ws, payload=None):
+        if payload is None:
+            await ws.send('{"type":"ping"}')
+        else:
+            await ws.send(json.dumps({"type": "ping", "payload": payload}))
+
+    @staticmethod
+    async def send_pong(ws, payload=None):
+        if payload is None:
+            await ws.send('{"type":"pong"}')
+        else:
+            await ws.send(json.dumps({"type": "pong", "payload": payload}))
+
+    @staticmethod
+    async def send_connection_ack(ws, payload=None):
 
         # Line return for easy debugging
         print("")
@@ -203,7 +218,10 @@ class WebSocketServerHelper:
         assert json_result["type"] == "connection_init"
 
         # Send ack
-        await ws.send('{"type":"connection_ack"}')
+        if payload is None:
+            await ws.send('{"type":"connection_ack"}')
+        else:
+            await ws.send(json.dumps({"type": "connection_ack", "payload": payload}))
 
     @staticmethod
     async def wait_connection_terminate(ws):
@@ -353,6 +371,54 @@ async def server(request):
 
 
 @pytest.fixture
+async def graphqlws_server(request):
+    """Fixture used to start a dummy server with the graphql-ws protocol.
+
+    Similar to the server fixture above but will return "graphql-transport-ws"
+    as the server subprotocol.
+
+    It can take as argument either a handler function for the websocket server for
+    complete control OR an array of answers to be sent by the default server handler.
+    """
+
+    subprotocol = "graphql-transport-ws"
+
+    from websockets.server import WebSocketServerProtocol
+
+    class CustomSubprotocol(WebSocketServerProtocol):
+        def select_subprotocol(self, client_subprotocols, server_subprotocols):
+            print(f"Client subprotocols: {client_subprotocols!r}")
+            print(f"Server subprotocols: {server_subprotocols!r}")
+
+            return subprotocol
+
+        def process_subprotocol(self, headers, available_subprotocols):
+            # Overwriting available subprotocols
+            available_subprotocols = [subprotocol]
+
+            print(f"headers: {headers!r}")
+            # print (f"Available subprotocols: {available_subprotocols!r}")
+
+            return super().process_subprotocol(headers, available_subprotocols)
+
+    server_handler = get_server_handler(request)
+
+    try:
+        test_server = WebSocketServer()
+
+        # Starting the server with the fixture param as the handler function
+        await test_server.start(
+            server_handler, extra_serve_args={"create_protocol": CustomSubprotocol}
+        )
+
+        yield test_server
+    except Exception as e:
+        print("Exception received in server fixture:", e)
+    finally:
+        await test_server.stop()
+
+
+@pytest.fixture
 async def client_and_server(server):
     """Helper fixture to start a server and a client connected to its port."""
 
@@ -367,6 +433,24 @@ async def client_and_server(server):
 
         # Yield both client session and server
         yield session, server
+
+
+@pytest.fixture
+async def client_and_graphqlws_server(graphqlws_server):
+    """Helper fixture to start a server with the graphql-ws prototocol
+    and a client connected to its port."""
+
+    from gql.transport.websockets import WebsocketsTransport
+
+    # Generate transport to connect to the server fixture
+    path = "/graphql"
+    url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}{path}"
+    sample_transport = WebsocketsTransport(url=url)
+
+    async with Client(transport=sample_transport) as session:
+
+        # Yield both client session and server
+        yield session, graphqlws_server
 
 
 @pytest.fixture
