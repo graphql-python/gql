@@ -103,6 +103,7 @@ class WebsocketsTransport(AsyncTransport):
         keep_alive_timeout: Optional[Union[int, float]] = None,
         ping_interval: Optional[Union[int, float]] = None,
         pong_timeout: Optional[Union[int, float]] = None,
+        answer_pings: bool = True,
         connect_args: Dict[str, Any] = {},
     ) -> None:
         """Initialize the transport with the given parameters.
@@ -125,6 +126,8 @@ class WebsocketsTransport(AsyncTransport):
         :param pong_timeout: Delay in seconds to receive a pong from the backend
             after we sent a ping (only for the graphql-ws protocol).
             By default equal to half of the ping_interval.
+        :param answer_pings: Whether the client answer the pings from the backend.
+            By default: True
         :param connect_args: Other parameters forwarded to websockets.connect
         """
 
@@ -138,8 +141,8 @@ class WebsocketsTransport(AsyncTransport):
         self.ack_timeout: Optional[Union[int, float]] = ack_timeout
         self.keep_alive_timeout: Optional[Union[int, float]] = keep_alive_timeout
         self.ping_interval: Optional[Union[int, float]] = ping_interval
-
         self.pong_timeout: Optional[Union[int, float]]
+        self.answer_pings: bool = answer_pings
 
         if ping_interval is not None:
             if pong_timeout is None:
@@ -265,7 +268,7 @@ class WebsocketsTransport(AsyncTransport):
         # Wait for the connection_ack message or raise a TimeoutError
         await asyncio.wait_for(self._wait_ack(), self.ack_timeout)
 
-    async def _send_ping(self, payload: Optional[Any] = None) -> None:
+    async def send_ping(self, payload: Optional[Any] = None) -> None:
         """Send a ping message for the graphql-ws protocol
         """
 
@@ -276,7 +279,7 @@ class WebsocketsTransport(AsyncTransport):
 
         await self._send(json.dumps(ping_message))
 
-    async def _send_pong(self, payload: Optional[Any] = None) -> None:
+    async def send_pong(self, payload: Optional[Any] = None) -> None:
         """Send a pong message for the graphql-ws protocol
         """
 
@@ -543,7 +546,7 @@ class WebsocketsTransport(AsyncTransport):
             # The client is probably closing, handle it properly
             pass
 
-    async def _send_ping_coro(self) -> None:
+    async def send_ping_coro(self) -> None:
         """Coroutine to periodically send a ping from the client to the backend.
 
         Only used for the graphql-ws protocol.
@@ -558,7 +561,7 @@ class WebsocketsTransport(AsyncTransport):
             while True:
                 await asyncio.sleep(self.ping_interval)
 
-                await self._send_ping()
+                await self.send_ping()
 
                 await asyncio.wait_for(self.pong_received.wait(), self.pong_timeout)
 
@@ -640,7 +643,8 @@ class WebsocketsTransport(AsyncTransport):
         # Answer pong to ping for graphql-ws protocol
         if answer_type == "ping":
             self.ping_received.set()
-            await self._send_pong()
+            if self.answer_pings:
+                await self.send_pong()
 
         elif answer_type == "pong":
             self.pong_received.set()
@@ -789,7 +793,6 @@ class WebsocketsTransport(AsyncTransport):
             self.websocket = cast(WebSocketClientProtocol, self.websocket)
 
             # Find the backend subprotocol returned in the response headers
-
             response_headers = self.websocket.response_headers
             try:
                 self.subprotocol = response_headers["Sec-WebSocket-Protocol"]
@@ -822,12 +825,13 @@ class WebsocketsTransport(AsyncTransport):
                     self._check_ws_liveness()
                 )
 
+            # If requested, create a task to send periodic pings to the backend
             if (
                 self.subprotocol == self.GRAPHQLWS_SUBPROTOCOL
                 and self.ping_interval is not None
             ):
 
-                self.send_ping_task = asyncio.ensure_future(self._send_ping_coro())
+                self.send_ping_task = asyncio.ensure_future(self.send_ping_coro())
 
             # Create a task to listen to the incoming websocket messages
             self.receive_data_task = asyncio.ensure_future(self._receive_data_loop())

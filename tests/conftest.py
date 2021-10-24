@@ -193,12 +193,21 @@ class WebSocketServerHelper:
         await ws.send('{"type":"ka"}')
 
     @staticmethod
-    async def send_ping(ws):
-        print("send_ping")
-        await ws.send('{"type":"ping"}')
+    async def send_ping(ws, payload=None):
+        if payload is None:
+            await ws.send('{"type":"ping"}')
+        else:
+            await ws.send(json.dumps({"type": "ping", "payload": payload}))
 
     @staticmethod
-    async def send_connection_ack(ws):
+    async def send_pong(ws, payload=None):
+        if payload is None:
+            await ws.send('{"type":"pong"}')
+        else:
+            await ws.send(json.dumps({"type": "pong", "payload": payload}))
+
+    @staticmethod
+    async def send_connection_ack(ws, payload=None):
 
         # Line return for easy debugging
         print("")
@@ -209,7 +218,10 @@ class WebSocketServerHelper:
         assert json_result["type"] == "connection_init"
 
         # Send ack
-        await ws.send('{"type":"connection_ack"}')
+        if payload is None:
+            await ws.send('{"type":"connection_ack"}')
+        else:
+            await ws.send(json.dumps({"type": "connection_ack", "payload": payload}))
 
     @staticmethod
     async def wait_connection_terminate(ws):

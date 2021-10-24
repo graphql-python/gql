@@ -18,8 +18,6 @@ countdown_server_answer = (
     '{{"type":"next","id":"{query_id}","payload":{{"data":{{"number":{number}}}}}}}'
 )
 
-WITH_KEEPALIVE = False
-
 COUNTING_DELAY = 2 * MS
 PING_SENDING_DELAY = 5 * MS
 PONG_TIMEOUT = 2 * MS
@@ -28,111 +26,142 @@ PONG_TIMEOUT = 2 * MS
 logged_messages: List[str] = []
 
 
-async def server_countdown(ws, path):
-    import websockets
+def server_countdown_factory(keepalive=False, answer_pings=True):
+    async def server_countdown_template(ws, path):
+        import websockets
 
-    logged_messages.clear()
+        logged_messages.clear()
 
-    global WITH_KEEPALIVE
-    try:
-        await WebSocketServerHelper.send_connection_ack(ws)
+        try:
+            await WebSocketServerHelper.send_connection_ack(
+                ws, payload="dummy_connection_ack_payload"
+            )
 
-        result = await ws.recv()
-        logged_messages.append(result)
+            result = await ws.recv()
+            logged_messages.append(result)
 
-        json_result = json.loads(result)
-        assert json_result["type"] == "subscribe"
-        payload = json_result["payload"]
-        query = payload["query"]
-        query_id = json_result["id"]
+            json_result = json.loads(result)
+            assert json_result["type"] == "subscribe"
+            payload = json_result["payload"]
+            query = payload["query"]
+            query_id = json_result["id"]
 
-        count_found = search("count: {:d}", query)
-        count = count_found[0]
-        print(f"Countdown started from: {count}")
+            count_found = search("count: {:d}", query)
+            count = count_found[0]
+            print(f"Countdown started from: {count}")
 
-        pong_received: asyncio.Event = asyncio.Event()
+            pong_received: asyncio.Event = asyncio.Event()
 
-        async def counting_coro():
-            for number in range(count, -1, -1):
-                await ws.send(
-                    countdown_server_answer.format(query_id=query_id, number=number)
-                )
-                await asyncio.sleep(COUNTING_DELAY)
+            async def counting_coro():
+                for number in range(count, -1, -1):
+                    await ws.send(
+                        countdown_server_answer.format(query_id=query_id, number=number)
+                    )
+                    await asyncio.sleep(COUNTING_DELAY)
 
-        counting_task = asyncio.ensure_future(counting_coro())
+            counting_task = asyncio.ensure_future(counting_coro())
 
-        async def keepalive_coro():
-            while True:
-                await asyncio.sleep(PING_SENDING_DELAY)
-                try:
-                    # Send a ping
-                    await WebSocketServerHelper.send_ping(ws)
-
-                    # Wait for a pong
+            async def keepalive_coro():
+                while True:
+                    await asyncio.sleep(PING_SENDING_DELAY)
                     try:
-                        await asyncio.wait_for(pong_received.wait(), PONG_TIMEOUT)
-                    except asyncio.TimeoutError:
-                        print("\nNo pong received in time!\n")
+                        # Send a ping
+                        await WebSocketServerHelper.send_ping(
+                            ws, payload="dummy_ping_payload"
+                        )
+
+                        # Wait for a pong
+                        try:
+                            await asyncio.wait_for(pong_received.wait(), PONG_TIMEOUT)
+                        except asyncio.TimeoutError:
+                            print("\nNo pong received in time!\n")
+                            break
+
+                        pong_received.clear()
+
+                    except websockets.exceptions.ConnectionClosed:
                         break
 
-                    pong_received.clear()
+            if keepalive:
+                keepalive_task = asyncio.ensure_future(keepalive_coro())
 
-                except websockets.exceptions.ConnectionClosed:
-                    break
+            async def receiving_coro():
+                nonlocal counting_task
+                while True:
 
-        if WITH_KEEPALIVE:
-            keepalive_task = asyncio.ensure_future(keepalive_coro())
+                    try:
+                        result = await ws.recv()
+                        logged_messages.append(result)
+                    except websockets.exceptions.ConnectionClosed:
+                        break
 
-        async def stopping_coro():
-            nonlocal counting_task
-            while True:
+                    json_result = json.loads(result)
 
-                try:
-                    result = await ws.recv()
-                    logged_messages.append(result)
-                except websockets.exceptions.ConnectionClosed:
-                    break
+                    answer_type = json_result["type"]
 
-                json_result = json.loads(result)
+                    if answer_type == "complete" and json_result["id"] == str(query_id):
+                        print("Cancelling counting task now")
+                        counting_task.cancel()
+                        if keepalive:
+                            print("Cancelling keep alive task now")
+                            keepalive_task.cancel()
 
-                answer_type = json_result["type"]
-                if answer_type == "complete" and json_result["id"] == str(query_id):
-                    print("Cancelling counting task now")
-                    counting_task.cancel()
-                    if WITH_KEEPALIVE:
-                        print("Cancelling keep alive task now")
-                        keepalive_task.cancel()
-                elif answer_type == "pong":
-                    pong_received.set()
+                    elif answer_type == "ping":
+                        if answer_pings:
+                            payload = json_result.get("payload", None)
+                            await WebSocketServerHelper.send_pong(ws, payload=payload)
 
-        stopping_task = asyncio.ensure_future(stopping_coro())
+                    elif answer_type == "pong":
+                        pong_received.set()
 
-        try:
-            await counting_task
-        except asyncio.CancelledError:
-            print("Now counting task is cancelled")
+            receiving_task = asyncio.ensure_future(receiving_coro())
 
-        stopping_task.cancel()
-
-        try:
-            await stopping_task
-        except asyncio.CancelledError:
-            print("Now stopping task is cancelled")
-
-        if WITH_KEEPALIVE:
-            keepalive_task.cancel()
             try:
-                await keepalive_task
+                await counting_task
             except asyncio.CancelledError:
-                print("Now keepalive task is cancelled")
+                print("Now counting task is cancelled")
 
-        await WebSocketServerHelper.send_complete(ws, query_id)
-    except websockets.exceptions.ConnectionClosedOK:
-        pass
-    except AssertionError as e:
-        print(f"\nAssertion failed: {e!s}\n")
-    finally:
-        await ws.wait_closed()
+            receiving_task.cancel()
+
+            try:
+                await receiving_task
+            except asyncio.CancelledError:
+                print("Now receiving task is cancelled")
+
+            if keepalive:
+                keepalive_task.cancel()
+                try:
+                    await keepalive_task
+                except asyncio.CancelledError:
+                    print("Now keepalive task is cancelled")
+
+            await WebSocketServerHelper.send_complete(ws, query_id)
+        except websockets.exceptions.ConnectionClosedOK:
+            pass
+        except AssertionError as e:
+            print(f"\nAssertion failed: {e!s}\n")
+        finally:
+            await ws.wait_closed()
+
+    return server_countdown_template
+
+
+async def server_countdown(ws, path):
+
+    server = server_countdown_factory()
+    await server(ws, path)
+
+
+async def server_countdown_keepalive(ws, path):
+
+    server = server_countdown_factory(keepalive=True)
+    await server(ws, path)
+
+
+async def server_countdown_dont_answer_pings(ws, path):
+
+    server = server_countdown_factory(answer_pings=False)
+    await server(ws, path)
 
 
 countdown_subscription_str = """
@@ -354,11 +383,10 @@ async def test_graphqlws_subscription_with_operation_name(
     assert '"operationName": "CountdownSubscription"' in logged_messages[0]
 
 
-WITH_KEEPALIVE = True
-
-
 @pytest.mark.asyncio
-@pytest.mark.parametrize("graphqlws_server", [server_countdown], indirect=True)
+@pytest.mark.parametrize(
+    "graphqlws_server", [server_countdown_keepalive], indirect=True
+)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_graphqlws_subscription_with_keepalive(
     event_loop, client_and_graphqlws_server, subscription_str
@@ -378,10 +406,16 @@ async def test_graphqlws_subscription_with_keepalive(
         count -= 1
 
     assert count == -1
+    assert session.transport.payloads["ping"] == "dummy_ping_payload"
+    assert (
+        session.transport.payloads["connection_ack"] == "dummy_connection_ack_payload"
+    )
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("graphqlws_server", [server_countdown], indirect=True)
+@pytest.mark.parametrize(
+    "graphqlws_server", [server_countdown_keepalive], indirect=True
+)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_graphqlws_subscription_with_keepalive_with_timeout_ok(
     event_loop, graphqlws_server, subscription_str
@@ -391,11 +425,9 @@ async def test_graphqlws_subscription_with_keepalive_with_timeout_ok(
 
     path = "/graphql"
     url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}{path}"
-    sample_transport = WebsocketsTransport(
-        url=url, keep_alive_timeout=(5 * COUNTING_DELAY)
-    )
+    transport = WebsocketsTransport(url=url, keep_alive_timeout=(5 * COUNTING_DELAY))
 
-    client = Client(transport=sample_transport)
+    client = Client(transport=transport)
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
@@ -413,7 +445,9 @@ async def test_graphqlws_subscription_with_keepalive_with_timeout_ok(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("graphqlws_server", [server_countdown], indirect=True)
+@pytest.mark.parametrize(
+    "graphqlws_server", [server_countdown_keepalive], indirect=True
+)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_graphqlws_subscription_with_keepalive_with_timeout_nok(
     event_loop, graphqlws_server, subscription_str
@@ -423,11 +457,9 @@ async def test_graphqlws_subscription_with_keepalive_with_timeout_nok(
 
     path = "/graphql"
     url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}{path}"
-    sample_transport = WebsocketsTransport(
-        url=url, keep_alive_timeout=(COUNTING_DELAY / 2)
-    )
+    transport = WebsocketsTransport(url=url, keep_alive_timeout=(COUNTING_DELAY / 2))
 
-    client = Client(transport=sample_transport)
+    client = Client(transport=transport)
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
@@ -445,7 +477,162 @@ async def test_graphqlws_subscription_with_keepalive_with_timeout_nok(
         assert "No keep-alive message has been received" in str(exc_info.value)
 
 
-@pytest.mark.parametrize("graphqlws_server", [server_countdown], indirect=True)
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "graphqlws_server", [server_countdown_keepalive], indirect=True
+)
+@pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
+async def test_graphqlws_subscription_with_ping_interval_ok(
+    event_loop, graphqlws_server, subscription_str
+):
+
+    from gql.transport.websockets import WebsocketsTransport
+
+    path = "/graphql"
+    url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}{path}"
+    transport = WebsocketsTransport(
+        url=url, ping_interval=(5 * COUNTING_DELAY), pong_timeout=(4 * COUNTING_DELAY),
+    )
+
+    client = Client(transport=transport)
+
+    count = 10
+    subscription = gql(subscription_str.format(count=count))
+
+    async with client as session:
+        async for result in session.subscribe(subscription):
+
+            number = result["number"]
+            print(f"Number received: {number}")
+
+            assert number == count
+            count -= 1
+
+    assert count == -1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "graphqlws_server", [server_countdown_dont_answer_pings], indirect=True
+)
+@pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
+async def test_graphqlws_subscription_with_ping_interval_nok(
+    event_loop, graphqlws_server, subscription_str
+):
+
+    from gql.transport.websockets import WebsocketsTransport
+
+    path = "/graphql"
+    url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}{path}"
+    transport = WebsocketsTransport(url=url, ping_interval=(5 * COUNTING_DELAY))
+
+    client = Client(transport=transport)
+
+    count = 10
+    subscription = gql(subscription_str.format(count=count))
+
+    async with client as session:
+        with pytest.raises(TransportServerError) as exc_info:
+            async for result in session.subscribe(subscription):
+
+                number = result["number"]
+                print(f"Number received: {number}")
+
+                assert number == count
+                count -= 1
+
+        assert "No pong received" in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "graphqlws_server", [server_countdown_keepalive], indirect=True
+)
+@pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
+async def test_graphqlws_subscription_manual_pings_with_payload(
+    event_loop, graphqlws_server, subscription_str
+):
+
+    from gql.transport.websockets import WebsocketsTransport
+
+    path = "/graphql"
+    url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}{path}"
+    transport = WebsocketsTransport(url=url)
+
+    client = Client(transport=transport)
+
+    count = 10
+    subscription = gql(subscription_str.format(count=count))
+
+    async with client as session:
+        async for result in session.subscribe(subscription):
+
+            number = result["number"]
+            print(f"Number received: {number}")
+
+            assert number == count
+            count -= 1
+
+            payload = {"count_received": count}
+
+            await transport.send_ping(payload=payload)
+
+            await transport.pong_received.wait()
+            transport.pong_received.clear()
+
+            assert transport.payloads["pong"] == payload
+
+    assert count == -1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "graphqlws_server", [server_countdown_keepalive], indirect=True
+)
+@pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
+async def test_graphqlws_subscription_manual_pong_answers_with_payload(
+    event_loop, graphqlws_server, subscription_str
+):
+
+    from gql.transport.websockets import WebsocketsTransport
+
+    path = "/graphql"
+    url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}{path}"
+    transport = WebsocketsTransport(url=url, answer_pings=False)
+
+    client = Client(transport=transport)
+
+    count = 10
+    subscription = gql(subscription_str.format(count=count))
+
+    async with client as session:
+
+        async def answer_ping_coro():
+            while True:
+                await transport.ping_received.wait()
+                transport.ping_received.clear()
+                await transport.send_pong(payload={"some": "data"})
+
+        answer_ping_task = asyncio.ensure_future(answer_ping_coro())
+
+        try:
+            async for result in session.subscribe(subscription):
+
+                number = result["number"]
+                print(f"Number received: {number}")
+
+                assert number == count
+                count -= 1
+
+        finally:
+            answer_ping_task.cancel()
+
+    assert count == -1
+
+
+@pytest.mark.parametrize(
+    "graphqlws_server", [server_countdown_keepalive], indirect=True
+)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 def test_graphqlws_subscription_sync(graphqlws_server, subscription_str):
     from gql.transport.websockets import WebsocketsTransport
@@ -453,9 +640,9 @@ def test_graphqlws_subscription_sync(graphqlws_server, subscription_str):
     url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}/graphql"
     print(f"url = {url}")
 
-    sample_transport = WebsocketsTransport(url=url)
+    transport = WebsocketsTransport(url=url)
 
-    client = Client(transport=sample_transport)
+    client = Client(transport=transport)
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
@@ -472,7 +659,9 @@ def test_graphqlws_subscription_sync(graphqlws_server, subscription_str):
 
 
 @pytest.mark.skipif(sys.platform.startswith("win"), reason="test failing on windows")
-@pytest.mark.parametrize("graphqlws_server", [server_countdown], indirect=True)
+@pytest.mark.parametrize(
+    "graphqlws_server", [server_countdown_keepalive], indirect=True
+)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 def test_graphqlws_subscription_sync_graceful_shutdown(
     graphqlws_server, subscription_str
@@ -493,9 +682,9 @@ def test_graphqlws_subscription_sync_graceful_shutdown(
     url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}/graphql"
     print(f"url = {url}")
 
-    sample_transport = WebsocketsTransport(url=url)
+    transport = WebsocketsTransport(url=url)
 
-    client = Client(transport=sample_transport)
+    client = Client(transport=transport)
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
@@ -524,7 +713,9 @@ def test_graphqlws_subscription_sync_graceful_shutdown(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("graphqlws_server", [server_countdown], indirect=True)
+@pytest.mark.parametrize(
+    "graphqlws_server", [server_countdown_keepalive], indirect=True
+)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_graphqlws_subscription_running_in_thread(
     event_loop, graphqlws_server, subscription_str, run_sync_test
@@ -534,9 +725,9 @@ async def test_graphqlws_subscription_running_in_thread(
     def test_code():
         path = "/graphql"
         url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}{path}"
-        sample_transport = WebsocketsTransport(url=url)
+        transport = WebsocketsTransport(url=url)
 
-        client = Client(transport=sample_transport)
+        client = Client(transport=transport)
 
         count = 10
         subscription = gql(subscription_str.format(count=count))
