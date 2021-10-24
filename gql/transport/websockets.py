@@ -565,7 +565,7 @@ class WebsocketsTransport(AsyncTransport):
             # The client is probably closing, handle it properly
             pass
 
-    async def send_ping_coro(self) -> None:
+    async def _send_ping_coro(self) -> None:
         """Coroutine to periodically send a ping from the client to the backend.
 
         Only used for the graphql-ws protocol.
@@ -850,7 +850,7 @@ class WebsocketsTransport(AsyncTransport):
                 and self.ping_interval is not None
             ):
 
-                self.send_ping_task = asyncio.ensure_future(self.send_ping_coro())
+                self.send_ping_task = asyncio.ensure_future(self._send_ping_coro())
 
             # Create a task to listen to the incoming websocket messages
             self.receive_data_task = asyncio.ensure_future(self._receive_data_loop())
