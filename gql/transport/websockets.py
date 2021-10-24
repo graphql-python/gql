@@ -126,7 +126,8 @@ class WebsocketsTransport(AsyncTransport):
         :param pong_timeout: Delay in seconds to receive a pong from the backend
             after we sent a ping (only for the graphql-ws protocol).
             By default equal to half of the ping_interval.
-        :param answer_pings: Whether the client answer the pings from the backend.
+        :param answer_pings: Whether the client answers the pings from the backend
+            (for the graphql-ws protocol).
             By default: True
         :param connect_args: Other parameters forwarded to websockets.connect
         """
@@ -296,17 +297,35 @@ class WebsocketsTransport(AsyncTransport):
         The server should afterwards return a 'complete' message.
         """
 
-        stop_message = "stop"
-
-        if self.subprotocol == self.GRAPHQLWS_SUBPROTOCOL:
-            stop_message = "complete"
-
-        stop_message = json.dumps({"id": str(query_id), "type": stop_message})
+        stop_message = json.dumps({"id": str(query_id), "type": "stop"})
 
         await self._send(stop_message)
 
+    async def _send_complete_message(self, query_id: int) -> None:
+        """Send a complete message for the provided query_id.
+
+        This is only for the graphql-ws protocol.
+        """
+
+        complete_message = json.dumps({"id": str(query_id), "type": "complete"})
+
+        await self._send(complete_message)
+
+    async def _stop_listener(self, query_id: int) -> None:
+        """Stop the listener corresponding to the query_id depending on the
+        detected backend protocol.
+
+        For apollo: send a "stop" message
+                    (a "complete" message will be sent from the backend)
+
+        For graphql-ws: send a "complete" message and simulate the reception
+                        of a "complete" message from the backend
+        """
         if self.subprotocol == self.GRAPHQLWS_SUBPROTOCOL:
+            await self._send_complete_message(query_id)
             await self.listeners[query_id].put(("complete", None))
+        else:
+            await self._send_stop_message(query_id)
 
     async def _send_connection_terminate_message(self) -> None:
         """Send a connection_terminate message to the provided websocket connection.
@@ -699,7 +718,7 @@ class WebsocketsTransport(AsyncTransport):
         except (asyncio.CancelledError, GeneratorExit) as e:
             log.debug(f"Exception in subscribe: {e!r}")
             if listener.send_stop:
-                await self._send_stop_message(query_id)
+                await self._stop_listener(query_id)
                 listener.send_stop = False
 
         finally:
@@ -865,7 +884,7 @@ class WebsocketsTransport(AsyncTransport):
         for query_id, listener in self.listeners.items():
 
             if listener.send_stop:
-                await self._send_stop_message(query_id)
+                await self._stop_listener(query_id)
                 listener.send_stop = False
 
         # Wait that there is no more listeners (we received 'complete' for all queries)
