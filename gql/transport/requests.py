@@ -198,9 +198,6 @@ class RequestsHTTPTransport(Transport):
             if variable_values:
                 payload["variables"] = variable_values
 
-            if log.isEnabledFor(logging.INFO):
-                log.info(">>> %s", json.dumps(payload))
-
             data_key = "json" if self.use_json else "data"
             post_args[data_key] = payload
 
