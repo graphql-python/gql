@@ -12,7 +12,7 @@ It will detect the backend supported protocol from the response http headers ret
 
 This transport allows to do multiple queries, mutations and subscriptions on the same websocket connection.
 
-Reference: :py:class:`gql.transport.websockets.WebsocketsTransport`
+Reference: :class:`gql.transport.websockets.WebsocketsTransport`
 
 .. literalinclude:: ../code_examples/websockets_async.py
 
