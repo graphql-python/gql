@@ -16,5 +16,3 @@ gql.transport
 .. autoclass:: gql.transport.websockets.WebsocketsTransport
 
 .. autoclass:: gql.transport.phoenix_channel_websockets.PhoenixChannelWebsocketsTransport
-
-.. autoclass:: gql.transport.graphqlws.GraphQLWSTransport
