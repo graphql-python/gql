@@ -18,9 +18,9 @@ countdown_server_answer = (
     '{{"type":"next","id":"{query_id}","payload":{{"data":{{"number":{number}}}}}}}'
 )
 
-COUNTING_DELAY = 2 * MS
-PING_SENDING_DELAY = 5 * MS
-PONG_TIMEOUT = 2 * MS
+COUNTING_DELAY = 20 * MS
+PING_SENDING_DELAY = 50 * MS
+PONG_TIMEOUT = 100 * MS
 
 # List which can used to store received messages by the server
 logged_messages: List[str] = []
@@ -48,100 +48,140 @@ def server_countdown_factory(keepalive=False, answer_pings=True):
 
             count_found = search("count: {:d}", query)
             count = count_found[0]
-            print(f"Countdown started from: {count}")
+            print(f"            Server: Countdown started from: {count}")
 
             pong_received: asyncio.Event = asyncio.Event()
 
             async def counting_coro():
-                for number in range(count, -1, -1):
-                    await ws.send(
-                        countdown_server_answer.format(query_id=query_id, number=number)
-                    )
-                    await asyncio.sleep(COUNTING_DELAY)
+                print("            Server: counting task started")
+                try:
+                    for number in range(count, -1, -1):
+                        await ws.send(
+                            countdown_server_answer.format(
+                                query_id=query_id, number=number
+                            )
+                        )
+                        await asyncio.sleep(COUNTING_DELAY)
+                finally:
+                    print("            Server: counting task ended")
 
+            print("            Server: starting counting task")
             counting_task = asyncio.ensure_future(counting_coro())
 
             async def keepalive_coro():
-                while True:
-                    await asyncio.sleep(PING_SENDING_DELAY)
-                    try:
-                        # Send a ping
-                        await WebSocketServerHelper.send_ping(
-                            ws, payload="dummy_ping_payload"
-                        )
-
-                        # Wait for a pong
+                print("            Server: keepalive task started")
+                try:
+                    while True:
+                        await asyncio.sleep(PING_SENDING_DELAY)
                         try:
-                            await asyncio.wait_for(pong_received.wait(), PONG_TIMEOUT)
-                        except asyncio.TimeoutError:
-                            print("\nNo pong received in time!\n")
+                            # Send a ping
+                            await WebSocketServerHelper.send_ping(
+                                ws, payload="dummy_ping_payload"
+                            )
+
+                            # Wait for a pong
+                            try:
+                                await asyncio.wait_for(
+                                    pong_received.wait(), PONG_TIMEOUT
+                                )
+                            except asyncio.TimeoutError:
+                                print(
+                                    "\n            Server: No pong received in time!\n"
+                                )
+                                break
+
+                            pong_received.clear()
+
+                        except websockets.exceptions.ConnectionClosed:
                             break
-
-                        pong_received.clear()
-
-                    except websockets.exceptions.ConnectionClosed:
-                        break
+                finally:
+                    print("            Server: keepalive task ended")
 
             if keepalive:
+                print("            Server: starting keepalive task")
                 keepalive_task = asyncio.ensure_future(keepalive_coro())
 
             async def receiving_coro():
-                nonlocal counting_task
-                while True:
+                print("            Server: receiving task started")
+                try:
+                    nonlocal counting_task
+                    while True:
 
-                    try:
-                        result = await ws.recv()
-                        logged_messages.append(result)
-                    except websockets.exceptions.ConnectionClosed:
-                        break
+                        try:
+                            result = await ws.recv()
+                            logged_messages.append(result)
+                        except websockets.exceptions.ConnectionClosed:
+                            break
 
-                    json_result = json.loads(result)
+                        json_result = json.loads(result)
 
-                    answer_type = json_result["type"]
+                        answer_type = json_result["type"]
 
-                    if answer_type == "complete" and json_result["id"] == str(query_id):
-                        print("Cancelling counting task now")
-                        counting_task.cancel()
-                        if keepalive:
-                            print("Cancelling keep alive task now")
-                            keepalive_task.cancel()
+                        if answer_type == "complete" and json_result["id"] == str(
+                            query_id
+                        ):
+                            print("Cancelling counting task now")
+                            counting_task.cancel()
+                            if keepalive:
+                                print("Cancelling keep alive task now")
+                                keepalive_task.cancel()
 
-                    elif answer_type == "ping":
-                        if answer_pings:
-                            payload = json_result.get("payload", None)
-                            await WebSocketServerHelper.send_pong(ws, payload=payload)
+                        elif answer_type == "ping":
+                            if answer_pings:
+                                payload = json_result.get("payload", None)
+                                await WebSocketServerHelper.send_pong(
+                                    ws, payload=payload
+                                )
 
-                    elif answer_type == "pong":
-                        pong_received.set()
+                        elif answer_type == "pong":
+                            pong_received.set()
+                finally:
+                    print("            Server: receiving task ended")
+                    if keepalive:
+                        keepalive_task.cancel()
 
+            print("            Server: starting receiving task")
             receiving_task = asyncio.ensure_future(receiving_coro())
 
             try:
+                print("            Server: waiting for counting task to complete")
                 await counting_task
             except asyncio.CancelledError:
-                print("Now counting task is cancelled")
+                print("            Server: Now counting task is cancelled")
 
+            print("            Server: sending complete message")
+            await WebSocketServerHelper.send_complete(ws, query_id)
+
+            if keepalive:
+                print("            Server: cancelling keepalive task")
+                keepalive_task.cancel()
+                try:
+                    await keepalive_task
+                except asyncio.CancelledError:
+                    print("            Server: Now keepalive task is cancelled")
+
+            print("            Server: waiting for client to close the connection")
+            try:
+                await asyncio.wait_for(receiving_task, 1000 * MS)
+            except asyncio.TimeoutError:
+                pass
+
+            print("            Server: cancelling receiving task")
             receiving_task.cancel()
 
             try:
                 await receiving_task
             except asyncio.CancelledError:
-                print("Now receiving task is cancelled")
+                print("            Server: Now receiving task is cancelled")
 
-            if keepalive:
-                keepalive_task.cancel()
-                try:
-                    await keepalive_task
-                except asyncio.CancelledError:
-                    print("Now keepalive task is cancelled")
-
-            await WebSocketServerHelper.send_complete(ws, query_id)
         except websockets.exceptions.ConnectionClosedOK:
             pass
         except AssertionError as e:
-            print(f"\nAssertion failed: {e!s}\n")
+            print(f"\n            Server: Assertion failed: {e!s}\n")
         finally:
+            print("            Server: waiting for websocket connection to close")
             await ws.wait_closed()
+            print("            Server: connection closed")
 
     return server_countdown_template
 
@@ -406,6 +446,7 @@ async def test_graphqlws_subscription_with_keepalive(
         count -= 1
 
     assert count == -1
+    assert "ping" in session.transport.payloads
     assert session.transport.payloads["ping"] == "dummy_ping_payload"
     assert (
         session.transport.payloads["connection_ack"] == "dummy_connection_ack_payload"
@@ -570,17 +611,18 @@ async def test_graphqlws_subscription_manual_pings_with_payload(
             number = result["number"]
             print(f"Number received: {number}")
 
-            assert number == count
-            count -= 1
-
             payload = {"count_received": count}
 
             await transport.send_ping(payload=payload)
 
-            await transport.pong_received.wait()
+            await asyncio.wait_for(transport.pong_received.wait(), 10000 * MS)
+
             transport.pong_received.clear()
 
             assert transport.payloads["pong"] == payload
+
+            assert number == count
+            count -= 1
 
     assert count == -1
 
