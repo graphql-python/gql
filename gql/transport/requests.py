@@ -95,6 +95,7 @@ class RequestsHTTPTransport(Transport):
                         total=self.retries,
                         backoff_factor=0.1,
                         status_forcelist=[500, 502, 503, 504],
+                        allowed_methods=None,
                     )
                 )
                 for prefix in "http://", "https://":
