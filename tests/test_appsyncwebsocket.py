@@ -1,13 +1,4 @@
-import botocore.exceptions
 import pytest
-
-from gql.transport.awsappsyncwebsocket import (
-    AppSyncApiKeyAuthorization,
-    AppSyncIAMAuthorization,
-    AppSyncOIDCAuthorization,
-    AppSyncWebsocketsTransport,
-    MissingRegionError,
-)
 
 # Marking all tests in this file with the appsyncwebsockets marker
 pytestmark = pytest.mark.appsyncwebsockets
@@ -16,6 +7,11 @@ mock_transport_url = "https://appsyncapp.awsgateway.com.example.org"
 
 
 def test_appsyncwebsocket_init_with_minimal_args(fake_session_factory):
+    from gql.transport.awsappsyncwebsocket import (
+        AppSyncIAMAuthorization,
+        AppSyncWebsocketsTransport,
+    )
+
     sample_transport = AppSyncWebsocketsTransport(
         url=mock_transport_url, session=fake_session_factory()
     )
@@ -30,6 +26,9 @@ def test_appsyncwebsocket_init_with_minimal_args(fake_session_factory):
 def test_appsyncwebsocket_init_with_no_credentials(
     fake_session_factory, fake_logger_factory
 ):
+    import botocore.exceptions
+    from gql.transport.awsappsyncwebsocket import AppSyncWebsocketsTransport
+
     fake_logger = fake_logger_factory()
     with pytest.raises(botocore.exceptions.NoCredentialsError):
         sample_transport = AppSyncWebsocketsTransport(
@@ -43,6 +42,11 @@ def test_appsyncwebsocket_init_with_no_credentials(
 
 
 def test_appsyncwebsocket_init_with_oidc_auth():
+    from gql.transport.awsappsyncwebsocket import (
+        AppSyncOIDCAuthorization,
+        AppSyncWebsocketsTransport,
+    )
+
     authorization = AppSyncOIDCAuthorization(host=mock_transport_url, jwt="some-jwt")
     sample_transport = AppSyncWebsocketsTransport(
         url=mock_transport_url, authorization=authorization
@@ -51,6 +55,11 @@ def test_appsyncwebsocket_init_with_oidc_auth():
 
 
 def test_appsyncwebsocket_init_with_apikey_auth():
+    from gql.transport.awsappsyncwebsocket import (
+        AppSyncApiKeyAuthorization,
+        AppSyncWebsocketsTransport,
+    )
+
     authorization = AppSyncApiKeyAuthorization(
         host=mock_transport_url, api_key="some-api-key"
     )
@@ -61,12 +70,23 @@ def test_appsyncwebsocket_init_with_apikey_auth():
 
 
 def test_appsyncwebsocket_init_with_iam_auth_without_creds():
+    import botocore.exceptions
+    from gql.transport.awsappsyncwebsocket import (
+        AppSyncIAMAuthorization,
+        AppSyncWebsocketsTransport,
+    )
+
     authorization = AppSyncIAMAuthorization(host=mock_transport_url, credentials=None)
     with pytest.raises(botocore.exceptions.NoCredentialsError):
         AppSyncWebsocketsTransport(url=mock_transport_url, authorization=authorization)
 
 
 def test_appsyncwebsocket_init_with_iam_auth_with_creds(fake_credentials_factory):
+    from gql.transport.awsappsyncwebsocket import (
+        AppSyncIAMAuthorization,
+        AppSyncWebsocketsTransport,
+    )
+
     authorization = AppSyncIAMAuthorization(
         host=mock_transport_url,
         credentials=fake_credentials_factory(),
@@ -81,6 +101,12 @@ def test_appsyncwebsocket_init_with_iam_auth_with_creds(fake_credentials_factory
 def test_appsyncwebsocket_init_with_iam_auth_and_no_region(
     fake_credentials_factory, fake_logger_factory
 ):
+    from gql.transport.awsappsyncwebsocket import (
+        AppSyncIAMAuthorization,
+        AppSyncWebsocketsTransport,
+        MissingRegionError,
+    )
+
     fake_logger = fake_logger_factory()
     with pytest.raises(MissingRegionError):
         authorization = AppSyncIAMAuthorization(
@@ -95,6 +121,11 @@ def test_appsyncwebsocket_init_with_iam_auth_and_no_region(
 
 
 def test_munge_url(fake_signer_factory, fake_request_factory):
+    from gql.transport.awsappsyncwebsocket import (
+        AppSyncIAMAuthorization,
+        AppSyncWebsocketsTransport,
+    )
+
     test_url = "https://appsync-api.aws.example.org/some-other-params"
 
     authorization = AppSyncIAMAuthorization(
@@ -116,6 +147,8 @@ def test_munge_url_format(
     fake_credentials_factory,
     fake_session_factory,
 ):
+    from gql.transport.awsappsyncwebsocket import AppSyncIAMAuthorization
+
     test_url = "https://appsync-api.aws.example.org/some-other-params"
 
     authorization = AppSyncIAMAuthorization(
