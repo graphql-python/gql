@@ -8,9 +8,9 @@ from graphql import DocumentNode, ExecutionResult, print_ast
 from requests.adapters import HTTPAdapter, Retry
 from requests.auth import AuthBase
 from requests.cookies import RequestsCookieJar
+from requests_toolbelt.multipart.encoder import MultipartEncoder
 
 from gql.transport import Transport
-from requests_toolbelt.multipart.encoder import MultipartEncoder
 
 from ..utils import extract_files
 from .exceptions import (
