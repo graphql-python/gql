@@ -95,6 +95,7 @@ class RequestsHTTPTransport(Transport):
                         total=self.retries,
                         backoff_factor=0.1,
                         status_forcelist=[500, 502, 503, 504],
+                        allowed_methods=None,
                     )
                 )
                 for prefix in "http://", "https://":
@@ -197,9 +198,6 @@ class RequestsHTTPTransport(Transport):
         else:
             if variable_values:
                 payload["variables"] = variable_values
-
-            if log.isEnabledFor(logging.INFO):
-                log.info(">>> %s", json.dumps(payload))
 
             data_key = "json" if self.use_json else "data"
             post_args[data_key] = payload

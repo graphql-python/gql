@@ -4,6 +4,7 @@ include CODEOWNERS
 include LICENSE
 include README.md
 include CONTRIBUTING.md
+include .readthedocs.yaml
 
 include dev_requirements.txt
 include Makefile

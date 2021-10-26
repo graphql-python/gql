@@ -391,7 +391,7 @@ async def test_websocket_subscription_with_keepalive_with_timeout_ok(
 
     path = "/graphql"
     url = f"ws://{server.hostname}:{server.port}{path}"
-    sample_transport = WebsocketsTransport(url=url, keep_alive_timeout=(500 * MS))
+    sample_transport = WebsocketsTransport(url=url, keep_alive_timeout=(20 * MS))
 
     client = Client(transport=sample_transport)
 
