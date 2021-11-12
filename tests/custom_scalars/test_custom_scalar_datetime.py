@@ -20,9 +20,6 @@ from graphql.utilities import value_from_ast_untyped
 
 from gql import Client, gql
 
-# Marking all tests in this file with the aiohttp marker
-pytestmark = pytest.mark.aiohttp
-
 
 def serialize_datetime(value: Any) -> str:
     if not isinstance(value, datetime):
@@ -110,6 +107,9 @@ queryType = GraphQLObjectType(
 schema = GraphQLSchema(query=queryType)
 
 
+@pytest.mark.skipif(
+    not hasattr(datetime, "fromisoformat"), reason="fromisoformat is new in Python 3.7+"
+)
 def test_shift_days():
 
     client = Client(schema=schema)
@@ -131,6 +131,9 @@ def test_shift_days():
     assert result["shiftDays"] == "2021-11-17T11:58:13.461161"
 
 
+@pytest.mark.skipif(
+    not hasattr(datetime, "fromisoformat"), reason="fromisoformat is new in Python 3.7+"
+)
 def test_latest():
 
     client = Client(schema=schema)
@@ -153,6 +156,9 @@ def test_latest():
     assert result["latest"] == in_five_days.isoformat()
 
 
+@pytest.mark.skipif(
+    not hasattr(datetime, "fromisoformat"), reason="fromisoformat is new in Python 3.7+"
+)
 def test_seconds():
     client = Client(schema=schema)
 
