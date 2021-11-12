@@ -19,6 +19,8 @@ from graphql.type import (
 from graphql.utilities import value_from_ast_untyped
 
 from gql import Client, gql
+from gql.transport.exceptions import TransportQueryError
+from gql.utilities import update_schema_scalars
 from gql.variable_values import serialize_value
 
 from ..conftest import MS
@@ -469,6 +471,112 @@ async def test_custom_scalar_serialize_variables(event_loop, aiohttp_server):
 
         print(f"result = {result!r}")
         assert result["toEuros"] == 5
+
+
+@pytest.mark.asyncio
+async def test_custom_scalar_serialize_variables_no_schema(event_loop, aiohttp_server):
+
+    transport = await make_money_transport(aiohttp_server)
+
+    async with Client(transport=transport,) as session:
+
+        query = gql("query myquery($money: Money) {toEuros(money: $money)}")
+
+        variable_values = {"money": Money(10, "DM")}
+
+        with pytest.raises(TransportQueryError):
+            await session.execute(
+                query, variable_values=variable_values, serialize_variables=True
+            )
+
+
+@pytest.mark.asyncio
+async def test_custom_scalar_serialize_variables_schema_from_introspection(
+    event_loop, aiohttp_server
+):
+
+    transport = await make_money_transport(aiohttp_server)
+
+    async with Client(transport=transport, fetch_schema_from_transport=True) as session:
+
+        schema = session.client.schema
+
+        # Updating the Money Scalar in the schema
+        # We cannot replace it because some other objects keep a reference
+        # to the existing Scalar
+        # cannot do: schema.type_map["Money"] = MoneyScalar
+
+        money_scalar = schema.type_map["Money"]
+
+        money_scalar.serialize = MoneyScalar.serialize
+        money_scalar.parse_value = MoneyScalar.parse_value
+        money_scalar.parse_literal = MoneyScalar.parse_literal
+
+        query = gql("query myquery($money: Money) {toEuros(money: $money)}")
+
+        variable_values = {"money": Money(10, "DM")}
+
+        result = await session.execute(
+            query, variable_values=variable_values, serialize_variables=True
+        )
+
+        print(f"result = {result!r}")
+        assert result["toEuros"] == 5
+
+
+@pytest.mark.asyncio
+async def test_update_schema_scalars(event_loop, aiohttp_server):
+
+    transport = await make_money_transport(aiohttp_server)
+
+    async with Client(transport=transport, fetch_schema_from_transport=True) as session:
+
+        # Update the schema MoneyScalar default implementation from
+        # introspection with our provided conversion methods
+        update_schema_scalars(session.client.schema, [MoneyScalar])
+
+        query = gql("query myquery($money: Money) {toEuros(money: $money)}")
+
+        variable_values = {"money": Money(10, "DM")}
+
+        result = await session.execute(
+            query, variable_values=variable_values, serialize_variables=True
+        )
+
+        print(f"result = {result!r}")
+        assert result["toEuros"] == 5
+
+
+def test_update_schema_scalars_invalid_scalar():
+
+    with pytest.raises(GraphQLError) as exc_info:
+        update_schema_scalars(schema, [int])
+
+    exception = exc_info.value
+
+    assert str(exception) == "Scalars should be instances of GraphQLScalarType."
+
+
+def test_update_schema_scalars_invalid_scalar_argument():
+
+    with pytest.raises(GraphQLError) as exc_info:
+        update_schema_scalars(schema, MoneyScalar)
+
+    exception = exc_info.value
+
+    assert str(exception) == "Scalars argument should be a list of scalars."
+
+
+def test_update_schema_scalars_scalar_not_found_in_schema():
+
+    NotFoundScalar = GraphQLScalarType(name="abcd",)
+
+    with pytest.raises(GraphQLError) as exc_info:
+        update_schema_scalars(schema, [MoneyScalar, NotFoundScalar])
+
+    exception = exc_info.value
+
+    assert str(exception) == "Scalar 'abcd' not found in schema."
 
 
 @pytest.mark.asyncio
