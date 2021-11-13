@@ -38,7 +38,7 @@ def parse_datetime_value(value: Any) -> datetime:
             raise GraphQLError("Cannot parse datetime value : " + inspect(value))
 
     else:
-        raise GraphQLError("Cannot parseee datetime value: " + inspect(value))
+        raise GraphQLError("Cannot parse datetime value: " + inspect(value))
 
 
 def parse_datetime_literal(
@@ -125,6 +125,46 @@ def test_shift_days():
     result = client.execute(
         query, variable_values=variable_values, serialize_variables=True
     )
+
+    print(result)
+
+    assert result["shiftDays"] == "2021-11-17T11:58:13.461161"
+
+
+@pytest.mark.skipif(
+    not hasattr(datetime, "fromisoformat"), reason="fromisoformat is new in Python 3.7+"
+)
+def test_shift_days_serialized_manually_in_query():
+
+    client = Client(schema=schema)
+
+    query = gql(
+        """{
+        shiftDays(time: "2021-11-12T11:58:13.461161", days: 5)
+    }"""
+    )
+
+    result = client.execute(query)
+
+    print(result)
+
+    assert result["shiftDays"] == "2021-11-17T11:58:13.461161"
+
+
+@pytest.mark.skipif(
+    not hasattr(datetime, "fromisoformat"), reason="fromisoformat is new in Python 3.7+"
+)
+def test_shift_days_serialized_manually_in_variables():
+
+    client = Client(schema=schema)
+
+    query = gql("query shift5days($time: Datetime) {shiftDays(time: $time, days: 5)}")
+
+    variable_values = {
+        "time": "2021-11-12T11:58:13.461161",
+    }
+
+    result = client.execute(query, variable_values=variable_values)
 
     print(result)
 
