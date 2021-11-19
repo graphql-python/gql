@@ -140,7 +140,7 @@ schema = GraphQLSchema(query=queryType, subscription=subscriptionType,)
 
 def test_custom_scalar_in_output():
 
-    client = Client(schema=schema)
+    client = Client(schema=schema, parse_results=True)
 
     query = gql("{balance}")
 
@@ -148,7 +148,7 @@ def test_custom_scalar_in_output():
 
     print(result)
 
-    assert result["balance"] == serialize_money(root_value)
+    assert result["balance"] == root_value
 
 
 def test_custom_scalar_in_input_query():
@@ -301,16 +301,18 @@ def test_custom_scalar_subscribe_in_input_variable_values_serialized():
 
     variable_values = {"money": money_value}
 
-    expected_result = {"spend": {"amount": 10, "currency": "DM"}}
+    expected_result = {"spend": Money(10, "DM")}
 
     for result in client.subscribe(
         query,
         variable_values=variable_values,
         root_value=root_value,
         serialize_variables=True,
+        parse_result=True,
     ):
         print(f"result = {result!r}")
-        expected_result["spend"]["amount"] = expected_result["spend"]["amount"] - 1
+        assert isinstance(result["spend"], Money)
+        expected_result["spend"] = Money(expected_result["spend"].amount - 1, "DM")
         assert expected_result == result
 
 
@@ -588,7 +590,7 @@ async def test_custom_scalar_serialize_variables_sync_transport(
     server, transport = await make_sync_money_transport(aiohttp_server)
 
     def test_code():
-        with Client(schema=schema, transport=transport,) as session:
+        with Client(schema=schema, transport=transport, parse_results=True) as session:
 
             query = gql("query myquery($money: Money) {toEuros(money: $money)}")
 

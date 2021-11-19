@@ -112,7 +112,7 @@ async def test_async_client_validation(
         expected = []
 
         async for result in session.subscribe(
-            subscription, variable_values=variable_values
+            subscription, variable_values=variable_values, parse_result=False
         ):
 
             review = result["reviewAdded"]
