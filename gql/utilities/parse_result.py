@@ -12,7 +12,6 @@ from graphql import (
     GraphQLScalarType,
     GraphQLSchema,
     InlineFragmentNode,
-    NameNode,
     OperationDefinitionNode,
     SelectionSetNode,
     TypeInfo,
@@ -29,12 +28,12 @@ from graphql.language.visitor import VisitorActionEnum
 RESULT_DOCUMENT_KEYS: Dict[str, Tuple[str, ...]] = {
     "name": (),
     "document": ("definitions",),
-    "operation_definition": ("name", "selection_set",),
+    "operation_definition": ("selection_set",),
     "selection_set": ("selections",),
-    "field": ("alias", "name", "selection_set"),
-    "fragment_spread": ("name",),
-    "inline_fragment": ("type_condition", "selection_set"),
-    "fragment_definition": ("name", "type_condition", "selection_set",),
+    "field": ("alias", "selection_set"),
+    "fragment_spread": (),
+    "inline_fragment": ("selection_set",),
+    "fragment_definition": ("selection_set",),
 }
 
 
@@ -62,9 +61,6 @@ class ParseResultVisitor(Visitor):
             return self.result_stack[-1]
         except IndexError:
             return self.result
-
-    def leave_name(self, node: NameNode, *_args: Any,) -> str:
-        return node.value
 
     @staticmethod
     def leave_document(node: DocumentNode, *_args: Any) -> Dict[str, Any]:
@@ -149,7 +145,7 @@ class ParseResultVisitor(Visitor):
 
     def leave_field(self, node: FieldNode, *_args: Any,) -> Dict[str, Any]:
 
-        name = cast(str, node.alias if node.alias else node.name)
+        name = cast(str, node.alias.value if node.alias else node.name.value)
 
         if self.current_result is None:
             return {name: None}
@@ -202,7 +198,7 @@ class ParseResultVisitor(Visitor):
         self, node: FragmentSpreadNode, *_args: Any
     ) -> Dict[str, Any]:
 
-        fragment_name = node.name
+        fragment_name = node.name.value
 
         for definition in self.document.definitions:
             if isinstance(definition, FragmentDefinitionNode):
