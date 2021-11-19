@@ -1,15 +1,22 @@
 import logging
+import re
 from abc import ABC, abstractmethod
+from math import isfinite
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple, Union, cast
 
 from graphql import (
     ArgumentNode,
+    BooleanValueNode,
     DocumentNode,
+    EnumValueNode,
     FieldNode,
+    FloatValueNode,
     FragmentDefinitionNode,
     FragmentSpreadNode,
     GraphQLArgument,
+    GraphQLError,
     GraphQLField,
+    GraphQLID,
     GraphQLInputObjectType,
     GraphQLInputType,
     GraphQLInterfaceType,
@@ -20,6 +27,7 @@ from graphql import (
     GraphQLSchema,
     GraphQLWrappingType,
     InlineFragmentNode,
+    IntValueNode,
     ListTypeNode,
     ListValueNode,
     NamedTypeNode,
@@ -31,24 +39,75 @@ from graphql import (
     OperationDefinitionNode,
     OperationType,
     SelectionSetNode,
+    StringValueNode,
     TypeNode,
     Undefined,
     ValueNode,
     VariableDefinitionNode,
     VariableNode,
     assert_named_type,
+    is_enum_type,
     is_input_object_type,
+    is_leaf_type,
     is_list_type,
     is_non_null_type,
     is_wrapping_type,
     print_ast,
 )
-from graphql.pyutils import FrozenList
-from graphql.utilities import ast_from_value as default_ast_from_value
+from graphql.pyutils import FrozenList, inspect
 
 from .utils import to_camel_case
 
 log = logging.getLogger(__name__)
+
+_re_integer_string = re.compile("^-?(?:0|[1-9][0-9]*)$")
+
+
+def ast_from_serialized_value_untyped(serialized: Any) -> Optional[ValueNode]:
+    """Given a serialized value, try our best to produce an AST.
+
+    Anything ressembling an array (instance of Mapping) will be converted
+    to an ObjectFieldNode.
+
+    Anything ressembling a list (instance of Iterable - except str)
+    will be converted to a ListNode.
+
+    In some cases, a custom scalar can be serialized differently in the query
+    than in the variables. In that case, this function will not work."""
+
+    if serialized is None or serialized is Undefined:
+        return NullValueNode()
+
+    if isinstance(serialized, Mapping):
+        field_items = (
+            (key, ast_from_serialized_value_untyped(value))
+            for key, value in serialized.items()
+        )
+        field_nodes = (
+            ObjectFieldNode(name=NameNode(value=field_name), value=field_value)
+            for field_name, field_value in field_items
+            if field_value
+        )
+        return ObjectValueNode(fields=FrozenList(field_nodes))
+
+    if isinstance(serialized, Iterable) and not isinstance(serialized, str):
+        maybe_nodes = (ast_from_serialized_value_untyped(item) for item in serialized)
+        nodes = filter(None, maybe_nodes)
+        return ListValueNode(values=FrozenList(nodes))
+
+    if isinstance(serialized, bool):
+        return BooleanValueNode(value=serialized)
+
+    if isinstance(serialized, int):
+        return IntValueNode(value=f"{serialized:d}")
+
+    if isinstance(serialized, float) and isfinite(serialized):
+        return FloatValueNode(value=f"{serialized:g}")
+
+    if isinstance(serialized, str):
+        return StringValueNode(value=serialized)
+
+    raise TypeError(f"Cannot convert value to AST: {inspect(serialized)}.")
 
 
 def ast_from_value(value: Any, type_: GraphQLInputType) -> Optional[ValueNode]:
@@ -60,15 +119,21 @@ def ast_from_value(value: Any, type_: GraphQLInputType) -> Optional[ValueNode]:
     VariableNode when value is a DSLVariable
 
     Produce a GraphQL Value AST given a Python object.
+
+    Raises a GraphQLError instead of returning None if we receive an Undefined
+    of if we receive a Null value for a Non-Null type.
     """
     if isinstance(value, DSLVariable):
         return value.set_type(type_).ast_variable
 
     if is_non_null_type(type_):
         type_ = cast(GraphQLNonNull, type_)
-        ast_value = ast_from_value(value, type_.of_type)
+        inner_type = type_.of_type
+        ast_value = ast_from_value(value, inner_type)
         if isinstance(ast_value, NullValueNode):
-            return None
+            raise GraphQLError(
+                "Received Null value for a Non-Null type " f"{inspect(inner_type)}."
+            )
         return ast_value
 
     # only explicit None, not Undefined or NaN
@@ -77,7 +142,7 @@ def ast_from_value(value: Any, type_: GraphQLInputType) -> Optional[ValueNode]:
 
     # undefined
     if value is Undefined:
-        return None
+        raise GraphQLError(f"Received Undefined value for type {inspect(type_)}.")
 
     # Convert Python list to GraphQL list. If the GraphQLType is a list, but the value
     # is not a list, convert the value using the list's item type.
@@ -108,7 +173,32 @@ def ast_from_value(value: Any, type_: GraphQLInputType) -> Optional[ValueNode]:
         )
         return ObjectValueNode(fields=FrozenList(field_nodes))
 
-    return default_ast_from_value(value, type_)
+    if is_leaf_type(type_):
+        # Since value is an internally represented value, it must be serialized to an
+        # externally represented value before converting into an AST.
+        serialized = type_.serialize(value)  # type: ignore
+
+        # if the serialized value is a string, then we should use the
+        # type to determine if it is an enum, an ID or a normal string
+        if isinstance(serialized, str):
+            # Enum types use Enum literals.
+            if is_enum_type(type_):
+                return EnumValueNode(value=serialized)
+
+            # ID types can use Int literals.
+            if type_ is GraphQLID and _re_integer_string.match(serialized):
+                return IntValueNode(value=serialized)
+
+            return StringValueNode(value=serialized)
+
+        # Some custom scalars will serialize to dicts or lists
+        # Providing here a default conversion to AST using our best judgment
+        # until graphql-js issue #1817 is solved
+        # https://github.com/graphql/graphql-js/issues/1817
+        return ast_from_serialized_value_untyped(serialized)
+
+    # Not reachable. All possible input types have been considered.
+    raise TypeError(f"Unexpected input type: {inspect(type_)}.")
 
 
 def dsl_gql(

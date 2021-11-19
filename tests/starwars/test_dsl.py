@@ -1,5 +1,7 @@
 import pytest
 from graphql import (
+    GraphQLError,
+    GraphQLID,
     GraphQLInt,
     GraphQLList,
     GraphQLNonNull,
@@ -23,6 +25,7 @@ from gql.dsl import (
     DSLSubscription,
     DSLVariable,
     DSLVariableDefinitions,
+    ast_from_serialized_value_untyped,
     ast_from_value,
     dsl_gql,
 )
@@ -54,12 +57,38 @@ def test_ast_from_value_with_none():
 
 
 def test_ast_from_value_with_undefined():
-    assert ast_from_value(Undefined, GraphQLInt) is None
+    with pytest.raises(GraphQLError) as exc_info:
+        ast_from_value(Undefined, GraphQLInt)
+
+    assert "Received Undefined value for type Int." in str(exc_info.value)
+
+
+def test_ast_from_value_with_graphqlid():
+
+    assert ast_from_value("12345", GraphQLID) == IntValueNode(value="12345")
+
+
+def test_ast_from_value_with_invalid_type():
+    with pytest.raises(TypeError) as exc_info:
+        ast_from_value(4, None)
+
+    assert "Unexpected input type: None." in str(exc_info.value)
 
 
 def test_ast_from_value_with_non_null_type_and_none():
     typ = GraphQLNonNull(GraphQLInt)
-    assert ast_from_value(None, typ) is None
+
+    with pytest.raises(GraphQLError) as exc_info:
+        ast_from_value(None, typ)
+
+    assert "Received Null value for a Non-Null type Int." in str(exc_info.value)
+
+
+def test_ast_from_serialized_value_untyped_typeerror():
+    with pytest.raises(TypeError) as exc_info:
+        ast_from_serialized_value_untyped(GraphQLInt)
+
+    assert "Cannot convert value to AST: Int." in str(exc_info.value)
 
 
 def test_variable_to_ast_type_passing_wrapping_type():
