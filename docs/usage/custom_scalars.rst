@@ -132,3 +132,41 @@ in the client to request the schema from the backend.
         result = await session.execute(
             query, variable_values=variable_values, serialize_variables=True
         )
+
+        # result["time"] is a string
+
+Custom Scalars in output
+------------------------
+
+By default, gql returns the serialized result from the backend without parsing
+(except json unserialization to Python default types).
+
+if you want to convert the result of custom scalars to custom objects,
+you can request gql to parse the results.
+
+- use :code:`Client(..., parse_results=True)` to request parsing for all queries
+- use :code:`execute(..., parse_result=True)` or :code:`subscribe(..., parse_result=True)` if
+  you want gql to parse only the result of a single query.
+
+Same example as above, with result parsing enabled:
+
+.. code-block:: python
+
+    from gql.utilities import update_schema_scalars
+
+    async with Client(transport=transport, fetch_schema_from_transport=True) as session:
+
+        update_schema_scalars(session.client.schema, [DatetimeScalar])
+
+        query = gql("query shift5days($time: Datetime) {shiftDays(time: $time, days: 5)}")
+
+        variable_values = {"time": datetime.now()}
+
+        result = await session.execute(
+            query,
+            variable_values=variable_values,
+            serialize_variables=True,
+            parse_result=True,
+        )
+
+        # now result["time"] type is a datetime instead of string
