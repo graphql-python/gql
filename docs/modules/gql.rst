@@ -21,3 +21,4 @@ Sub-Packages
    client
    transport
    dsl
+   utilities
