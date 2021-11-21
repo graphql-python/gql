@@ -11,6 +11,7 @@ from graphql.type import (
     GraphQLField,
     GraphQLFloat,
     GraphQLInt,
+    GraphQLList,
     GraphQLNonNull,
     GraphQLObjectType,
     GraphQLScalarType,
@@ -82,9 +83,34 @@ MoneyScalar = GraphQLScalarType(
     parse_literal=parse_money_literal,
 )
 
+root_value = {
+    "balance": Money(42, "DM"),
+    "friends_balance": [Money(12, "EUR"), Money(24, "EUR"), Money(150, "DM")],
+    "countries_balance": {
+        "Belgium": Money(15000, "EUR"),
+        "Luxembourg": Money(99999, "EUR"),
+    },
+}
+
 
 def resolve_balance(root, _info):
-    return root
+    return root["balance"]
+
+
+def resolve_friends_balance(root, _info):
+    return root["friends_balance"]
+
+
+def resolve_countries_balance(root, _info):
+    return root["countries_balance"]
+
+
+def resolve_belgium_balance(countries_balance, _info):
+    return countries_balance["Belgium"]
+
+
+def resolve_luxembourg_balance(countries_balance, _info):
+    return countries_balance["Luxembourg"]
 
 
 def resolve_to_euros(_root, _info, money):
@@ -97,6 +123,18 @@ def resolve_to_euros(_root, _info, money):
     raise ValueError("Cannot convert to euros: " + inspect(money))
 
 
+countriesBalance = GraphQLObjectType(
+    name="CountriesBalance",
+    fields={
+        "Belgium": GraphQLField(
+            GraphQLNonNull(MoneyScalar), resolve=resolve_belgium_balance
+        ),
+        "Luxembourg": GraphQLField(
+            GraphQLNonNull(MoneyScalar), resolve=resolve_luxembourg_balance
+        ),
+    },
+)
+
 queryType = GraphQLObjectType(
     name="RootQueryType",
     fields={
@@ -105,6 +143,12 @@ queryType = GraphQLObjectType(
             GraphQLFloat,
             args={"money": GraphQLArgument(MoneyScalar)},
             resolve=resolve_to_euros,
+        ),
+        "friends_balance": GraphQLField(
+            GraphQLList(MoneyScalar), resolve=resolve_friends_balance
+        ),
+        "countries_balance": GraphQLField(
+            GraphQLNonNull(countriesBalance), resolve=resolve_countries_balance,
         ),
     },
 )
@@ -133,8 +177,6 @@ subscriptionType = GraphQLObjectType(
     },
 )
 
-root_value = Money(42, "DM")
-
 schema = GraphQLSchema(query=queryType, subscription=subscriptionType,)
 
 
@@ -148,7 +190,53 @@ def test_custom_scalar_in_output():
 
     print(result)
 
-    assert result["balance"] == root_value
+    assert result["balance"] == root_value["balance"]
+
+
+def test_custom_scalar_in_output_embedded_fragments():
+
+    client = Client(schema=schema, parse_results=True)
+
+    query = gql(
+        """
+        fragment LuxMoneyInternal on CountriesBalance {
+            ... on CountriesBalance {
+                Luxembourg
+            }
+        }
+        query {
+            countries_balance {
+                Belgium
+                ...LuxMoney
+            }
+        }
+        fragment LuxMoney on CountriesBalance {
+            ...LuxMoneyInternal
+        }
+        """
+    )
+
+    result = client.execute(query, root_value=root_value)
+
+    print(result)
+
+    belgium_money = result["countries_balance"]["Belgium"]
+    assert belgium_money == Money(15000, "EUR")
+    luxembourg_money = result["countries_balance"]["Luxembourg"]
+    assert luxembourg_money == Money(99999, "EUR")
+
+
+def test_custom_scalar_list_in_output():
+
+    client = Client(schema=schema, parse_results=True)
+
+    query = gql("{friends_balance}")
+
+    result = client.execute(query, root_value=root_value)
+
+    print(result)
+
+    assert result["friends_balance"] == root_value["friends_balance"]
 
 
 def test_custom_scalar_in_input_query():
@@ -387,7 +475,7 @@ async def test_custom_scalar_in_output_with_transport(event_loop, aiohttp_server
 
         print(result)
 
-        assert result["balance"] == serialize_money(root_value)
+        assert result["balance"] == serialize_money(root_value["balance"])
 
 
 @pytest.mark.asyncio

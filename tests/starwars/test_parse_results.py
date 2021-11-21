@@ -128,7 +128,7 @@ def test_fragment_not_found():
 
         parse_result(StarWarsSchema, query, result)
 
-    assert 'Fragment "HumanFragment" not found in schema!' in str(exc_info)
+    assert 'Fragment "HumanFragment" not found in document!' in str(exc_info)
 
 
 def test_return_none_if_result_is_none():
