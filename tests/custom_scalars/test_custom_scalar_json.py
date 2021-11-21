@@ -94,7 +94,7 @@ schema = GraphQLSchema(query=queryType, mutation=mutationType)
 
 def test_json_value_output():
 
-    client = Client(schema=schema)
+    client = Client(schema=schema, parse_results=True)
 
     query = gql("query {players}")
 

@@ -8,13 +8,11 @@ from graphql import (
     FieldNode,
     FragmentDefinitionNode,
     FragmentSpreadNode,
-    GraphQLEnumType,
     GraphQLError,
     GraphQLInterfaceType,
     GraphQLList,
     GraphQLNonNull,
     GraphQLObjectType,
-    GraphQLScalarType,
     GraphQLSchema,
     GraphQLType,
     InlineFragmentNode,
@@ -24,6 +22,7 @@ from graphql import (
     TypeInfo,
     TypeInfoVisitor,
     Visitor,
+    is_leaf_type,
     print_ast,
     visit,
 )
@@ -178,6 +177,12 @@ class ParseResultVisitor(Visitor):
 
             log.debug(f"  result_value={result_value}")
 
+            # We get the field_type from type_info
+            field_type = self.type_info.get_type()
+
+            # We calculate a virtual "result type" depending on our recursion level.
+            result_type = self.get_current_result_type(path)
+
             # If the result for this field is a list, then we need
             # to recursively visit the same node multiple times for each
             # item in the list.
@@ -185,18 +190,15 @@ class ParseResultVisitor(Visitor):
                 not isinstance(result_value, Mapping)
                 and isinstance(result_value, Iterable)
                 and not isinstance(result_value, str)
+                and not is_leaf_type(result_type)
             ):
 
-                # We get the field_type from type_info
-                field_type = self.type_info.get_type()
-
-                # We calculate a virtual "result type" depending on our recursion level.
-                result_type = self.get_current_result_type(path)
-
+                """
                 if not isinstance(result_type, GraphQLList):
                     raise TypeError(
                         f"Received iterable result for a non-list type: {result_value}"
                     )
+                """
 
                 # Finding out the inner type of the list
                 inner_type = _ignore_non_null(result_type.of_type)
@@ -229,9 +231,10 @@ class ParseResultVisitor(Visitor):
                         log.debug(f"      recursive path={path!r}")
                         log.debug(f"      recursive initial_type={initial_type!r}\n")
 
-                    # inside_list_level = (self.inside_list_level + 1)
-                    # if self.in_first_field(path) else 1
-                    inside_list_level = self.inside_list_level + 1
+                    if self.in_first_field(path):
+                        inside_list_level = self.inside_list_level + 1
+                    else:
+                        inside_list_level = 1
 
                     inner_visit = parse_result_recursive(
                         self.schema,
@@ -288,7 +291,7 @@ class ParseResultVisitor(Visitor):
                 log.debug(f"  field type of {name} is {inspect(field_type)}")
                 log.debug(f"  result type of {name} is {inspect(result_type)}")
 
-            assert isinstance(result_type, (GraphQLScalarType, GraphQLEnumType))
+            assert is_leaf_type(result_type)
 
             # Finally parsing a single scalar using the parse_value method
             parsed_value = result_type.parse_value(self.current_result)
