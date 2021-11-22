@@ -25,9 +25,9 @@ def update_schema_enum(
 
     :param schema: a GraphQL Schema already containing the GraphQLEnumType type.
     :param name: the name of the enum in the GraphQL schema
-    :values: Either a Python Enum or a dict of values. The keys of the provided
+    :param values: Either a Python Enum or a dict of values. The keys of the provided
         values should correspond to the keys of the existing enum in the schema.
-    :use_enum_values: By default, we configure the GraphQLEnumType to serialize
+    :param use_enum_values: By default, we configure the GraphQLEnumType to serialize
         to enum instances (ie: .parse_value() returns Color.RED).
         If use_enum_values is set to True, then .parse_value() returns 0.
         use_enum_values=True is the defaut behaviour when passing an Enum

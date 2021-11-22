@@ -21,7 +21,7 @@ from graphql.utilities import value_from_ast_untyped
 
 from gql import Client, gql
 from gql.transport.exceptions import TransportQueryError
-from gql.utilities import update_schema_scalars
+from gql.utilities import update_schema_scalar, update_schema_scalars
 from gql.variable_values import serialize_value
 
 from ..conftest import MS
@@ -623,7 +623,8 @@ async def test_update_schema_scalars(event_loop, aiohttp_server):
 
         # Update the schema MoneyScalar default implementation from
         # introspection with our provided conversion methods
-        update_schema_scalars(session.client.schema, [MoneyScalar])
+        # update_schema_scalars(session.client.schema, [MoneyScalar])
+        update_schema_scalar(session.client.schema, "Money", MoneyScalar)
 
         query = gql("query myquery($money: Money) {toEuros(money: $money)}")
 
@@ -639,8 +640,15 @@ async def test_update_schema_scalars(event_loop, aiohttp_server):
 
 def test_update_schema_scalars_invalid_scalar():
 
-    with pytest.raises(GraphQLError) as exc_info:
+    with pytest.raises(TypeError) as exc_info:
         update_schema_scalars(schema, [int])
+
+    exception = exc_info.value
+
+    assert str(exception) == "Scalars should be instances of GraphQLScalarType."
+
+    with pytest.raises(TypeError) as exc_info:
+        update_schema_scalar(schema, "test", int)
 
     exception = exc_info.value
 
@@ -649,7 +657,7 @@ def test_update_schema_scalars_invalid_scalar():
 
 def test_update_schema_scalars_invalid_scalar_argument():
 
-    with pytest.raises(GraphQLError) as exc_info:
+    with pytest.raises(TypeError) as exc_info:
         update_schema_scalars(schema, MoneyScalar)
 
     exception = exc_info.value
@@ -661,12 +669,24 @@ def test_update_schema_scalars_scalar_not_found_in_schema():
 
     NotFoundScalar = GraphQLScalarType(name="abcd",)
 
-    with pytest.raises(GraphQLError) as exc_info:
+    with pytest.raises(KeyError) as exc_info:
         update_schema_scalars(schema, [MoneyScalar, NotFoundScalar])
 
     exception = exc_info.value
 
-    assert str(exception) == "Scalar 'abcd' not found in schema."
+    assert "Scalar 'abcd' not found in schema." in str(exception)
+
+
+def test_update_schema_scalars_scalar_type_is_not_a_scalar_in_schema():
+
+    with pytest.raises(TypeError) as exc_info:
+        update_schema_scalar(schema, "CountriesBalance", MoneyScalar)
+
+    exception = exc_info.value
+
+    assert 'The type "CountriesBalance" is not a GraphQLScalarType, it is a' in str(
+        exception
+    )
 
 
 @pytest.mark.asyncio

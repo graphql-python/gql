@@ -92,19 +92,22 @@ where the serialize and parse_value methods simply return the serialized value w
 
 In that case, if you want gql to parse custom scalars to a more useful Python representation,
 or to serialize custom scalars variables from a Python representation,
-then you can use the :func:`update_schema_scalars <gql.utilities.update_schema_scalars>` method
-to modify the definition of the scalars in your schema so that gql could do the parsing/serialization.
+then you can use the :func:`update_schema_scalars <gql.utilities.update_schema_scalars>`
+or :func:`update_schema_scalar <gql.utilities.update_schema_scalar>` methods
+to modify the definition of a scalar in your schema so that gql could do the parsing/serialization.
 
 .. code-block:: python
 
-    from gql.utilities import update_schema_scalars
+    from gql.utilities import update_schema_scalar
 
     with open('path/to/schema.graphql') as f:
         schema_str = f.read()
 
     client = Client(schema=schema_str, ...)
 
-    update_schema_scalars(client.schema, [DatetimeScalar])
+    update_schema_scalar(client.schema, "Datetime", DatetimeScalar)
+
+    # or update_schema_scalars(client.schema, [DatetimeScalar])
 
 .. _enums:
 
