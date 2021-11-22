@@ -107,7 +107,7 @@ def test_nested_query(client):
             ],
         }
     }
-    result = client.execute(query)
+    result = client.execute(query, parse_result=False)
     assert result == expected
 
 

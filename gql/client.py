@@ -17,7 +17,8 @@ from .transport.async_transport import AsyncTransport
 from .transport.exceptions import TransportQueryError
 from .transport.local_schema import LocalSchemaTransport
 from .transport.transport import Transport
-from .variable_values import serialize_variable_values
+from .utilities import parse_result as parse_result_fn
+from .utilities import serialize_variable_values
 
 
 class Client:
@@ -48,6 +49,8 @@ class Client:
         transport: Optional[Union[Transport, AsyncTransport]] = None,
         fetch_schema_from_transport: bool = False,
         execute_timeout: Optional[Union[int, float]] = 10,
+        serialize_variables: bool = False,
+        parse_results: bool = False,
     ):
         """Initialize the client with the given parameters.
 
@@ -59,6 +62,10 @@ class Client:
         :param execute_timeout: The maximum time in seconds for the execution of a
                 request before a TimeoutError is raised. Only used for async transports.
                 Passing None results in waiting forever for a response.
+        :param serialize_variables: whether the variable values should be
+            serialized. Used for custom scalars and/or enums. Default: False.
+        :param parse_results: Whether gql will try to parse the serialized output
+                sent by the backend. Can be used to unserialize custom scalars or enums.
         """
         assert not (
             type_def and introspection
@@ -107,6 +114,9 @@ class Client:
 
         # Enforced timeout of the execute function (only for async transports)
         self.execute_timeout = execute_timeout
+
+        self.serialize_variables = serialize_variables
+        self.parse_results = parse_results
 
     def validate(self, document: DocumentNode):
         """:meta private:"""
@@ -296,7 +306,8 @@ class SyncClientSession:
         *args,
         variable_values: Optional[Dict[str, Any]] = None,
         operation_name: Optional[str] = None,
-        serialize_variables: bool = False,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
         **kwargs,
     ) -> ExecutionResult:
         """Execute the provided document AST synchronously using
@@ -307,6 +318,8 @@ class SyncClientSession:
         :param operation_name: Name of the operation that shall be executed.
         :param serialize_variables: whether the variable values should be
             serialized. Used for custom scalars and/or enums. Default: False.
+        :param parse_result: Whether gql will unserialize the result.
+            By default use the parse_results attribute of the client.
 
         The extra arguments are passed to the transport execute method."""
 
@@ -315,15 +328,18 @@ class SyncClientSession:
             self.client.validate(document)
 
             # Parse variable values for custom scalars if requested
-            if serialize_variables and variable_values is not None:
-                variable_values = serialize_variable_values(
-                    self.client.schema,
-                    document,
-                    variable_values,
-                    operation_name=operation_name,
-                )
+            if variable_values is not None:
+                if serialize_variables or (
+                    serialize_variables is None and self.client.serialize_variables
+                ):
+                    variable_values = serialize_variable_values(
+                        self.client.schema,
+                        document,
+                        variable_values,
+                        operation_name=operation_name,
+                    )
 
-        return self.transport.execute(
+        result = self.transport.execute(
             document,
             *args,
             variable_values=variable_values,
@@ -331,13 +347,26 @@ class SyncClientSession:
             **kwargs,
         )
 
+        # Unserialize the result if requested
+        if self.client.schema:
+            if parse_result or (parse_result is None and self.client.parse_results):
+                result.data = parse_result_fn(
+                    self.client.schema,
+                    document,
+                    result.data,
+                    operation_name=operation_name,
+                )
+
+        return result
+
     def execute(
         self,
         document: DocumentNode,
         *args,
         variable_values: Optional[Dict[str, Any]] = None,
         operation_name: Optional[str] = None,
-        serialize_variables: bool = False,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
         **kwargs,
     ) -> Dict:
         """Execute the provided document AST synchronously using
@@ -351,6 +380,8 @@ class SyncClientSession:
         :param operation_name: Name of the operation that shall be executed.
         :param serialize_variables: whether the variable values should be
             serialized. Used for custom scalars and/or enums. Default: False.
+        :param parse_result: Whether gql will unserialize the result.
+            By default use the parse_results attribute of the client.
 
         The extra arguments are passed to the transport execute method."""
 
@@ -361,6 +392,7 @@ class SyncClientSession:
             variable_values=variable_values,
             operation_name=operation_name,
             serialize_variables=serialize_variables,
+            parse_result=parse_result,
             **kwargs,
         )
 
@@ -408,7 +440,8 @@ class AsyncClientSession:
         *args,
         variable_values: Optional[Dict[str, Any]] = None,
         operation_name: Optional[str] = None,
-        serialize_variables: bool = False,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
         **kwargs,
     ) -> AsyncGenerator[ExecutionResult, None]:
         """Coroutine to subscribe asynchronously to the provided document AST
@@ -423,6 +456,8 @@ class AsyncClientSession:
         :param operation_name: Name of the operation that shall be executed.
         :param serialize_variables: whether the variable values should be
             serialized. Used for custom scalars and/or enums. Default: False.
+        :param parse_result: Whether gql will unserialize the result.
+            By default use the parse_results attribute of the client.
 
         The extra arguments are passed to the transport subscribe method."""
 
@@ -431,13 +466,16 @@ class AsyncClientSession:
             self.client.validate(document)
 
             # Parse variable values for custom scalars if requested
-            if serialize_variables and variable_values is not None:
-                variable_values = serialize_variable_values(
-                    self.client.schema,
-                    document,
-                    variable_values,
-                    operation_name=operation_name,
-                )
+            if variable_values is not None:
+                if serialize_variables or (
+                    serialize_variables is None and self.client.serialize_variables
+                ):
+                    variable_values = serialize_variable_values(
+                        self.client.schema,
+                        document,
+                        variable_values,
+                        operation_name=operation_name,
+                    )
 
         # Subscribe to the transport
         inner_generator: AsyncGenerator[
@@ -456,7 +494,20 @@ class AsyncClientSession:
 
         try:
             async for result in inner_generator:
+
+                if self.client.schema:
+                    if parse_result or (
+                        parse_result is None and self.client.parse_results
+                    ):
+                        result.data = parse_result_fn(
+                            self.client.schema,
+                            document,
+                            result.data,
+                            operation_name=operation_name,
+                        )
+
                 yield result
+
         finally:
             await inner_generator.aclose()
 
@@ -466,7 +517,8 @@ class AsyncClientSession:
         *args,
         variable_values: Optional[Dict[str, Any]] = None,
         operation_name: Optional[str] = None,
-        serialize_variables: bool = False,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
         **kwargs,
     ) -> AsyncGenerator[Dict, None]:
         """Coroutine to subscribe asynchronously to the provided document AST
@@ -480,6 +532,8 @@ class AsyncClientSession:
         :param operation_name: Name of the operation that shall be executed.
         :param serialize_variables: whether the variable values should be
             serialized. Used for custom scalars and/or enums. Default: False.
+        :param parse_result: Whether gql will unserialize the result.
+            By default use the parse_results attribute of the client.
 
         The extra arguments are passed to the transport subscribe method."""
 
@@ -489,6 +543,7 @@ class AsyncClientSession:
             variable_values=variable_values,
             operation_name=operation_name,
             serialize_variables=serialize_variables,
+            parse_result=parse_result,
             **kwargs,
         )
 
@@ -513,7 +568,8 @@ class AsyncClientSession:
         *args,
         variable_values: Optional[Dict[str, Any]] = None,
         operation_name: Optional[str] = None,
-        serialize_variables: bool = False,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
         **kwargs,
     ) -> ExecutionResult:
         """Coroutine to execute the provided document AST asynchronously using
@@ -527,6 +583,8 @@ class AsyncClientSession:
         :param operation_name: Name of the operation that shall be executed.
         :param serialize_variables: whether the variable values should be
             serialized. Used for custom scalars and/or enums. Default: False.
+        :param parse_result: Whether gql will unserialize the result.
+            By default use the parse_results attribute of the client.
 
         The extra arguments are passed to the transport execute method."""
 
@@ -535,16 +593,19 @@ class AsyncClientSession:
             self.client.validate(document)
 
             # Parse variable values for custom scalars if requested
-            if serialize_variables and variable_values is not None:
-                variable_values = serialize_variable_values(
-                    self.client.schema,
-                    document,
-                    variable_values,
-                    operation_name=operation_name,
-                )
+            if variable_values is not None:
+                if serialize_variables or (
+                    serialize_variables is None and self.client.serialize_variables
+                ):
+                    variable_values = serialize_variable_values(
+                        self.client.schema,
+                        document,
+                        variable_values,
+                        operation_name=operation_name,
+                    )
 
         # Execute the query with the transport with a timeout
-        return await asyncio.wait_for(
+        result = await asyncio.wait_for(
             self.transport.execute(
                 document,
                 variable_values=variable_values,
@@ -555,13 +616,26 @@ class AsyncClientSession:
             self.client.execute_timeout,
         )
 
+        # Unserialize the result if requested
+        if self.client.schema:
+            if parse_result or (parse_result is None and self.client.parse_results):
+                result.data = parse_result_fn(
+                    self.client.schema,
+                    document,
+                    result.data,
+                    operation_name=operation_name,
+                )
+
+        return result
+
     async def execute(
         self,
         document: DocumentNode,
         *args,
         variable_values: Optional[Dict[str, Any]] = None,
         operation_name: Optional[str] = None,
-        serialize_variables: bool = False,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
         **kwargs,
     ) -> Dict:
         """Coroutine to execute the provided document AST asynchronously using
@@ -575,6 +649,8 @@ class AsyncClientSession:
         :param operation_name: Name of the operation that shall be executed.
         :param serialize_variables: whether the variable values should be
             serialized. Used for custom scalars and/or enums. Default: False.
+        :param parse_result: Whether gql will unserialize the result.
+            By default use the parse_results attribute of the client.
 
         The extra arguments are passed to the transport execute method."""
 
@@ -585,6 +661,7 @@ class AsyncClientSession:
             variable_values=variable_values,
             operation_name=operation_name,
             serialize_variables=serialize_variables,
+            parse_result=parse_result,
             **kwargs,
         )
 

@@ -11,6 +11,7 @@ from graphql.type import (
     GraphQLField,
     GraphQLFloat,
     GraphQLInt,
+    GraphQLList,
     GraphQLNonNull,
     GraphQLObjectType,
     GraphQLScalarType,
@@ -20,8 +21,7 @@ from graphql.utilities import value_from_ast_untyped
 
 from gql import Client, gql
 from gql.transport.exceptions import TransportQueryError
-from gql.utilities import update_schema_scalars
-from gql.variable_values import serialize_value
+from gql.utilities import serialize_value, update_schema_scalar, update_schema_scalars
 
 from ..conftest import MS
 
@@ -82,9 +82,34 @@ MoneyScalar = GraphQLScalarType(
     parse_literal=parse_money_literal,
 )
 
+root_value = {
+    "balance": Money(42, "DM"),
+    "friends_balance": [Money(12, "EUR"), Money(24, "EUR"), Money(150, "DM")],
+    "countries_balance": {
+        "Belgium": Money(15000, "EUR"),
+        "Luxembourg": Money(99999, "EUR"),
+    },
+}
+
 
 def resolve_balance(root, _info):
-    return root
+    return root["balance"]
+
+
+def resolve_friends_balance(root, _info):
+    return root["friends_balance"]
+
+
+def resolve_countries_balance(root, _info):
+    return root["countries_balance"]
+
+
+def resolve_belgium_balance(countries_balance, _info):
+    return countries_balance["Belgium"]
+
+
+def resolve_luxembourg_balance(countries_balance, _info):
+    return countries_balance["Luxembourg"]
 
 
 def resolve_to_euros(_root, _info, money):
@@ -97,6 +122,18 @@ def resolve_to_euros(_root, _info, money):
     raise ValueError("Cannot convert to euros: " + inspect(money))
 
 
+countriesBalance = GraphQLObjectType(
+    name="CountriesBalance",
+    fields={
+        "Belgium": GraphQLField(
+            GraphQLNonNull(MoneyScalar), resolve=resolve_belgium_balance
+        ),
+        "Luxembourg": GraphQLField(
+            GraphQLNonNull(MoneyScalar), resolve=resolve_luxembourg_balance
+        ),
+    },
+)
+
 queryType = GraphQLObjectType(
     name="RootQueryType",
     fields={
@@ -105,6 +142,12 @@ queryType = GraphQLObjectType(
             GraphQLFloat,
             args={"money": GraphQLArgument(MoneyScalar)},
             resolve=resolve_to_euros,
+        ),
+        "friends_balance": GraphQLField(
+            GraphQLList(MoneyScalar), resolve=resolve_friends_balance
+        ),
+        "countries_balance": GraphQLField(
+            GraphQLNonNull(countriesBalance), resolve=resolve_countries_balance,
         ),
     },
 )
@@ -133,14 +176,12 @@ subscriptionType = GraphQLObjectType(
     },
 )
 
-root_value = Money(42, "DM")
-
 schema = GraphQLSchema(query=queryType, subscription=subscriptionType,)
 
 
 def test_custom_scalar_in_output():
 
-    client = Client(schema=schema)
+    client = Client(schema=schema, parse_results=True)
 
     query = gql("{balance}")
 
@@ -148,7 +189,53 @@ def test_custom_scalar_in_output():
 
     print(result)
 
-    assert result["balance"] == serialize_money(root_value)
+    assert result["balance"] == root_value["balance"]
+
+
+def test_custom_scalar_in_output_embedded_fragments():
+
+    client = Client(schema=schema, parse_results=True)
+
+    query = gql(
+        """
+        fragment LuxMoneyInternal on CountriesBalance {
+            ... on CountriesBalance {
+                Luxembourg
+            }
+        }
+        query {
+            countries_balance {
+                Belgium
+                ...LuxMoney
+            }
+        }
+        fragment LuxMoney on CountriesBalance {
+            ...LuxMoneyInternal
+        }
+        """
+    )
+
+    result = client.execute(query, root_value=root_value)
+
+    print(result)
+
+    belgium_money = result["countries_balance"]["Belgium"]
+    assert belgium_money == Money(15000, "EUR")
+    luxembourg_money = result["countries_balance"]["Luxembourg"]
+    assert luxembourg_money == Money(99999, "EUR")
+
+
+def test_custom_scalar_list_in_output():
+
+    client = Client(schema=schema, parse_results=True)
+
+    query = gql("{friends_balance}")
+
+    result = client.execute(query, root_value=root_value)
+
+    print(result)
+
+    assert result["friends_balance"] == root_value["friends_balance"]
 
 
 def test_custom_scalar_in_input_query():
@@ -301,16 +388,18 @@ def test_custom_scalar_subscribe_in_input_variable_values_serialized():
 
     variable_values = {"money": money_value}
 
-    expected_result = {"spend": {"amount": 10, "currency": "DM"}}
+    expected_result = {"spend": Money(10, "DM")}
 
     for result in client.subscribe(
         query,
         variable_values=variable_values,
         root_value=root_value,
         serialize_variables=True,
+        parse_result=True,
     ):
         print(f"result = {result!r}")
-        expected_result["spend"]["amount"] = expected_result["spend"]["amount"] - 1
+        assert isinstance(result["spend"], Money)
+        expected_result["spend"] = Money(expected_result["spend"].amount - 1, "DM")
         assert expected_result == result
 
 
@@ -385,7 +474,7 @@ async def test_custom_scalar_in_output_with_transport(event_loop, aiohttp_server
 
         print(result)
 
-        assert result["balance"] == serialize_money(root_value)
+        assert result["balance"] == serialize_money(root_value["balance"])
 
 
 @pytest.mark.asyncio
@@ -533,7 +622,8 @@ async def test_update_schema_scalars(event_loop, aiohttp_server):
 
         # Update the schema MoneyScalar default implementation from
         # introspection with our provided conversion methods
-        update_schema_scalars(session.client.schema, [MoneyScalar])
+        # update_schema_scalars(session.client.schema, [MoneyScalar])
+        update_schema_scalar(session.client.schema, "Money", MoneyScalar)
 
         query = gql("query myquery($money: Money) {toEuros(money: $money)}")
 
@@ -549,8 +639,15 @@ async def test_update_schema_scalars(event_loop, aiohttp_server):
 
 def test_update_schema_scalars_invalid_scalar():
 
-    with pytest.raises(GraphQLError) as exc_info:
+    with pytest.raises(TypeError) as exc_info:
         update_schema_scalars(schema, [int])
+
+    exception = exc_info.value
+
+    assert str(exception) == "Scalars should be instances of GraphQLScalarType."
+
+    with pytest.raises(TypeError) as exc_info:
+        update_schema_scalar(schema, "test", int)
 
     exception = exc_info.value
 
@@ -559,7 +656,7 @@ def test_update_schema_scalars_invalid_scalar():
 
 def test_update_schema_scalars_invalid_scalar_argument():
 
-    with pytest.raises(GraphQLError) as exc_info:
+    with pytest.raises(TypeError) as exc_info:
         update_schema_scalars(schema, MoneyScalar)
 
     exception = exc_info.value
@@ -571,12 +668,24 @@ def test_update_schema_scalars_scalar_not_found_in_schema():
 
     NotFoundScalar = GraphQLScalarType(name="abcd",)
 
-    with pytest.raises(GraphQLError) as exc_info:
+    with pytest.raises(KeyError) as exc_info:
         update_schema_scalars(schema, [MoneyScalar, NotFoundScalar])
 
     exception = exc_info.value
 
-    assert str(exception) == "Scalar 'abcd' not found in schema."
+    assert "Scalar 'abcd' not found in schema." in str(exception)
+
+
+def test_update_schema_scalars_scalar_type_is_not_a_scalar_in_schema():
+
+    with pytest.raises(TypeError) as exc_info:
+        update_schema_scalar(schema, "CountriesBalance", MoneyScalar)
+
+    exception = exc_info.value
+
+    assert 'The type "CountriesBalance" is not a GraphQLScalarType, it is a' in str(
+        exception
+    )
 
 
 @pytest.mark.asyncio
@@ -588,7 +697,7 @@ async def test_custom_scalar_serialize_variables_sync_transport(
     server, transport = await make_sync_money_transport(aiohttp_server)
 
     def test_code():
-        with Client(schema=schema, transport=transport,) as session:
+        with Client(schema=schema, transport=transport, parse_results=True) as session:
 
             query = gql("query myquery($money: Money) {toEuros(money: $money)}")
 

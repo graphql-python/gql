@@ -112,7 +112,7 @@ schema = GraphQLSchema(query=queryType)
 )
 def test_shift_days():
 
-    client = Client(schema=schema)
+    client = Client(schema=schema, parse_results=True, serialize_variables=True)
 
     now = datetime.fromisoformat("2021-11-12T11:58:13.461161")
 
@@ -122,13 +122,11 @@ def test_shift_days():
         "time": now,
     }
 
-    result = client.execute(
-        query, variable_values=variable_values, serialize_variables=True
-    )
+    result = client.execute(query, variable_values=variable_values)
 
     print(result)
 
-    assert result["shiftDays"] == "2021-11-17T11:58:13.461161"
+    assert result["shiftDays"] == datetime.fromisoformat("2021-11-17T11:58:13.461161")
 
 
 @pytest.mark.skipif(
@@ -144,11 +142,11 @@ def test_shift_days_serialized_manually_in_query():
     }"""
     )
 
-    result = client.execute(query)
+    result = client.execute(query, parse_result=True)
 
     print(result)
 
-    assert result["shiftDays"] == "2021-11-17T11:58:13.461161"
+    assert result["shiftDays"] == datetime.fromisoformat("2021-11-17T11:58:13.461161")
 
 
 @pytest.mark.skipif(
@@ -156,7 +154,7 @@ def test_shift_days_serialized_manually_in_query():
 )
 def test_shift_days_serialized_manually_in_variables():
 
-    client = Client(schema=schema)
+    client = Client(schema=schema, parse_results=True)
 
     query = gql("query shift5days($time: Datetime) {shiftDays(time: $time, days: 5)}")
 
@@ -168,7 +166,7 @@ def test_shift_days_serialized_manually_in_variables():
 
     print(result)
 
-    assert result["shiftDays"] == "2021-11-17T11:58:13.461161"
+    assert result["shiftDays"] == datetime.fromisoformat("2021-11-17T11:58:13.461161")
 
 
 @pytest.mark.skipif(
@@ -176,7 +174,7 @@ def test_shift_days_serialized_manually_in_variables():
 )
 def test_latest():
 
-    client = Client(schema=schema)
+    client = Client(schema=schema, parse_results=True)
 
     now = datetime.fromisoformat("2021-11-12T11:58:13.461161")
     in_five_days = datetime.fromisoformat("2021-11-17T11:58:13.461161")
@@ -193,7 +191,7 @@ def test_latest():
 
     print(result)
 
-    assert result["latest"] == in_five_days.isoformat()
+    assert result["latest"] == in_five_days
 
 
 @pytest.mark.skipif(

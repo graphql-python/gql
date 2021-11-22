@@ -105,6 +105,7 @@ for name in [
     "gql.transport.websockets",
     "gql.transport.phoenix_channel_websockets",
     "gql.dsl",
+    "gql.utilities.parse_result",
 ]:
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
