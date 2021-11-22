@@ -350,7 +350,12 @@ class SyncClientSession:
         # Unserialize the result if requested
         if self.client.schema:
             if parse_result or (parse_result is None and self.client.parse_results):
-                result.data = parse_result_fn(self.client.schema, document, result.data)
+                result.data = parse_result_fn(
+                    self.client.schema,
+                    document,
+                    result.data,
+                    operation_name=operation_name,
+                )
 
         return result
 
@@ -495,7 +500,10 @@ class AsyncClientSession:
                         parse_result is None and self.client.parse_results
                     ):
                         result.data = parse_result_fn(
-                            self.client.schema, document, result.data
+                            self.client.schema,
+                            document,
+                            result.data,
+                            operation_name=operation_name,
                         )
 
                 yield result
@@ -611,7 +619,12 @@ class AsyncClientSession:
         # Unserialize the result if requested
         if self.client.schema:
             if parse_result or (parse_result is None and self.client.parse_results):
-                result.data = parse_result_fn(self.client.schema, document, result.data)
+                result.data = parse_result_fn(
+                    self.client.schema,
+                    document,
+                    result.data,
+                    operation_name=operation_name,
+                )
 
         return result
 

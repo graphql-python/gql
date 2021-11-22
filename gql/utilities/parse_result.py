@@ -16,6 +16,7 @@ from graphql import (
     GraphQLSchema,
     GraphQLType,
     InlineFragmentNode,
+    NameNode,
     Node,
     OperationDefinitionNode,
     SelectionSetNode,
@@ -71,6 +72,7 @@ class ParseResultVisitor(Visitor):
         type_info: TypeInfo,
         visit_fragment: bool = False,
         inside_list_level: int = 0,
+        operation_name: Optional[str] = None,
     ):
         """Recursive Implementation of a Visitor class to parse results
         correspondind to a schema and a document.
@@ -96,6 +98,7 @@ class ParseResultVisitor(Visitor):
         self.type_info: TypeInfo = type_info
         self.visit_fragment: bool = visit_fragment
         self.inside_list_level = inside_list_level
+        self.operation_name = operation_name
 
         self.result_stack: List[Any] = []
 
@@ -110,6 +113,22 @@ class ParseResultVisitor(Visitor):
     def leave_document(node: DocumentNode, *_args: Any) -> Dict[str, Any]:
         results = cast(List[Dict[str, Any]], node.definitions)
         return {k: v for result in results for k, v in result.items()}
+
+    def enter_operation_definition(
+        self, node: OperationDefinitionNode, *_args: Any
+    ) -> Union[None, VisitorActionEnum]:
+
+        if self.operation_name is not None:
+            if not hasattr(node.name, "value"):
+                return REMOVE  # pragma: no cover
+
+            node.name = cast(NameNode, node.name)
+
+            if node.name.value != self.operation_name:
+                log.debug(f"SKIPPING operation {node.name.value}")
+                return REMOVE
+
+        return IDLE
 
     @staticmethod
     def leave_operation_definition(
@@ -374,6 +393,7 @@ def parse_result_recursive(
     initial_type: Optional[GraphQLType] = None,
     inside_list_level: int = 0,
     visit_fragment: bool = False,
+    operation_name: Optional[str] = None,
 ) -> Any:
 
     if result is None:
@@ -393,6 +413,7 @@ def parse_result_recursive(
                 type_info=type_info,
                 inside_list_level=inside_list_level,
                 visit_fragment=visit_fragment,
+                operation_name=operation_name,
             ),
         ),
         visitor_keys=RESULT_DOCUMENT_KEYS,
@@ -402,13 +423,17 @@ def parse_result_recursive(
 
 
 def parse_result(
-    schema: GraphQLSchema, document: DocumentNode, result: Optional[Dict[str, Any]],
+    schema: GraphQLSchema,
+    document: DocumentNode,
+    result: Optional[Dict[str, Any]],
+    operation_name: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     """Unserialize a result received from a GraphQL backend.
 
     :param schema: the GraphQL schema
     :param document: the document representing the query sent to the backend
     :param result: the serialized result received from the backend
+    :param operation_name: the optional operation name
 
     :returns: a parsed result with scalars and enums parsed depending on
               their definition in the schema.
@@ -423,4 +448,6 @@ def parse_result(
     will be parsed with the parse_value method of the custom scalar or enum
     definition in the schema."""
 
-    return parse_result_recursive(schema, document, document, result)
+    return parse_result_recursive(
+        schema, document, document, result, operation_name=operation_name
+    )

@@ -283,3 +283,43 @@ def test_update_schema_enum_errors():
         update_schema_enum(schema, "Color", {"RED": Color.RED})
 
     assert 'Enum key "GREEN" not found in provided values!' in str(exc_info)
+
+
+def test_parse_results_with_operation_type():
+
+    client = Client(schema=schema, parse_results=True)
+
+    query = gql(
+        """
+        query GetAll {
+            all
+        }
+        query GetOppositeColor($color: Color) {
+            opposite(color:$color)
+        }
+        query GetOppositeColor2($color: Color) {
+            other_opposite:opposite(color:$color)
+        }
+        query GetOppositeColor3 {
+            opposite(color: YELLOW)
+        }
+        query GetListOfListOfList {
+            list_of_list_of_list
+        }
+        """
+    )
+
+    variable_values = {
+        "color": "RED",
+    }
+
+    result = client.execute(
+        query, variable_values=variable_values, operation_name="GetOppositeColor"
+    )
+
+    print(result)
+
+    opposite_color = result["opposite"]
+
+    assert isinstance(opposite_color, Color)
+    assert opposite_color == CYAN
