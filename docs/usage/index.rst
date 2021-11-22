@@ -10,4 +10,4 @@ Usage
    variables
    headers
    file_upload
-   custom_scalars
+   custom_scalars_and_enums

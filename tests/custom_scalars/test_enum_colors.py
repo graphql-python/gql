@@ -130,7 +130,25 @@ def test_get_all_colors():
     assert all_colors == ALL_COLORS
 
 
-def test_opposite_color():
+def test_opposite_color_literal():
+
+    client = Client(schema=schema, parse_results=True)
+
+    query = gql("{opposite(color: RED)}")
+
+    result = client.execute(query)
+
+    print(result)
+
+    opposite_color = result["opposite"]
+
+    assert isinstance(opposite_color, Color)
+    assert opposite_color == CYAN
+
+
+def test_opposite_color_variable_serialized_manually():
+
+    client = Client(schema=schema, parse_results=True)
 
     query = gql(
         """
@@ -139,7 +157,30 @@ def test_opposite_color():
         }"""
     )
 
+    variable_values = {
+        "color": "RED",
+    }
+
+    result = client.execute(query, variable_values=variable_values)
+
+    print(result)
+
+    opposite_color = result["opposite"]
+
+    assert isinstance(opposite_color, Color)
+    assert opposite_color == CYAN
+
+
+def test_opposite_color_variable_serialized_by_gql():
+
     client = Client(schema=schema, parse_results=True)
+
+    query = gql(
+        """
+        query GetOppositeColor($color: Color) {
+            opposite(color:$color)
+        }"""
+    )
 
     variable_values = {
         "color": RED,
