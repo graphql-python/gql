@@ -18,7 +18,7 @@ from .transport.exceptions import TransportQueryError
 from .transport.local_schema import LocalSchemaTransport
 from .transport.transport import Transport
 from .utilities import parse_result as parse_result_fn
-from .variable_values import serialize_variable_values
+from .utilities import serialize_variable_values
 
 
 class Client:

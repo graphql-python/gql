@@ -17,7 +17,7 @@ from graphql import (
 from graphql.pyutils import inspect
 
 
-def get_document_operation(
+def _get_document_operation(
     document: DocumentNode, operation_name: Optional[str] = None
 ) -> OperationDefinitionNode:
     """Returns the operation which should be executed in the document.
@@ -99,7 +99,7 @@ def serialize_variable_values(
     parsed_variable_values: Dict[str, Any] = {}
 
     # Find the operation in the document
-    operation = get_document_operation(document, operation_name=operation_name)
+    operation = _get_document_operation(document, operation_name=operation_name)
 
     # Serialize every variable value defined for the operation
     for var_def_node in operation.variable_definitions:

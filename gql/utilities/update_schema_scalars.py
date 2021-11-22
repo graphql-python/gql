@@ -21,7 +21,7 @@ def update_schema_scalar(schema: GraphQLSchema, name: str, scalar: GraphQLScalar
     if not isinstance(schema_scalar, GraphQLScalarType):
         raise TypeError(
             f'The type "{name}" is not a GraphQLScalarType,'
-            f"it is a {type(schema_scalar)}"
+            f" it is a {type(schema_scalar)}"
         )
 
     # Update the conversion methods
