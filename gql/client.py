@@ -49,6 +49,7 @@ class Client:
         transport: Optional[Union[Transport, AsyncTransport]] = None,
         fetch_schema_from_transport: bool = False,
         execute_timeout: Optional[Union[int, float]] = 10,
+        serialize_variables: bool = False,
         parse_results: bool = False,
     ):
         """Initialize the client with the given parameters.
@@ -61,6 +62,8 @@ class Client:
         :param execute_timeout: The maximum time in seconds for the execution of a
                 request before a TimeoutError is raised. Only used for async transports.
                 Passing None results in waiting forever for a response.
+        :param serialize_variables: whether the variable values should be
+            serialized. Used for custom scalars and/or enums. Default: False.
         :param parse_results: Whether gql will try to parse the serialized output
                 sent by the backend. Can be used to unserialize custom scalars or enums.
         """
@@ -112,6 +115,7 @@ class Client:
         # Enforced timeout of the execute function (only for async transports)
         self.execute_timeout = execute_timeout
 
+        self.serialize_variables = serialize_variables
         self.parse_results = parse_results
 
     def validate(self, document: DocumentNode):
@@ -302,7 +306,7 @@ class SyncClientSession:
         *args,
         variable_values: Optional[Dict[str, Any]] = None,
         operation_name: Optional[str] = None,
-        serialize_variables: bool = False,
+        serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         **kwargs,
     ) -> ExecutionResult:
@@ -324,13 +328,16 @@ class SyncClientSession:
             self.client.validate(document)
 
             # Parse variable values for custom scalars if requested
-            if serialize_variables and variable_values is not None:
-                variable_values = serialize_variable_values(
-                    self.client.schema,
-                    document,
-                    variable_values,
-                    operation_name=operation_name,
-                )
+            if variable_values is not None:
+                if serialize_variables or (
+                    serialize_variables is None and self.client.serialize_variables
+                ):
+                    variable_values = serialize_variable_values(
+                        self.client.schema,
+                        document,
+                        variable_values,
+                        operation_name=operation_name,
+                    )
 
         result = self.transport.execute(
             document,
@@ -353,7 +360,7 @@ class SyncClientSession:
         *args,
         variable_values: Optional[Dict[str, Any]] = None,
         operation_name: Optional[str] = None,
-        serialize_variables: bool = False,
+        serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         **kwargs,
     ) -> Dict:
@@ -428,7 +435,7 @@ class AsyncClientSession:
         *args,
         variable_values: Optional[Dict[str, Any]] = None,
         operation_name: Optional[str] = None,
-        serialize_variables: bool = False,
+        serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         **kwargs,
     ) -> AsyncGenerator[ExecutionResult, None]:
@@ -454,13 +461,16 @@ class AsyncClientSession:
             self.client.validate(document)
 
             # Parse variable values for custom scalars if requested
-            if serialize_variables and variable_values is not None:
-                variable_values = serialize_variable_values(
-                    self.client.schema,
-                    document,
-                    variable_values,
-                    operation_name=operation_name,
-                )
+            if variable_values is not None:
+                if serialize_variables or (
+                    serialize_variables is None and self.client.serialize_variables
+                ):
+                    variable_values = serialize_variable_values(
+                        self.client.schema,
+                        document,
+                        variable_values,
+                        operation_name=operation_name,
+                    )
 
         # Subscribe to the transport
         inner_generator: AsyncGenerator[
@@ -499,7 +509,7 @@ class AsyncClientSession:
         *args,
         variable_values: Optional[Dict[str, Any]] = None,
         operation_name: Optional[str] = None,
-        serialize_variables: bool = False,
+        serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         **kwargs,
     ) -> AsyncGenerator[Dict, None]:
@@ -550,7 +560,7 @@ class AsyncClientSession:
         *args,
         variable_values: Optional[Dict[str, Any]] = None,
         operation_name: Optional[str] = None,
-        serialize_variables: bool = False,
+        serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         **kwargs,
     ) -> ExecutionResult:
@@ -575,13 +585,16 @@ class AsyncClientSession:
             self.client.validate(document)
 
             # Parse variable values for custom scalars if requested
-            if serialize_variables and variable_values is not None:
-                variable_values = serialize_variable_values(
-                    self.client.schema,
-                    document,
-                    variable_values,
-                    operation_name=operation_name,
-                )
+            if variable_values is not None:
+                if serialize_variables or (
+                    serialize_variables is None and self.client.serialize_variables
+                ):
+                    variable_values = serialize_variable_values(
+                        self.client.schema,
+                        document,
+                        variable_values,
+                        operation_name=operation_name,
+                    )
 
         # Execute the query with the transport with a timeout
         result = await asyncio.wait_for(
@@ -608,7 +621,7 @@ class AsyncClientSession:
         *args,
         variable_values: Optional[Dict[str, Any]] = None,
         operation_name: Optional[str] = None,
-        serialize_variables: bool = False,
+        serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         **kwargs,
     ) -> Dict:

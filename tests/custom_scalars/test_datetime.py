@@ -112,7 +112,7 @@ schema = GraphQLSchema(query=queryType)
 )
 def test_shift_days():
 
-    client = Client(schema=schema, parse_results=True)
+    client = Client(schema=schema, parse_results=True, serialize_variables=True)
 
     now = datetime.fromisoformat("2021-11-12T11:58:13.461161")
 
@@ -122,9 +122,7 @@ def test_shift_days():
         "time": now,
     }
 
-    result = client.execute(
-        query, variable_values=variable_values, serialize_variables=True
-    )
+    result = client.execute(query, variable_values=variable_values)
 
     print(result)
 
