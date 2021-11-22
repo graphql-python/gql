@@ -1,5 +1,6 @@
 from enum import Enum
 
+import pytest
 from graphql import (
     GraphQLArgument,
     GraphQLEnumType,
@@ -11,6 +12,7 @@ from graphql import (
 )
 
 from gql import Client, gql
+from gql.utilities import update_schema_enum
 
 
 class Color(Enum):
@@ -241,3 +243,43 @@ def test_list_of_list_of_list():
     big_list = result["list_of_list_of_list"]
 
     assert big_list == list_of_list_of_list
+
+
+def test_update_schema_enum():
+
+    assert schema.get_type("Color").parse_value("RED") == Color.RED
+
+    # Using values
+
+    update_schema_enum(schema, "Color", Color, use_enum_values=True)
+
+    assert schema.get_type("Color").parse_value("RED") == 0
+    assert schema.get_type("Color").serialize(1) == "GREEN"
+
+    update_schema_enum(schema, "Color", Color)
+
+    assert schema.get_type("Color").parse_value("RED") == Color.RED
+    assert schema.get_type("Color").serialize(Color.RED) == "RED"
+
+
+def test_update_schema_enum_errors():
+
+    with pytest.raises(KeyError) as exc_info:
+        update_schema_enum(schema, "Corlo", Color)
+
+    assert "Enum Corlo not found in schema!" in str(exc_info)
+
+    with pytest.raises(TypeError) as exc_info:
+        update_schema_enum(schema, "Color", 6)
+
+    assert "Invalid type for enum values: " in str(exc_info)
+
+    with pytest.raises(TypeError) as exc_info:
+        update_schema_enum(schema, "RootQueryType", Color)
+
+    assert 'The type "RootQueryType" is not a GraphQLEnumType, it is a' in str(exc_info)
+
+    with pytest.raises(KeyError) as exc_info:
+        update_schema_enum(schema, "Color", {"RED": Color.RED})
+
+    assert 'Enum key "GREEN" not found in provided values!' in str(exc_info)
