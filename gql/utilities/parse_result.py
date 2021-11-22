@@ -406,6 +406,13 @@ def parse_result(
 ) -> Optional[Dict[str, Any]]:
     """Unserialize a result received from a GraphQL backend.
 
+    :param schema: the GraphQL schema
+    :param document: the document representing the query sent to the backend
+    :param result: the serialized result received from the backend
+
+    :returns: a parsed result with scalars and enums parsed depending on
+              their definition in the schema.
+
     Given a schema, a query and a serialized result,
     provide a new result with parsed values.
 

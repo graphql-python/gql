@@ -53,7 +53,13 @@ def _get_document_operation(
 def serialize_value(type_: GraphQLType, value: Any) -> Any:
     """Given a GraphQL type and a Python value, return the serialized value.
 
+    This method will serialize the value recursively, entering into
+    lists and dicts.
+
     Can be used to serialize Enums and/or Custom Scalars in variable values.
+
+    :param type_: the GraphQL type
+    :param value: the provided value
     """
 
     if value is None:
@@ -93,7 +99,13 @@ def serialize_variable_values(
     """Given a GraphQL document and a schema, serialize the Dictionary of
     variable values.
 
-    Useful to serialize Enums and/or Custom Scalars in variable values
+    Useful to serialize Enums and/or Custom Scalars in variable values.
+
+    :param schema: the GraphQL schema
+    :param document: the document representing the query sent to the backend
+    :param variable_values: the dictionnary of variable values which needs
+        to be serialized.
+    :param operation_name: the optional operation_name for the query.
     """
 
     parsed_variable_values: Dict[str, Any] = {}

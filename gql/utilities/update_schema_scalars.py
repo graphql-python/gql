@@ -6,6 +6,10 @@ from graphql import GraphQLScalarType, GraphQLSchema
 def update_schema_scalar(schema: GraphQLSchema, name: str, scalar: GraphQLScalarType):
     """Update the scalar in a schema with the scalar provided.
 
+    :param schema: the GraphQL schema
+    :param name: the name of the custom scalar type in the schema
+    :param scalar: a provided scalar type
+
     This can be used to update the default Custom Scalar implementation
     when the schema has been provided from a text file or from introspection.
     """
@@ -35,8 +39,15 @@ def update_schema_scalar(schema: GraphQLSchema, name: str, scalar: GraphQLScalar
 def update_schema_scalars(schema: GraphQLSchema, scalars: List[GraphQLScalarType]):
     """Update the scalars in a schema with the scalars provided.
 
+    :param schema: the GraphQL schema
+    :param scalars: a list of provided scalar types
+
     This can be used to update the default Custom Scalar implementation
     when the schema has been provided from a text file or from introspection.
+
+    If the name of the provided scalar is different than the name of
+    the custom scalar, then you should use the
+    :func:`update_schema_scalar <gql.utilities.update_schema_scalar>` method instead.
     """
 
     if not isinstance(scalars, Iterable):
