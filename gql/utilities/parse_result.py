@@ -212,13 +212,6 @@ class ParseResultVisitor(Visitor):
                 and not is_leaf_type(result_type)
             ):
 
-                """
-                if not isinstance(result_type, GraphQLList):
-                    raise TypeError(
-                        f"Received iterable result for a non-list type: {result_value}"
-                    )
-                """
-
                 # Finding out the inner type of the list
                 inner_type = _ignore_non_null(result_type.of_type)
 
