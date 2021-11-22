@@ -290,7 +290,9 @@ Examples:
         }
 
         # we execute the query with serialize_variables set to True
-        result = client.execute(query, variable_values=variable_values)
+        result = client.execute(
+            query, variable_values=variable_values, serialize_variables=True
+        )
 
 Parsing output
 --------------
