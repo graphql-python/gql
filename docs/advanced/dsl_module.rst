@@ -338,6 +338,16 @@ this can be written in a concise manner::
         DSLInlineFragment().on(ds.Human).select(ds.Human.homePlanet)
     )
 
+Meta-fields
+^^^^^^^^^^^
+
+To define meta-fields (:code:`__typename`, :code:`__schema` and :code:`__type`),
+you can use the :class:`DSLMetaField <gql.dsl.DSLMetaField>` class::
+
+    query = ds.Query.hero.select(
+        ds.Character.name,
+        DSLMetaField("__typename")
+    )
 
 Executable examples
 -------------------

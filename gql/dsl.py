@@ -25,6 +25,7 @@ from graphql import (
     GraphQLNonNull,
     GraphQLObjectType,
     GraphQLSchema,
+    GraphQLString,
     GraphQLWrappingType,
     InlineFragmentNode,
     IntValueNode,
@@ -46,6 +47,7 @@ from graphql import (
     VariableDefinitionNode,
     VariableNode,
     assert_named_type,
+    introspection_types,
     is_enum_type,
     is_input_object_type,
     is_leaf_type,
@@ -301,6 +303,7 @@ class DSLExecutable(ABC):
 
     variable_definitions: "DSLVariableDefinitions"
     name: Optional[str]
+    selection_set: SelectionSetNode
 
     @property
     @abstractmethod
@@ -349,11 +352,31 @@ class DSLExecutable(ABC):
                         f"Received type: {type(field)}"
                     )
                 )
+            valid_type = False
             if isinstance(self, DSLOperation):
-                assert field.type_name.upper() == self.operation_type.name, (
-                    f"Invalid root field for operation {self.operation_type.name}.\n"
-                    f"Received: {field.type_name}"
-                )
+                operation_name = self.operation_type.name
+                if isinstance(field, DSLMetaField):
+                    if field.name in ["__schema", "__type"]:
+                        valid_type = operation_name == "QUERY"
+                    if field.name == "__typename":
+                        valid_type = operation_name != "SUBSCRIPTION"
+                else:
+                    valid_type = field.type_name.upper() == operation_name
+
+            else:  # Fragments
+                if isinstance(field, DSLMetaField):
+                    valid_type = field.name == "__typename"
+
+            if not valid_type:
+                if isinstance(self, DSLOperation):
+                    error_msg = (
+                        "Invalid root field for operation "
+                        f"{self.operation_type.name}"
+                    )
+                else:
+                    error_msg = f"Invalid field for fragment {self.name}"
+
+                raise AssertionError(f"{error_msg}: {field!r}")
 
         self.selection_set = SelectionSetNode(
             selections=FrozenList(DSLSelectable.get_ast_fields(all_fields))
@@ -610,6 +633,11 @@ class DSLSelector(ABC):
             fields, fields_with_alias
         )
 
+        # Check that we don't receive an invalid meta-field
+        for field in added_fields:
+            if isinstance(field, DSLMetaField) and field.name != "__typename":
+                raise AssertionError(f"Invalid field for {self!r}: {field!r}")
+
         # Get a list of AST Nodes for each added field
         added_selections: List[
             Union[FieldNode, InlineFragmentNode, FragmentSpreadNode]
@@ -682,6 +710,7 @@ class DSLField(DSLSelectableWithAlias, DSLSelector):
         :param graphql_field: the GraphQL field definition from the schema
         """
         DSLSelector.__init__(self)
+        self.name = name
         self._type = graphql_type
         self.field = graphql_field
         self.ast_field = FieldNode(name=NameNode(value=name), arguments=FrozenList())
@@ -760,6 +789,47 @@ class DSLField(DSLSelectableWithAlias, DSLSelector):
             f"<{self.__class__.__name__} {self._type.name}"
             f"::{self.ast_field.name.value}>"
         )
+
+
+class DSLMetaField(DSLField):
+    """DSLMetaField represents a GraphQL meta-field for the DSL code.
+
+    meta-fields are reserved field in the GraphQL type system prefixed with
+    "__" two underscores and used for introspection.
+    """
+
+    meta_type = GraphQLObjectType(
+        "meta-field",
+        fields={
+            "__typename": GraphQLField(GraphQLString),
+            "__schema": GraphQLField(
+                cast(GraphQLObjectType, introspection_types["__Schema"])
+            ),
+            "__type": GraphQLField(
+                cast(GraphQLObjectType, introspection_types["__Type"]),
+                args={"name": GraphQLArgument(type_=GraphQLNonNull(GraphQLString))},
+            ),
+        },
+    )
+
+    def __init__(self, name: str):
+        """Initialize the meta-field.
+
+        :param name: the name between __typename, __schema or __type
+        """
+
+        try:
+            field = self.meta_type.fields[name]
+        except KeyError:
+            raise AssertionError(f'Invalid meta-field "{name}"')
+
+        super().__init__(name, self.meta_type, field)
+
+    def alias(self, alias: str) -> "DSLSelectableWithAlias":
+        """
+        :meta private:
+        """
+        pass
 
 
 class DSLInlineFragment(DSLSelectable, DSLSelector):
