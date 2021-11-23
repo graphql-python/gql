@@ -367,8 +367,9 @@ class SyncClientSession:
         operation_name: Optional[str] = None,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
+        get_execution_result: bool = False,
         **kwargs,
-    ) -> Dict:
+    ) -> Union[Dict[str, Any], ExecutionResult]:
         """Execute the provided document AST synchronously using
         the sync transport.
 
@@ -382,6 +383,8 @@ class SyncClientSession:
             serialized. Used for custom scalars and/or enums. Default: False.
         :param parse_result: Whether gql will unserialize the result.
             By default use the parse_results attribute of the client.
+        :param get_execution_result: return the full ExecutionResult instance instead of
+            only the "data" field. Necessary if you want to get the "extensions" field.
 
         The extra arguments are passed to the transport execute method."""
 
@@ -399,12 +402,18 @@ class SyncClientSession:
         # Raise an error if an error is returned in the ExecutionResult object
         if result.errors:
             raise TransportQueryError(
-                str(result.errors[0]), errors=result.errors, data=result.data
+                str(result.errors[0]),
+                errors=result.errors,
+                data=result.data,
+                extensions=result.extensions,
             )
 
         assert (
             result.data is not None
         ), "Transport returned an ExecutionResult without data or errors"
+
+        if get_execution_result:
+            return result
 
         return result.data
 
@@ -519,8 +528,9 @@ class AsyncClientSession:
         operation_name: Optional[str] = None,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
+        get_execution_result: bool = False,
         **kwargs,
-    ) -> AsyncGenerator[Dict, None]:
+    ) -> AsyncGenerator[Union[Dict[str, Any], ExecutionResult], None]:
         """Coroutine to subscribe asynchronously to the provided document AST
         asynchronously using the async transport.
 
@@ -534,6 +544,8 @@ class AsyncClientSession:
             serialized. Used for custom scalars and/or enums. Default: False.
         :param parse_result: Whether gql will unserialize the result.
             By default use the parse_results attribute of the client.
+        :param get_execution_result: yield the full ExecutionResult instance instead of
+            only the "data" field. Necessary if you want to get the "extensions" field.
 
         The extra arguments are passed to the transport subscribe method."""
 
@@ -554,11 +566,17 @@ class AsyncClientSession:
                 # Raise an error if an error is returned in the ExecutionResult object
                 if result.errors:
                     raise TransportQueryError(
-                        str(result.errors[0]), errors=result.errors, data=result.data
+                        str(result.errors[0]),
+                        errors=result.errors,
+                        data=result.data,
+                        extensions=result.extensions,
                     )
 
                 elif result.data is not None:
-                    yield result.data
+                    if get_execution_result:
+                        yield result
+                    else:
+                        yield result.data
         finally:
             await inner_generator.aclose()
 
@@ -636,8 +654,9 @@ class AsyncClientSession:
         operation_name: Optional[str] = None,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
+        get_execution_result: bool = False,
         **kwargs,
-    ) -> Dict:
+    ) -> Union[Dict[str, Any], ExecutionResult]:
         """Coroutine to execute the provided document AST asynchronously using
         the async transport.
 
@@ -651,6 +670,8 @@ class AsyncClientSession:
             serialized. Used for custom scalars and/or enums. Default: False.
         :param parse_result: Whether gql will unserialize the result.
             By default use the parse_results attribute of the client.
+        :param get_execution_result: return the full ExecutionResult instance instead of
+            only the "data" field. Necessary if you want to get the "extensions" field.
 
         The extra arguments are passed to the transport execute method."""
 
@@ -668,12 +689,18 @@ class AsyncClientSession:
         # Raise an error if an error is returned in the ExecutionResult object
         if result.errors:
             raise TransportQueryError(
-                str(result.errors[0]), errors=result.errors, data=result.data
+                str(result.errors[0]),
+                errors=result.errors,
+                data=result.data,
+                extensions=result.extensions,
             )
 
         assert (
             result.data is not None
         ), "Transport returned an ExecutionResult without data or errors"
+
+        if get_execution_result:
+            return result
 
         return result.data
 
