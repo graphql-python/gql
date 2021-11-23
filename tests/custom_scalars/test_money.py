@@ -760,9 +760,12 @@ async def test_gql_cli_print_schema(event_loop, aiohttp_server, capsys):
     captured = capsys.readouterr()
     captured_out = str(captured.out).strip()
 
-    print (captured_out)
-    assert """
+    print(captured_out)
+    assert (
+        """
 type Subscription {
   spend(money: Money): Money
 }
-""".strip() in captured_out
+""".strip()
+        in captured_out
+    )
