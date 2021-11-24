@@ -596,6 +596,6 @@ async def test_websocket_simple_query_with_extensions(
 
     query = gql(query_str)
 
-    execution_result = await session._execute(query)
+    execution_result = await session.execute(query, get_execution_result=True)
 
     assert execution_result.extensions["key1"] == "val1"
