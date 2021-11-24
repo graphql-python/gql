@@ -1,3 +1,5 @@
+.. _gql_cli:
+
 gql-cli
 =======
 
@@ -69,3 +71,10 @@ Then execute query from the file:
 
     $ cat query.gql | gql-cli wss://countries.trevorblades.com/graphql
     {"continent": {"name": "Africa"}}
+
+Print the GraphQL schema in a file
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: shell
+
+    $ gql-cli https://countries.trevorblades.com/graphql --print-schema > schema.graphql
