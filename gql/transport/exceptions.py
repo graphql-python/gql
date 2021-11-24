@@ -35,11 +35,13 @@ class TransportQueryError(Exception):
         query_id: Optional[int] = None,
         errors: Optional[List[Any]] = None,
         data: Optional[Any] = None,
+        extensions: Optional[Any] = None,
     ):
         super().__init__(msg)
         self.query_id = query_id
         self.errors = errors
         self.data = data
+        self.extensions = extensions
 
 
 class TransportClosed(TransportError):

@@ -328,7 +328,7 @@ async def test_requests_query_with_extensions(
 
             query = gql(query1_str)
 
-            execution_result = session._execute(query)
+            execution_result = session.execute(query, get_execution_result=True)
 
             assert execution_result.extensions["key1"] == "val1"
 
