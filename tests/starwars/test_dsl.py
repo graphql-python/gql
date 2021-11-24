@@ -14,11 +14,13 @@ from graphql import (
     Undefined,
     print_ast,
 )
+from graphql.utilities import get_introspection_query
 
-from gql import Client
+from gql import Client, gql
 from gql.dsl import (
     DSLFragment,
     DSLInlineFragment,
+    DSLMetaField,
     DSLMutation,
     DSLQuery,
     DSLSchema,
@@ -29,6 +31,7 @@ from gql.dsl import (
     ast_from_value,
     dsl_gql,
 )
+from gql.utilities import get_introspection_query_ast
 
 from .schema import StarWarsSchema
 
@@ -616,9 +619,9 @@ def test_dsl_query_all_fields_should_correspond_to_the_root_type(ds):
     with pytest.raises(AssertionError) as excinfo:
         DSLQuery(ds.Character.name)
 
-    assert ("Invalid root field for operation QUERY.\n" "Received: Character") in str(
-        excinfo.value
-    )
+    assert (
+        "Invalid root field for operation QUERY: " "<DSLField Character::name>"
+    ) in str(excinfo.value)
 
 
 def test_dsl_gql_all_arguments_should_be_operations_or_fragments():
@@ -638,3 +641,107 @@ def test_invalid_type(ds):
         AttributeError, match="Type 'invalid_type' not found in the schema!"
     ):
         ds.invalid_type
+
+
+def test_hero_name_query_with_typename(ds):
+    query = """
+hero {
+  name
+  __typename
+}
+    """.strip()
+    query_dsl = ds.Query.hero.select(ds.Character.name, DSLMetaField("__typename"))
+    assert query == str(query_dsl)
+
+
+def test_type_hero_query(ds):
+    query = """{
+  __type(name: "Hero") {
+    kind
+    name
+    ofType {
+      kind
+      name
+    }
+  }
+}"""
+
+    type_hero = DSLMetaField("__type")(name="Hero")
+    type_hero.select(
+        ds.__Type.kind,
+        ds.__Type.name,
+        ds.__Type.ofType.select(ds.__Type.kind, ds.__Type.name),
+    )
+    query_dsl = DSLQuery(type_hero)
+
+    assert query == str(print_ast(dsl_gql(query_dsl))).strip()
+
+
+def test_invalid_meta_field_selection(ds):
+
+    DSLQuery(DSLMetaField("__typename"))
+    DSLQuery(DSLMetaField("__schema"))
+    DSLQuery(DSLMetaField("__type"))
+
+    metafield = DSLMetaField("__typename")
+    assert metafield.name == "__typename"
+
+    # alias does not work
+    metafield.alias("test")
+
+    assert metafield.name == "__typename"
+
+    with pytest.raises(AssertionError):
+        DSLMetaField("__invalid_meta_field")
+
+    DSLMutation(DSLMetaField("__typename"))
+
+    with pytest.raises(AssertionError):
+        DSLMutation(DSLMetaField("__schema"))
+
+    with pytest.raises(AssertionError):
+        DSLMutation(DSLMetaField("__type"))
+
+    with pytest.raises(AssertionError):
+        DSLSubscription(DSLMetaField("__typename"))
+
+    with pytest.raises(AssertionError):
+        DSLSubscription(DSLMetaField("__schema"))
+
+    with pytest.raises(AssertionError):
+        DSLSubscription(DSLMetaField("__type"))
+
+    DSLFragment("blah", DSLMetaField("__typename"))
+
+    with pytest.raises(AssertionError):
+        DSLFragment("blah", DSLMetaField("__schema"))
+
+    with pytest.raises(AssertionError):
+        DSLFragment("blah", DSLMetaField("__type"))
+
+    ds.Query.hero.select(DSLMetaField("__typename"))
+
+    with pytest.raises(AssertionError):
+        ds.Query.hero.select(DSLMetaField("__schema"))
+
+    with pytest.raises(AssertionError):
+        ds.Query.hero.select(DSLMetaField("__type"))
+
+
+@pytest.mark.parametrize("option", [True, False])
+def test_get_introspection_query_ast(option):
+
+    introspection_query = get_introspection_query(
+        descriptions=option,
+        specified_by_url=option,
+        directive_is_repeatable=option,
+        schema_description=option,
+    )
+    dsl_introspection_query = get_introspection_query_ast(
+        descriptions=option,
+        specified_by_url=option,
+        directive_is_repeatable=option,
+        schema_description=option,
+    )
+
+    assert print_ast(gql(introspection_query)) == print_ast(dsl_introspection_query)
