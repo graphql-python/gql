@@ -374,6 +374,7 @@ class DSLExecutable(DSLSelector):
 
     variable_definitions: "DSLVariableDefinitions"
     name: Optional[str]
+    selection_set: SelectionSetNode
 
     @property
     @abstractmethod

@@ -410,18 +410,14 @@ async def make_money_backend(aiohttp_server):
         data = await request.json()
         source = data["query"]
 
-        print(f"data keys = {data.keys()}")
         try:
             variables = data["variables"]
-            print(f"variables = {variables!r}")
         except KeyError:
             variables = None
 
         result = graphql_sync(
             schema, source, variable_values=variables, root_value=root_value
         )
-
-        print(f"backend result = {result!r}")
 
         return web.json_response(
             {
@@ -742,3 +738,34 @@ def test_serialize_value_with_nullable_type():
     nullable_int = GraphQLInt
 
     assert serialize_value(nullable_int, None) is None
+
+
+@pytest.mark.asyncio
+async def test_gql_cli_print_schema(event_loop, aiohttp_server, capsys):
+
+    from gql.cli import get_parser, main
+
+    server = await make_money_backend(aiohttp_server)
+
+    url = str(server.make_url("/"))
+
+    parser = get_parser(with_examples=True)
+    args = parser.parse_args([url, "--print-schema"])
+
+    exit_code = await main(args)
+
+    assert exit_code == 0
+
+    # Check that the result has been printed on stdout
+    captured = capsys.readouterr()
+    captured_out = str(captured.out).strip()
+
+    print(captured_out)
+    assert (
+        """
+type Subscription {
+  spend(money: Money): Money
+}
+""".strip()
+        in captured_out
+    )

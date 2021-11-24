@@ -1070,6 +1070,6 @@ async def test_aiohttp_query_with_extensions(event_loop, aiohttp_server):
 
         query = gql(query1_str)
 
-        execution_result = await session._execute(query)
+        execution_result = await session.execute(query, get_execution_result=True)
 
         assert execution_result.extensions["key1"] == "val1"
