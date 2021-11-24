@@ -1,3 +1,7 @@
+"""
+.. image:: http://www.plantuml.com/plantuml/png/ZLAzJWCn3Dxz51vXw1im50ag8L4XwC1OkLTJ8gMvAd4GwEYxGuC8pTbKtUxy_TZEvsaIYfAt7e1MII9rWfsdbF1cSRzWpvtq4GT0JENduX8GXr_g7brQlf5tw-MBOx_-HlS0LV_Kzp8xr1kZav9PfCsMWvolEA_1VylHoZCExKwKv4Tg2s_VkSkca2kof2JDb0yxZYIk3qMZYUe1B1uUZOROXn96pQMugEMUdRnUUqUf6DBXQyIz2zu5RlgUQAFVNYaeRfBI79_JrUTaeg9JZFQj5MmUc69PDmNGE2iU61fDgfri3x36gxHw3gDHD6xqqQ7P4vjKqz2-602xtkO7uo17SCLhVSv25VjRjUAFcUE73Sspb8ADBl8gTT7j2cFAOPst_Wi0  # noqa
+    :alt: UML diagram
+"""
 import logging
 import re
 from abc import ABC, abstractmethod
@@ -309,6 +313,7 @@ class DSLSelector(ABC):
     def __init__(
         self, *fields: "DSLSelectable", **fields_with_alias: "DSLSelectableWithAlias",
     ):
+        """:meta private:"""
         self.selection_set = SelectionSetNode(selections=FrozenList([]))
 
         if fields or fields_with_alias:
@@ -325,14 +330,13 @@ class DSLSelector(ABC):
     ):
         r"""Select the fields which should be added.
 
-        :param \*fields: the root instances of the dynamically generated requests
-        :type \*fields: DSLField
-        :param \**fields_with_alias: root instances fields with alias as key
-        :type \**fields_with_alias: DSLField
+        :param \*fields: fields or fragments
+        :type \*fields: DSLSelectable
+        :param \**fields_with_alias: fields or fragments with alias as key
+        :type \**fields_with_alias: DSLSelectable
 
-        :raises TypeError: if an argument is not an instance of :class:`DSLField`
-        :raises AssertionError: if an argument is not a field which correspond
-                                to the operation type
+        :raises TypeError: if an argument is not an instance of :class:`DSLSelectable`
+        :raises GraphQLError: if an argument is not a valid field
         """
         # Concatenate fields without and with alias
         added_fields: Tuple["DSLSelectable", ...] = DSLField.get_aliased_fields(
@@ -387,20 +391,21 @@ class DSLExecutable(DSLSelector):
     def __init__(
         self, *fields: "DSLSelectable", **fields_with_alias: "DSLSelectableWithAlias",
     ):
-        r"""Given arguments of type :class:`DSLField` containing GraphQL requests,
+        r"""Given arguments of type :class:`DSLSelectable` containing GraphQL requests,
         generate an operation which can be converted to a Document
         using the :func:`dsl_gql <gql.dsl.dsl_gql>`.
 
-        The fields arguments should be fields of root GraphQL types
+        The fields arguments should be either be fragments or
+        fields of root GraphQL types
         (Query, Mutation or Subscription) and correspond to the
         operation_type of this operation.
 
-        :param \*fields: root instances of the dynamically generated requests
-        :type \*fields: DSLField
-        :param \**fields_with_alias: root instances fields with alias as key
-        :type \**fields_with_alias: DSLField
+        :param \*fields: root fields or fragments
+        :type \*fields: DSLSelectable
+        :param \**fields_with_alias: root fields or fragments with alias as key
+        :type \**fields_with_alias: DSLSelectable
 
-        :raises TypeError: if an argument is not an instance of :class:`DSLField`
+        :raises TypeError: if an argument is not an instance of :class:`DSLSelectable`
         :raises AssertionError: if an argument is not a field which correspond
                                 to the operation type
         """
@@ -412,9 +417,9 @@ class DSLExecutable(DSLSelector):
 
 
 class DSLRootFieldSelector(DSLSelector):
-    """DSLRootFieldSelector is a class which defines the
-    :meth:`select <gql.dsl.DSLRootFieldSelector.is_valid_field>` method to
-    validate the root children fields added in an operation.
+    """Class used to define the
+    :meth:`is_valid_field <gql.dsl.DSLRootFieldSelector.is_valid_field>` method
+    for root fields for the :meth:`select <gql.dsl.DSLSelector.select>` method.
 
     Inherited by
     :class:`DSLOperation <gql.dsl.DSLOperation>`
@@ -494,10 +499,11 @@ class DSLVariable:
     of the :class:`DSLVariableDefinitions`
 
     The type of the variable is set by the :class:`DSLField` instance that receives it
-    in the `args` method.
+    in the :meth:`args <gql.dsl.DSLField.args>` method.
     """
 
     def __init__(self, name: str):
+        """:meta private:"""
         self.type: Optional[TypeNode] = None
         self.name = name
         self.ast_variable = VariableNode(name=NameNode(value=self.name))
@@ -529,11 +535,12 @@ class DSLVariableDefinitions:
 
     Attributes of the DSLVariableDefinitions class are generated automatically
     with the `__getattr__` dunder method in order to generate
-    instances of :class:`DSLVariable`, that can then be used as values in the
-    `DSLField.args` method
+    instances of :class:`DSLVariable`, that can then be used as values
+    in the :meth:`args <gql.dsl.DSLField.args>` method.
     """
 
     def __init__(self):
+        """:meta private:"""
         self.variables: Dict[str, DSLVariable] = {}
 
     def __getattr__(self, name: str) -> "DSLVariable":
@@ -639,8 +646,9 @@ class DSLSelectable(ABC):
 
 
 class DSLFragmentSelector(DSLSelector):
-    """Class used to define the is_valid_field method for fragments
-    for the :meth:`select <gql.dsl.DSLSelector.select>` method.
+    """Class used to define the
+    :meth:`is_valid_field <gql.dsl.DSLFragmentSelector.is_valid_field>` method
+    for fragments for the :meth:`select <gql.dsl.DSLSelector.select>` method.
 
     Inherited by
     :class:`DSLFragment <gql.dsl.DSLFragment>`,
@@ -671,8 +679,9 @@ class DSLFragmentSelector(DSLSelector):
 
 
 class DSLFieldSelector(DSLSelector):
-    """Class used to define the is_valid_field method for fields
-    for the :meth:`select <gql.dsl.DSLSelector.select>` method.
+    """Class used to define the
+    :meth:`is_valid_field <gql.dsl.DSLFieldSelector.is_valid_field>` method
+    for fields for the :meth:`select <gql.dsl.DSLSelector.select>` method.
 
     Inherited by
     :class:`DSLField <gql.dsl.DSLField>`,
