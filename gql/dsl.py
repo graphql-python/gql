@@ -361,7 +361,7 @@ class DSLExecutable(ABC):
                     if field.name == "__typename":
                         valid_type = operation_name != "SUBSCRIPTION"
                 else:
-                    valid_type = field.type_name.upper() == operation_name
+                    valid_type = field.parent_type.name.upper() == operation_name
 
             else:  # Fragments
                 if isinstance(field, DSLMetaField):
@@ -696,8 +696,8 @@ class DSLField(DSLSelectableWithAlias, DSLSelector):
     def __init__(
         self,
         name: str,
-        graphql_type: Union[GraphQLObjectType, GraphQLInterfaceType],
-        graphql_field: GraphQLField,
+        parent_type: Union[GraphQLObjectType, GraphQLInterfaceType],
+        field: GraphQLField,
     ):
         """Initialize the DSLField.
 
@@ -706,15 +706,20 @@ class DSLField(DSLSelectableWithAlias, DSLSelector):
             Use attributes of the :class:`DSLType` instead.
 
         :param name: the name of the field
-        :param graphql_type: the GraphQL type definition from the schema
-        :param graphql_field: the GraphQL field definition from the schema
+        :param parent_type: the GraphQL type definition from the schema of the
+                            parent type of the field
+        :param field: the GraphQL field definition from the schema
         """
         DSLSelector.__init__(self)
-        self.name = name
-        self._type = graphql_type
-        self.field = graphql_field
+        self.parent_type = parent_type
+        self.field = field
         self.ast_field = FieldNode(name=NameNode(value=name), arguments=FrozenList())
         log.debug(f"Creating {self!r}")
+
+    @property
+    def name(self):
+        """:meta private:"""
+        return self.ast_field.name.value
 
     def __call__(self, **kwargs) -> "DSLField":
         return self.args(**kwargs)
@@ -779,16 +784,8 @@ class DSLField(DSLSelectableWithAlias, DSLSelector):
 
         return self
 
-    @property
-    def type_name(self):
-        """:meta private:"""
-        return self._type.name
-
     def __repr__(self) -> str:
-        return (
-            f"<{self.__class__.__name__} {self._type.name}"
-            f"::{self.ast_field.name.value}>"
-        )
+        return f"<{self.__class__.__name__} {self.parent_type.name}" f"::{self.name}>"
 
 
 class DSLMetaField(DSLField):
