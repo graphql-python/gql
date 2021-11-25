@@ -1,4 +1,5 @@
 import asyncio
+import warnings
 from typing import Any, AsyncGenerator, Dict, Generator, Optional, Union
 
 from graphql import (
@@ -151,7 +152,11 @@ class Client:
             # Get the current asyncio event loop
             # Or create a new event loop if there isn't one (in a new Thread)
             try:
-                loop = asyncio.get_event_loop()
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore", message="There is no current event loop"
+                    )
+                    loop = asyncio.get_event_loop()
             except RuntimeError:
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
@@ -194,7 +199,11 @@ class Client:
         # Get the current asyncio event loop
         # Or create a new event loop if there isn't one (in a new Thread)
         try:
-            loop = asyncio.get_event_loop()
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore", message="There is no current event loop"
+                )
+                loop = asyncio.get_event_loop()
         except RuntimeError:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
