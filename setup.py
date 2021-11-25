@@ -46,7 +46,8 @@ install_requests_requires = [
 ]
 
 install_websockets_requires = [
-    "websockets>=10,<11",
+    "websockets>=9,<10;python_version<='3.6'",
+    "websockets>=10,<11;python_version>'3.6'",
 ]
 
 install_all_requires = (
