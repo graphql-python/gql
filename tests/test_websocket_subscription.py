@@ -1,6 +1,7 @@
 import asyncio
 import json
 import sys
+import warnings
 from typing import List
 
 import pytest
@@ -531,9 +532,13 @@ def test_websocket_subscription_sync_graceful_shutdown(server, subscription_str)
             if count == 5:
 
                 # Simulate a KeyboardInterrupt in the generator
-                asyncio.ensure_future(
-                    client.session._generator.athrow(KeyboardInterrupt)
-                )
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore", message="There is no current event loop"
+                    )
+                    asyncio.ensure_future(
+                        client.session._generator.athrow(KeyboardInterrupt)
+                    )
 
             count -= 1
 

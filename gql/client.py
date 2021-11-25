@@ -1,4 +1,5 @@
 import asyncio
+import warnings
 from typing import Any, AsyncGenerator, Dict, Generator, Optional, Union
 
 from graphql import (
@@ -151,7 +152,11 @@ class Client:
             # Get the current asyncio event loop
             # Or create a new event loop if there isn't one (in a new Thread)
             try:
-                loop = asyncio.get_event_loop()
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore", message="There is no current event loop"
+                    )
+                    loop = asyncio.get_event_loop()
             except RuntimeError:
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
@@ -194,7 +199,11 @@ class Client:
         # Get the current asyncio event loop
         # Or create a new event loop if there isn't one (in a new Thread)
         try:
-            loop = asyncio.get_event_loop()
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore", message="There is no current event loop"
+                )
+                loop = asyncio.get_event_loop()
         except RuntimeError:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
@@ -211,7 +220,11 @@ class Client:
                 # Note: we need to create a task here in order to be able to close
                 # the async generator properly on python 3.8
                 # See https://bugs.python.org/issue38559
-                generator_task = asyncio.ensure_future(async_generator.__anext__())
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore", message="There is no current event loop"
+                    )
+                    generator_task = asyncio.ensure_future(async_generator.__anext__())
                 result = loop.run_until_complete(generator_task)
                 yield result
 
