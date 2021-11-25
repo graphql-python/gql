@@ -30,6 +30,9 @@ dev_requires = [
     "sphinx>=3.0.0,<4",
     "sphinx_rtd_theme>=0.4,<1",
     "sphinx-argparse==0.2.5",
+    "types-aiofiles",
+    "types-mock",
+    "types-requests",
 ] + tests_requires
 
 install_aiohttp_requires = [
