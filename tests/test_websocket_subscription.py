@@ -1,7 +1,7 @@
 import asyncio
-import warnings
 import json
 import sys
+import warnings
 from typing import List
 
 import pytest
