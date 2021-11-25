@@ -317,9 +317,10 @@ class SyncClientSession:
         :param variable_values: Dictionary of input parameters.
         :param operation_name: Name of the operation that shall be executed.
         :param serialize_variables: whether the variable values should be
-            serialized. Used for custom scalars and/or enums. Default: False.
+            serialized. Used for custom scalars and/or enums.
+            By default use the serialize_variables argument of the client.
         :param parse_result: Whether gql will unserialize the result.
-            By default use the parse_results attribute of the client.
+            By default use the parse_results argument of the client.
 
         The extra arguments are passed to the transport execute method."""
 
@@ -380,9 +381,10 @@ class SyncClientSession:
         :param variable_values: Dictionary of input parameters.
         :param operation_name: Name of the operation that shall be executed.
         :param serialize_variables: whether the variable values should be
-            serialized. Used for custom scalars and/or enums. Default: False.
+            serialized. Used for custom scalars and/or enums.
+            By default use the serialize_variables argument of the client.
         :param parse_result: Whether gql will unserialize the result.
-            By default use the parse_results attribute of the client.
+            By default use the parse_results argument of the client.
         :param get_execution_result: return the full ExecutionResult instance instead of
             only the "data" field. Necessary if you want to get the "extensions" field.
 
@@ -464,9 +466,10 @@ class AsyncClientSession:
         :param variable_values: Dictionary of input parameters.
         :param operation_name: Name of the operation that shall be executed.
         :param serialize_variables: whether the variable values should be
-            serialized. Used for custom scalars and/or enums. Default: False.
+            serialized. Used for custom scalars and/or enums.
+            By default use the serialize_variables argument of the client.
         :param parse_result: Whether gql will unserialize the result.
-            By default use the parse_results attribute of the client.
+            By default use the parse_results argument of the client.
 
         The extra arguments are passed to the transport subscribe method."""
 
@@ -541,9 +544,10 @@ class AsyncClientSession:
         :param variable_values: Dictionary of input parameters.
         :param operation_name: Name of the operation that shall be executed.
         :param serialize_variables: whether the variable values should be
-            serialized. Used for custom scalars and/or enums. Default: False.
+            serialized. Used for custom scalars and/or enums.
+            By default use the serialize_variables argument of the client.
         :param parse_result: Whether gql will unserialize the result.
-            By default use the parse_results attribute of the client.
+            By default use the parse_results argument of the client.
         :param get_execution_result: yield the full ExecutionResult instance instead of
             only the "data" field. Necessary if you want to get the "extensions" field.
 
@@ -600,9 +604,10 @@ class AsyncClientSession:
         :param variable_values: Dictionary of input parameters.
         :param operation_name: Name of the operation that shall be executed.
         :param serialize_variables: whether the variable values should be
-            serialized. Used for custom scalars and/or enums. Default: False.
+            serialized. Used for custom scalars and/or enums.
+            By default use the serialize_variables argument of the client.
         :param parse_result: Whether gql will unserialize the result.
-            By default use the parse_results attribute of the client.
+            By default use the parse_results argument of the client.
 
         The extra arguments are passed to the transport execute method."""
 
@@ -667,9 +672,10 @@ class AsyncClientSession:
         :param variable_values: Dictionary of input parameters.
         :param operation_name: Name of the operation that shall be executed.
         :param serialize_variables: whether the variable values should be
-            serialized. Used for custom scalars and/or enums. Default: False.
+            serialized. Used for custom scalars and/or enums.
+            By default use the serialize_variables argument of the client.
         :param parse_result: Whether gql will unserialize the result.
-            By default use the parse_results attribute of the client.
+            By default use the parse_results argument of the client.
         :param get_execution_result: return the full ExecutionResult instance instead of
             only the "data" field. Necessary if you want to get the "extensions" field.
 
