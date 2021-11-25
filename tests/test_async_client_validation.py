@@ -1,6 +1,5 @@
 import asyncio
 import json
-import warnings
 
 import graphql
 import pytest
@@ -83,7 +82,6 @@ starwars_invalid_subscription_str = """
     [
         {"schema": StarWarsSchema},
         {"introspection": StarWarsIntrospection},
-        {"type_def": StarWarsTypeDef},
         {"schema": StarWarsTypeDef},
     ],
 )
@@ -97,11 +95,7 @@ async def test_async_client_validation(
 
     sample_transport = WebsocketsTransport(url=url)
 
-    with warnings.catch_warnings():
-        warnings.filterwarnings(
-            "ignore", message="type_def is deprecated; use schema instead"
-        )
-        client = Client(transport=sample_transport, **client_params)
+    client = Client(transport=sample_transport, **client_params)
 
     async with client as session:
 
@@ -135,7 +129,6 @@ async def test_async_client_validation(
     [
         {"schema": StarWarsSchema},
         {"introspection": StarWarsIntrospection},
-        {"type_def": StarWarsTypeDef},
         {"schema": StarWarsTypeDef},
     ],
 )
@@ -149,11 +142,7 @@ async def test_async_client_validation_invalid_query(
 
     sample_transport = WebsocketsTransport(url=url)
 
-    with warnings.catch_warnings():
-        warnings.filterwarnings(
-            "ignore", message="type_def is deprecated; use schema instead"
-        )
-        client = Client(transport=sample_transport, **client_params)
+    client = Client(transport=sample_transport, **client_params)
 
     async with client as session:
 
@@ -174,11 +163,7 @@ async def test_async_client_validation_invalid_query(
 @pytest.mark.parametrize("subscription_str", [starwars_invalid_subscription_str])
 @pytest.mark.parametrize(
     "client_params",
-    [
-        {"schema": StarWarsSchema, "introspection": StarWarsIntrospection},
-        {"schema": StarWarsSchema, "type_def": StarWarsTypeDef},
-        {"introspection": StarWarsIntrospection, "type_def": StarWarsTypeDef},
-    ],
+    [{"schema": StarWarsSchema, "introspection": StarWarsIntrospection}],
 )
 async def test_async_client_validation_different_schemas_parameters_forbidden(
     event_loop, server, subscription_str, client_params
