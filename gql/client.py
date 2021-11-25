@@ -45,7 +45,6 @@ class Client:
         self,
         schema: Optional[Union[str, GraphQLSchema]] = None,
         introspection=None,
-        type_def: Optional[str] = None,
         transport: Optional[Union[Transport, AsyncTransport]] = None,
         fetch_schema_from_transport: bool = False,
         execute_timeout: Optional[Union[int, float]] = 10,
@@ -67,19 +66,6 @@ class Client:
         :param parse_results: Whether gql will try to parse the serialized output
                 sent by the backend. Can be used to unserialize custom scalars or enums.
         """
-        assert not (
-            type_def and introspection
-        ), "Cannot provide introspection and type definition at the same time."
-
-        if type_def:
-            assert (
-                not schema
-            ), "Cannot provide type definition and schema at the same time."
-            warnings.warn(
-                "type_def is deprecated; use schema instead",
-                category=DeprecationWarning,
-            )
-            schema = type_def
 
         if introspection:
             assert (
@@ -166,7 +152,11 @@ class Client:
             # Get the current asyncio event loop
             # Or create a new event loop if there isn't one (in a new Thread)
             try:
-                loop = asyncio.get_event_loop()
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore", message="There is no current event loop"
+                    )
+                    loop = asyncio.get_event_loop()
             except RuntimeError:
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
@@ -209,7 +199,11 @@ class Client:
         # Get the current asyncio event loop
         # Or create a new event loop if there isn't one (in a new Thread)
         try:
-            loop = asyncio.get_event_loop()
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore", message="There is no current event loop"
+                )
+                loop = asyncio.get_event_loop()
         except RuntimeError:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
@@ -226,7 +220,11 @@ class Client:
                 # Note: we need to create a task here in order to be able to close
                 # the async generator properly on python 3.8
                 # See https://bugs.python.org/issue38559
-                generator_task = asyncio.ensure_future(async_generator.__anext__())
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore", message="There is no current event loop"
+                    )
+                    generator_task = asyncio.ensure_future(async_generator.__anext__())
                 result = loop.run_until_complete(generator_task)
                 yield result
 
