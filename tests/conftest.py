@@ -102,8 +102,10 @@ async def aiohttp_server():
 # Adding debug logs to websocket tests
 for name in [
     "websockets.legacy.server",
-    "gql.transport.websockets",
+    "gql.transport.aiohttp",
     "gql.transport.phoenix_channel_websockets",
+    "gql.transport.requests",
+    "gql.transport.websockets",
     "gql.dsl",
     "gql.utilities.parse_result",
 ]:
