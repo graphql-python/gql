@@ -1,5 +1,4 @@
 import asyncio
-import warnings
 from typing import Any, AsyncGenerator, Dict, Generator, Optional, Union
 
 from graphql import (
@@ -45,7 +44,6 @@ class Client:
         self,
         schema: Optional[Union[str, GraphQLSchema]] = None,
         introspection=None,
-        type_def: Optional[str] = None,
         transport: Optional[Union[Transport, AsyncTransport]] = None,
         fetch_schema_from_transport: bool = False,
         execute_timeout: Optional[Union[int, float]] = 10,
@@ -67,19 +65,6 @@ class Client:
         :param parse_results: Whether gql will try to parse the serialized output
                 sent by the backend. Can be used to unserialize custom scalars or enums.
         """
-        assert not (
-            type_def and introspection
-        ), "Cannot provide introspection and type definition at the same time."
-
-        if type_def:
-            assert (
-                not schema
-            ), "Cannot provide type definition and schema at the same time."
-            warnings.warn(
-                "type_def is deprecated; use schema instead",
-                category=DeprecationWarning,
-            )
-            schema = type_def
 
         if introspection:
             assert (
