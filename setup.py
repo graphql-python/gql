@@ -13,9 +13,9 @@ scripts = [
 
 tests_requires = [
     "parse==1.15.0",
-    "pytest==5.4.2",
-    "pytest-asyncio==0.11.0",
-    "pytest-cov==2.8.1",
+    "pytest==6.2.5",
+    "pytest-asyncio==0.16.0",
+    "pytest-cov==3.0.0",
     "mock==4.0.2",
     "vcrpy==4.0.2",
     "aiofiles",
@@ -43,7 +43,7 @@ install_requests_requires = [
 ]
 
 install_websockets_requires = [
-    "websockets>=9,<10",
+    "websockets>=10,<11",
 ]
 
 install_all_requires = (
