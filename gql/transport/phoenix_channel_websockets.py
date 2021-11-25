@@ -25,7 +25,7 @@ class Subscription:
 
 
 class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
-    """The PhoenixChannelWebsocketsTransport is an **EXPERIMENTAL** async transport
+    """The PhoenixChannelWebsocketsTransport is an async transport
     which allows you to execute queries and subscriptions against an `Absinthe`_
     backend using the `Phoenix`_ framework `channels`_.
 
