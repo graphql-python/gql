@@ -112,23 +112,23 @@ class AIOHTTPTransport(AsyncTransport):
            An event that will be set once all transports have been properly closed.
         """
 
-        transports = 0
+        ssl_transports = 0
         all_is_lost = asyncio.Event()
 
         def connection_lost(exc, orig_lost):
-            nonlocal transports
+            nonlocal ssl_transports
 
             try:
                 orig_lost(exc)
             finally:
-                transports -= 1
-                if transports == 0:
+                ssl_transports -= 1
+                if ssl_transports == 0:
                     all_is_lost.set()
 
         def eof_received(orig_eof_received):
             try:
                 orig_eof_received()
-            except AttributeError:
+            except AttributeError:  # pragma: no cover
                 # It may happen that eof_received() is called after
                 # _app_protocol and _transport are set to None.
                 pass
@@ -139,7 +139,7 @@ class AIOHTTPTransport(AsyncTransport):
                 if proto is None:
                     continue
 
-                transports += 1
+                ssl_transports += 1
                 orig_lost = proto.connection_lost
                 orig_eof_received = proto.eof_received
 
@@ -150,7 +150,7 @@ class AIOHTTPTransport(AsyncTransport):
                     eof_received, orig_eof_received=orig_eof_received
                 )
 
-        if transports == 0:
+        if ssl_transports == 0:
             all_is_lost.set()
 
         return all_is_lost

@@ -1073,3 +1073,35 @@ async def test_aiohttp_query_with_extensions(event_loop, aiohttp_server):
         execution_result = await session.execute(query, get_execution_result=True)
 
         assert execution_result.extensions["key1"] == "val1"
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_query_https(event_loop, ssl_aiohttp_server):
+    from aiohttp import web
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    async def handler(request):
+        return web.Response(text=query1_server_answer, content_type="application/json")
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await ssl_aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    assert str(url).startswith("https://")
+
+    sample_transport = AIOHTTPTransport(url=url, timeout=10)
+
+    async with Client(transport=sample_transport,) as session:
+
+        query = gql(query1_str)
+
+        # Execute query asynchronously
+        result = await session.execute(query)
+
+        continents = result["continents"]
+
+        africa = continents[0]
+
+        assert africa["code"] == "AF"
