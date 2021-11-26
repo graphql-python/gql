@@ -1,3 +1,5 @@
+import asyncio
+import functools
 import io
 import json
 import logging
@@ -44,6 +46,7 @@ class AIOHTTPTransport(AsyncTransport):
         auth: Optional[BasicAuth] = None,
         ssl: Union[SSLContext, bool, Fingerprint] = False,
         timeout: Optional[int] = None,
+        ssl_close_timeout: Optional[Union[int, float]] = 10,
         client_session_args: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Initialize the transport with the given aiohttp parameters.
@@ -53,6 +56,8 @@ class AIOHTTPTransport(AsyncTransport):
         :param cookies: Dict of HTTP cookies.
         :param auth: BasicAuth object to enable Basic HTTP auth if needed
         :param ssl: ssl_context of the connection. Use ssl=False to disable encryption
+        :param ssl_close_timeout: Timeout in seconds to wait for the ssl connection
+                                  to close properly
         :param client_session_args: Dict of extra args passed to
                 `aiohttp.ClientSession`_
 
@@ -65,6 +70,7 @@ class AIOHTTPTransport(AsyncTransport):
         self.auth: Optional[BasicAuth] = auth
         self.ssl: Union[SSLContext, bool, Fingerprint] = ssl
         self.timeout: Optional[int] = timeout
+        self.ssl_close_timeout: Optional[Union[int, float]] = ssl_close_timeout
         self.client_session_args = client_session_args
         self.session: Optional[aiohttp.ClientSession] = None
 
@@ -100,6 +106,59 @@ class AIOHTTPTransport(AsyncTransport):
         else:
             raise TransportAlreadyConnected("Transport is already connected")
 
+    @staticmethod
+    def create_aiohttp_closed_event(session) -> asyncio.Event:
+        """Work around aiohttp issue that doesn't properly close transports on exit.
+
+        See https://github.com/aio-libs/aiohttp/issues/1925#issuecomment-639080209
+
+        Returns:
+           An event that will be set once all transports have been properly closed.
+        """
+
+        ssl_transports = 0
+        all_is_lost = asyncio.Event()
+
+        def connection_lost(exc, orig_lost):
+            nonlocal ssl_transports
+
+            try:
+                orig_lost(exc)
+            finally:
+                ssl_transports -= 1
+                if ssl_transports == 0:
+                    all_is_lost.set()
+
+        def eof_received(orig_eof_received):
+            try:
+                orig_eof_received()
+            except AttributeError:  # pragma: no cover
+                # It may happen that eof_received() is called after
+                # _app_protocol and _transport are set to None.
+                pass
+
+        for conn in session.connector._conns.values():
+            for handler, _ in conn:
+                proto = getattr(handler.transport, "_ssl_protocol", None)
+                if proto is None:
+                    continue
+
+                ssl_transports += 1
+                orig_lost = proto.connection_lost
+                orig_eof_received = proto.eof_received
+
+                proto.connection_lost = functools.partial(
+                    connection_lost, orig_lost=orig_lost
+                )
+                proto.eof_received = functools.partial(
+                    eof_received, orig_eof_received=orig_eof_received
+                )
+
+        if ssl_transports == 0:
+            all_is_lost.set()
+
+        return all_is_lost
+
     async def close(self) -> None:
         """Coroutine which will close the aiohttp session.
 
@@ -108,7 +167,12 @@ class AIOHTTPTransport(AsyncTransport):
         when you exit the async context manager.
         """
         if self.session is not None:
+            closed_event = self.create_aiohttp_closed_event(self.session)
             await self.session.close()
+            try:
+                await asyncio.wait_for(closed_event.wait(), self.ssl_close_timeout)
+            except asyncio.TimeoutError:
+                pass
         self.session = None
 
     async def execute(
