@@ -203,8 +203,8 @@ class WebsocketsTransport(AsyncTransport):
         self.close_exception: Optional[Exception] = None
 
         self.supported_subprotocols = [
-            self.GRAPHQLWS_SUBPROTOCOL,
             self.APOLLO_SUBPROTOCOL,
+            self.GRAPHQLWS_SUBPROTOCOL,
         ]
 
     async def _send(self, message: str) -> None:
