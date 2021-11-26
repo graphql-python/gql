@@ -1,7 +1,6 @@
 """Utilities to manipulate several python objects."""
 
-import io
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Tuple, Type
 
 
 # From this response in Stackoverflow
@@ -13,12 +12,9 @@ def to_camel_case(snake_str):
     return components[0] + "".join(x.title() if x else "_" for x in components[1:])
 
 
-def is_file_like(value: Any) -> bool:
-    """Check if a value represents a file like object"""
-    return isinstance(value, io.IOBase)
-
-
-def extract_files(variables: Dict) -> Tuple[Dict, Dict]:
+def extract_files(
+    variables: Dict, file_classes: Tuple[Type[Any], ...]
+) -> Tuple[Dict, Dict]:
     files = {}
 
     def recurse_extract(path, obj):
@@ -40,7 +36,7 @@ def extract_files(variables: Dict) -> Tuple[Dict, Dict]:
                 value = recurse_extract(f"{path}.{key}", value)
                 nulled_obj[key] = value
             return nulled_obj
-        elif is_file_like(obj):
+        elif isinstance(obj, file_classes):
             # extract obj from its parent and put it into files instead.
             files[path] = obj
             return None

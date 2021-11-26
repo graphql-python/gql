@@ -1,9 +1,10 @@
 import asyncio
 import functools
+import io
 import json
 import logging
 from ssl import SSLContext
-from typing import Any, AsyncGenerator, Dict, Optional, Union
+from typing import Any, AsyncGenerator, Dict, Optional, Tuple, Type, Union
 
 import aiohttp
 from aiohttp.client_exceptions import ClientResponseError
@@ -30,6 +31,12 @@ class AIOHTTPTransport(AsyncTransport):
 
     This transport use the aiohttp library with asyncio.
     """
+
+    file_classes: Tuple[Type[Any], ...] = (
+        io.IOBase,
+        aiohttp.StreamReader,
+        AsyncGenerator,
+    )
 
     def __init__(
         self,
@@ -164,7 +171,7 @@ class AIOHTTPTransport(AsyncTransport):
     async def execute(
         self,
         document: DocumentNode,
-        variable_values: Optional[Dict[str, str]] = None,
+        variable_values: Optional[Dict[str, Any]] = None,
         operation_name: Optional[str] = None,
         extra_args: Dict[str, Any] = None,
         upload_files: bool = False,
@@ -178,7 +185,7 @@ class AIOHTTPTransport(AsyncTransport):
         :code:`execute` on a client or a session.
 
         :param document: the parsed GraphQL request
-        :param variables_values: An optional Dict of variable values
+        :param variable_values: An optional Dict of variable values
         :param operation_name: An optional Operation name for the request
         :param extra_args: additional arguments to send to the aiohttp post method
         :param upload_files: Set to True if you want to put files in the variable values
@@ -201,7 +208,9 @@ class AIOHTTPTransport(AsyncTransport):
 
             # If we upload files, we will extract the files present in the
             # variable_values dict and replace them by null values
-            nulled_variable_values, files = extract_files(variable_values)
+            nulled_variable_values, files = extract_files(
+                variables=variable_values, file_classes=self.file_classes,
+            )
 
             # Save the nulled variable values in the payload
             payload["variables"] = nulled_variable_values
@@ -232,7 +241,8 @@ class AIOHTTPTransport(AsyncTransport):
             data.add_field("map", file_map_str, content_type="application/json")
 
             # Add the extracted files as remaining fields
-            data.add_fields(*file_streams.items())
+            for k, v in file_streams.items():
+                data.add_field(k, v, filename=getattr(v, "name", k))
 
             post_args: Dict[str, Any] = {"data": data}
 
@@ -253,42 +263,47 @@ class AIOHTTPTransport(AsyncTransport):
             raise TransportClosed("Transport is not connected")
 
         async with self.session.post(self.url, ssl=self.ssl, **post_args) as resp:
-            try:
-                result = await resp.json()
 
-                if log.isEnabledFor(logging.INFO):
-                    result_text = await resp.text()
-                    log.info("<<< %s", result_text)
-            except Exception:
+            async def raise_response_error(resp: aiohttp.ClientResponse, reason: str):
                 # We raise a TransportServerError if the status code is 400 or higher
                 # We raise a TransportProtocolError in the other cases
 
                 try:
                     # Raise a ClientResponseError if response status is 400 or higher
                     resp.raise_for_status()
-
                 except ClientResponseError as e:
-                    raise TransportServerError(str(e)) from e
+                    raise TransportServerError(str(e), e.status) from e
 
                 result_text = await resp.text()
                 raise TransportProtocolError(
-                    f"Server did not return a GraphQL result: {result_text}"
-                )
-
-            if "errors" not in result and "data" not in result:
-                result_text = await resp.text()
-                raise TransportProtocolError(
-                    "Server did not return a GraphQL result: "
-                    'No "data" or "error" keys in answer: '
+                    f"Server did not return a GraphQL result: "
+                    f"{reason}: "
                     f"{result_text}"
                 )
 
-            return ExecutionResult(errors=result.get("errors"), data=result.get("data"))
+            try:
+                result = await resp.json(content_type=None)
+
+                if log.isEnabledFor(logging.INFO):
+                    result_text = await resp.text()
+                    log.info("<<< %s", result_text)
+
+            except Exception:
+                await raise_response_error(resp, "Not a JSON answer")
+
+            if "errors" not in result and "data" not in result:
+                await raise_response_error(resp, 'No "data" or "errors" keys in answer')
+
+            return ExecutionResult(
+                errors=result.get("errors"),
+                data=result.get("data"),
+                extensions=result.get("extensions"),
+            )
 
     def subscribe(
         self,
         document: DocumentNode,
-        variable_values: Optional[Dict[str, str]] = None,
+        variable_values: Optional[Dict[str, Any]] = None,
         operation_name: Optional[str] = None,
     ) -> AsyncGenerator[ExecutionResult, None]:
         """Subscribe is not supported on HTTP.

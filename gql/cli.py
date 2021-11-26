@@ -4,7 +4,7 @@ import sys
 from argparse import ArgumentParser, Namespace, RawDescriptionHelpFormatter
 from typing import Any, Dict
 
-from graphql import GraphQLError
+from graphql import GraphQLError, print_schema
 from yarl import URL
 
 from gql import Client, __version__, gql
@@ -37,6 +37,9 @@ gql-cli wss://countries.trevorblades.com/graphql --variables code:AF
 
 # Execute query saved in a file
 cat query.gql | gql-cli wss://countries.trevorblades.com/graphql
+
+# Print the schema of the backend
+gql-cli https://countries.trevorblades.com/graphql --print-schema
 
 """
 
@@ -91,6 +94,12 @@ def get_parser(with_examples: bool = False) -> ArgumentParser:
         "--operation-name",
         help="set the operation_name value",
         dest="operation_name",
+    )
+    parser.add_argument(
+        "--print-schema",
+        help="get the schema from instrospection and print it",
+        action="store_true",
+        dest="print_schema",
     )
 
     return parser
@@ -183,7 +192,7 @@ def get_execute_args(args: Namespace) -> Dict[str, Any]:
 
 
 def get_transport(args: Namespace) -> AsyncTransport:
-    """Instanciate a transport from the parsed command line arguments
+    """Instantiate a transport from the parsed command line arguments
 
     :param args: parsed command line arguments
     """
@@ -196,7 +205,7 @@ def get_transport(args: Namespace) -> AsyncTransport:
     # (headers)
     transport_args = get_transport_args(args)
 
-    # Instanciate transport depending on url scheme
+    # Instantiate transport depending on url scheme
     transport: AsyncTransport
     if scheme in ["ws", "wss"]:
         from gql.transport.websockets import WebsocketsTransport
@@ -226,7 +235,7 @@ async def main(args: Namespace) -> int:
         logging.basicConfig(level=args.loglevel)
 
     try:
-        # Instanciate transport from command line arguments
+        # Instantiate transport from command line arguments
         transport = get_transport(args)
 
         # Get extra execute parameters from command line arguments
@@ -241,7 +250,15 @@ async def main(args: Namespace) -> int:
     exit_code = 0
 
     # Connect to the backend and provide a session
-    async with Client(transport=transport) as session:
+    async with Client(
+        transport=transport, fetch_schema_from_transport=args.print_schema
+    ) as session:
+
+        if args.print_schema:
+            schema_str = print_schema(session.client.schema)
+            print(schema_str)
+
+            return exit_code
 
         while True:
 

@@ -2,6 +2,7 @@ File uploads
 ============
 
 GQL supports file uploads with the :ref:`aiohttp transport <aiohttp_transport>`
+and the :ref:`requests transport <requests_transport>`
 using the `GraphQL multipart request spec`_.
 
 .. _GraphQL multipart request spec: https://github.com/jaydenseric/graphql-multipart-request-spec
@@ -18,8 +19,9 @@ In order to upload a single file, you need to:
 .. code-block:: python
 
     transport = AIOHTTPTransport(url='YOUR_URL')
+    # Or transport = RequestsHTTPTransport(url='YOUR_URL')
 
-    client = Client(transport=sample_transport)
+    client = Client(transport=transport)
 
     query = gql('''
       mutation($file: Upload!) {
@@ -45,8 +47,9 @@ It is also possible to upload multiple files using a list.
 .. code-block:: python
 
     transport = AIOHTTPTransport(url='YOUR_URL')
+    # Or transport = RequestsHTTPTransport(url='YOUR_URL')
 
-    client = Client(transport=sample_transport)
+    client = Client(transport=transport)
 
     query = gql('''
       mutation($files: [Upload!]!) {
@@ -67,3 +70,114 @@ It is also possible to upload multiple files using a list.
 
     f1.close()
     f2.close()
+
+
+Streaming
+---------
+
+If you use the above methods to send files, then the entire contents of the files
+must be loaded in memory before the files are sent.
+If the files are not too big and you have enough RAM, it is not a problem.
+On another hand if you want to avoid using too much memory, then it is better
+to read the files and send them in small chunks so that the entire file contents
+don't have to be in memory at once.
+
+We provide methods to do that for two different uses cases:
+
+* Sending local files
+* Streaming downloaded files from an external URL to the GraphQL API
+
+.. note::
+    Streaming is only supported with the :ref:`aiohttp transport <aiohttp_transport>`
+
+Streaming local files
+^^^^^^^^^^^^^^^^^^^^^
+
+aiohttp allows to upload files using an asynchronous generator.
+See `Streaming uploads on aiohttp docs`_.
+
+
+In order to stream local files, instead of providing opened files to the
+`variable_values` argument of `execute`, you need to provide an async generator
+which will provide parts of the files.
+
+You can use `aiofiles`_
+to read the files in chunks and create this asynchronous generator.
+
+.. _Streaming uploads on aiohttp docs: https://docs.aiohttp.org/en/stable/client_quickstart.html#streaming-uploads
+.. _aiofiles: https://github.com/Tinche/aiofiles
+
+Example:
+
+.. code-block:: python
+
+    transport = AIOHTTPTransport(url='YOUR_URL')
+
+    client = Client(transport=transport)
+
+    query = gql('''
+      mutation($file: Upload!) {
+        singleUpload(file: $file) {
+          id
+        }
+      }
+    ''')
+
+    async def file_sender(file_name):
+        async with aiofiles.open(file_name, 'rb') as f:
+            chunk = await f.read(64*1024)
+                while chunk:
+                    yield chunk
+                    chunk = await f.read(64*1024)
+
+    params = {"file": file_sender(file_name='YOUR_FILE_PATH')}
+
+    result = client.execute(
+		query, variable_values=params, upload_files=True
+	)
+
+Streaming downloaded files
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If the file you want to upload to the GraphQL API is not present locally
+and needs to be downloaded from elsewhere, then it is possible to chain the download
+and the upload in order to limit the amout of memory used.
+
+Because the `content` attribute of an aiohttp response is a `StreamReader`
+(it provides an async iterator protocol), you can chain the download and the upload
+together.
+
+In order to do that, you need to:
+
+* get the response from an aiohttp request and then get the StreamReader instance
+  from `resp.content`
+* provide the StreamReader instance to the `variable_values` argument of `execute`
+
+Example:
+
+.. code-block:: python
+
+    # First request to download your file with aiohttp
+    async with aiohttp.ClientSession() as http_client:
+        async with http_client.get('YOUR_DOWNLOAD_URL') as resp:
+
+            # We now have a StreamReader instance in resp.content
+            # and we provide it to the variable_values argument of execute
+
+            transport = AIOHTTPTransport(url='YOUR_GRAPHQL_URL')
+
+            client = Client(transport=transport)
+
+            query = gql('''
+              mutation($file: Upload!) {
+                singleUpload(file: $file) {
+                  id
+                }
+              }
+            ''')
+
+            params = {"file": resp.content}
+
+            result = client.execute(
+                query, variable_values=params, upload_files=True
+            )

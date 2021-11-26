@@ -14,3 +14,5 @@ gql.transport
 .. autoclass:: gql.transport.aiohttp.AIOHTTPTransport
 
 .. autoclass:: gql.transport.websockets.WebsocketsTransport
+
+.. autoclass:: gql.transport.phoenix_channel_websockets.PhoenixChannelWebsocketsTransport

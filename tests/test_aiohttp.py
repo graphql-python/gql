@@ -70,6 +70,99 @@ async def test_aiohttp_query(event_loop, aiohttp_server):
 
 
 @pytest.mark.asyncio
+async def test_aiohttp_ignore_backend_content_type(event_loop, aiohttp_server):
+    from aiohttp import web
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    async def handler(request):
+        return web.Response(text=query1_server_answer, content_type="text/plain")
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    sample_transport = AIOHTTPTransport(url=url, timeout=10)
+
+    async with Client(transport=sample_transport,) as session:
+
+        query = gql(query1_str)
+
+        result = await session.execute(query)
+
+        continents = result["continents"]
+
+        africa = continents[0]
+
+        assert africa["code"] == "AF"
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_cookies(event_loop, aiohttp_server):
+    from aiohttp import web
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    async def handler(request):
+        assert "COOKIE" in request.headers
+        assert "cookie1=val1" == request.headers["COOKIE"]
+
+        return web.Response(text=query1_server_answer, content_type="application/json")
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    sample_transport = AIOHTTPTransport(url=url, cookies={"cookie1": "val1"})
+
+    async with Client(transport=sample_transport,) as session:
+
+        query = gql(query1_str)
+
+        # Execute query asynchronously
+        result = await session.execute(query)
+
+        continents = result["continents"]
+
+        africa = continents[0]
+
+        assert africa["code"] == "AF"
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_error_code_401(event_loop, aiohttp_server):
+    from aiohttp import web
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    async def handler(request):
+        # Will generate http error code 401
+        return web.Response(
+            text='{"error":"Unauthorized","message":"401 Client Error: Unauthorized"}',
+            content_type="application/json",
+            status=401,
+        )
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    sample_transport = AIOHTTPTransport(url=url)
+
+    async with Client(transport=sample_transport,) as session:
+
+        query = gql(query1_str)
+
+        with pytest.raises(TransportServerError) as exc_info:
+            await session.execute(query)
+
+        assert "401, message='Unauthorized'" in str(exc_info.value)
+
+
+@pytest.mark.asyncio
 async def test_aiohttp_error_code_500(event_loop, aiohttp_server):
     from aiohttp import web
     from gql.transport.aiohttp import AIOHTTPTransport
@@ -130,20 +223,20 @@ invalid_protocol_responses = [
         "response": "{}",
         "expected_exception": (
             "Server did not return a GraphQL result: "
-            'No "data" or "error" keys in answer: {}'
+            'No "data" or "errors" keys in answer: {}'
         ),
     },
     {
         "response": "qlsjfqsdlkj",
         "expected_exception": (
-            "Server did not return a GraphQL result: " "qlsjfqsdlkj"
+            "Server did not return a GraphQL result: Not a JSON answer: qlsjfqsdlkj"
         ),
     },
     {
         "response": '{"not_data_or_errors": 35}',
         "expected_exception": (
             "Server did not return a GraphQL result: "
-            'No "data" or "error" keys in answer: {"not_data_or_errors": 35}'
+            'No "data" or "errors" keys in answer: {"not_data_or_errors": 35}'
         ),
     },
 ]
@@ -582,6 +675,84 @@ async def test_aiohttp_binary_file_upload(event_loop, aiohttp_server):
             assert success
 
 
+@pytest.mark.asyncio
+async def test_aiohttp_stream_reader_upload(event_loop, aiohttp_server):
+    from aiohttp import web, ClientSession
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    async def binary_data_handler(request):
+        return web.Response(
+            body=binary_file_content, content_type="binary/octet-stream"
+        )
+
+    app = web.Application()
+    app.router.add_route("POST", "/", binary_upload_handler)
+    app.router.add_route("GET", "/binary_data", binary_data_handler)
+
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+    binary_data_url = server.make_url("/binary_data")
+
+    sample_transport = AIOHTTPTransport(url=url, timeout=10)
+
+    async with Client(transport=sample_transport) as session:
+        query = gql(file_upload_mutation_1)
+        async with ClientSession() as client:
+            async with client.get(binary_data_url) as resp:
+                params = {"file": resp.content, "other_var": 42}
+
+                # Execute query asynchronously
+                result = await session.execute(
+                    query, variable_values=params, upload_files=True
+                )
+
+    success = result["success"]
+
+    assert success
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_async_generator_upload(event_loop, aiohttp_server):
+    import aiofiles
+    from aiohttp import web
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    app = web.Application()
+    app.router.add_route("POST", "/", binary_upload_handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    sample_transport = AIOHTTPTransport(url=url, timeout=10)
+
+    with TemporaryFile(binary_file_content) as test_file:
+
+        async with Client(transport=sample_transport,) as session:
+
+            query = gql(file_upload_mutation_1)
+
+            file_path = test_file.filename
+
+            async def file_sender(file_name):
+                async with aiofiles.open(file_name, "rb") as f:
+                    chunk = await f.read(64 * 1024)
+                    while chunk:
+                        yield chunk
+                        chunk = await f.read(64 * 1024)
+
+            params = {"file": file_sender(file_path), "other_var": 42}
+
+            # Execute query asynchronously
+            result = await session.execute(
+                query, variable_values=params, upload_files=True
+            )
+
+            success = result["success"]
+
+            assert success
+
+
 file_upload_mutation_2 = """
     mutation($file1: Upload!, $file2: Upload!) {
       uploadFile(input:{file1:$file, file2:$file}) {
@@ -870,3 +1041,35 @@ async def test_aiohttp_using_cli_invalid_query(
     expected_error = "Syntax Error: Unexpected Name 'BLAHBLAH'"
 
     assert expected_error in captured_err
+
+
+query1_server_answer_with_extensions = (
+    f'{{"data":{query1_server_answer_data}, "extensions":{{"key1": "val1"}}}}'
+)
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_query_with_extensions(event_loop, aiohttp_server):
+    from aiohttp import web
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    async def handler(request):
+        return web.Response(
+            text=query1_server_answer_with_extensions, content_type="application/json"
+        )
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    sample_transport = AIOHTTPTransport(url=url, timeout=10)
+
+    async with Client(transport=sample_transport,) as session:
+
+        query = gql(query1_str)
+
+        execution_result = await session.execute(query, get_execution_result=True)
+
+        assert execution_result.extensions["key1"] == "val1"

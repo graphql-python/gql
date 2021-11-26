@@ -53,7 +53,9 @@ async def test_subscription_support_using_client():
     async with Client(schema=StarWarsSchema) as session:
         results = [
             result["reviewAdded"]
-            async for result in session.subscribe(subs, variable_values=params)
+            async for result in session.subscribe(
+                subs, variable_values=params, parse_result=False
+            )
         ]
 
     assert results == expected

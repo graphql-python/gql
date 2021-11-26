@@ -3,7 +3,7 @@ import os
 from setuptools import setup, find_packages
 
 install_requires = [
-    "graphql-core>=3.1,<3.2",
+    "graphql-core>=3.1.5,<3.2",
     "yarl>=1.6,<2.0",
 ]
 
@@ -13,11 +13,12 @@ scripts = [
 
 tests_requires = [
     "parse==1.15.0",
-    "pytest==5.4.2",
-    "pytest-asyncio==0.11.0",
-    "pytest-cov==2.8.1",
+    "pytest==6.2.5",
+    "pytest-asyncio==0.16.0",
+    "pytest-cov==3.0.0",
     "mock==4.0.2",
     "vcrpy==4.0.2",
+    "aiofiles",
 ]
 
 dev_requires = [
@@ -25,10 +26,13 @@ dev_requires = [
     "check-manifest>=0.42,<1",
     "flake8==3.8.1",
     "isort==4.3.21",
-    "mypy==0.770",
+    "mypy==0.910",
     "sphinx>=3.0.0,<4",
     "sphinx_rtd_theme>=0.4,<1",
     "sphinx-argparse==0.2.5",
+    "types-aiofiles",
+    "types-mock",
+    "types-requests",
 ] + tests_requires
 
 install_aiohttp_requires = [
@@ -36,11 +40,14 @@ install_aiohttp_requires = [
 ]
 
 install_requests_requires = [
-    "requests>=2.23,<3",
+    "requests>=2.26,<3",
+    "requests_toolbelt>=0.9.1,<1",
+    "urllib3>=1.26",
 ]
 
 install_websockets_requires = [
-    "websockets>=8.1,<9",
+    "websockets>=9,<10;python_version<='3.6'",
+    "websockets>=10,<11;python_version>'3.6'",
 ]
 
 install_all_requires = (
@@ -64,14 +71,16 @@ setup(
     author_email="me@syrusakbary.com",
     license="MIT",
     classifiers=[
-        "Development Status :: 3 - Alpha",
+        "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
         "Topic :: Software Development :: Libraries",
         "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3 :: Only",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: Implementation :: PyPy",
     ],
     keywords="api graphql protocol rest relay gql client",

@@ -123,3 +123,22 @@ def test_named_query(client):
     with use_cassette("queries"):
         result = client.execute(query, operation_name="Planet2")
     assert result == expected
+
+
+def test_header_query(client):
+    query = gql(
+        """
+        query Planet($id: ID!) {
+          planet(id: $id) {
+            id
+            name
+          }
+        }
+        """
+    )
+    expected = {"planet": {"id": "UGxhbmV0OjEx", "name": "Geonosis"}}
+    with use_cassette("queries"):
+        result = client.execute(
+            query, extra_args={"headers": {"authorization": "xxx-123"}}
+        )
+    assert result == expected

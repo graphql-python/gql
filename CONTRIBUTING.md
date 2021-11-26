@@ -31,7 +31,7 @@ virtualenv gql-dev
 Activate the virtualenv and install dependencies by running:
 
 ```console
-python pip install -e.[dev]
+python -m pip install -e.[dev]
 ```
 
 If you are using Linux or MacOS, you can make use of Makefile command

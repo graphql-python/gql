@@ -569,3 +569,33 @@ async def test_websocket_using_cli(event_loop, server, monkeypatch, capsys):
     received_answer = json.loads(captured_out)
 
     assert received_answer == expected_answer
+
+
+query1_server_answer_with_extensions = (
+    '{{"type":"data","id":"{query_id}","payload":{{"data":{{"continents":['
+    '{{"code":"AF","name":"Africa"}},{{"code":"AN","name":"Antarctica"}},'
+    '{{"code":"AS","name":"Asia"}},{{"code":"EU","name":"Europe"}},'
+    '{{"code":"NA","name":"North America"}},{{"code":"OC","name":"Oceania"}},'
+    '{{"code":"SA","name":"South America"}}]}},'
+    '"extensions": {{"key1": "val1"}}}}}}'
+)
+
+server1_answers_with_extensions = [
+    query1_server_answer_with_extensions,
+]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("server", [server1_answers_with_extensions], indirect=True)
+@pytest.mark.parametrize("query_str", [query1_str])
+async def test_websocket_simple_query_with_extensions(
+    event_loop, client_and_server, query_str
+):
+
+    session, server = client_and_server
+
+    query = gql(query_str)
+
+    execution_result = await session.execute(query, get_execution_result=True)
+
+    assert execution_result.extensions["key1"] == "val1"

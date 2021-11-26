@@ -10,3 +10,5 @@ Usage
    variables
    headers
    file_upload
+   custom_scalars_and_enums
+   extensions
