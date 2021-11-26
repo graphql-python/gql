@@ -46,6 +46,7 @@ class AIOHTTPTransport(AsyncTransport):
         auth: Optional[BasicAuth] = None,
         ssl: Union[SSLContext, bool, Fingerprint] = False,
         timeout: Optional[int] = None,
+        ssl_close_timeout: Optional[Union[int, float]] = 10,
         client_session_args: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Initialize the transport with the given aiohttp parameters.
@@ -55,6 +56,8 @@ class AIOHTTPTransport(AsyncTransport):
         :param cookies: Dict of HTTP cookies.
         :param auth: BasicAuth object to enable Basic HTTP auth if needed
         :param ssl: ssl_context of the connection. Use ssl=False to disable encryption
+        :param ssl_close_timeout: Timeout in seconds to wait for the ssl connection
+                                  to close properly
         :param client_session_args: Dict of extra args passed to
                 `aiohttp.ClientSession`_
 
@@ -67,6 +70,7 @@ class AIOHTTPTransport(AsyncTransport):
         self.auth: Optional[BasicAuth] = auth
         self.ssl: Union[SSLContext, bool, Fingerprint] = ssl
         self.timeout: Optional[int] = timeout
+        self.ssl_close_timeout: Optional[Union[int, float]] = ssl_close_timeout
         self.client_session_args = client_session_args
         self.session: Optional[aiohttp.ClientSession] = None
 
@@ -165,7 +169,10 @@ class AIOHTTPTransport(AsyncTransport):
         if self.session is not None:
             closed_event = self.create_aiohttp_closed_event(self.session)
             await self.session.close()
-            await closed_event.wait()
+            try:
+                await asyncio.wait_for(closed_event.wait(), self.ssl_close_timeout)
+            except asyncio.TimeoutError:
+                pass
         self.session = None
 
     async def execute(

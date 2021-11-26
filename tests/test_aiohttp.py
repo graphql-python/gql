@@ -1076,7 +1076,8 @@ async def test_aiohttp_query_with_extensions(event_loop, aiohttp_server):
 
 
 @pytest.mark.asyncio
-async def test_aiohttp_query_https(event_loop, ssl_aiohttp_server):
+@pytest.mark.parametrize("ssl_close_timeout", [0, 10])
+async def test_aiohttp_query_https(event_loop, ssl_aiohttp_server, ssl_close_timeout):
     from aiohttp import web
     from gql.transport.aiohttp import AIOHTTPTransport
 
@@ -1091,7 +1092,9 @@ async def test_aiohttp_query_https(event_loop, ssl_aiohttp_server):
 
     assert str(url).startswith("https://")
 
-    sample_transport = AIOHTTPTransport(url=url, timeout=10)
+    sample_transport = AIOHTTPTransport(
+        url=url, timeout=10, ssl_close_timeout=ssl_close_timeout
+    )
 
     async with Client(transport=sample_transport,) as session:
 
