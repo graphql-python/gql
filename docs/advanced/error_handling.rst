@@ -54,7 +54,7 @@ HTTP
 
 For HTTP transports, we should get a json response which contain
 :code:`data` or :code:`errors` fields.
-If that is not the case, then the returned error depends wether the http return code
+If that is not the case, then the returned error depends whether the http return code
 is below 400 or not.
 
 - json response:
