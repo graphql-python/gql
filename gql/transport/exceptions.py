@@ -2,6 +2,8 @@ from typing import Any, List, Optional
 
 
 class TransportError(Exception):
+    """Base class for all the Transport exceptions"""
+
     pass
 
 
@@ -18,7 +20,9 @@ class TransportServerError(TransportError):
     This exception will close the transport connection.
     """
 
-    def __init__(self, message=None, code=None):
+    code: Optional[int]
+
+    def __init__(self, message: str, code: Optional[int] = None):
         super(TransportServerError, self).__init__(message)
         self.code = code
 
@@ -28,6 +32,11 @@ class TransportQueryError(Exception):
 
     This exception should not close the transport connection.
     """
+
+    query_id: Optional[int]
+    errors: Optional[List[Any]]
+    data: Optional[Any]
+    extensions: Optional[Any]
 
     def __init__(
         self,

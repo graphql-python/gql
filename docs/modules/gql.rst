@@ -20,5 +20,6 @@ Sub-Packages
 
    client
    transport
+   transport_exceptions
    dsl
    utilities
