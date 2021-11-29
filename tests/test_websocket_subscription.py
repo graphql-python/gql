@@ -1,9 +1,11 @@
 import asyncio
 import json
 import sys
+import warnings
 from typing import List
 
 import pytest
+from graphql import ExecutionResult
 from parse import search
 
 from gql import Client, gql
@@ -134,6 +136,31 @@ async def test_websocket_subscription(event_loop, client_and_server, subscriptio
     async for result in session.subscribe(subscription):
 
         number = result["number"]
+        print(f"Number received: {number}")
+
+        assert number == count
+        count -= 1
+
+    assert count == -1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("server", [server_countdown], indirect=True)
+@pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
+async def test_websocket_subscription_get_execution_result(
+    event_loop, client_and_server, subscription_str
+):
+
+    session, server = client_and_server
+
+    count = 10
+    subscription = gql(subscription_str.format(count=count))
+
+    async for result in session.subscribe(subscription, get_execution_result=True):
+
+        assert isinstance(result, ExecutionResult)
+
+        number = result.data["number"]
         print(f"Number received: {number}")
 
         assert number == count
@@ -505,9 +532,13 @@ def test_websocket_subscription_sync_graceful_shutdown(server, subscription_str)
             if count == 5:
 
                 # Simulate a KeyboardInterrupt in the generator
-                asyncio.ensure_future(
-                    client.session._generator.athrow(KeyboardInterrupt)
-                )
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore", message="There is no current event loop"
+                    )
+                    asyncio.ensure_future(
+                        client.session._generator.athrow(KeyboardInterrupt)
+                    )
 
             count -= 1
 

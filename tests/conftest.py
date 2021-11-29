@@ -73,8 +73,7 @@ def pytest_collection_modifyitems(config, items):
                     item.add_marker(skip_transport)
 
 
-@pytest.fixture
-async def aiohttp_server():
+async def aiohttp_server_base(with_ssl=False):
     """Factory to create a TestServer instance, given an app.
 
     aiohttp_server(app, **kwargs)
@@ -85,7 +84,13 @@ async def aiohttp_server():
 
     async def go(app, *, port=None, **kwargs):  # type: ignore
         server = AIOHTTPTestServer(app, port=port)
-        await server.start_server(**kwargs)
+
+        start_server_args = {**kwargs}
+        if with_ssl:
+            testcert, ssl_context = get_localhost_ssl_context()
+            start_server_args["ssl"] = ssl_context
+
+        await server.start_server(**start_server_args)
         servers.append(server)
         return server
 
@@ -95,12 +100,27 @@ async def aiohttp_server():
         await servers.pop().close()
 
 
+@pytest.fixture
+async def aiohttp_server():
+    async for server in aiohttp_server_base():
+        yield server
+
+
+@pytest.fixture
+async def ssl_aiohttp_server():
+    async for server in aiohttp_server_base(with_ssl=True):
+        yield server
+
+
 # Adding debug logs to websocket tests
 for name in [
     "websockets.legacy.server",
-    "gql.transport.websockets",
+    "gql.transport.aiohttp",
     "gql.transport.phoenix_channel_websockets",
+    "gql.transport.requests",
+    "gql.transport.websockets",
     "gql.dsl",
+    "gql.utilities.parse_result",
 ]:
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
@@ -112,6 +132,22 @@ for name in [
 # GQL_TESTS_TIMEOUT_FACTOR environment variable.
 # Copied from websockets source
 MS = 0.001 * int(os.environ.get("GQL_TESTS_TIMEOUT_FACTOR", 1))
+
+
+def get_localhost_ssl_context():
+    # This is a copy of certificate from websockets tests folder
+    #
+    # Generate TLS certificate with:
+    # $ openssl req -x509 -config test_localhost.cnf \
+    #       -days 15340 -newkey rsa:2048 \
+    #       -out test_localhost.crt -keyout test_localhost.key
+    # $ cat test_localhost.key test_localhost.crt > test_localhost.pem
+    # $ rm test_localhost.key test_localhost.crt
+    testcert = bytes(pathlib.Path(__file__).with_name("test_localhost.pem"))
+    ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    ssl_context.load_cert_chain(testcert)
+
+    return (testcert, ssl_context)
 
 
 class WebSocketServer:
@@ -134,20 +170,7 @@ class WebSocketServer:
             extra_serve_args = {}
 
         if self.with_ssl:
-            # This is a copy of certificate from websockets tests folder
-            #
-            # Generate TLS certificate with:
-            # $ openssl req -x509 -config test_localhost.cnf \
-            #       -days 15340 -newkey rsa:2048 \
-            #       -out test_localhost.crt -keyout test_localhost.key
-            # $ cat test_localhost.key test_localhost.crt > test_localhost.pem
-            # $ rm test_localhost.key test_localhost.crt
-            self.testcert = bytes(
-                pathlib.Path(__file__).with_name("test_localhost.pem")
-            )
-            ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-            ssl_context.load_cert_chain(self.testcert)
-
+            self.testcert, ssl_context = get_localhost_ssl_context()
             extra_serve_args["ssl"] = ssl_context
 
         # Start a server with a random open port

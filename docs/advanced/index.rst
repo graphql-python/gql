@@ -6,5 +6,6 @@ Advanced
 
    async_advanced_usage
    logging
+   error_handling
    local_schema
    dsl_module

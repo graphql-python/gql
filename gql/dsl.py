@@ -1,15 +1,26 @@
+"""
+.. image:: http://www.plantuml.com/plantuml/png/ZLAzJWCn3Dxz51vXw1im50ag8L4XwC1OkLTJ8gMvAd4GwEYxGuC8pTbKtUxy_TZEvsaIYfAt7e1MII9rWfsdbF1cSRzWpvtq4GT0JENduX8GXr_g7brQlf5tw-MBOx_-HlS0LV_Kzp8xr1kZav9PfCsMWvolEA_1VylHoZCExKwKv4Tg2s_VkSkca2kof2JDb0yxZYIk3qMZYUe1B1uUZOROXn96pQMugEMUdRnUUqUf6DBXQyIz2zu5RlgUQAFVNYaeRfBI79_JrUTaeg9JZFQj5MmUc69PDmNGE2iU61fDgfri3x36gxHw3gDHD6xqqQ7P4vjKqz2-602xtkO7uo17SCLhVSv25VjRjUAFcUE73Sspb8ADBl8gTT7j2cFAOPst_Wi0  # noqa
+    :alt: UML diagram
+"""
 import logging
+import re
 from abc import ABC, abstractmethod
+from math import isfinite
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple, Union, cast
 
 from graphql import (
     ArgumentNode,
+    BooleanValueNode,
     DocumentNode,
+    EnumValueNode,
     FieldNode,
+    FloatValueNode,
     FragmentDefinitionNode,
     FragmentSpreadNode,
     GraphQLArgument,
+    GraphQLError,
     GraphQLField,
+    GraphQLID,
     GraphQLInputObjectType,
     GraphQLInputType,
     GraphQLInterfaceType,
@@ -18,8 +29,10 @@ from graphql import (
     GraphQLNonNull,
     GraphQLObjectType,
     GraphQLSchema,
+    GraphQLString,
     GraphQLWrappingType,
     InlineFragmentNode,
+    IntValueNode,
     ListTypeNode,
     ListValueNode,
     NamedTypeNode,
@@ -31,24 +44,77 @@ from graphql import (
     OperationDefinitionNode,
     OperationType,
     SelectionSetNode,
+    StringValueNode,
     TypeNode,
     Undefined,
     ValueNode,
     VariableDefinitionNode,
     VariableNode,
     assert_named_type,
+    get_named_type,
+    introspection_types,
+    is_enum_type,
     is_input_object_type,
+    is_leaf_type,
     is_list_type,
     is_non_null_type,
     is_wrapping_type,
     print_ast,
 )
-from graphql.pyutils import FrozenList
-from graphql.utilities import ast_from_value as default_ast_from_value
+from graphql.pyutils import FrozenList, inspect
 
 from .utils import to_camel_case
 
 log = logging.getLogger(__name__)
+
+_re_integer_string = re.compile("^-?(?:0|[1-9][0-9]*)$")
+
+
+def ast_from_serialized_value_untyped(serialized: Any) -> Optional[ValueNode]:
+    """Given a serialized value, try our best to produce an AST.
+
+    Anything ressembling an array (instance of Mapping) will be converted
+    to an ObjectFieldNode.
+
+    Anything ressembling a list (instance of Iterable - except str)
+    will be converted to a ListNode.
+
+    In some cases, a custom scalar can be serialized differently in the query
+    than in the variables. In that case, this function will not work."""
+
+    if serialized is None or serialized is Undefined:
+        return NullValueNode()
+
+    if isinstance(serialized, Mapping):
+        field_items = (
+            (key, ast_from_serialized_value_untyped(value))
+            for key, value in serialized.items()
+        )
+        field_nodes = (
+            ObjectFieldNode(name=NameNode(value=field_name), value=field_value)
+            for field_name, field_value in field_items
+            if field_value
+        )
+        return ObjectValueNode(fields=FrozenList(field_nodes))
+
+    if isinstance(serialized, Iterable) and not isinstance(serialized, str):
+        maybe_nodes = (ast_from_serialized_value_untyped(item) for item in serialized)
+        nodes = filter(None, maybe_nodes)
+        return ListValueNode(values=FrozenList(nodes))
+
+    if isinstance(serialized, bool):
+        return BooleanValueNode(value=serialized)
+
+    if isinstance(serialized, int):
+        return IntValueNode(value=f"{serialized:d}")
+
+    if isinstance(serialized, float) and isfinite(serialized):
+        return FloatValueNode(value=f"{serialized:g}")
+
+    if isinstance(serialized, str):
+        return StringValueNode(value=serialized)
+
+    raise TypeError(f"Cannot convert value to AST: {inspect(serialized)}.")
 
 
 def ast_from_value(value: Any, type_: GraphQLInputType) -> Optional[ValueNode]:
@@ -60,15 +126,21 @@ def ast_from_value(value: Any, type_: GraphQLInputType) -> Optional[ValueNode]:
     VariableNode when value is a DSLVariable
 
     Produce a GraphQL Value AST given a Python object.
+
+    Raises a GraphQLError instead of returning None if we receive an Undefined
+    of if we receive a Null value for a Non-Null type.
     """
     if isinstance(value, DSLVariable):
         return value.set_type(type_).ast_variable
 
     if is_non_null_type(type_):
         type_ = cast(GraphQLNonNull, type_)
-        ast_value = ast_from_value(value, type_.of_type)
+        inner_type = type_.of_type
+        ast_value = ast_from_value(value, inner_type)
         if isinstance(ast_value, NullValueNode):
-            return None
+            raise GraphQLError(
+                "Received Null value for a Non-Null type " f"{inspect(inner_type)}."
+            )
         return ast_value
 
     # only explicit None, not Undefined or NaN
@@ -77,7 +149,7 @@ def ast_from_value(value: Any, type_: GraphQLInputType) -> Optional[ValueNode]:
 
     # undefined
     if value is Undefined:
-        return None
+        raise GraphQLError(f"Received Undefined value for type {inspect(type_)}.")
 
     # Convert Python list to GraphQL list. If the GraphQLType is a list, but the value
     # is not a list, convert the value using the list's item type.
@@ -108,7 +180,32 @@ def ast_from_value(value: Any, type_: GraphQLInputType) -> Optional[ValueNode]:
         )
         return ObjectValueNode(fields=FrozenList(field_nodes))
 
-    return default_ast_from_value(value, type_)
+    if is_leaf_type(type_):
+        # Since value is an internally represented value, it must be serialized to an
+        # externally represented value before converting into an AST.
+        serialized = type_.serialize(value)  # type: ignore
+
+        # if the serialized value is a string, then we should use the
+        # type to determine if it is an enum, an ID or a normal string
+        if isinstance(serialized, str):
+            # Enum types use Enum literals.
+            if is_enum_type(type_):
+                return EnumValueNode(value=serialized)
+
+            # ID types can use Int literals.
+            if type_ is GraphQLID and _re_integer_string.match(serialized):
+                return IntValueNode(value=serialized)
+
+            return StringValueNode(value=serialized)
+
+        # Some custom scalars will serialize to dicts or lists
+        # Providing here a default conversion to AST using our best judgment
+        # until graphql-js issue #1817 is solved
+        # https://github.com/graphql/graphql-js/issues/1817
+        return ast_from_serialized_value_untyped(serialized)
+
+    # Not reachable. All possible input types have been considered.
+    raise TypeError(f"Unexpected input type: {inspect(type_)}.")
 
 
 def dsl_gql(
@@ -200,7 +297,77 @@ class DSLSchema:
         return DSLType(type_def)
 
 
-class DSLExecutable(ABC):
+class DSLSelector(ABC):
+    """DSLSelector is an abstract class which defines the
+    :meth:`select <gql.dsl.DSLSelector.select>` method to select
+    children fields in the query.
+
+    Inherited by
+    :class:`DSLRootFieldSelector <gql.dsl.DSLRootFieldSelector>`,
+    :class:`DSLFieldSelector <gql.dsl.DSLFieldSelector>`
+    :class:`DSLFragmentSelector <gql.dsl.DSLFragmentSelector>`
+    """
+
+    selection_set: SelectionSetNode
+
+    def __init__(
+        self, *fields: "DSLSelectable", **fields_with_alias: "DSLSelectableWithAlias",
+    ):
+        """:meta private:"""
+        self.selection_set = SelectionSetNode(selections=FrozenList([]))
+
+        if fields or fields_with_alias:
+            self.select(*fields, **fields_with_alias)
+
+    @abstractmethod
+    def is_valid_field(self, field: "DSLSelectable") -> bool:
+        raise NotImplementedError(
+            "Any DSLSelector subclass must have a is_valid_field method"
+        )  # pragma: no cover
+
+    def select(
+        self, *fields: "DSLSelectable", **fields_with_alias: "DSLSelectableWithAlias",
+    ):
+        r"""Select the fields which should be added.
+
+        :param \*fields: fields or fragments
+        :type \*fields: DSLSelectable
+        :param \**fields_with_alias: fields or fragments with alias as key
+        :type \**fields_with_alias: DSLSelectable
+
+        :raises TypeError: if an argument is not an instance of :class:`DSLSelectable`
+        :raises GraphQLError: if an argument is not a valid field
+        """
+        # Concatenate fields without and with alias
+        added_fields: Tuple["DSLSelectable", ...] = DSLField.get_aliased_fields(
+            fields, fields_with_alias
+        )
+
+        # Check that each field is valid
+        for field in added_fields:
+            if not isinstance(field, DSLSelectable):
+                raise TypeError(
+                    "Fields should be instances of DSLSelectable. "
+                    f"Received: {type(field)}"
+                )
+
+            if not self.is_valid_field(field):
+                raise GraphQLError(f"Invalid field for {self!r}: {field!r}")
+
+        # Get a list of AST Nodes for each added field
+        added_selections: List[
+            Union[FieldNode, InlineFragmentNode, FragmentSpreadNode]
+        ] = [field.ast_field for field in added_fields]
+
+        # Update the current selection list with new selections
+        self.selection_set.selections = FrozenList(
+            self.selection_set.selections + added_selections
+        )
+
+        log.debug(f"Added fields: {added_fields} in {self!r}")
+
+
+class DSLExecutable(DSLSelector):
     """Interface for the root elements which can be executed
     in the :func:`dsl_gql <gql.dsl.dsl_gql>` function
 
@@ -211,6 +378,7 @@ class DSLExecutable(ABC):
 
     variable_definitions: "DSLVariableDefinitions"
     name: Optional[str]
+    selection_set: SelectionSetNode
 
     @property
     @abstractmethod
@@ -223,20 +391,21 @@ class DSLExecutable(ABC):
     def __init__(
         self, *fields: "DSLSelectable", **fields_with_alias: "DSLSelectableWithAlias",
     ):
-        r"""Given arguments of type :class:`DSLField` containing GraphQL requests,
+        r"""Given arguments of type :class:`DSLSelectable` containing GraphQL requests,
         generate an operation which can be converted to a Document
         using the :func:`dsl_gql <gql.dsl.dsl_gql>`.
 
-        The fields arguments should be fields of root GraphQL types
+        The fields arguments should be either be fragments or
+        fields of root GraphQL types
         (Query, Mutation or Subscription) and correspond to the
         operation_type of this operation.
 
-        :param \*fields: root instances of the dynamically generated requests
-        :type \*fields: DSLField
-        :param \**fields_with_alias: root instances fields with alias as key
-        :type \**fields_with_alias: DSLField
+        :param \*fields: root fields or fragments
+        :type \*fields: DSLSelectable
+        :param \**fields_with_alias: root fields or fragments with alias as key
+        :type \**fields_with_alias: DSLSelectable
 
-        :raises TypeError: if an argument is not an instance of :class:`DSLField`
+        :raises TypeError: if an argument is not an instance of :class:`DSLSelectable`
         :raises AssertionError: if an argument is not a field which correspond
                                 to the operation type
         """
@@ -244,33 +413,46 @@ class DSLExecutable(ABC):
         self.name = None
         self.variable_definitions = DSLVariableDefinitions()
 
-        # Concatenate fields without and with alias
-        all_fields: Tuple["DSLSelectable", ...] = DSLField.get_aliased_fields(
-            fields, fields_with_alias
-        )
-
-        # Check that we receive only arguments of type DSLField
-        # And that the root type correspond to the operation
-        for field in all_fields:
-            if not isinstance(field, DSLField):
-                raise TypeError(
-                    (
-                        "fields must be instances of DSLField. "
-                        f"Received type: {type(field)}"
-                    )
-                )
-            if isinstance(self, DSLOperation):
-                assert field.type_name.upper() == self.operation_type.name, (
-                    f"Invalid root field for operation {self.operation_type.name}.\n"
-                    f"Received: {field.type_name}"
-                )
-
-        self.selection_set = SelectionSetNode(
-            selections=FrozenList(DSLSelectable.get_ast_fields(all_fields))
-        )
+        DSLSelector.__init__(self, *fields, **fields_with_alias)
 
 
-class DSLOperation(DSLExecutable):
+class DSLRootFieldSelector(DSLSelector):
+    """Class used to define the
+    :meth:`is_valid_field <gql.dsl.DSLRootFieldSelector.is_valid_field>` method
+    for root fields for the :meth:`select <gql.dsl.DSLSelector.select>` method.
+
+    Inherited by
+    :class:`DSLOperation <gql.dsl.DSLOperation>`
+    """
+
+    def is_valid_field(self, field: "DSLSelectable") -> bool:
+        """Check that a field is valid for a root field.
+
+        For operations, the fields arguments should be fields of root GraphQL types
+        (Query, Mutation or Subscription) and correspond to the
+        operation_type of this operation.
+
+        the :code:`__typename` field can only be added to Query or Mutation.
+        the :code:`__schema` and :code:`__type` field can only be added to Query.
+        """
+
+        assert isinstance(self, DSLOperation)
+
+        operation_name = self.operation_type.name
+
+        if isinstance(field, DSLMetaField):
+            if field.name in ["__schema", "__type"]:
+                return operation_name == "QUERY"
+            if field.name == "__typename":
+                return operation_name != "SUBSCRIPTION"
+
+        elif isinstance(field, DSLField):
+            return field.parent_type.name.upper() == operation_name
+
+        return False
+
+
+class DSLOperation(DSLExecutable, DSLRootFieldSelector):
     """Interface for GraphQL operations.
 
     Inherited by
@@ -294,6 +476,9 @@ class DSLOperation(DSLExecutable):
             **({"name": NameNode(value=self.name)} if self.name else {}),
         )
 
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__}>"
+
 
 class DSLQuery(DSLOperation):
     operation_type = OperationType.QUERY
@@ -314,10 +499,11 @@ class DSLVariable:
     of the :class:`DSLVariableDefinitions`
 
     The type of the variable is set by the :class:`DSLField` instance that receives it
-    in the `args` method.
+    in the :meth:`args <gql.dsl.DSLField.args>` method.
     """
 
     def __init__(self, name: str):
+        """:meta private:"""
         self.type: Optional[TypeNode] = None
         self.name = name
         self.ast_variable = VariableNode(name=NameNode(value=self.name))
@@ -349,11 +535,12 @@ class DSLVariableDefinitions:
 
     Attributes of the DSLVariableDefinitions class are generated automatically
     with the `__getattr__` dunder method in order to generate
-    instances of :class:`DSLVariable`, that can then be used as values in the
-    `DSLField.args` method
+    instances of :class:`DSLVariable`, that can then be used as values
+    in the :meth:`args <gql.dsl.DSLField.args>` method.
     """
 
     def __init__(self):
+        """:meta private:"""
         self.variables: Dict[str, DSLVariable] = {}
 
     def __getattr__(self, name: str) -> "DSLVariable":
@@ -437,28 +624,6 @@ class DSLSelectable(ABC):
     ast_field: Union[FieldNode, InlineFragmentNode, FragmentSpreadNode]
 
     @staticmethod
-    def get_ast_fields(
-        fields: Iterable["DSLSelectable"],
-    ) -> List[Union[FieldNode, InlineFragmentNode, FragmentSpreadNode]]:
-        """
-        :meta private:
-
-        Equivalent to: :code:`[field.ast_field for field in fields]`
-        But with a type check for each field in the list.
-
-        :raises TypeError: if any of the provided fields are not instances
-                           of the :class:`DSLSelectable` class.
-        """
-        ast_fields = []
-        for field in fields:
-            if isinstance(field, DSLSelectable):
-                ast_fields.append(field.ast_field)
-            else:
-                raise TypeError(f'Received incompatible field: "{field}".')
-
-        return ast_fields
-
-    @staticmethod
     def get_aliased_fields(
         fields: Iterable["DSLSelectable"],
         fields_with_alias: Dict[str, "DSLSelectableWithAlias"],
@@ -480,59 +645,70 @@ class DSLSelectable(ABC):
         return print_ast(self.ast_field)
 
 
-class DSLSelector(ABC):
-    """DSLSelector is an abstract class which defines the
-    :meth:`select <gql.dsl.DSLSelector.select>` method to select
-    children fields in the query.
+class DSLFragmentSelector(DSLSelector):
+    """Class used to define the
+    :meth:`is_valid_field <gql.dsl.DSLFragmentSelector.is_valid_field>` method
+    for fragments for the :meth:`select <gql.dsl.DSLSelector.select>` method.
 
     Inherited by
-    :class:`DSLField <gql.dsl.DSLField>`,
     :class:`DSLFragment <gql.dsl.DSLFragment>`,
     :class:`DSLInlineFragment <gql.dsl.DSLInlineFragment>`
     """
 
-    selection_set: SelectionSetNode
+    def is_valid_field(self, field: DSLSelectable) -> bool:
+        """Check that a field is valid."""
 
-    def __init__(self):
-        self.selection_set = SelectionSetNode(selections=FrozenList([]))
+        assert isinstance(self, (DSLFragment, DSLInlineFragment))
 
-    def select(
-        self, *fields: "DSLSelectable", **fields_with_alias: "DSLSelectableWithAlias"
-    ) -> "DSLSelector":
-        r"""Select the new children fields
-        that we want to receive in the request.
+        if isinstance(field, (DSLFragment, DSLInlineFragment)):
+            return True
 
-        If used multiple times, we will add the new children fields
-        to the existing children fields.
+        assert isinstance(field, DSLField)
 
-        :param \*fields: new children fields
-        :type \*fields: DSLSelectable (DSLField, DSLFragment or DSLInlineFragment)
-        :param \**fields_with_alias: new children fields with alias as key
-        :type \**fields_with_alias: DSLField
-        :return: itself
+        if isinstance(field, DSLMetaField):
+            return field.name == "__typename"
 
-        :raises TypeError: if any of the provided fields are not instances
-                           of the :class:`DSLSelectable` class.
-        """
+        fragment_type = self._type
 
-        # Concatenate fields without and with alias
-        added_fields: Tuple["DSLSelectable", ...] = DSLSelectable.get_aliased_fields(
-            fields, fields_with_alias
-        )
+        assert fragment_type is not None
 
-        # Get a list of AST Nodes for each added field
-        added_selections: List[
-            Union[FieldNode, InlineFragmentNode, FragmentSpreadNode]
-        ] = DSLSelectable.get_ast_fields(added_fields)
+        if field.name in fragment_type.fields.keys():
+            return fragment_type.fields[field.name].type == field.field.type
 
-        # Update the current selection list with new selections
-        self.selection_set.selections = FrozenList(
-            self.selection_set.selections + added_selections
-        )
+        return False
 
-        log.debug(f"Added fields: {added_fields} in {self!r}")
 
-        return self
+class DSLFieldSelector(DSLSelector):
+    """Class used to define the
+    :meth:`is_valid_field <gql.dsl.DSLFieldSelector.is_valid_field>` method
+    for fields for the :meth:`select <gql.dsl.DSLSelector.select>` method.
+
+    Inherited by
+    :class:`DSLField <gql.dsl.DSLField>`,
+    """
+
+    def is_valid_field(self, field: DSLSelectable) -> bool:
+        """Check that a field is valid."""
+
+        assert isinstance(self, DSLField)
+
+        if isinstance(field, (DSLFragment, DSLInlineFragment)):
+            return True
+
+        assert isinstance(field, DSLField)
+
+        if isinstance(field, DSLMetaField):
+            return field.name == "__typename"
+
+        parent_type = get_named_type(self.field.type)
+
+        if not isinstance(parent_type, (GraphQLInterfaceType, GraphQLObjectType)):
+            return False
+
+        if field.name in parent_type.fields.keys():
+            return parent_type.fields[field.name].type == field.field.type
+
+        return False
 
 
 class DSLSelectableWithAlias(DSLSelectable):
@@ -560,7 +736,7 @@ class DSLSelectableWithAlias(DSLSelectable):
         return self
 
 
-class DSLField(DSLSelectableWithAlias, DSLSelector):
+class DSLField(DSLSelectableWithAlias, DSLFieldSelector):
     """The DSLField represents a GraphQL field for the DSL code.
 
     Instances of this class are generated for you automatically as attributes
@@ -578,8 +754,8 @@ class DSLField(DSLSelectableWithAlias, DSLSelector):
     def __init__(
         self,
         name: str,
-        graphql_type: Union[GraphQLObjectType, GraphQLInterfaceType],
-        graphql_field: GraphQLField,
+        parent_type: Union[GraphQLObjectType, GraphQLInterfaceType],
+        field: GraphQLField,
     ):
         """Initialize the DSLField.
 
@@ -588,14 +764,22 @@ class DSLField(DSLSelectableWithAlias, DSLSelector):
             Use attributes of the :class:`DSLType` instead.
 
         :param name: the name of the field
-        :param graphql_type: the GraphQL type definition from the schema
-        :param graphql_field: the GraphQL field definition from the schema
+        :param parent_type: the GraphQL type definition from the schema of the
+                            parent type of the field
+        :param field: the GraphQL field definition from the schema
         """
-        DSLSelector.__init__(self)
-        self._type = graphql_type
-        self.field = graphql_field
+        self.parent_type = parent_type
+        self.field = field
         self.ast_field = FieldNode(name=NameNode(value=name), arguments=FrozenList())
+
         log.debug(f"Creating {self!r}")
+
+        DSLSelector.__init__(self)
+
+    @property
+    def name(self):
+        """:meta private:"""
+        return self.ast_field.name.value
 
     def __call__(self, **kwargs) -> "DSLField":
         return self.args(**kwargs)
@@ -660,19 +844,52 @@ class DSLField(DSLSelectableWithAlias, DSLSelector):
 
         return self
 
-    @property
-    def type_name(self):
-        """:meta private:"""
-        return self._type.name
-
     def __repr__(self) -> str:
-        return (
-            f"<{self.__class__.__name__} {self._type.name}"
-            f"::{self.ast_field.name.value}>"
-        )
+        return f"<{self.__class__.__name__} {self.parent_type.name}" f"::{self.name}>"
 
 
-class DSLInlineFragment(DSLSelectable, DSLSelector):
+class DSLMetaField(DSLField):
+    """DSLMetaField represents a GraphQL meta-field for the DSL code.
+
+    meta-fields are reserved field in the GraphQL type system prefixed with
+    "__" two underscores and used for introspection.
+    """
+
+    meta_type = GraphQLObjectType(
+        "meta-field",
+        fields={
+            "__typename": GraphQLField(GraphQLString),
+            "__schema": GraphQLField(
+                cast(GraphQLObjectType, introspection_types["__Schema"])
+            ),
+            "__type": GraphQLField(
+                cast(GraphQLObjectType, introspection_types["__Type"]),
+                args={"name": GraphQLArgument(type_=GraphQLNonNull(GraphQLString))},
+            ),
+        },
+    )
+
+    def __init__(self, name: str):
+        """Initialize the meta-field.
+
+        :param name: the name between __typename, __schema or __type
+        """
+
+        try:
+            field = self.meta_type.fields[name]
+        except KeyError:
+            raise GraphQLError(f'Invalid meta-field "{name}"')
+
+        super().__init__(name, self.meta_type, field)
+
+    def alias(self, alias: str) -> "DSLSelectableWithAlias":
+        """
+        :meta private:
+        """
+        return self
+
+
+class DSLInlineFragment(DSLSelectable, DSLFragmentSelector):
     """DSLInlineFragment represents an inline fragment for the DSL code."""
 
     _type: Union[GraphQLObjectType, GraphQLInterfaceType]
@@ -689,10 +906,11 @@ class DSLInlineFragment(DSLSelectable, DSLSelector):
         :type \**fields_with_alias: DSLField
         """
 
-        DSLSelector.__init__(self)
-        self.ast_field = InlineFragmentNode()
-        self.select(*fields, **fields_with_alias)
         log.debug(f"Creating {self!r}")
+
+        self.ast_field = InlineFragmentNode()
+
+        DSLSelector.__init__(self, *fields, **fields_with_alias)
 
     def select(
         self, *fields: "DSLSelectable", **fields_with_alias: "DSLSelectableWithAlias"
@@ -725,7 +943,7 @@ class DSLInlineFragment(DSLSelectable, DSLSelector):
         return f"<{self.__class__.__name__}{type_info}>"
 
 
-class DSLFragment(DSLSelectable, DSLSelector, DSLExecutable):
+class DSLFragment(DSLSelectable, DSLFragmentSelector, DSLExecutable):
     """DSLFragment represents a named GraphQL fragment for the DSL code."""
 
     _type: Optional[Union[GraphQLObjectType, GraphQLInterfaceType]]
@@ -733,23 +951,15 @@ class DSLFragment(DSLSelectable, DSLSelector, DSLExecutable):
     name: str
 
     def __init__(
-        self,
-        name: str,
-        *fields: "DSLSelectable",
-        **fields_with_alias: "DSLSelectableWithAlias",
+        self, name: str,
     ):
         r"""Initialize the DSLFragment.
 
         :param name: the name of the fragment
         :type name: str
-        :param \*fields: new children fields
-        :type \*fields: DSLSelectable (DSLField, DSLFragment or DSLInlineFragment)
-        :param \**fields_with_alias: new children fields with alias as key
-        :type \**fields_with_alias: DSLField
         """
 
-        DSLSelector.__init__(self)
-        DSLExecutable.__init__(self, *fields, **fields_with_alias)
+        DSLExecutable.__init__(self)
 
         self.name = name
         self._type = None
@@ -776,6 +986,11 @@ class DSLFragment(DSLSelectable, DSLSelector, DSLExecutable):
         """Calling :meth:`select <gql.dsl.DSLSelector.select>` method with
         corrected typing hints
         """
+        if self._type is None:
+            raise AttributeError(
+                "Missing type condition. Please use .on(type_condition) method"
+            )
+
         super().select(*fields, **fields_with_alias)
 
         return self

@@ -1,5 +1,7 @@
 import pytest
 from graphql import (
+    GraphQLError,
+    GraphQLID,
     GraphQLInt,
     GraphQLList,
     GraphQLNonNull,
@@ -12,20 +14,24 @@ from graphql import (
     Undefined,
     print_ast,
 )
+from graphql.utilities import get_introspection_query
 
-from gql import Client
+from gql import Client, gql
 from gql.dsl import (
     DSLFragment,
     DSLInlineFragment,
+    DSLMetaField,
     DSLMutation,
     DSLQuery,
     DSLSchema,
     DSLSubscription,
     DSLVariable,
     DSLVariableDefinitions,
+    ast_from_serialized_value_untyped,
     ast_from_value,
     dsl_gql,
 )
+from gql.utilities import get_introspection_query_ast
 
 from .schema import StarWarsSchema
 
@@ -54,12 +60,38 @@ def test_ast_from_value_with_none():
 
 
 def test_ast_from_value_with_undefined():
-    assert ast_from_value(Undefined, GraphQLInt) is None
+    with pytest.raises(GraphQLError) as exc_info:
+        ast_from_value(Undefined, GraphQLInt)
+
+    assert "Received Undefined value for type Int." in str(exc_info.value)
+
+
+def test_ast_from_value_with_graphqlid():
+
+    assert ast_from_value("12345", GraphQLID) == IntValueNode(value="12345")
+
+
+def test_ast_from_value_with_invalid_type():
+    with pytest.raises(TypeError) as exc_info:
+        ast_from_value(4, None)
+
+    assert "Unexpected input type: None." in str(exc_info.value)
 
 
 def test_ast_from_value_with_non_null_type_and_none():
     typ = GraphQLNonNull(GraphQLInt)
-    assert ast_from_value(None, typ) is None
+
+    with pytest.raises(GraphQLError) as exc_info:
+        ast_from_value(None, typ)
+
+    assert "Received Null value for a Non-Null type Int." in str(exc_info.value)
+
+
+def test_ast_from_serialized_value_untyped_typeerror():
+    with pytest.raises(TypeError) as exc_info:
+        ast_from_serialized_value_untyped(GraphQLInt)
+
+    assert "Cannot convert value to AST: Int." in str(exc_info.value)
 
 
 def test_variable_to_ast_type_passing_wrapping_type():
@@ -157,9 +189,12 @@ def test_invalid_field_on_type_query(ds):
 
 
 def test_incompatible_field(ds):
-    with pytest.raises(Exception) as exc_info:
+    with pytest.raises(TypeError) as exc_info:
         ds.Query.hero.select("not_a_DSL_FIELD")
-    assert "Received incompatible field" in str(exc_info.value)
+    assert (
+        "Fields should be instances of DSLSelectable. Received: <class 'str'>"
+        in str(exc_info.value)
+    )
 
 
 def test_hero_name_query(ds):
@@ -346,6 +381,22 @@ def test_subscription(ds):
     )
 
 
+def test_field_does_not_exit_in_type(ds):
+    with pytest.raises(
+        GraphQLError,
+        match="Invalid field for <DSLField Query::hero>: <DSLField Query::hero>",
+    ):
+        ds.Query.hero.select(ds.Query.hero)
+
+
+def test_try_to_select_on_scalar_field(ds):
+    with pytest.raises(
+        GraphQLError,
+        match="Invalid field for <DSLField Human::name>: <DSLField Query::hero>",
+    ):
+        ds.Human.name.select(ds.Query.hero)
+
+
 def test_invalid_arg(ds):
     with pytest.raises(
         KeyError, match="Argument invalid_arg does not exist in Field: Character."
@@ -448,6 +499,24 @@ def test_inline_fragments(ds):
     assert query == str(query_dsl)
 
 
+def test_inline_fragments_nested(ds):
+    query = """hero(episode: JEDI) {
+  name
+  ... on Human {
+    ... on Human {
+      homePlanet
+    }
+  }
+}"""
+    query_dsl = ds.Query.hero.args(episode=6).select(
+        ds.Character.name,
+        DSLInlineFragment()
+        .on(ds.Human)
+        .select(DSLInlineFragment().on(ds.Human).select(ds.Human.homePlanet)),
+    )
+    assert query == str(query_dsl)
+
+
 def test_fragments_repr(ds):
 
     assert repr(DSLInlineFragment()) == "<DSLInlineFragment>"
@@ -487,9 +556,7 @@ def test_fragments(ds):
 def test_fragment_without_type_condition_error(ds):
 
     # We create a fragment without using the .on(type_condition) method
-    name_and_appearances = DSLFragment("NameAndAppearances").select(
-        ds.Character.name, ds.Character.appearsIn
-    )
+    name_and_appearances = DSLFragment("NameAndAppearances")
 
     # If we try to use this fragment, gql generates an error
     with pytest.raises(
@@ -497,6 +564,26 @@ def test_fragment_without_type_condition_error(ds):
         match=r"Missing type condition. Please use .on\(type_condition\) method",
     ):
         dsl_gql(name_and_appearances)
+
+    with pytest.raises(
+        AttributeError,
+        match=r"Missing type condition. Please use .on\(type_condition\) method",
+    ):
+        DSLFragment("NameAndAppearances").select(
+            ds.Character.name, ds.Character.appearsIn
+        )
+
+
+def test_inline_fragment_in_dsl_gql(ds):
+
+    inline_fragment = DSLInlineFragment()
+
+    query = DSLQuery()
+
+    with pytest.raises(
+        GraphQLError, match=r"Invalid field for <DSLQuery>: <DSLInlineFragment>",
+    ):
+        query.select(inline_fragment)
 
 
 def test_fragment_with_name_changed(ds):
@@ -508,6 +595,17 @@ def test_fragment_with_name_changed(ds):
     fragment.name = "DEF"
 
     assert str(fragment) == "...DEF"
+
+
+def test_fragment_select_field_not_in_fragment(ds):
+
+    fragment = DSLFragment("test").on(ds.Character)
+
+    with pytest.raises(
+        GraphQLError,
+        match="Invalid field for <DSLFragment test>: <DSLField Droid::primaryFunction>",
+    ):
+        fragment.select(ds.Droid.primaryFunction)
 
 
 def test_dsl_nested_query_with_fragment(ds):
@@ -578,16 +676,17 @@ query NestedQueryWithFragment {
 
 def test_dsl_query_all_fields_should_be_instances_of_DSLField():
     with pytest.raises(
-        TypeError, match="fields must be instances of DSLField. Received type:"
+        TypeError,
+        match="Fields should be instances of DSLSelectable. Received: <class 'str'>",
     ):
         DSLQuery("I am a string")
 
 
 def test_dsl_query_all_fields_should_correspond_to_the_root_type(ds):
-    with pytest.raises(AssertionError) as excinfo:
+    with pytest.raises(GraphQLError) as excinfo:
         DSLQuery(ds.Character.name)
 
-    assert ("Invalid root field for operation QUERY.\n" "Received: Character") in str(
+    assert ("Invalid field for <DSLQuery>: <DSLField Character::name>") in str(
         excinfo.value
     )
 
@@ -609,3 +708,114 @@ def test_invalid_type(ds):
         AttributeError, match="Type 'invalid_type' not found in the schema!"
     ):
         ds.invalid_type
+
+
+def test_hero_name_query_with_typename(ds):
+    query = """
+hero {
+  name
+  __typename
+}
+    """.strip()
+    query_dsl = ds.Query.hero.select(ds.Character.name, DSLMetaField("__typename"))
+    assert query == str(query_dsl)
+
+
+def test_type_hero_query(ds):
+    query = """{
+  __type(name: "Hero") {
+    kind
+    name
+    ofType {
+      kind
+      name
+    }
+  }
+}"""
+
+    type_hero = DSLMetaField("__type")(name="Hero")
+    type_hero.select(
+        ds.__Type.kind,
+        ds.__Type.name,
+        ds.__Type.ofType.select(ds.__Type.kind, ds.__Type.name),
+    )
+    query_dsl = DSLQuery(type_hero)
+
+    assert query == str(print_ast(dsl_gql(query_dsl))).strip()
+
+
+def test_invalid_meta_field_selection(ds):
+
+    DSLQuery(DSLMetaField("__typename"))
+    DSLQuery(DSLMetaField("__schema"))
+    DSLQuery(DSLMetaField("__type"))
+
+    metafield = DSLMetaField("__typename")
+    assert metafield.name == "__typename"
+
+    # alias does not work
+    metafield.alias("test")
+
+    assert metafield.name == "__typename"
+
+    with pytest.raises(GraphQLError):
+        DSLMetaField("__invalid_meta_field")
+
+    DSLMutation(DSLMetaField("__typename"))
+
+    with pytest.raises(GraphQLError):
+        DSLMutation(DSLMetaField("__schema"))
+
+    with pytest.raises(GraphQLError):
+        DSLMutation(DSLMetaField("__type"))
+
+    with pytest.raises(GraphQLError):
+        DSLSubscription(DSLMetaField("__typename"))
+
+    with pytest.raises(GraphQLError):
+        DSLSubscription(DSLMetaField("__schema"))
+
+    with pytest.raises(GraphQLError):
+        DSLSubscription(DSLMetaField("__type"))
+
+    fragment = DSLFragment("blah")
+
+    with pytest.raises(AttributeError):
+        fragment.select(DSLMetaField("__typename"))
+
+    fragment.on(ds.Character)
+
+    fragment.select(DSLMetaField("__typename"))
+
+    with pytest.raises(GraphQLError):
+        fragment.select(DSLMetaField("__schema"))
+
+    with pytest.raises(GraphQLError):
+        fragment.select(DSLMetaField("__type"))
+
+    ds.Query.hero.select(DSLMetaField("__typename"))
+
+    with pytest.raises(GraphQLError):
+        ds.Query.hero.select(DSLMetaField("__schema"))
+
+    with pytest.raises(GraphQLError):
+        ds.Query.hero.select(DSLMetaField("__type"))
+
+
+@pytest.mark.parametrize("option", [True, False])
+def test_get_introspection_query_ast(option):
+
+    introspection_query = get_introspection_query(
+        descriptions=option,
+        specified_by_url=option,
+        directive_is_repeatable=option,
+        schema_description=option,
+    )
+    dsl_introspection_query = get_introspection_query_ast(
+        descriptions=option,
+        specified_by_url=option,
+        directive_is_repeatable=option,
+        schema_description=option,
+    )
+
+    assert print_ast(gql(introspection_query)) == print_ast(dsl_introspection_query)

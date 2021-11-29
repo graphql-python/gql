@@ -17,6 +17,8 @@ from .transport.async_transport import AsyncTransport
 from .transport.exceptions import TransportQueryError
 from .transport.local_schema import LocalSchemaTransport
 from .transport.transport import Transport
+from .utilities import parse_result as parse_result_fn
+from .utilities import serialize_variable_values
 
 
 class Client:
@@ -43,10 +45,11 @@ class Client:
         self,
         schema: Optional[Union[str, GraphQLSchema]] = None,
         introspection=None,
-        type_def: Optional[str] = None,
         transport: Optional[Union[Transport, AsyncTransport]] = None,
         fetch_schema_from_transport: bool = False,
         execute_timeout: Optional[Union[int, float]] = 10,
+        serialize_variables: bool = False,
+        parse_results: bool = False,
     ):
         """Initialize the client with the given parameters.
 
@@ -58,20 +61,11 @@ class Client:
         :param execute_timeout: The maximum time in seconds for the execution of a
                 request before a TimeoutError is raised. Only used for async transports.
                 Passing None results in waiting forever for a response.
+        :param serialize_variables: whether the variable values should be
+            serialized. Used for custom scalars and/or enums. Default: False.
+        :param parse_results: Whether gql will try to parse the serialized output
+                sent by the backend. Can be used to unserialize custom scalars or enums.
         """
-        assert not (
-            type_def and introspection
-        ), "Cannot provide introspection and type definition at the same time."
-
-        if type_def:
-            assert (
-                not schema
-            ), "Cannot provide type definition and schema at the same time."
-            warnings.warn(
-                "type_def is deprecated; use schema instead",
-                category=DeprecationWarning,
-            )
-            schema = type_def
 
         if introspection:
             assert (
@@ -106,6 +100,9 @@ class Client:
 
         # Enforced timeout of the execute function (only for async transports)
         self.execute_timeout = execute_timeout
+
+        self.serialize_variables = serialize_variables
+        self.parse_results = parse_results
 
     def validate(self, document: DocumentNode):
         """:meta private:"""
@@ -155,7 +152,11 @@ class Client:
             # Get the current asyncio event loop
             # Or create a new event loop if there isn't one (in a new Thread)
             try:
-                loop = asyncio.get_event_loop()
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore", message="There is no current event loop"
+                    )
+                    loop = asyncio.get_event_loop()
             except RuntimeError:
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
@@ -198,7 +199,11 @@ class Client:
         # Get the current asyncio event loop
         # Or create a new event loop if there isn't one (in a new Thread)
         try:
-            loop = asyncio.get_event_loop()
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore", message="There is no current event loop"
+                )
+                loop = asyncio.get_event_loop()
         except RuntimeError:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
@@ -215,7 +220,11 @@ class Client:
                 # Note: we need to create a task here in order to be able to close
                 # the async generator properly on python 3.8
                 # See https://bugs.python.org/issue38559
-                generator_task = asyncio.ensure_future(async_generator.__anext__())
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore", message="There is no current event loop"
+                    )
+                    generator_task = asyncio.ensure_future(async_generator.__anext__())
                 result = loop.run_until_complete(generator_task)
                 yield result
 
@@ -289,28 +298,122 @@ class SyncClientSession:
         """:param client: the :class:`client <gql.client.Client>` used"""
         self.client = client
 
-    def _execute(self, document: DocumentNode, *args, **kwargs) -> ExecutionResult:
+    def _execute(
+        self,
+        document: DocumentNode,
+        *args,
+        variable_values: Optional[Dict[str, Any]] = None,
+        operation_name: Optional[str] = None,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        **kwargs,
+    ) -> ExecutionResult:
+        """Execute the provided document AST synchronously using
+        the sync transport, returning an ExecutionResult object.
+
+        :param document: GraphQL query as AST Node object.
+        :param variable_values: Dictionary of input parameters.
+        :param operation_name: Name of the operation that shall be executed.
+        :param serialize_variables: whether the variable values should be
+            serialized. Used for custom scalars and/or enums.
+            By default use the serialize_variables argument of the client.
+        :param parse_result: Whether gql will unserialize the result.
+            By default use the parse_results argument of the client.
+
+        The extra arguments are passed to the transport execute method."""
 
         # Validate document
         if self.client.schema:
             self.client.validate(document)
 
-        return self.transport.execute(document, *args, **kwargs)
+            # Parse variable values for custom scalars if requested
+            if variable_values is not None:
+                if serialize_variables or (
+                    serialize_variables is None and self.client.serialize_variables
+                ):
+                    variable_values = serialize_variable_values(
+                        self.client.schema,
+                        document,
+                        variable_values,
+                        operation_name=operation_name,
+                    )
 
-    def execute(self, document: DocumentNode, *args, **kwargs) -> Dict:
+        result = self.transport.execute(
+            document,
+            *args,
+            variable_values=variable_values,
+            operation_name=operation_name,
+            **kwargs,
+        )
+
+        # Unserialize the result if requested
+        if self.client.schema:
+            if parse_result or (parse_result is None and self.client.parse_results):
+                result.data = parse_result_fn(
+                    self.client.schema,
+                    document,
+                    result.data,
+                    operation_name=operation_name,
+                )
+
+        return result
+
+    def execute(
+        self,
+        document: DocumentNode,
+        *args,
+        variable_values: Optional[Dict[str, Any]] = None,
+        operation_name: Optional[str] = None,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        get_execution_result: bool = False,
+        **kwargs,
+    ) -> Union[Dict[str, Any], ExecutionResult]:
+        """Execute the provided document AST synchronously using
+        the sync transport.
+
+        Raises a TransportQueryError if an error has been returned in
+            the ExecutionResult.
+
+        :param document: GraphQL query as AST Node object.
+        :param variable_values: Dictionary of input parameters.
+        :param operation_name: Name of the operation that shall be executed.
+        :param serialize_variables: whether the variable values should be
+            serialized. Used for custom scalars and/or enums.
+            By default use the serialize_variables argument of the client.
+        :param parse_result: Whether gql will unserialize the result.
+            By default use the parse_results argument of the client.
+        :param get_execution_result: return the full ExecutionResult instance instead of
+            only the "data" field. Necessary if you want to get the "extensions" field.
+
+        The extra arguments are passed to the transport execute method."""
 
         # Validate and execute on the transport
-        result = self._execute(document, *args, **kwargs)
+        result = self._execute(
+            document,
+            *args,
+            variable_values=variable_values,
+            operation_name=operation_name,
+            serialize_variables=serialize_variables,
+            parse_result=parse_result,
+            **kwargs,
+        )
 
         # Raise an error if an error is returned in the ExecutionResult object
         if result.errors:
             raise TransportQueryError(
-                str(result.errors[0]), errors=result.errors, data=result.data
+                str(result.errors[0]),
+                errors=result.errors,
+                data=result.data,
+                extensions=result.extensions,
             )
 
         assert (
             result.data is not None
         ), "Transport returned an ExecutionResult without data or errors"
+
+        if get_execution_result:
+            return result
 
         return result.data
 
@@ -341,17 +444,59 @@ class AsyncClientSession:
         self.client = client
 
     async def _subscribe(
-        self, document: DocumentNode, *args, **kwargs
+        self,
+        document: DocumentNode,
+        *args,
+        variable_values: Optional[Dict[str, Any]] = None,
+        operation_name: Optional[str] = None,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        **kwargs,
     ) -> AsyncGenerator[ExecutionResult, None]:
+        """Coroutine to subscribe asynchronously to the provided document AST
+        asynchronously using the async transport,
+        returning an async generator producing ExecutionResult objects.
+
+        * Validate the query with the schema if provided.
+        * Serialize the variable_values if requested.
+
+        :param document: GraphQL query as AST Node object.
+        :param variable_values: Dictionary of input parameters.
+        :param operation_name: Name of the operation that shall be executed.
+        :param serialize_variables: whether the variable values should be
+            serialized. Used for custom scalars and/or enums.
+            By default use the serialize_variables argument of the client.
+        :param parse_result: Whether gql will unserialize the result.
+            By default use the parse_results argument of the client.
+
+        The extra arguments are passed to the transport subscribe method."""
 
         # Validate document
         if self.client.schema:
             self.client.validate(document)
 
+            # Parse variable values for custom scalars if requested
+            if variable_values is not None:
+                if serialize_variables or (
+                    serialize_variables is None and self.client.serialize_variables
+                ):
+                    variable_values = serialize_variable_values(
+                        self.client.schema,
+                        document,
+                        variable_values,
+                        operation_name=operation_name,
+                    )
+
         # Subscribe to the transport
         inner_generator: AsyncGenerator[
             ExecutionResult, None
-        ] = self.transport.subscribe(document, *args, **kwargs)
+        ] = self.transport.subscribe(
+            document,
+            *args,
+            variable_values=variable_values,
+            operation_name=operation_name,
+            **kwargs,
+        )
 
         # Keep a reference to the inner generator to allow the user to call aclose()
         # before a break if python version is too old (pypy3 py 3.6.1)
@@ -359,20 +504,61 @@ class AsyncClientSession:
 
         try:
             async for result in inner_generator:
+
+                if self.client.schema:
+                    if parse_result or (
+                        parse_result is None and self.client.parse_results
+                    ):
+                        result.data = parse_result_fn(
+                            self.client.schema,
+                            document,
+                            result.data,
+                            operation_name=operation_name,
+                        )
+
                 yield result
+
         finally:
             await inner_generator.aclose()
 
     async def subscribe(
-        self, document: DocumentNode, *args, **kwargs
-    ) -> AsyncGenerator[Dict, None]:
+        self,
+        document: DocumentNode,
+        *args,
+        variable_values: Optional[Dict[str, Any]] = None,
+        operation_name: Optional[str] = None,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        get_execution_result: bool = False,
+        **kwargs,
+    ) -> AsyncGenerator[Union[Dict[str, Any], ExecutionResult], None]:
         """Coroutine to subscribe asynchronously to the provided document AST
         asynchronously using the async transport.
+
+        Raises a TransportQueryError if an error has been returned in
+            the ExecutionResult.
+
+        :param document: GraphQL query as AST Node object.
+        :param variable_values: Dictionary of input parameters.
+        :param operation_name: Name of the operation that shall be executed.
+        :param serialize_variables: whether the variable values should be
+            serialized. Used for custom scalars and/or enums.
+            By default use the serialize_variables argument of the client.
+        :param parse_result: Whether gql will unserialize the result.
+            By default use the parse_results argument of the client.
+        :param get_execution_result: yield the full ExecutionResult instance instead of
+            only the "data" field. Necessary if you want to get the "extensions" field.
 
         The extra arguments are passed to the transport subscribe method."""
 
         inner_generator: AsyncGenerator[ExecutionResult, None] = self._subscribe(
-            document, *args, **kwargs
+            document,
+            *args,
+            variable_values=variable_values,
+            operation_name=operation_name,
+            serialize_variables=serialize_variables,
+            parse_result=parse_result,
+            **kwargs,
         )
 
         try:
@@ -382,46 +568,143 @@ class AsyncClientSession:
                 # Raise an error if an error is returned in the ExecutionResult object
                 if result.errors:
                     raise TransportQueryError(
-                        str(result.errors[0]), errors=result.errors, data=result.data
+                        str(result.errors[0]),
+                        errors=result.errors,
+                        data=result.data,
+                        extensions=result.extensions,
                     )
 
                 elif result.data is not None:
-                    yield result.data
+                    if get_execution_result:
+                        yield result
+                    else:
+                        yield result.data
         finally:
             await inner_generator.aclose()
 
     async def _execute(
-        self, document: DocumentNode, *args, **kwargs
+        self,
+        document: DocumentNode,
+        *args,
+        variable_values: Optional[Dict[str, Any]] = None,
+        operation_name: Optional[str] = None,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        **kwargs,
     ) -> ExecutionResult:
+        """Coroutine to execute the provided document AST asynchronously using
+        the async transport, returning an ExecutionResult object.
+
+        * Validate the query with the schema if provided.
+        * Serialize the variable_values if requested.
+
+        :param document: GraphQL query as AST Node object.
+        :param variable_values: Dictionary of input parameters.
+        :param operation_name: Name of the operation that shall be executed.
+        :param serialize_variables: whether the variable values should be
+            serialized. Used for custom scalars and/or enums.
+            By default use the serialize_variables argument of the client.
+        :param parse_result: Whether gql will unserialize the result.
+            By default use the parse_results argument of the client.
+
+        The extra arguments are passed to the transport execute method."""
 
         # Validate document
         if self.client.schema:
             self.client.validate(document)
 
+            # Parse variable values for custom scalars if requested
+            if variable_values is not None:
+                if serialize_variables or (
+                    serialize_variables is None and self.client.serialize_variables
+                ):
+                    variable_values = serialize_variable_values(
+                        self.client.schema,
+                        document,
+                        variable_values,
+                        operation_name=operation_name,
+                    )
+
         # Execute the query with the transport with a timeout
-        return await asyncio.wait_for(
-            self.transport.execute(document, *args, **kwargs),
+        result = await asyncio.wait_for(
+            self.transport.execute(
+                document,
+                variable_values=variable_values,
+                operation_name=operation_name,
+                *args,
+                **kwargs,
+            ),
             self.client.execute_timeout,
         )
 
-    async def execute(self, document: DocumentNode, *args, **kwargs) -> Dict:
+        # Unserialize the result if requested
+        if self.client.schema:
+            if parse_result or (parse_result is None and self.client.parse_results):
+                result.data = parse_result_fn(
+                    self.client.schema,
+                    document,
+                    result.data,
+                    operation_name=operation_name,
+                )
+
+        return result
+
+    async def execute(
+        self,
+        document: DocumentNode,
+        *args,
+        variable_values: Optional[Dict[str, Any]] = None,
+        operation_name: Optional[str] = None,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        get_execution_result: bool = False,
+        **kwargs,
+    ) -> Union[Dict[str, Any], ExecutionResult]:
         """Coroutine to execute the provided document AST asynchronously using
         the async transport.
+
+        Raises a TransportQueryError if an error has been returned in
+            the ExecutionResult.
+
+        :param document: GraphQL query as AST Node object.
+        :param variable_values: Dictionary of input parameters.
+        :param operation_name: Name of the operation that shall be executed.
+        :param serialize_variables: whether the variable values should be
+            serialized. Used for custom scalars and/or enums.
+            By default use the serialize_variables argument of the client.
+        :param parse_result: Whether gql will unserialize the result.
+            By default use the parse_results argument of the client.
+        :param get_execution_result: return the full ExecutionResult instance instead of
+            only the "data" field. Necessary if you want to get the "extensions" field.
 
         The extra arguments are passed to the transport execute method."""
 
         # Validate and execute on the transport
-        result = await self._execute(document, *args, **kwargs)
+        result = await self._execute(
+            document,
+            *args,
+            variable_values=variable_values,
+            operation_name=operation_name,
+            serialize_variables=serialize_variables,
+            parse_result=parse_result,
+            **kwargs,
+        )
 
         # Raise an error if an error is returned in the ExecutionResult object
         if result.errors:
             raise TransportQueryError(
-                str(result.errors[0]), errors=result.errors, data=result.data
+                str(result.errors[0]),
+                errors=result.errors,
+                data=result.data,
+                extensions=result.extensions,
             )
 
         assert (
             result.data is not None
         ), "Transport returned an ExecutionResult without data or errors"
+
+        if get_execution_result:
+            return result
 
         return result.data
 

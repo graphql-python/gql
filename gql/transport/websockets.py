@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import warnings
 from contextlib import suppress
 from ssl import SSLContext
 from typing import Any, AsyncGenerator, Dict, Optional, Tuple, Union, cast
@@ -165,7 +166,11 @@ class WebsocketsTransport(AsyncTransport):
         # We need to set an event loop here if there is none
         # Or else we will not be able to create an asyncio.Event()
         try:
-            self._loop = asyncio.get_event_loop()
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore", message="There is no current event loop"
+                )
+                self._loop = asyncio.get_event_loop()
         except RuntimeError:
             self._loop = asyncio.new_event_loop()
             asyncio.set_event_loop(self._loop)
@@ -198,8 +203,8 @@ class WebsocketsTransport(AsyncTransport):
         self.close_exception: Optional[Exception] = None
 
         self.supported_subprotocols = [
-            self.GRAPHQLWS_SUBPROTOCOL,
             self.APOLLO_SUBPROTOCOL,
+            self.GRAPHQLWS_SUBPROTOCOL,
         ]
 
     async def _send(self, message: str) -> None:

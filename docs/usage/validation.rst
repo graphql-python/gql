@@ -21,6 +21,11 @@ The schema can be provided as a String (which is usually stored in a .graphql fi
 
     client = Client(schema=schema_str)
 
+.. note::
+    You can download a schema from a server by using :ref:`gql-cli <gql_cli>`
+
+    :code:`$ gql-cli https://SERVER_URL/graphql --print-schema > schema.graphql`
+
 OR can be created using python classes:
 
 .. code-block:: python
