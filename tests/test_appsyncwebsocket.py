@@ -23,22 +23,21 @@ def test_appsyncwebsocket_init_with_minimal_args(fake_session_factory):
     assert sample_transport.connect_args == {}
 
 
-def test_appsyncwebsocket_init_with_no_credentials(
-    fake_session_factory, fake_logger_factory
-):
+def test_appsyncwebsocket_init_with_no_credentials(caplog, fake_session_factory):
     import botocore.exceptions
     from gql.transport.awsappsyncwebsocket import AppSyncWebsocketsTransport
 
-    fake_logger = fake_logger_factory()
     with pytest.raises(botocore.exceptions.NoCredentialsError):
         sample_transport = AppSyncWebsocketsTransport(
-            url=mock_transport_url,
-            session=fake_session_factory(credentials=None),
-            logger=fake_logger,
+            url=mock_transport_url, session=fake_session_factory(credentials=None),
         )
         assert sample_transport.authorization is None
-        assert fake_logger._messages.length > 0
-        assert "credentials" in fake_logger._messages[0].lower()
+
+    expected_error = "Credentials not found"
+
+    print(f"Captured log: {caplog.text}")
+
+    assert expected_error in caplog.text
 
 
 def test_appsyncwebsocket_init_with_oidc_auth():
@@ -69,14 +68,16 @@ def test_appsyncwebsocket_init_with_apikey_auth():
     assert sample_transport.authorization is authorization
 
 
-def test_appsyncwebsocket_init_with_iam_auth_without_creds():
+def test_appsyncwebsocket_init_with_iam_auth_without_creds(fake_session_factory):
     import botocore.exceptions
     from gql.transport.awsappsyncwebsocket import (
         AppSyncIAMAuthorization,
         AppSyncWebsocketsTransport,
     )
 
-    authorization = AppSyncIAMAuthorization(host=mock_transport_url, credentials=None)
+    authorization = AppSyncIAMAuthorization(
+        host=mock_transport_url, session=fake_session_factory(credentials=None),
+    )
     with pytest.raises(botocore.exceptions.NoCredentialsError):
         AppSyncWebsocketsTransport(url=mock_transport_url, authorization=authorization)
 
@@ -99,25 +100,27 @@ def test_appsyncwebsocket_init_with_iam_auth_with_creds(fake_credentials_factory
 
 
 def test_appsyncwebsocket_init_with_iam_auth_and_no_region(
-    fake_credentials_factory, fake_logger_factory
+    caplog, fake_credentials_factory
 ):
     from gql.transport.awsappsyncwebsocket import (
         AppSyncIAMAuthorization,
         AppSyncWebsocketsTransport,
-        MissingRegionError,
     )
 
-    fake_logger = fake_logger_factory()
-    with pytest.raises(MissingRegionError):
+    with pytest.raises(TypeError):
         authorization = AppSyncIAMAuthorization(
             host=mock_transport_url, credentials=fake_credentials_factory()
         )
         sample_transport = AppSyncWebsocketsTransport(
-            url=mock_transport_url, authorization=authorization, logger=fake_logger
+            url=mock_transport_url, authorization=authorization
         )
         assert sample_transport.authorization is None
-        assert fake_logger._messages.length > 0
-        assert "credentials" in fake_logger._messages[0].lower()
+
+    print(f"Captured: {caplog.text}")
+
+    expected_error = "the AWS region is missing from the credentials"
+
+    assert expected_error in caplog.text
 
 
 def test_munge_url(fake_signer_factory, fake_request_factory):
@@ -137,7 +140,11 @@ def test_munge_url(fake_signer_factory, fake_request_factory):
         url=test_url, authorization=authorization
     )
 
-    expected_url = authorization.host_to_auth_url()
+    header_string = "eyJGYWtlQXV0aG9yaXphdGlvbiI6ImEiLCJGYWtlVGltZSI6InRvZGF5In0="
+    expected_url = (
+        "wss://appsync-realtime-api.aws.example.org/"
+        f"some-other-params?header={header_string}&payload=e30="
+    )
     assert sample_transport.url == expected_url
 
 
@@ -161,7 +168,7 @@ def test_munge_url_format(
 
     header_string = "eyJGYWtlQXV0aG9yaXphdGlvbiI6ImEiLCJGYWtlVGltZSI6InRvZGF5In0="
     expected_url = (
-        f"wss://appsync-realtime-api.aws.example.org/"
+        "wss://appsync-realtime-api.aws.example.org/"
         f"some-other-params?header={header_string}&payload=e30="
     )
-    assert authorization.host_to_auth_url() == expected_url
+    assert authorization.get_auth_url(test_url) == expected_url

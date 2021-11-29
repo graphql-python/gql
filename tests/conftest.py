@@ -112,10 +112,11 @@ async def ssl_aiohttp_server():
         yield server
 
 
-# Adding debug logs to websocket tests
+# Adding debug logs
 for name in [
     "websockets.legacy.server",
     "gql.transport.aiohttp",
+    # "gql.transport.awsappsyncwebsocket",
     "gql.transport.phoenix_channel_websockets",
     "gql.transport.requests",
     "gql.transport.websockets",
@@ -491,7 +492,6 @@ async def run_sync_test():
 
 
 pytest_plugins = [
-    "tests.fixtures.fake_logger",
     "tests.fixtures.aws.fake_credentials",
     "tests.fixtures.aws.fake_request",
     "tests.fixtures.aws.fake_session",

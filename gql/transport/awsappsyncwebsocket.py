@@ -1,62 +1,61 @@
 import json
+import logging
 from abc import ABC, abstractmethod
 from base64 import b64encode
-from logging import Logger
 from ssl import SSLContext
-from typing import Any, Callable, Dict, Optional, Union
+from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 import botocore.session
 from botocore.auth import SigV4Auth
 from botocore.awsrequest import AWSRequest, create_request_object
 from botocore.exceptions import NoCredentialsError
 from botocore.session import get_session
-from graphql import DocumentNode, print_ast
+from graphql import DocumentNode, ExecutionResult, print_ast
 
-from .exceptions import TransportProtocolError
+from .exceptions import TransportProtocolError, TransportServerError
 from .websockets import WebsocketsTransport
+
+log = logging.getLogger(__name__)
 
 
 class AppSyncAuthorization(ABC):
-    def __init__(self, host: str):
-        self._host = host
-
-    def host_to_auth_url(self) -> str:
-        """Munge Host For Appsync Auth
-
+    def get_auth_url(self, url: str) -> str:
+        """
         :return: a url used to establish websocket connections
                  to the appsync-realtime-api
         """
-        url_after_replacements = self._host.replace("https", "wss").replace(
+        headers = self.get_headers()
+
+        encoded_headers = b64encode(
+            json.dumps(headers, separators=(",", ":")).encode()
+        ).decode()
+
+        url_base = url.replace("https://", "wss://").replace(
             "appsync-api", "appsync-realtime-api"
         )
-        headers_from_auth = self.get_headers()
-        encoded_headers = b64encode(
-            json.dumps(headers_from_auth, separators=(",", ":")).encode()
-        ).decode()
-        return "{url}?header={headers}&payload=e30=".format(
-            url=url_after_replacements, headers=encoded_headers
-        )
+
+        return f"{url_base}?header={encoded_headers}&payload=e30="
 
     @abstractmethod
-    def get_headers(self, data: Optional[dict] = None) -> Dict:
+    def get_headers(self, data: Optional[Dict] = None) -> Dict:
         raise NotImplementedError()
 
 
 class AppSyncApiKeyAuthorization(AppSyncAuthorization):
     def __init__(self, host: str, api_key: str) -> None:
-        super().__init__(host)
+        self._host = host
         self.api_key = api_key
 
-    def get_headers(self, data: Optional[dict] = None) -> Dict:
+    def get_headers(self, data: Optional[Dict] = None) -> Dict:
         return {"host": self._host, "x-api-key": self.api_key}
 
 
 class AppSyncOIDCAuthorization(AppSyncAuthorization):
     def __init__(self, host: str, jwt: str) -> None:
-        super().__init__(host)
+        self._host = host
         self.jwt = jwt
 
-    def get_headers(self, data: Optional[dict] = None) -> Dict:
+    def get_headers(self, data: Optional[Dict] = None) -> Dict:
         return {"host": self._host, "Authorization": self.jwt}
 
 
@@ -76,7 +75,7 @@ class AppSyncIAMAuthorization(AppSyncAuthorization):
         credentials=None,
         session=None,
     ) -> None:
-        super().__init__(host)
+        self._host = host
         self._session = session if session else get_session()
         self._credentials = (
             credentials if credentials else self._session.get_credentials()
@@ -96,20 +95,42 @@ class AppSyncIAMAuthorization(AppSyncAuthorization):
 
     def get_headers(
         self,
-        data: Optional[dict] = None,
-        request_creator: Callable[[dict], AWSRequest] = None,
+        data: Optional[Dict] = None,
+        request_creator: Callable[[Dict], AWSRequest] = None,
     ) -> Dict:
-        request = self._request_creator(
+
+        """
+        Should we add other data in the headers field ?
+        utc_now = datetime.utcnow()
+        amz_date = utc_now.strftime("%Y%m%dT%H%M%SZ")
+
+        headers = {
+            "accept": "application/json, text/javascript",
+            "content-encoding": "amz-1.0",
+            "content-type": "application/json; charset=UTF-8",
+            "host": self._host,
+            "x-amz-date": amz_date,
+        }
+        """
+        headers: Dict[str, Any] = {}
+
+        request: AWSRequest = self._request_creator(
             {
-                "method": "GET",
+                "method": "POST",
                 "url": self._host,
-                "headers": {},
+                "headers": headers,
                 "context": {},
                 "body": data,
             }
         )
+
         self._signer.add_auth(request)
-        return dict(request.headers)
+
+        headers = dict(request.headers)
+
+        log.debug(f"\n\nSigned headers: {headers}\n\n")
+
+        return headers
 
 
 class AppSyncWebsocketsTransport(WebsocketsTransport):
@@ -125,33 +146,28 @@ class AppSyncWebsocketsTransport(WebsocketsTransport):
         close_timeout: int = 10,
         ack_timeout: int = 10,
         connect_args: Dict[str, Any] = {},
-        logger: Logger = None,
     ) -> None:
-        self.logger = logger if logger else Logger("debug")
         try:
-            self.authorization = (
-                authorization
-                if authorization
-                else AppSyncIAMAuthorization(host=url, session=session)
-            )
-            url = self.authorization.host_to_auth_url()
-        except NoCredentialsError as e:
-            del self.authorization
-            self.logger.log(
-                0,
+            if not authorization:
+                authorization = AppSyncIAMAuthorization(host=url, session=session)
+
+            self.authorization = authorization
+
+            url = self.authorization.get_auth_url(url)
+
+        except NoCredentialsError:
+            log.warning(
                 "Credentials not found.  "
                 "Do you have default AWS credentials configured?",
             )
-            raise e
+            raise
         except TypeError:
-            del self.authorization
-            self.logger.log(
-                0,
+            log.warning(
                 "A TypeError was raised.  "
                 "The most likely reason for this is that the AWS "
                 "region is missing from the credentials.",
             )
-            raise MissingRegionError
+            raise
 
         super().__init__(
             url,
@@ -162,19 +178,55 @@ class AppSyncWebsocketsTransport(WebsocketsTransport):
             connect_args=connect_args,
         )
 
-    async def _wait_start_ack(self) -> None:
-        """Wait for the start_ack message. Keep alive messages are ignored"""
+    def _parse_answer(
+        self, answer: str
+    ) -> Tuple[str, Optional[int], Optional[ExecutionResult]]:
+        """Parse the answer received from the server.
 
-        while True:
-            answer_type = str(json.loads(await self._receive()).get("type"))
+        Difference between apollo protocol and aws protocol:
+
+        - aws protocol can return an error without an id
+        - aws protocol will send start_ack messages
+
+        Returns a list consisting of:
+            - the answer_type:
+              - 'connection_ack',
+              - 'connection_error',
+              - 'start_ack',
+              - 'ka',
+              - 'data',
+              - 'error',
+              - 'complete'
+            - the answer id (Integer) if received or None
+            - an execution Result if the answer_type is 'data' or None
+        """
+
+        answer_type: str = ""
+        answer_id: Optional[int] = None
+        execution_result: Optional[ExecutionResult] = None
+
+        try:
+            json_answer = json.loads(answer)
+
+            answer_type = str(json_answer.get("type"))
 
             if answer_type == "start_ack":
-                return
+                return ("start_ack", None, None)
 
-            if answer_type != "ka":
-                raise TransportProtocolError(
-                    "AppSync server did not return a start ack"
-                )
+            elif answer_type == "error" and id not in json_answer:
+                error_payload = json_answer.get("payload")
+                raise TransportServerError(f"Server error: '{error_payload!r}'")
+
+            else:
+
+                return self._parse_answer_apollo(answer)
+
+        except ValueError as e:
+            raise TransportProtocolError(
+                f"Server did not return a GraphQL result: {answer}"
+            ) from e
+
+        return answer_type, answer_id, execution_result
 
     async def _send_query(
         self,
@@ -194,7 +246,7 @@ class AppSyncWebsocketsTransport(WebsocketsTransport):
         message: Dict = {
             "id": str(query_id),
             "type": "start",
-            "payload": {"data": data},
+            "payload": {"data": json.dumps(data, separators=(",", ":"))},
         }
 
         if self.authorization:
@@ -205,7 +257,3 @@ class AppSyncWebsocketsTransport(WebsocketsTransport):
             await self._send(json.dumps(message, separators=(",", ":"),))
 
         return query_id
-
-
-class MissingRegionError(Exception):
-    pass

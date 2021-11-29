@@ -133,6 +133,7 @@ class WebsocketsTransport(AsyncTransport):
         :param connect_args: Other parameters forwarded to websockets.connect
         """
 
+        log.debug(f"WebsocketTransport url = {url}")
         self.url: str = url
         self.ssl: Union[SSLContext, bool] = ssl
         self.headers: Optional[HeadersLike] = headers
