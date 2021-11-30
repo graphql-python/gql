@@ -5,7 +5,7 @@ import sys
 from urllib.parse import urlparse
 
 from gql import Client, gql
-from gql.transport.awsappsyncwebsocket import (
+from gql.transport.awsappsync import (
     AppSyncApiKeyAuthorization,
     AppSyncWebsocketsTransport,
 )

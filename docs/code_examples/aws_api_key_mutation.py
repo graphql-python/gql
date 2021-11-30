@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 
 from gql import Client, gql
 from gql.transport.aiohttp import AIOHTTPTransport
-from gql.transport.awsappsyncwebsocket import AppSyncApiKeyAuthorization
+from gql.transport.awsappsync import AppSyncApiKeyAuthorization
 
 logging.basicConfig(level=logging.DEBUG)
 

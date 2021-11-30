@@ -116,7 +116,7 @@ async def ssl_aiohttp_server():
 for name in [
     "websockets.legacy.server",
     "gql.transport.aiohttp",
-    # "gql.transport.awsappsyncwebsocket",
+    "gql.transport.awsappsync",
     "gql.transport.phoenix_channel_websockets",
     "gql.transport.requests",
     "gql.transport.websockets",
