@@ -51,7 +51,7 @@ install_websockets_requires = [
 ]
 
 install_appsyncwebsockets_requires = [
-    "botocore>=1.21,<1.22",
+    "botocore>=1.21,<2",
 ] + install_websockets_requires
 
 install_all_requires = (
