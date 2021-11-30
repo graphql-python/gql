@@ -8,6 +8,8 @@ GraphQL queries directly from the terminal.
 
 This script supports http(s) or websockets protocols.
 
+Note that `gql-cli` does not and will not implement pagination (see `#206 <https://github.com/graphql-python/gql/issues/206#issuecomment-846452711>`_ for discussion).
+
 Usage
 -----
 
