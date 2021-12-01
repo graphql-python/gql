@@ -140,7 +140,11 @@ def test_munge_url(fake_signer_factory, fake_request_factory):
         url=test_url, authorization=authorization
     )
 
-    header_string = "eyJGYWtlQXV0aG9yaXphdGlvbiI6ImEiLCJGYWtlVGltZSI6InRvZGF5In0="
+    header_string = (
+        "eyJGYWtlQXV0aG9yaXphdGlvbiI6ImEiLCJGYWtlVGltZSI6InRvZGF5"
+        "IiwiaG9zdCI6Imh0dHBzOi8vYXBwc3luYy1hcGkuYXdzLmV4YW1wbGUu"
+        "b3JnL3NvbWUtb3RoZXItcGFyYW1zIn0="
+    )
     expected_url = (
         "wss://appsync-realtime-api.aws.example.org/"
         f"some-other-params?header={header_string}&payload=e30="
@@ -166,7 +170,11 @@ def test_munge_url_format(
         credentials=fake_credentials_factory(),
     )
 
-    header_string = "eyJGYWtlQXV0aG9yaXphdGlvbiI6ImEiLCJGYWtlVGltZSI6InRvZGF5In0="
+    header_string = (
+        "eyJGYWtlQXV0aG9yaXphdGlvbiI6ImEiLCJGYWtlVGltZSI6InRvZGF5"
+        "IiwiaG9zdCI6Imh0dHBzOi8vYXBwc3luYy1hcGkuYXdzLmV4YW1wbGUu"
+        "b3JnL3NvbWUtb3RoZXItcGFyYW1zIn0="
+    )
     expected_url = (
         "wss://appsync-realtime-api.aws.example.org/"
         f"some-other-params?header={header_string}&payload=e30="
