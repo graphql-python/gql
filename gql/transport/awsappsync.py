@@ -2,7 +2,6 @@ import json
 import logging
 from abc import ABC, abstractmethod
 from base64 import b64encode
-from datetime import datetime
 from ssl import SSLContext
 from typing import Any, Dict, Optional, Tuple, Union
 from urllib.parse import urlparse
@@ -39,7 +38,7 @@ class AppSyncAuthorization(ABC):
         return f"{url_base}?header={encoded_headers}&payload=e30="
 
     @abstractmethod
-    def get_headers(self, data: Optional[Dict] = None) -> Dict:
+    def get_headers(self, data: Optional[str] = None) -> Dict:
         raise NotImplementedError()
 
 
@@ -48,7 +47,7 @@ class AppSyncApiKeyAuthorization(AppSyncAuthorization):
         self._host = host
         self.api_key = api_key
 
-    def get_headers(self, data: Optional[Dict] = None) -> Dict:
+    def get_headers(self, data: Optional[str] = None) -> Dict:
         return {"host": self._host, "x-api-key": self.api_key}
 
 
@@ -57,7 +56,7 @@ class AppSyncOIDCAuthorization(AppSyncAuthorization):
         self._host = host
         self.jwt = jwt
 
-    def get_headers(self, data: Optional[Dict] = None) -> Dict:
+    def get_headers(self, data: Optional[str] = None) -> Dict:
         return {"host": self._host, "Authorization": self.jwt}
 
 
@@ -95,26 +94,21 @@ class AppSyncIAMAuthorization(AppSyncAuthorization):
             request_creator if request_creator else create_request_object
         )
 
-    def get_headers(self, data: Optional[Dict] = None,) -> Dict:
-
-        utc_now = datetime.utcnow()
-        amz_date = utc_now.strftime("%Y%m%dT%H%M%SZ")
+    def get_headers(self, data: Optional[str] = None,) -> Dict:
 
         headers = {
             "accept": "application/json, text/javascript",
             "content-encoding": "amz-1.0",
             "content-type": "application/json; charset=UTF-8",
-            "host": self._host,
-            "x-amz-date": amz_date,
         }
 
         request: AWSRequest = self._request_creator(
             {
                 "method": "POST",
-                "url": self._host,
+                "url": f"https://{self._host}/graphql{'' if data else '/connect'}",
                 "headers": headers,
                 "context": {},
-                "body": data,
+                "body": data or "{}",
             }
         )
 
@@ -122,7 +116,15 @@ class AppSyncIAMAuthorization(AppSyncAuthorization):
 
         headers = dict(request.headers)
 
-        log.debug(f"\n\nSigned headers: {headers}\n\n")
+        headers["host"] = self._host
+
+        if log.isEnabledFor(logging.DEBUG):
+            headers_log = []
+            headers_log.append("\n\nSigned headers:")
+            for key, value in headers.items():
+                headers_log.append(f"    {key}: {value}")
+            headers_log.append("\n")
+            log.debug("\n".join(headers_log))
 
         return headers
 
@@ -232,26 +234,35 @@ class AppSyncWebsocketsTransport(WebsocketsTransport):
         variable_values: Optional[Dict[str, Any]] = None,
         operation_name: Optional[str] = None,
     ) -> int:
+
         query_id = self.next_query_id
+
         self.next_query_id += 1
 
         data: Dict = {"query": print_ast(document)}
+
         if variable_values:
             data["variables"] = variable_values
+
         if operation_name:
             data["operationName"] = operation_name
+
+        serialized_data = json.dumps(data, separators=(",", ":"))
+
+        payload = {"data": serialized_data}
 
         message: Dict = {
             "id": str(query_id),
             "type": "start",
-            "payload": {"data": json.dumps(data, separators=(",", ":"))},
+            "payload": payload,
         }
 
-        if self.authorization:
-            message["payload"]["extensions"] = {
-                "authorization": self.authorization.get_headers(data)
-            }
+        assert self.authorization is not None
 
-            await self._send(json.dumps(message, separators=(",", ":"),))
+        message["payload"]["extensions"] = {
+            "authorization": self.authorization.get_headers(serialized_data)
+        }
+
+        await self._send(json.dumps(message, separators=(",", ":"),))
 
         return query_id
