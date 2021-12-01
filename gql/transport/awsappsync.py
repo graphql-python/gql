@@ -2,8 +2,10 @@ import json
 import logging
 from abc import ABC, abstractmethod
 from base64 import b64encode
+from datetime import datetime
 from ssl import SSLContext
-from typing import Any, Callable, Dict, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Tuple, Union
+from urllib.parse import urlparse
 
 import botocore.session
 from botocore.auth import SigV4Auth
@@ -93,14 +95,8 @@ class AppSyncIAMAuthorization(AppSyncAuthorization):
             request_creator if request_creator else create_request_object
         )
 
-    def get_headers(
-        self,
-        data: Optional[Dict] = None,
-        request_creator: Callable[[Dict], AWSRequest] = None,
-    ) -> Dict:
+    def get_headers(self, data: Optional[Dict] = None,) -> Dict:
 
-        """
-        Should we add other data in the headers field ?
         utc_now = datetime.utcnow()
         amz_date = utc_now.strftime("%Y%m%dT%H%M%SZ")
 
@@ -111,8 +107,6 @@ class AppSyncIAMAuthorization(AppSyncAuthorization):
             "host": self._host,
             "x-amz-date": amz_date,
         }
-        """
-        headers: Dict[str, Any] = {}
 
         request: AWSRequest = self._request_creator(
             {
@@ -149,7 +143,11 @@ class AppSyncWebsocketsTransport(WebsocketsTransport):
     ) -> None:
         try:
             if not authorization:
-                authorization = AppSyncIAMAuthorization(host=url, session=session)
+
+                # Extract host from url
+                host = str(urlparse(url).netloc)
+
+                authorization = AppSyncIAMAuthorization(host=host, session=session)
 
             self.authorization = authorization
 
