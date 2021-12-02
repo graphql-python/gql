@@ -3,7 +3,7 @@ import logging
 from abc import ABC, abstractmethod
 from base64 import b64encode
 from ssl import SSLContext
-from typing import Any, Callable, Coroutine, Dict, Optional, Tuple, Union, cast
+from typing import Any, Callable, Dict, Optional, Tuple, Union, cast
 from urllib.parse import urlparse
 
 import botocore.session
@@ -335,11 +335,36 @@ class AppSyncWebsocketsTransport(WebsocketsTransportBase):
 
         await self._send(json.dumps(message, separators=(",", ":"),))
 
-        print(Coroutine)
         return query_id
 
+    subscribe = WebsocketsTransportBase.subscribe
+    """Send a subscription query and receive the results using
+    a python async generator.
+
+    Only subscriptions are supported, queries and mutations are forbidden.
+
+    The results are sent as an ExecutionResult object.
+    """
+
+    async def execute(
+        self,
+        document: DocumentNode,
+        variable_values: Optional[Dict[str, Any]] = None,
+        operation_name: Optional[str] = None,
+    ) -> ExecutionResult:
+        """This method is not available.
+
+        Only subscriptions are supported on the AWS realtime endpoint.
+
+        :raise: AssertionError"""
+        raise AssertionError(
+            "execute method is not allowed for AppSyncWebsocketsTransport "
+            "because only subscriptions are allowed on the realtime endpoint. "
+            "fetch_schema_from_transport should be set to False in the client!"
+        )
+
     _initialize = WebsocketsTransport._initialize
-    _stop_listener = WebsocketsTransport._stop_listener
+    _stop_listener = WebsocketsTransport._stop_listener  # type: ignore
     _send_init_message_and_wait_ack = (
         WebsocketsTransport._send_init_message_and_wait_ack
     )
