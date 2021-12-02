@@ -21,10 +21,16 @@ log = logging.getLogger(__name__)
 
 
 class AppSyncAuthorization(ABC):
+    """AWS authorization abstract base class
+
+    All AWS authorization class should have a
+    :meth:`get_headers <gql.transport.awsappsync.AppSyncAuthorization.get_headers>`
+    method which defines the headers used in the authentication process."""
+
     def get_auth_url(self, url: str) -> str:
         """
-        :return: a url used to establish websocket connections
-                 to the appsync-realtime-api
+        :return: a url with base64 encoded headers used to establish
+                 a websocket connection to the appsync-realtime-api.
         """
         headers = self.get_headers()
 
@@ -44,7 +50,14 @@ class AppSyncAuthorization(ABC):
 
 
 class AppSyncApiKeyAuthorization(AppSyncAuthorization):
+    """AWS authorization class using an API key"""
+
     def __init__(self, host: str, api_key: str) -> None:
+        """
+        :param host: the host, something like:
+                     XXXXXXXXXXXXXXXXXXXXXXXXXX.appsync-api.REGION.amazonaws.com
+        :param api_key: the API key
+        """
         self._host = host
         self.api_key = api_key
 
@@ -53,7 +66,14 @@ class AppSyncApiKeyAuthorization(AppSyncAuthorization):
 
 
 class AppSyncOIDCAuthorization(AppSyncAuthorization):
+    """AWS authorization class using an OpenID JWT access token"""
+
     def __init__(self, host: str, jwt: str) -> None:
+        """
+        :param host: the host, something like:
+                     XXXXXXXXXXXXXXXXXXXXXXXXXX.appsync-api.REGION.amazonaws.com
+        :param jwt: the JWT Access Token
+        """
         self._host = host
         self.jwt = jwt
 
@@ -62,12 +82,24 @@ class AppSyncOIDCAuthorization(AppSyncAuthorization):
 
 
 class AppSyncCognitoUserPoolAuthorization(AppSyncOIDCAuthorization):
-    """Alias for AppSyncOIDCAuthorization"""
+    """AWS authorization class using a Cognito user pools JWT access token"""
 
     pass
 
 
 class AppSyncIAMAuthorization(AppSyncAuthorization):
+    """AWS authorization class using IAM.
+
+    .. note::
+        There is no need for you to use this class directly, you could instead
+        intantiate the :class:`gql.transport.awsappsync.AppSyncWebsocketsTransport`
+        without an auth argument.
+
+    During initialization, this class will use botocore to attempt to
+    find your IAM credentials, either from environment variables or
+    from your AWS credentials file.
+    """
+
     def __init__(
         self,
         host: str,
@@ -77,6 +109,11 @@ class AppSyncIAMAuthorization(AppSyncAuthorization):
         credentials: Optional[Credentials] = None,
         session: Optional[botocore.session.Session] = None,
     ) -> None:
+        """Initialize itself, saving the found credentials used
+        to sign the headers later.
+
+        if no credentials are found, then a NoCredentialsError is raised.
+        """
         self._host = host
         self._session = session if session else get_session()
         self._credentials = (
@@ -131,6 +168,13 @@ class AppSyncIAMAuthorization(AppSyncAuthorization):
 
 
 class AppSyncWebsocketsTransport(WebsocketsTransport):
+    """:ref:`Async Transport <async_transports>` used to execute GraphQL subscription on
+    AWS appsync realtime endpoint.
+
+    This transport uses asyncio and the websockets library in order to send requests
+    on a websocket connection.
+    """
+
     authorization: Optional[AppSyncAuthorization]
 
     def __init__(
@@ -144,6 +188,23 @@ class AppSyncWebsocketsTransport(WebsocketsTransport):
         ack_timeout: int = 10,
         connect_args: Dict[str, Any] = {},
     ) -> None:
+        """Initialize the transport with the given parameters.
+
+        :param url: The GraphQL endpoint URL. Example:
+            https://XXXXXXXXXXXXXXXXXXXXXXXXXX.appsync-api.REGION.amazonaws.com/graphql
+        :param authorization: Optional AWS authorization class which will provide the
+                              necessary headers to be correctly authenticated. If this
+                              argument is not provided, then we will try to authenticate
+                              using IAM.
+        :param ssl: ssl_context of the connection.
+        :param connect_timeout: Timeout in seconds for the establishment
+            of the websocket connection. If None is provided this will wait forever.
+        :param close_timeout: Timeout in seconds for the close. If None is provided
+            this will wait forever.
+        :param ack_timeout: Timeout in seconds to wait for the connection_ack message
+            from the server. If None is provided this will wait forever.
+        :param connect_args: Other parameters forwarded to websockets.connect
+        """
         try:
             if not authorization:
 

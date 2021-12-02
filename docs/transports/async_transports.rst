@@ -12,3 +12,4 @@ Async transports are transports which are using an underlying async library. The
    aiohttp
    websockets
    phoenix
+   appsync
