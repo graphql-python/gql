@@ -50,12 +50,12 @@ install_websockets_requires = [
     "websockets>=10,<11;python_version>'3.6'",
 ]
 
-install_appsyncwebsockets_requires = [
+install_appsync_requires = [
     "botocore>=1.21,<2",
 ] + install_websockets_requires
 
 install_all_requires = (
-    install_aiohttp_requires + install_requests_requires + install_websockets_requires + install_appsyncwebsockets_requires
+    install_aiohttp_requires + install_requests_requires + install_websockets_requires + install_appsync_requires
 )
 
 # Get version from __version__.py file
@@ -99,7 +99,7 @@ setup(
         "aiohttp": install_aiohttp_requires,
         "requests": install_requests_requires,
         "websockets": install_websockets_requires,
-        "appsyncwebsockets": install_appsyncwebsockets_requires,
+        "appsync": install_appsync_requires,
     },
     include_package_data=True,
     zip_safe=False,

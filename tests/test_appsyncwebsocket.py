@@ -1,7 +1,7 @@
 import pytest
 
-# Marking all tests in this file with the appsyncwebsockets marker
-pytestmark = pytest.mark.appsyncwebsockets
+# Marking all tests in this file with the appsync marker
+pytestmark = pytest.mark.appsync
 
 mock_transport_url = "https://appsyncapp.awsgateway.com.example.org"
 

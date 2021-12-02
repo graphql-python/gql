@@ -37,17 +37,19 @@ which needs the :code:`aiohttp` dependency, then you can install GQL with::
 
 The corresponding between extra dependencies required and the GQL transports is:
 
-+-------------------+----------------------------------------------------------------+
-| Extra dependency  | Transports                                                     |
-+===================+================================================================+
-| aiohttp           | :ref:`AIOHTTPTransport <aiohttp_transport>`                    |
-+-------------------+----------------------------------------------------------------+
-| websockets        | :ref:`WebsocketsTransport <websockets_transport>`              |
-|                   |                                                                |
-|                   | :ref:`PhoenixChannelWebsocketsTransport <phoenix_transport>`   |
-+-------------------+----------------------------------------------------------------+
-| requests          | :ref:`RequestsHTTPTransport <requests_transport>`              |
-+-------------------+----------------------------------------------------------------+
++---------------------+----------------------------------------------------------------+
+| Extra dependencies  | Transports                                                     |
++=====================+================================================================+
+| aiohttp             | :ref:`AIOHTTPTransport <aiohttp_transport>`                    |
++---------------------+----------------------------------------------------------------+
+| websockets          | :ref:`WebsocketsTransport <websockets_transport>`              |
+|                     |                                                                |
+|                     | :ref:`PhoenixChannelWebsocketsTransport <phoenix_transport>`   |
++---------------------+----------------------------------------------------------------+
+| requests            | :ref:`RequestsHTTPTransport <requests_transport>`              |
++---------------------+----------------------------------------------------------------+
+| appsync, websockets | :ref:`AppSyncWebsocketsTransport <appsync_transport>`          |
++---------------------+----------------------------------------------------------------+
 
 .. note::
 
