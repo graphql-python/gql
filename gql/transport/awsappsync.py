@@ -3,12 +3,13 @@ import logging
 from abc import ABC, abstractmethod
 from base64 import b64encode
 from ssl import SSLContext
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Optional, Tuple, Union
 from urllib.parse import urlparse
 
 import botocore.session
-from botocore.auth import SigV4Auth
+from botocore.auth import BaseSigner, SigV4Auth
 from botocore.awsrequest import AWSRequest, create_request_object
+from botocore.credentials import Credentials
 from botocore.exceptions import NoCredentialsError
 from botocore.session import get_session
 from graphql import DocumentNode, ExecutionResult, print_ast
@@ -70,11 +71,11 @@ class AppSyncIAMAuthorization(AppSyncAuthorization):
     def __init__(
         self,
         host: str,
-        region_name=None,
-        signer=None,
-        request_creator=None,
-        credentials=None,
-        session=None,
+        region_name: Optional[str] = None,
+        signer: Optional[BaseSigner] = None,
+        request_creator: Optional[Callable[[Dict[str, Any]], AWSRequest]] = None,
+        credentials: Optional[Credentials] = None,
+        session: Optional[botocore.session.Session] = None,
     ) -> None:
         self._host = host
         self._session = session if session else get_session()
