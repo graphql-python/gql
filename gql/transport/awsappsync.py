@@ -214,18 +214,18 @@ class AppSyncWebsocketsTransport(WebsocketsTransport):
             if answer_type == "start_ack":
                 return ("start_ack", None, None)
 
-            elif answer_type == "error" and id not in json_answer:
+            elif answer_type == "error" and "id" not in json_answer:
                 error_payload = json_answer.get("payload")
                 raise TransportServerError(f"Server error: '{error_payload!r}'")
 
             else:
 
-                return self._parse_answer_apollo(answer)
+                return self._parse_answer_apollo(json_answer)
 
-        except ValueError as e:
+        except ValueError:
             raise TransportProtocolError(
                 f"Server did not return a GraphQL result: {answer}"
-            ) from e
+            )
 
         return answer_type, answer_id, execution_result
 

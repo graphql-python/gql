@@ -379,7 +379,7 @@ class WebsocketsTransport(AsyncTransport):
         return query_id
 
     def _parse_answer_graphqlws(
-        self, answer: str
+        self, json_answer: Dict[str, Any]
     ) -> Tuple[str, Optional[int], Optional[ExecutionResult]]:
         """Parse the answer received from the server if the server supports the
         graphql-ws protocol.
@@ -404,8 +404,6 @@ class WebsocketsTransport(AsyncTransport):
         execution_result: Optional[ExecutionResult] = None
 
         try:
-            json_answer = json.loads(answer)
-
             answer_type = str(json_answer.get("type"))
 
             if answer_type in ["next", "error", "complete"]:
@@ -451,13 +449,13 @@ class WebsocketsTransport(AsyncTransport):
 
         except ValueError as e:
             raise TransportProtocolError(
-                f"Server did not return a GraphQL result: {answer}"
+                f"Server did not return a GraphQL result: {json_answer}"
             ) from e
 
         return answer_type, answer_id, execution_result
 
     def _parse_answer_apollo(
-        self, answer: str
+        self, json_answer: Dict[str, Any]
     ) -> Tuple[str, Optional[int], Optional[ExecutionResult]]:
         """Parse the answer received from the server if the server supports the
         apollo websockets protocol.
@@ -474,8 +472,6 @@ class WebsocketsTransport(AsyncTransport):
         execution_result: Optional[ExecutionResult] = None
 
         try:
-            json_answer = json.loads(answer)
-
             answer_type = str(json_answer.get("type"))
 
             if answer_type in ["data", "error", "complete"]:
@@ -521,7 +517,7 @@ class WebsocketsTransport(AsyncTransport):
 
         except ValueError as e:
             raise TransportProtocolError(
-                f"Server did not return a GraphQL result: {answer}"
+                f"Server did not return a GraphQL result: {json_answer}"
             ) from e
 
         return answer_type, answer_id, execution_result
@@ -532,10 +528,17 @@ class WebsocketsTransport(AsyncTransport):
         """Parse the answer received from the server depending on
         the detected subprotocol.
         """
-        if self.subprotocol == self.GRAPHQLWS_SUBPROTOCOL:
-            return self._parse_answer_graphqlws(answer)
+        try:
+            json_answer = json.loads(answer)
+        except ValueError:
+            raise TransportProtocolError(
+                f"Server did not return a GraphQL result: {answer}"
+            )
 
-        return self._parse_answer_apollo(answer)
+        if self.subprotocol == self.GRAPHQLWS_SUBPROTOCOL:
+            return self._parse_answer_graphqlws(json_answer)
+
+        return self._parse_answer_apollo(json_answer)
 
     async def _check_ws_liveness(self) -> None:
         """Coroutine which will periodically check the liveness of the connection
