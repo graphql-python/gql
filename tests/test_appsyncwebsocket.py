@@ -8,14 +8,14 @@ mock_transport_url = "https://appsyncapp.awsgateway.com.example.org"
 
 def test_appsyncwebsocket_init_with_minimal_args(fake_session_factory):
     from gql.transport.appsync import (
-        AppSyncIAMAuthorization,
+        AppSyncIAMAuthentication,
         AppSyncWebsocketsTransport,
     )
 
     sample_transport = AppSyncWebsocketsTransport(
         url=mock_transport_url, session=fake_session_factory()
     )
-    assert isinstance(sample_transport.authorization, AppSyncIAMAuthorization)
+    assert isinstance(sample_transport.auth, AppSyncIAMAuthentication)
     assert sample_transport.connect_timeout == 10
     assert sample_transport.close_timeout == 10
     assert sample_transport.ack_timeout == 10
@@ -31,7 +31,7 @@ def test_appsyncwebsocket_init_with_no_credentials(caplog, fake_session_factory)
         sample_transport = AppSyncWebsocketsTransport(
             url=mock_transport_url, session=fake_session_factory(credentials=None),
         )
-        assert sample_transport.authorization is None
+        assert sample_transport.auth is None
 
     expected_error = "Credentials not found"
 
@@ -42,79 +42,69 @@ def test_appsyncwebsocket_init_with_no_credentials(caplog, fake_session_factory)
 
 def test_appsyncwebsocket_init_with_oidc_auth():
     from gql.transport.appsync import (
-        AppSyncOIDCAuthorization,
+        AppSyncOIDCAuthentication,
         AppSyncWebsocketsTransport,
     )
 
-    authorization = AppSyncOIDCAuthorization(host=mock_transport_url, jwt="some-jwt")
-    sample_transport = AppSyncWebsocketsTransport(
-        url=mock_transport_url, authorization=authorization
-    )
-    assert sample_transport.authorization is authorization
+    auth = AppSyncOIDCAuthentication(host=mock_transport_url, jwt="some-jwt")
+    sample_transport = AppSyncWebsocketsTransport(url=mock_transport_url, auth=auth)
+    assert sample_transport.auth is auth
 
 
 def test_appsyncwebsocket_init_with_apikey_auth():
     from gql.transport.appsync import (
-        AppSyncApiKeyAuthorization,
+        AppSyncApiKeyAuthentication,
         AppSyncWebsocketsTransport,
     )
 
-    authorization = AppSyncApiKeyAuthorization(
-        host=mock_transport_url, api_key="some-api-key"
-    )
-    sample_transport = AppSyncWebsocketsTransport(
-        url=mock_transport_url, authorization=authorization
-    )
-    assert sample_transport.authorization is authorization
+    auth = AppSyncApiKeyAuthentication(host=mock_transport_url, api_key="some-api-key")
+    sample_transport = AppSyncWebsocketsTransport(url=mock_transport_url, auth=auth)
+    assert sample_transport.auth is auth
 
 
 def test_appsyncwebsocket_init_with_iam_auth_without_creds(fake_session_factory):
     import botocore.exceptions
     from gql.transport.appsync import (
-        AppSyncIAMAuthorization,
+        AppSyncIAMAuthentication,
         AppSyncWebsocketsTransport,
     )
 
-    authorization = AppSyncIAMAuthorization(
+    auth = AppSyncIAMAuthentication(
         host=mock_transport_url, session=fake_session_factory(credentials=None),
     )
     with pytest.raises(botocore.exceptions.NoCredentialsError):
-        AppSyncWebsocketsTransport(url=mock_transport_url, authorization=authorization)
+        AppSyncWebsocketsTransport(url=mock_transport_url, auth=auth)
 
 
 def test_appsyncwebsocket_init_with_iam_auth_with_creds(fake_credentials_factory):
     from gql.transport.appsync import (
-        AppSyncIAMAuthorization,
+        AppSyncIAMAuthentication,
         AppSyncWebsocketsTransport,
     )
 
-    authorization = AppSyncIAMAuthorization(
+    auth = AppSyncIAMAuthentication(
         host=mock_transport_url,
         credentials=fake_credentials_factory(),
         region_name="us-east-1",
     )
-    sample_transport = AppSyncWebsocketsTransport(
-        url=mock_transport_url, authorization=authorization
-    )
-    assert sample_transport.authorization is authorization
+    sample_transport = AppSyncWebsocketsTransport(url=mock_transport_url, auth=auth)
+    assert sample_transport.auth is auth
 
 
 def test_appsyncwebsocket_init_with_iam_auth_and_no_region(
     caplog, fake_credentials_factory
 ):
     from gql.transport.appsync import (
-        AppSyncIAMAuthorization,
+        AppSyncIAMAuthentication,
         AppSyncWebsocketsTransport,
     )
 
     with pytest.raises(TypeError):
-        authorization = AppSyncIAMAuthorization(
+        auth = AppSyncIAMAuthentication(
             host=mock_transport_url, credentials=fake_credentials_factory()
         )
-        sample_transport = AppSyncWebsocketsTransport(
-            url=mock_transport_url, authorization=authorization
-        )
-        assert sample_transport.authorization is None
+        sample_transport = AppSyncWebsocketsTransport(url=mock_transport_url, auth=auth)
+        assert sample_transport.auth is None
 
     print(f"Captured: {caplog.text}")
 
@@ -125,20 +115,18 @@ def test_appsyncwebsocket_init_with_iam_auth_and_no_region(
 
 def test_munge_url(fake_signer_factory, fake_request_factory):
     from gql.transport.appsync import (
-        AppSyncIAMAuthorization,
+        AppSyncIAMAuthentication,
         AppSyncWebsocketsTransport,
     )
 
     test_url = "https://appsync-api.aws.example.org/some-other-params"
 
-    authorization = AppSyncIAMAuthorization(
+    auth = AppSyncIAMAuthentication(
         host=test_url,
         signer=fake_signer_factory(),
         request_creator=fake_request_factory,
     )
-    sample_transport = AppSyncWebsocketsTransport(
-        url=test_url, authorization=authorization
-    )
+    sample_transport = AppSyncWebsocketsTransport(url=test_url, auth=auth)
 
     header_string = (
         "eyJGYWtlQXV0aG9yaXphdGlvbiI6ImEiLCJGYWtlVGltZSI6InRvZGF5"
@@ -158,11 +146,11 @@ def test_munge_url_format(
     fake_credentials_factory,
     fake_session_factory,
 ):
-    from gql.transport.appsync import AppSyncIAMAuthorization
+    from gql.transport.appsync import AppSyncIAMAuthentication
 
     test_url = "https://appsync-api.aws.example.org/some-other-params"
 
-    authorization = AppSyncIAMAuthorization(
+    auth = AppSyncIAMAuthentication(
         host=test_url,
         signer=fake_signer_factory(),
         session=fake_session_factory(),
@@ -179,4 +167,4 @@ def test_munge_url_format(
         "wss://appsync-realtime-api.aws.example.org/"
         f"some-other-params?header={header_string}&payload=e30="
     )
-    assert authorization.get_auth_url(test_url) == expected_url
+    assert auth.get_auth_url(test_url) == expected_url

@@ -20,11 +20,11 @@ from .websockets import WebsocketsTransport, WebsocketsTransportBase
 log = logging.getLogger(__name__)
 
 
-class AppSyncAuthorization(ABC):
-    """AWS authorization abstract base class
+class AppSyncAuthentication(ABC):
+    """AWS authentication abstract base class
 
-    All AWS authorization class should have a
-    :meth:`get_headers <gql.transport.appsync.AppSyncAuthorization.get_headers>`
+    All AWS authentication class should have a
+    :meth:`get_headers <gql.transport.appsync.AppSyncAuthentication.get_headers>`
     method which defines the headers used in the authentication process."""
 
     def get_auth_url(self, url: str) -> str:
@@ -49,8 +49,8 @@ class AppSyncAuthorization(ABC):
         raise NotImplementedError()
 
 
-class AppSyncApiKeyAuthorization(AppSyncAuthorization):
-    """AWS authorization class using an API key"""
+class AppSyncApiKeyAuthentication(AppSyncAuthentication):
+    """AWS authentication class using an API key"""
 
     def __init__(self, host: str, api_key: str) -> None:
         """
@@ -65,8 +65,8 @@ class AppSyncApiKeyAuthorization(AppSyncAuthorization):
         return {"host": self._host, "x-api-key": self.api_key}
 
 
-class AppSyncOIDCAuthorization(AppSyncAuthorization):
-    """AWS authorization class using an OpenID JWT access token"""
+class AppSyncOIDCAuthentication(AppSyncAuthentication):
+    """AWS authentication class using an OpenID JWT access token"""
 
     def __init__(self, host: str, jwt: str) -> None:
         """
@@ -81,14 +81,14 @@ class AppSyncOIDCAuthorization(AppSyncAuthorization):
         return {"host": self._host, "Authorization": self.jwt}
 
 
-class AppSyncCognitoUserPoolAuthorization(AppSyncOIDCAuthorization):
-    """AWS authorization class using a Cognito user pools JWT access token"""
+class AppSyncCognitoUserPoolAuthentication(AppSyncOIDCAuthentication):
+    """AWS authentication class using a Cognito user pools JWT access token"""
 
     pass
 
 
-class AppSyncIAMAuthorization(AppSyncAuthorization):
-    """AWS authorization class using IAM.
+class AppSyncIAMAuthentication(AppSyncAuthentication):
+    """AWS authentication class using IAM.
 
     .. note::
         There is no need for you to use this class directly, you could instead
@@ -175,12 +175,12 @@ class AppSyncWebsocketsTransport(WebsocketsTransportBase):
     on a websocket connection.
     """
 
-    authorization: Optional[AppSyncAuthorization]
+    auth: Optional[AppSyncAuthentication]
 
     def __init__(
         self,
         url: str,
-        authorization: Optional[AppSyncAuthorization] = None,
+        auth: Optional[AppSyncAuthentication] = None,
         session: Optional[botocore.session.Session] = None,
         ssl: Union[SSLContext, bool] = False,
         connect_timeout: int = 10,
@@ -192,10 +192,10 @@ class AppSyncWebsocketsTransport(WebsocketsTransportBase):
 
         :param url: The GraphQL endpoint URL. Example:
             https://XXXXXXXXXXXXXXXXXXXXXXXXXX.appsync-api.REGION.amazonaws.com/graphql
-        :param authorization: Optional AWS authorization class which will provide the
-                              necessary headers to be correctly authenticated. If this
-                              argument is not provided, then we will try to authenticate
-                              using IAM.
+        :param auth: Optional AWS authentication class which will provide the
+                     necessary headers to be correctly authenticated. If this
+                     argument is not provided, then we will try to authenticate
+                     using IAM.
         :param ssl: ssl_context of the connection.
         :param connect_timeout: Timeout in seconds for the establishment
             of the websocket connection. If None is provided this will wait forever.
@@ -206,16 +206,16 @@ class AppSyncWebsocketsTransport(WebsocketsTransportBase):
         :param connect_args: Other parameters forwarded to websockets.connect
         """
         try:
-            if not authorization:
+            if not auth:
 
                 # Extract host from url
                 host = str(urlparse(url).netloc)
 
-                authorization = AppSyncIAMAuthorization(host=host, session=session)
+                auth = AppSyncIAMAuthentication(host=host, session=session)
 
-            self.authorization = authorization
+            self.auth = auth
 
-            url = self.authorization.get_auth_url(url)
+            url = self.auth.get_auth_url(url)
 
         except NoCredentialsError:
             log.warning(
@@ -327,10 +327,10 @@ class AppSyncWebsocketsTransport(WebsocketsTransportBase):
             "payload": payload,
         }
 
-        assert self.authorization is not None
+        assert self.auth is not None
 
         message["payload"]["extensions"] = {
-            "authorization": self.authorization.get_headers(serialized_data)
+            "authorization": self.auth.get_headers(serialized_data)
         }
 
         await self._send(json.dumps(message, separators=(",", ":"),))

@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 
 from gql import Client, gql
 from gql.transport.aiohttp import AIOHTTPTransport
-from gql.transport.appsync import AppSyncApiKeyAuthorization
+from gql.transport.appsync import AppSyncApiKeyAuthentication
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -25,7 +25,7 @@ async def main():
     # Extract host from url
     host = str(urlparse(url).netloc)
 
-    auth = AppSyncApiKeyAuthorization(host=host, api_key=api_key)
+    auth = AppSyncApiKeyAuthentication(host=host, api_key=api_key)
 
     transport = AIOHTTPTransport(url=url, headers=auth.get_headers())
 

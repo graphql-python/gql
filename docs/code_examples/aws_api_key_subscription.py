@@ -5,7 +5,10 @@ import sys
 from urllib.parse import urlparse
 
 from gql import Client, gql
-from gql.transport.appsync import AppSyncApiKeyAuthorization, AppSyncWebsocketsTransport
+from gql.transport.appsync import (
+    AppSyncApiKeyAuthentication,
+    AppSyncWebsocketsTransport,
+)
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -26,9 +29,9 @@ async def main():
 
     print(f"Host: {host}")
 
-    auth = AppSyncApiKeyAuthorization(host=host, api_key=api_key)
+    auth = AppSyncApiKeyAuthentication(host=host, api_key=api_key)
 
-    transport = AppSyncWebsocketsTransport(url=url, authorization=auth)
+    transport = AppSyncWebsocketsTransport(url=url, auth=auth)
 
     async with Client(transport=transport) as session:
 
