@@ -7,7 +7,7 @@ mock_transport_url = "https://appsyncapp.awsgateway.com.example.org"
 
 
 def test_appsyncwebsocket_init_with_minimal_args(fake_session_factory):
-    from gql.transport.awsappsync import (
+    from gql.transport.appsync import (
         AppSyncIAMAuthorization,
         AppSyncWebsocketsTransport,
     )
@@ -25,7 +25,7 @@ def test_appsyncwebsocket_init_with_minimal_args(fake_session_factory):
 
 def test_appsyncwebsocket_init_with_no_credentials(caplog, fake_session_factory):
     import botocore.exceptions
-    from gql.transport.awsappsync import AppSyncWebsocketsTransport
+    from gql.transport.appsync import AppSyncWebsocketsTransport
 
     with pytest.raises(botocore.exceptions.NoCredentialsError):
         sample_transport = AppSyncWebsocketsTransport(
@@ -41,7 +41,7 @@ def test_appsyncwebsocket_init_with_no_credentials(caplog, fake_session_factory)
 
 
 def test_appsyncwebsocket_init_with_oidc_auth():
-    from gql.transport.awsappsync import (
+    from gql.transport.appsync import (
         AppSyncOIDCAuthorization,
         AppSyncWebsocketsTransport,
     )
@@ -54,7 +54,7 @@ def test_appsyncwebsocket_init_with_oidc_auth():
 
 
 def test_appsyncwebsocket_init_with_apikey_auth():
-    from gql.transport.awsappsync import (
+    from gql.transport.appsync import (
         AppSyncApiKeyAuthorization,
         AppSyncWebsocketsTransport,
     )
@@ -70,7 +70,7 @@ def test_appsyncwebsocket_init_with_apikey_auth():
 
 def test_appsyncwebsocket_init_with_iam_auth_without_creds(fake_session_factory):
     import botocore.exceptions
-    from gql.transport.awsappsync import (
+    from gql.transport.appsync import (
         AppSyncIAMAuthorization,
         AppSyncWebsocketsTransport,
     )
@@ -83,7 +83,7 @@ def test_appsyncwebsocket_init_with_iam_auth_without_creds(fake_session_factory)
 
 
 def test_appsyncwebsocket_init_with_iam_auth_with_creds(fake_credentials_factory):
-    from gql.transport.awsappsync import (
+    from gql.transport.appsync import (
         AppSyncIAMAuthorization,
         AppSyncWebsocketsTransport,
     )
@@ -102,7 +102,7 @@ def test_appsyncwebsocket_init_with_iam_auth_with_creds(fake_credentials_factory
 def test_appsyncwebsocket_init_with_iam_auth_and_no_region(
     caplog, fake_credentials_factory
 ):
-    from gql.transport.awsappsync import (
+    from gql.transport.appsync import (
         AppSyncIAMAuthorization,
         AppSyncWebsocketsTransport,
     )
@@ -124,7 +124,7 @@ def test_appsyncwebsocket_init_with_iam_auth_and_no_region(
 
 
 def test_munge_url(fake_signer_factory, fake_request_factory):
-    from gql.transport.awsappsync import (
+    from gql.transport.appsync import (
         AppSyncIAMAuthorization,
         AppSyncWebsocketsTransport,
     )
@@ -158,7 +158,7 @@ def test_munge_url_format(
     fake_credentials_factory,
     fake_session_factory,
 ):
-    from gql.transport.awsappsync import AppSyncIAMAuthorization
+    from gql.transport.appsync import AppSyncIAMAuthorization
 
     test_url = "https://appsync-api.aws.example.org/some-other-params"
 

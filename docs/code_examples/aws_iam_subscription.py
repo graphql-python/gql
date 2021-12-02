@@ -4,7 +4,7 @@ import os
 import sys
 
 from gql import Client, gql
-from gql.transport.awsappsync import AppSyncWebsocketsTransport
+from gql.transport.appsync import AppSyncWebsocketsTransport
 
 logging.basicConfig(level=logging.DEBUG)
 

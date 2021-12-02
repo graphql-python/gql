@@ -1,7 +1,7 @@
-gql.transport.awsappsync
-========================
+gql.transport.appsync
+=====================
 
-.. currentmodule:: gql.transport.awsappsync
+.. currentmodule:: gql.transport.appsync
 
-.. automodule:: gql.transport.awsappsync
+.. automodule:: gql.transport.appsync
     :member-order: bysource

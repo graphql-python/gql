@@ -20,14 +20,14 @@ How to use it:
 
 .. note::
     It is also possible to instantiate the transport without an auth argument. In that case,
-    gql will use by default the :class:`IAM auth <gql.transport.awsappsync.AppSyncIAMAuthorization>`
+    gql will use by default the :class:`IAM auth <gql.transport.appsync.AppSyncIAMAuthorization>`
     which will try to authenticate with environment variables or from your aws credentials file.
 
 Full example with API key authentication from environment variables:
 
 .. literalinclude:: ../code_examples/aws_api_key_subscription.py
 
-Reference: :class:`gql.transport.awsappsync.AppSyncWebsocketsTransport`
+Reference: :class:`gql.transport.appsync.AppSyncWebsocketsTransport`
 
 
 .. _appsync_authentication_methods:
@@ -38,21 +38,21 @@ Authentication methods
 API key
 ^^^^^^^
 
-Reference: :class:`gql.transport.awsappsync.AppSyncApiKeyAuthorization`
+Reference: :class:`gql.transport.appsync.AppSyncApiKeyAuthorization`
 
 IAM
 ^^^
 
-Reference: :class:`gql.transport.awsappsync.AppSyncIAMAuthorization`
+Reference: :class:`gql.transport.appsync.AppSyncIAMAuthorization`
 
 Amazon Cognito user pools
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Reference: :class:`gql.transport.awsappsync.AppSyncOIDCAuthorization`
+Reference: :class:`gql.transport.appsync.AppSyncOIDCAuthorization`
 
 OpenID Connect (OIDC)
 ^^^^^^^^^^^^^^^^^^^^^
 
-Reference: :class:`gql.transport.awsappsync.AppSyncCognitoUserPoolAuthorization`
+Reference: :class:`gql.transport.appsync.AppSyncCognitoUserPoolAuthorization`
 
 .. _Building a real-time websocket client: https://docs.aws.amazon.com/appsync/latest/devguide/real-time-websocket-client.html
