@@ -170,13 +170,13 @@ class WebsocketsTransportBase(AsyncTransport):
         # The list of supported subprotocols should be defined in the subclass
         self.supported_subprotocols: List[Subprotocol] = []
 
-    async def _initialize(self) -> None:
+    async def _initialize(self):
         """Hook to send the initialization messages after the connection
         and potentially wait for the backend ack.
         """
         pass  # pragma: no cover
 
-    async def _stop_listener(self, query_id: int) -> None:
+    async def _stop_listener(self, query_id: int):
         """Hook to stop to listen to a specific query.
         Will send a stop message in some subclasses.
         """
@@ -834,7 +834,7 @@ class WebsocketsTransport(WebsocketsTransportBase):
 
         await self._send(complete_message)
 
-    async def _stop_listener(self, query_id: int) -> None:
+    async def _stop_listener(self, query_id: int):
         """Stop the listener corresponding to the query_id depending on the
         detected backend protocol.
 

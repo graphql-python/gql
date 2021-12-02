@@ -3,7 +3,7 @@ import logging
 from abc import ABC, abstractmethod
 from base64 import b64encode
 from ssl import SSLContext
-from typing import Any, Callable, Dict, Optional, Tuple, Union
+from typing import Any, Callable, Coroutine, Dict, Optional, Tuple, Union, cast
 from urllib.parse import urlparse
 
 import botocore.session
@@ -15,7 +15,7 @@ from botocore.session import get_session
 from graphql import DocumentNode, ExecutionResult, print_ast
 
 from .exceptions import TransportProtocolError, TransportServerError
-from .websockets import WebsocketsTransport
+from .websockets import WebsocketsTransport, WebsocketsTransportBase
 
 log = logging.getLogger(__name__)
 
@@ -167,7 +167,7 @@ class AppSyncIAMAuthorization(AppSyncAuthorization):
         return headers
 
 
-class AppSyncWebsocketsTransport(WebsocketsTransport):
+class AppSyncWebsocketsTransport(WebsocketsTransportBase):
     """:ref:`Async Transport <async_transports>` used to execute GraphQL subscription on
     AWS appsync realtime endpoint.
 
@@ -240,6 +240,12 @@ class AppSyncWebsocketsTransport(WebsocketsTransport):
             connect_args=connect_args,
         )
 
+        # Using the same 'graphql-ws' protocol as the apollo protocol
+        self.supported_subprotocols = [
+            WebsocketsTransport.APOLLO_SUBPROTOCOL,
+        ]
+        self.subprotocol = WebsocketsTransport.APOLLO_SUBPROTOCOL
+
     def _parse_answer(
         self, answer: str
     ) -> Tuple[str, Optional[int], Optional[ExecutionResult]]:
@@ -281,7 +287,9 @@ class AppSyncWebsocketsTransport(WebsocketsTransport):
 
             else:
 
-                return self._parse_answer_apollo(json_answer)
+                return WebsocketsTransport._parse_answer_apollo(
+                    cast(WebsocketsTransport, self), json_answer
+                )
 
         except ValueError:
             raise TransportProtocolError(
@@ -327,4 +335,12 @@ class AppSyncWebsocketsTransport(WebsocketsTransport):
 
         await self._send(json.dumps(message, separators=(",", ":"),))
 
+        print(Coroutine)
         return query_id
+
+    _initialize = WebsocketsTransport._initialize
+    _stop_listener = WebsocketsTransport._stop_listener
+    _send_init_message_and_wait_ack = (
+        WebsocketsTransport._send_init_message_and_wait_ack
+    )
+    _wait_ack = WebsocketsTransport._wait_ack
