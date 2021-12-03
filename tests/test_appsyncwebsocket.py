@@ -3,7 +3,8 @@ import pytest
 # Marking all tests in this file with the appsync marker
 pytestmark = pytest.mark.appsync
 
-mock_transport_url = "https://appsyncapp.awsgateway.com.example.org"
+mock_transport_host = "appsyncapp.awsgateway.com.example.org"
+mock_transport_url = f"https://{mock_transport_host}/graphql"
 
 
 def test_appsync_init_with_minimal_args(fake_session_factory):
@@ -46,12 +47,12 @@ def test_appsync_init_with_jwt_auth():
         AppSyncWebsocketsTransport,
     )
 
-    auth = AppSyncJWTAuthentication(host=mock_transport_url, jwt="some-jwt")
+    auth = AppSyncJWTAuthentication(host=mock_transport_host, jwt="some-jwt")
     sample_transport = AppSyncWebsocketsTransport(url=mock_transport_url, auth=auth)
     assert sample_transport.auth is auth
 
     assert auth.get_headers() == {
-        "host": mock_transport_url,
+        "host": mock_transport_host,
         "Authorization": "some-jwt",
     }
 
@@ -62,12 +63,12 @@ def test_appsync_init_with_apikey_auth():
         AppSyncWebsocketsTransport,
     )
 
-    auth = AppSyncApiKeyAuthentication(host=mock_transport_url, api_key="some-api-key")
+    auth = AppSyncApiKeyAuthentication(host=mock_transport_host, api_key="some-api-key")
     sample_transport = AppSyncWebsocketsTransport(url=mock_transport_url, auth=auth)
     assert sample_transport.auth is auth
 
     assert auth.get_headers() == {
-        "host": mock_transport_url,
+        "host": mock_transport_host,
         "x-api-key": "some-api-key",
     }
 
@@ -80,7 +81,7 @@ def test_appsync_init_with_iam_auth_without_creds(fake_session_factory):
     )
 
     auth = AppSyncIAMAuthentication(
-        host=mock_transport_url, session=fake_session_factory(credentials=None),
+        host=mock_transport_host, session=fake_session_factory(credentials=None),
     )
     with pytest.raises(botocore.exceptions.NoCredentialsError):
         AppSyncWebsocketsTransport(url=mock_transport_url, auth=auth)
@@ -93,7 +94,7 @@ def test_appsync_init_with_iam_auth_with_creds(fake_credentials_factory):
     )
 
     auth = AppSyncIAMAuthentication(
-        host=mock_transport_url,
+        host=mock_transport_host,
         credentials=fake_credentials_factory(),
         region_name="us-east-1",
     )
@@ -109,7 +110,7 @@ def test_appsync_init_with_iam_auth_and_no_region(caplog, fake_credentials_facto
 
     with pytest.raises(TypeError):
         auth = AppSyncIAMAuthentication(
-            host=mock_transport_url, credentials=fake_credentials_factory()
+            host=mock_transport_host, credentials=fake_credentials_factory()
         )
         sample_transport = AppSyncWebsocketsTransport(url=mock_transport_url, auth=auth)
         assert sample_transport.auth is None
