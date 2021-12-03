@@ -46,7 +46,7 @@ class AppSyncAuthentication(ABC):
 
     @abstractmethod
     def get_headers(self, data: Optional[str] = None) -> Dict:
-        raise NotImplementedError()
+        raise NotImplementedError()  # pragma: no cover
 
 
 class AppSyncApiKeyAuthentication(AppSyncAuthentication):
@@ -186,6 +186,7 @@ class AppSyncWebsocketsTransport(WebsocketsTransportBase):
         connect_timeout: int = 10,
         close_timeout: int = 10,
         ack_timeout: int = 10,
+        keep_alive_timeout: Optional[Union[int, float]] = None,
         connect_args: Dict[str, Any] = {},
     ) -> None:
         """Initialize the transport with the given parameters.
@@ -203,6 +204,8 @@ class AppSyncWebsocketsTransport(WebsocketsTransportBase):
             this will wait forever.
         :param ack_timeout: Timeout in seconds to wait for the connection_ack message
             from the server. If None is provided this will wait forever.
+        :param keep_alive_timeout: Optional Timeout in seconds to receive
+            a sign of liveness from the server.
         :param connect_args: Other parameters forwarded to websockets.connect
         """
         try:
@@ -237,6 +240,7 @@ class AppSyncWebsocketsTransport(WebsocketsTransportBase):
             connect_timeout=connect_timeout,
             close_timeout=close_timeout,
             ack_timeout=ack_timeout,
+            keep_alive_timeout=keep_alive_timeout,
             connect_args=connect_args,
         )
 
@@ -270,8 +274,6 @@ class AppSyncWebsocketsTransport(WebsocketsTransportBase):
         """
 
         answer_type: str = ""
-        answer_id: Optional[int] = None
-        execution_result: Optional[ExecutionResult] = None
 
         try:
             json_answer = json.loads(answer)
@@ -295,8 +297,6 @@ class AppSyncWebsocketsTransport(WebsocketsTransportBase):
             raise TransportProtocolError(
                 f"Server did not return a GraphQL result: {answer}"
             )
-
-        return answer_type, answer_id, execution_result
 
     async def _send_query(
         self,
@@ -359,8 +359,7 @@ class AppSyncWebsocketsTransport(WebsocketsTransportBase):
         :raise: AssertionError"""
         raise AssertionError(
             "execute method is not allowed for AppSyncWebsocketsTransport "
-            "because only subscriptions are allowed on the realtime endpoint. "
-            "fetch_schema_from_transport should be set to False in the client!"
+            "because only subscriptions are allowed on the realtime endpoint."
         )
 
     _initialize = WebsocketsTransport._initialize
