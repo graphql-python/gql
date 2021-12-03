@@ -112,8 +112,9 @@ def test_appsync_init_with_iam_auth_and_no_region(caplog, fake_credentials_facto
         auth = AppSyncIAMAuthentication(
             host=mock_transport_host, credentials=fake_credentials_factory()
         )
-        sample_transport = AppSyncWebsocketsTransport(url=mock_transport_url, auth=auth)
-        assert sample_transport.auth is None
+        AppSyncWebsocketsTransport(url=mock_transport_url, auth=auth)
+
+        print(f"Region found: {auth._region_name}")
 
     print(f"Captured: {caplog.text}")
 
