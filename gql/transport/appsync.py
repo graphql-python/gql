@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 from abc import ABC, abstractmethod
 from base64 import b64encode
 from ssl import SSLContext
@@ -10,7 +11,7 @@ import botocore.session
 from botocore.auth import BaseSigner, SigV4Auth
 from botocore.awsrequest import AWSRequest, create_request_object
 from botocore.credentials import Credentials
-from botocore.exceptions import NoCredentialsError
+from botocore.exceptions import NoCredentialsError, NoRegionError
 from botocore.session import get_session
 from graphql import DocumentNode, ExecutionResult, print_ast
 
@@ -118,10 +119,8 @@ class AppSyncIAMAuthentication(AppSyncAuthentication):
         self._credentials = (
             credentials if credentials else self._session.get_credentials()
         )
-        self._region_name = self._session._resolve_region_name(
-            region_name, self._session.get_default_client_config()
-        )
         self._service_name = "appsync"
+        self._region_name = region_name or self._detect_region_name()
         self._signer = (
             signer
             if signer
@@ -130,6 +129,37 @@ class AppSyncIAMAuthentication(AppSyncAuthentication):
         self._request_creator = (
             request_creator if request_creator else create_request_object
         )
+
+    def _detect_region_name(self):
+        """Try to detect the correct region_name.
+
+        First try to extract the region_name from the host.
+
+        If that does not work, then try to get the region_name from
+        the aws configuration (~/.aws/config file) or the AWS_DEFAULT_REGION
+        environment variable.
+
+        If no region_name was found, then raise a NoRegionError exception."""
+
+        # Regular expression from botocore.utils.validate_region
+        m = re.search(
+            r"appsync-api\.((?![0-9]+$)(?!-)[a-zA-Z0-9-]{,63}(?<!-))\.", self._host
+        )
+
+        if m:
+            region_name = m.groups()[0]
+            log.debug(f"Region name extracted from host: {region_name}")
+
+        else:
+            log.debug("Region name not found in host, trying default region name")
+            region_name = self._session._resolve_region_name(
+                None, self._session.get_default_client_config()
+            )
+
+        if region_name is None:
+            raise NoRegionError
+
+        return region_name
 
     def get_headers(self, data: Optional[str] = None,) -> Dict:
 
@@ -221,15 +251,15 @@ class AppSyncWebsocketsTransport(WebsocketsTransportBase):
 
         except NoCredentialsError:
             log.warning(
-                "Credentials not found.  "
+                "Credentials not found. "
                 "Do you have default AWS credentials configured?",
             )
             raise
-        except TypeError:
+        except NoRegionError:
             log.warning(
-                "A TypeError was raised.  "
-                "The most likely reason for this is that the AWS "
-                "region is missing from the credentials.",
+                "Region name not found. "
+                "It was not possible to detect your region either from the host "
+                "or from your default AWS configuration."
             )
             raise
 

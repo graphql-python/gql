@@ -102,23 +102,38 @@ def test_appsync_init_with_iam_auth_with_creds(fake_credentials_factory):
     assert sample_transport.auth is auth
 
 
-def test_appsync_init_with_iam_auth_and_no_region(caplog, fake_credentials_factory):
-    from gql.transport.appsync import (
-        AppSyncIAMAuthentication,
-        AppSyncWebsocketsTransport,
-    )
+def test_appsync_init_with_iam_auth_and_no_region(
+    caplog, fake_credentials_factory, fake_session_factory
+):
+    """
 
-    with pytest.raises(TypeError):
-        auth = AppSyncIAMAuthentication(
-            host=mock_transport_host, credentials=fake_credentials_factory()
-        )
-        AppSyncWebsocketsTransport(url=mock_transport_url, auth=auth)
+    WARNING: this test will fail if:
+     - you have a default region set in ~/.aws/config
+     - you have the AWS_DEFAULT_REGION environment variable set
 
-        print(f"Region found: {auth._region_name}")
+     """
+    from gql.transport.appsync import AppSyncWebsocketsTransport
+    from botocore.exceptions import NoRegionError
+    import logging
+
+    caplog.set_level(logging.WARNING)
+
+    with pytest.raises(NoRegionError):
+        session = fake_session_factory(credentials=fake_credentials_factory())
+        session._region_name = None
+        session._credentials.region = None
+        transport = AppSyncWebsocketsTransport(url=mock_transport_url, session=session)
+
+        # prints the region name in case the test fails
+        print(f"Region found: {transport.auth._region_name}")
 
     print(f"Captured: {caplog.text}")
 
-    expected_error = "the AWS region is missing from the credentials"
+    expected_error = (
+        "Region name not found. "
+        "It was not possible to detect your region either from the host "
+        "or from your default AWS configuration."
+    )
 
     assert expected_error in caplog.text
 
