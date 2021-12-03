@@ -28,6 +28,7 @@ DUMMY_SECRET_SESSION_TOKEN = (
     "CTEDyhREDACTEDSKREDACTEDYbREDACTEDfeREDACTED3UREDACTEDaKREDACTEDi1REDACTEDGEREDAC"
     "TED4VREDACTEDjmREDACTEDYcREDACTEDkQREDACTEDyI="
 )
+REGION_NAME = "eu-west-3"
 
 # List which can used to store received messages by the server
 logged_messages: List[str] = []
@@ -430,7 +431,9 @@ async def test_appsync_subscription_iam_with_token(event_loop, server):
         token=DUMMY_SECRET_SESSION_TOKEN,
     )
 
-    auth = AppSyncIAMAuthentication(host=server.hostname, credentials=dummy_credentials)
+    auth = AppSyncIAMAuthentication(
+        host=server.hostname, credentials=dummy_credentials, region_name=REGION_NAME
+    )
 
     transport = AppSyncWebsocketsTransport(url=url, auth=auth)
 
@@ -454,7 +457,9 @@ async def test_appsync_subscription_iam_without_token(event_loop, server):
         access_key=DUMMY_ACCESS_KEY_ID, secret_key=DUMMY_SECRET_ACCESS_KEY,
     )
 
-    auth = AppSyncIAMAuthentication(host=server.hostname, credentials=dummy_credentials)
+    auth = AppSyncIAMAuthentication(
+        host=server.hostname, credentials=dummy_credentials, region_name=REGION_NAME
+    )
 
     transport = AppSyncWebsocketsTransport(url=url, auth=auth)
 
@@ -478,7 +483,9 @@ async def test_appsync_execute_method_not_allowed(event_loop, server):
         access_key=DUMMY_ACCESS_KEY_ID, secret_key=DUMMY_SECRET_ACCESS_KEY,
     )
 
-    auth = AppSyncIAMAuthentication(host=server.hostname, credentials=dummy_credentials)
+    auth = AppSyncIAMAuthentication(
+        host=server.hostname, credentials=dummy_credentials, region_name=REGION_NAME
+    )
 
     transport = AppSyncWebsocketsTransport(url=url, auth=auth)
 
@@ -520,7 +527,9 @@ async def test_appsync_fetch_schema_from_transport_not_allowed(event_loop):
         access_key=DUMMY_ACCESS_KEY_ID, secret_key=DUMMY_SECRET_ACCESS_KEY,
     )
 
-    auth = AppSyncIAMAuthentication(host="something", credentials=dummy_credentials)
+    auth = AppSyncIAMAuthentication(
+        host="something", credentials=dummy_credentials, region_name=REGION_NAME
+    )
 
     transport = AppSyncWebsocketsTransport(url="https://something", auth=auth)
 
@@ -579,7 +588,9 @@ async def test_appsync_subscription_api_key_not_allowed(event_loop, server):
         token=DUMMY_SECRET_SESSION_TOKEN,
     )
 
-    auth = AppSyncIAMAuthentication(host=server.hostname, credentials=dummy_credentials)
+    auth = AppSyncIAMAuthentication(
+        host=server.hostname, credentials=dummy_credentials, region_name=REGION_NAME
+    )
 
     transport = AppSyncWebsocketsTransport(url=url, auth=auth)
 
