@@ -65,8 +65,13 @@ class AppSyncApiKeyAuthentication(AppSyncAuthentication):
         return {"host": self._host, "x-api-key": self.api_key}
 
 
-class AppSyncOIDCAuthentication(AppSyncAuthentication):
-    """AWS authentication class using an OpenID JWT access token"""
+class AppSyncJWTAuthentication(AppSyncAuthentication):
+    """AWS authentication class using a JWT access token.
+
+    It can be used either for:
+     - Amazon Cognito user pools
+     - OpenID Connect (OIDC)
+    """
 
     def __init__(self, host: str, jwt: str) -> None:
         """
@@ -79,12 +84,6 @@ class AppSyncOIDCAuthentication(AppSyncAuthentication):
 
     def get_headers(self, data: Optional[str] = None) -> Dict:
         return {"host": self._host, "Authorization": self.jwt}
-
-
-class AppSyncCognitoUserPoolAuthentication(AppSyncOIDCAuthentication):
-    """AWS authentication class using a Cognito user pools JWT access token"""
-
-    pass
 
 
 class AppSyncIAMAuthentication(AppSyncAuthentication):

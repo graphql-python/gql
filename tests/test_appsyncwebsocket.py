@@ -6,7 +6,7 @@ pytestmark = pytest.mark.appsync
 mock_transport_url = "https://appsyncapp.awsgateway.com.example.org"
 
 
-def test_appsyncwebsocket_init_with_minimal_args(fake_session_factory):
+def test_appsync_init_with_minimal_args(fake_session_factory):
     from gql.transport.appsync import (
         AppSyncIAMAuthentication,
         AppSyncWebsocketsTransport,
@@ -23,7 +23,7 @@ def test_appsyncwebsocket_init_with_minimal_args(fake_session_factory):
     assert sample_transport.connect_args == {}
 
 
-def test_appsyncwebsocket_init_with_no_credentials(caplog, fake_session_factory):
+def test_appsync_init_with_no_credentials(caplog, fake_session_factory):
     import botocore.exceptions
     from gql.transport.appsync import AppSyncWebsocketsTransport
 
@@ -40,18 +40,23 @@ def test_appsyncwebsocket_init_with_no_credentials(caplog, fake_session_factory)
     assert expected_error in caplog.text
 
 
-def test_appsyncwebsocket_init_with_oidc_auth():
+def test_appsync_init_with_jwt_auth():
     from gql.transport.appsync import (
-        AppSyncOIDCAuthentication,
+        AppSyncJWTAuthentication,
         AppSyncWebsocketsTransport,
     )
 
-    auth = AppSyncOIDCAuthentication(host=mock_transport_url, jwt="some-jwt")
+    auth = AppSyncJWTAuthentication(host=mock_transport_url, jwt="some-jwt")
     sample_transport = AppSyncWebsocketsTransport(url=mock_transport_url, auth=auth)
     assert sample_transport.auth is auth
 
+    assert auth.get_headers() == {
+        "host": mock_transport_url,
+        "Authorization": "some-jwt",
+    }
 
-def test_appsyncwebsocket_init_with_apikey_auth():
+
+def test_appsync_init_with_apikey_auth():
     from gql.transport.appsync import (
         AppSyncApiKeyAuthentication,
         AppSyncWebsocketsTransport,
@@ -61,8 +66,13 @@ def test_appsyncwebsocket_init_with_apikey_auth():
     sample_transport = AppSyncWebsocketsTransport(url=mock_transport_url, auth=auth)
     assert sample_transport.auth is auth
 
+    assert auth.get_headers() == {
+        "host": mock_transport_url,
+        "x-api-key": "some-api-key",
+    }
 
-def test_appsyncwebsocket_init_with_iam_auth_without_creds(fake_session_factory):
+
+def test_appsync_init_with_iam_auth_without_creds(fake_session_factory):
     import botocore.exceptions
     from gql.transport.appsync import (
         AppSyncIAMAuthentication,
@@ -76,7 +86,7 @@ def test_appsyncwebsocket_init_with_iam_auth_without_creds(fake_session_factory)
         AppSyncWebsocketsTransport(url=mock_transport_url, auth=auth)
 
 
-def test_appsyncwebsocket_init_with_iam_auth_with_creds(fake_credentials_factory):
+def test_appsync_init_with_iam_auth_with_creds(fake_credentials_factory):
     from gql.transport.appsync import (
         AppSyncIAMAuthentication,
         AppSyncWebsocketsTransport,
@@ -91,9 +101,7 @@ def test_appsyncwebsocket_init_with_iam_auth_with_creds(fake_credentials_factory
     assert sample_transport.auth is auth
 
 
-def test_appsyncwebsocket_init_with_iam_auth_and_no_region(
-    caplog, fake_credentials_factory
-):
+def test_appsync_init_with_iam_auth_and_no_region(caplog, fake_credentials_factory):
     from gql.transport.appsync import (
         AppSyncIAMAuthentication,
         AppSyncWebsocketsTransport,

@@ -45,14 +45,14 @@ IAM
 
 Reference: :class:`gql.transport.appsync.AppSyncIAMAuthentication`
 
-Amazon Cognito user pools
-^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Reference: :class:`gql.transport.appsync.AppSyncOIDCAuthentication`
-
-OpenID Connect (OIDC)
+Json Web Tokens (jwt)
 ^^^^^^^^^^^^^^^^^^^^^
 
-Reference: :class:`gql.transport.appsync.AppSyncCognitoUserPoolAuthentication`
+AWS provides json web tokens (jwt) for the authentication methods:
+
+- Amazon Cognito user pools
+- OpenID Connect (OIDC)
+
+Reference: :class:`gql.transport.appsync.AppSyncJWTAuthentication`
 
 .. _Building a real-time websocket client: https://docs.aws.amazon.com/appsync/latest/devguide/real-time-websocket-client.html
