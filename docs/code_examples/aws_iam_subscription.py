@@ -14,9 +14,8 @@ async def main():
     # Should look like:
     # https://XXXXXXXXXXXXXXXXXXXXXXXXXX.appsync-api.REGION.amazonaws.com/graphql
     url = os.environ.get("AWS_GRAPHQL_API_ENDPOINT")
-    api_key = os.environ.get("AWS_GRAPHQL_API_KEY")
 
-    if url is None or api_key is None:
+    if url is None:
         print("Missing environment variables")
         sys.exit()
 
