@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 
 from gql import Client, gql
 from gql.transport.aiohttp import AIOHTTPTransport
-from gql.transport.appsync_auth import AppSyncApiKeyAuthentication
+from gql.transport.appsync_auth import AppSyncIAMAuthentication
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -16,16 +16,15 @@ async def main():
     # Should look like:
     # https://XXXXXXXXXXXXXXXXXXXXXXXXXX.appsync-api.REGION.amazonaws.com/graphql
     url = os.environ.get("AWS_GRAPHQL_API_ENDPOINT")
-    api_key = os.environ.get("AWS_GRAPHQL_API_KEY")
 
-    if url is None or api_key is None:
+    if url is None:
         print("Missing environment variables")
         sys.exit()
 
     # Extract host from url
     host = str(urlparse(url).netloc)
 
-    auth = AppSyncApiKeyAuthentication(host=host, api_key=api_key)
+    auth = AppSyncIAMAuthentication(host=host)
 
     transport = AIOHTTPTransport(url=url, auth=auth)
 

@@ -395,10 +395,8 @@ async def default_transport_test(transport):
 @pytest.mark.parametrize("server", [realtime_appsync_server_keepalive], indirect=True)
 async def test_appsync_subscription_api_key(event_loop, server):
 
-    from gql.transport.appsync import (
-        AppSyncWebsocketsTransport,
-        AppSyncApiKeyAuthentication,
-    )
+    from gql.transport.appsync_auth import AppSyncApiKeyAuthentication
+    from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
 
     path = "/graphql"
     url = f"ws://{server.hostname}:{server.port}{path}"
@@ -416,10 +414,8 @@ async def test_appsync_subscription_api_key(event_loop, server):
 @pytest.mark.parametrize("server", [realtime_appsync_server], indirect=True)
 async def test_appsync_subscription_iam_with_token(event_loop, server):
 
-    from gql.transport.appsync import (
-        AppSyncWebsocketsTransport,
-        AppSyncIAMAuthentication,
-    )
+    from gql.transport.appsync_auth import AppSyncIAMAuthentication
+    from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
     from botocore.credentials import Credentials
 
     path = "/graphql"
@@ -444,10 +440,8 @@ async def test_appsync_subscription_iam_with_token(event_loop, server):
 @pytest.mark.parametrize("server", [realtime_appsync_server], indirect=True)
 async def test_appsync_subscription_iam_without_token(event_loop, server):
 
-    from gql.transport.appsync import (
-        AppSyncWebsocketsTransport,
-        AppSyncIAMAuthentication,
-    )
+    from gql.transport.appsync_auth import AppSyncIAMAuthentication
+    from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
     from botocore.credentials import Credentials
 
     path = "/graphql"
@@ -470,10 +464,8 @@ async def test_appsync_subscription_iam_without_token(event_loop, server):
 @pytest.mark.parametrize("server", [realtime_appsync_server], indirect=True)
 async def test_appsync_execute_method_not_allowed(event_loop, server):
 
-    from gql.transport.appsync import (
-        AppSyncWebsocketsTransport,
-        AppSyncIAMAuthentication,
-    )
+    from gql.transport.appsync_auth import AppSyncIAMAuthentication
+    from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
     from botocore.credentials import Credentials
 
     path = "/graphql"
@@ -517,10 +509,8 @@ mutation createMessage($message: String!) {
 @pytest.mark.asyncio
 async def test_appsync_fetch_schema_from_transport_not_allowed(event_loop):
 
-    from gql.transport.appsync import (
-        AppSyncWebsocketsTransport,
-        AppSyncIAMAuthentication,
-    )
+    from gql.transport.appsync_auth import AppSyncIAMAuthentication
+    from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
     from botocore.credentials import Credentials
 
     dummy_credentials = Credentials(
@@ -546,10 +536,8 @@ async def test_appsync_fetch_schema_from_transport_not_allowed(event_loop):
 @pytest.mark.parametrize("server", [realtime_appsync_server], indirect=True)
 async def test_appsync_subscription_api_key_unauthorized(event_loop, server):
 
-    from gql.transport.appsync import (
-        AppSyncWebsocketsTransport,
-        AppSyncApiKeyAuthentication,
-    )
+    from gql.transport.appsync_auth import AppSyncApiKeyAuthentication
+    from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
     from gql.transport.exceptions import TransportServerError
 
     path = "/graphql"
@@ -572,10 +560,8 @@ async def test_appsync_subscription_api_key_unauthorized(event_loop, server):
 @pytest.mark.parametrize("server", [realtime_appsync_server], indirect=True)
 async def test_appsync_subscription_api_key_not_allowed(event_loop, server):
 
-    from gql.transport.appsync import (
-        AppSyncWebsocketsTransport,
-        AppSyncIAMAuthentication,
-    )
+    from gql.transport.appsync_auth import AppSyncIAMAuthentication
+    from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
     from gql.transport.exceptions import TransportQueryError
     from botocore.credentials import Credentials
 
@@ -615,10 +601,8 @@ async def test_appsync_subscription_server_sending_a_not_json_answer(
     event_loop, server
 ):
 
-    from gql.transport.appsync import (
-        AppSyncWebsocketsTransport,
-        AppSyncApiKeyAuthentication,
-    )
+    from gql.transport.appsync_auth import AppSyncApiKeyAuthentication
+    from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
     from gql.transport.exceptions import TransportProtocolError
 
     path = "/graphql"
@@ -645,10 +629,8 @@ async def test_appsync_subscription_server_sending_an_error_without_an_id(
     event_loop, server
 ):
 
-    from gql.transport.appsync import (
-        AppSyncWebsocketsTransport,
-        AppSyncApiKeyAuthentication,
-    )
+    from gql.transport.appsync_auth import AppSyncApiKeyAuthentication
+    from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
     from gql.transport.exceptions import TransportServerError
 
     path = "/graphql"
@@ -673,10 +655,8 @@ async def test_appsync_subscription_variable_values_and_operation_name(
     event_loop, server
 ):
 
-    from gql.transport.appsync import (
-        AppSyncWebsocketsTransport,
-        AppSyncApiKeyAuthentication,
-    )
+    from gql.transport.appsync_auth import AppSyncApiKeyAuthentication
+    from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
 
     path = "/graphql"
     url = f"ws://{server.hostname}:{server.port}{path}"

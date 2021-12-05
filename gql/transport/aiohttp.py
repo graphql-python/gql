@@ -22,6 +22,11 @@ from .exceptions import (
     TransportServerError,
 )
 
+try:
+    from .appsync_auth import AppSyncAuthentication
+except ImportError:
+    pass
+
 log = logging.getLogger(__name__)
 
 
@@ -43,7 +48,7 @@ class AIOHTTPTransport(AsyncTransport):
         url: str,
         headers: Optional[LooseHeaders] = None,
         cookies: Optional[LooseCookies] = None,
-        auth: Optional[BasicAuth] = None,
+        auth: Optional[Union[BasicAuth, "AppSyncAuthentication"]] = None,
         ssl: Union[SSLContext, bool, Fingerprint] = False,
         timeout: Optional[int] = None,
         ssl_close_timeout: Optional[Union[int, float]] = 10,
@@ -55,6 +60,7 @@ class AIOHTTPTransport(AsyncTransport):
         :param headers: Dict of HTTP Headers.
         :param cookies: Dict of HTTP cookies.
         :param auth: BasicAuth object to enable Basic HTTP auth if needed
+                     Or Appsync Authentication class
         :param ssl: ssl_context of the connection. Use ssl=False to disable encryption
         :param ssl_close_timeout: Timeout in seconds to wait for the ssl connection
                                   to close properly
@@ -67,7 +73,7 @@ class AIOHTTPTransport(AsyncTransport):
         self.url: str = url
         self.headers: Optional[LooseHeaders] = headers
         self.cookies: Optional[LooseCookies] = cookies
-        self.auth: Optional[BasicAuth] = auth
+        self.auth: Optional[Union[BasicAuth, "AppSyncAuthentication"]] = auth
         self.ssl: Union[SSLContext, bool, Fingerprint] = ssl
         self.timeout: Optional[int] = timeout
         self.ssl_close_timeout: Optional[Union[int, float]] = ssl_close_timeout
@@ -89,8 +95,10 @@ class AIOHTTPTransport(AsyncTransport):
             client_session_args: Dict[str, Any] = {
                 "cookies": self.cookies,
                 "headers": self.headers,
-                "auth": self.auth,
             }
+
+            if isinstance(self.auth, BasicAuth):
+                client_session_args["auth"] = self.auth
 
             if self.timeout is not None:
                 client_session_args["timeout"] = aiohttp.ClientTimeout(
@@ -265,6 +273,15 @@ class AIOHTTPTransport(AsyncTransport):
         # Pass post_args to aiohttp post method
         if extra_args:
             post_args.update(extra_args)
+
+        # Add headers for AppSync if requested
+        try:
+            if isinstance(self.auth, AppSyncAuthentication):
+                post_args["headers"] = self.auth.get_headers(
+                    json.dumps(payload), {"content-type": "application/json"},
+                )
+        except NameError:
+            pass
 
         if self.session is None:
             raise TransportClosed("Transport is not connected")

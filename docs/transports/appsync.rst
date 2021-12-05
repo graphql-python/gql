@@ -20,14 +20,14 @@ How to use it:
 
 .. note::
     It is also possible to instantiate the transport without an auth argument. In that case,
-    gql will use by default the :class:`IAM auth <gql.transport.appsync.AppSyncIAMAuthentication>`
+    gql will use by default the :class:`IAM auth <gql.transport.appsync_auth.AppSyncIAMAuthentication>`
     which will try to authenticate with environment variables or from your aws credentials file.
 
 Full example with API key authentication from environment variables:
 
 .. literalinclude:: ../code_examples/aws_api_key_subscription.py
 
-Reference: :class:`gql.transport.appsync.AppSyncWebsocketsTransport`
+Reference: :class:`gql.transport.appsync_websockets.AppSyncWebsocketsTransport`
 
 .. _Building a real-time websocket client: https://docs.aws.amazon.com/appsync/latest/devguide/real-time-websocket-client.html
 
@@ -53,7 +53,7 @@ Use the :code:`AppSyncApiKeyAuthentication` class to provide your API key:
         auth=auth,
     )
 
-Reference: :class:`gql.transport.appsync.AppSyncApiKeyAuthentication`
+Reference: :class:`gql.transport.appsync_auth.AppSyncApiKeyAuthentication`
 
 IAM
 ^^^
@@ -103,7 +103,7 @@ OR You can also provide the credentials manually by creating the
         auth=auth,
     )
 
-Reference: :class:`gql.transport.appsync.AppSyncIAMAuthentication`
+Reference: :class:`gql.transport.appsync_auth.AppSyncIAMAuthentication`
 
 Json Web Tokens (jwt)
 ^^^^^^^^^^^^^^^^^^^^^
@@ -127,7 +127,7 @@ For these authentication methods, you can use the :code:`AppSyncJWTAuthenticatio
         auth=auth,
     )
 
-Reference: :class:`gql.transport.appsync.AppSyncJWTAuthentication`
+Reference: :class:`gql.transport.appsync_auth.AppSyncJWTAuthentication`
 
 AppSync GraphQL Queries and mutations
 -------------------------------------

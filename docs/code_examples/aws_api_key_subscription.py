@@ -5,10 +5,8 @@ import sys
 from urllib.parse import urlparse
 
 from gql import Client, gql
-from gql.transport.appsync import (
-    AppSyncApiKeyAuthentication,
-    AppSyncWebsocketsTransport,
-)
+from gql.transport.appsync_auth import AppSyncApiKeyAuthentication
+from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
 
 logging.basicConfig(level=logging.DEBUG)
 

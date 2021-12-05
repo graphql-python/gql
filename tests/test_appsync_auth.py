@@ -8,10 +8,8 @@ mock_transport_url = f"https://{mock_transport_host}/graphql"
 
 
 def test_appsync_init_with_minimal_args(fake_session_factory):
-    from gql.transport.appsync import (
-        AppSyncIAMAuthentication,
-        AppSyncWebsocketsTransport,
-    )
+    from gql.transport.appsync_auth import AppSyncIAMAuthentication
+    from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
 
     sample_transport = AppSyncWebsocketsTransport(
         url=mock_transport_url, session=fake_session_factory()
@@ -26,7 +24,7 @@ def test_appsync_init_with_minimal_args(fake_session_factory):
 
 def test_appsync_init_with_no_credentials(caplog, fake_session_factory):
     import botocore.exceptions
-    from gql.transport.appsync import AppSyncWebsocketsTransport
+    from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
 
     with pytest.raises(botocore.exceptions.NoCredentialsError):
         sample_transport = AppSyncWebsocketsTransport(
@@ -42,10 +40,8 @@ def test_appsync_init_with_no_credentials(caplog, fake_session_factory):
 
 
 def test_appsync_init_with_jwt_auth():
-    from gql.transport.appsync import (
-        AppSyncJWTAuthentication,
-        AppSyncWebsocketsTransport,
-    )
+    from gql.transport.appsync_auth import AppSyncJWTAuthentication
+    from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
 
     auth = AppSyncJWTAuthentication(host=mock_transport_host, jwt="some-jwt")
     sample_transport = AppSyncWebsocketsTransport(url=mock_transport_url, auth=auth)
@@ -58,10 +54,8 @@ def test_appsync_init_with_jwt_auth():
 
 
 def test_appsync_init_with_apikey_auth():
-    from gql.transport.appsync import (
-        AppSyncApiKeyAuthentication,
-        AppSyncWebsocketsTransport,
-    )
+    from gql.transport.appsync_auth import AppSyncApiKeyAuthentication
+    from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
 
     auth = AppSyncApiKeyAuthentication(host=mock_transport_host, api_key="some-api-key")
     sample_transport = AppSyncWebsocketsTransport(url=mock_transport_url, auth=auth)
@@ -75,10 +69,8 @@ def test_appsync_init_with_apikey_auth():
 
 def test_appsync_init_with_iam_auth_without_creds(fake_session_factory):
     import botocore.exceptions
-    from gql.transport.appsync import (
-        AppSyncIAMAuthentication,
-        AppSyncWebsocketsTransport,
-    )
+    from gql.transport.appsync_auth import AppSyncIAMAuthentication
+    from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
 
     auth = AppSyncIAMAuthentication(
         host=mock_transport_host, session=fake_session_factory(credentials=None),
@@ -88,10 +80,8 @@ def test_appsync_init_with_iam_auth_without_creds(fake_session_factory):
 
 
 def test_appsync_init_with_iam_auth_with_creds(fake_credentials_factory):
-    from gql.transport.appsync import (
-        AppSyncIAMAuthentication,
-        AppSyncWebsocketsTransport,
-    )
+    from gql.transport.appsync_auth import AppSyncIAMAuthentication
+    from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
 
     auth = AppSyncIAMAuthentication(
         host=mock_transport_host,
@@ -112,7 +102,7 @@ def test_appsync_init_with_iam_auth_and_no_region(
      - you have the AWS_DEFAULT_REGION environment variable set
 
      """
-    from gql.transport.appsync import AppSyncWebsocketsTransport
+    from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
     from botocore.exceptions import NoRegionError
     import logging
 
@@ -139,10 +129,8 @@ def test_appsync_init_with_iam_auth_and_no_region(
 
 
 def test_munge_url(fake_signer_factory, fake_request_factory):
-    from gql.transport.appsync import (
-        AppSyncIAMAuthentication,
-        AppSyncWebsocketsTransport,
-    )
+    from gql.transport.appsync_auth import AppSyncIAMAuthentication
+    from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
 
     test_url = "https://appsync-api.aws.example.org/some-other-params"
 
@@ -171,7 +159,7 @@ def test_munge_url_format(
     fake_credentials_factory,
     fake_session_factory,
 ):
-    from gql.transport.appsync import AppSyncIAMAuthentication
+    from gql.transport.appsync_auth import AppSyncIAMAuthentication
 
     test_url = "https://appsync-api.aws.example.org/some-other-params"
 
