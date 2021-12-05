@@ -392,7 +392,7 @@ class AppSyncWebsocketsTransport(WebsocketsTransportBase):
         )
 
     _initialize = WebsocketsTransport._initialize
-    _stop_listener = WebsocketsTransport._stop_listener  # type: ignore
+    _stop_listener = WebsocketsTransport._send_stop_message# type: ignore
     _send_init_message_and_wait_ack = (
         WebsocketsTransport._send_init_message_and_wait_ack
     )
