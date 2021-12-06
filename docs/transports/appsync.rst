@@ -25,7 +25,7 @@ How to use it:
 
 Full example with API key authentication from environment variables:
 
-.. literalinclude:: ../code_examples/aws_api_key_subscription.py
+.. literalinclude:: ../code_examples/appsync/subscription_api_key.py
 
 Reference: :class:`gql.transport.appsync_websockets.AppSyncWebsocketsTransport`
 
@@ -138,4 +138,4 @@ a normal http session and reuse the authentication classes to create the headers
 
 Full example with API key authentication from environment variables:
 
-.. literalinclude:: ../code_examples/aws_api_key_mutation.py
+.. literalinclude:: ../code_examples/appsync/mutation_api_key.py
