@@ -49,8 +49,6 @@ async def test_appsync_iam_mutation(
 
     sample_transport = AIOHTTPTransport(url=url, auth=auth)
 
-    auth = AppSyncIAMAuthentication(host=host)
-
     async with Client(transport=sample_transport) as session:
 
         query = gql(
