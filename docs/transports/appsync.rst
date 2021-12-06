@@ -11,7 +11,8 @@ GQL provides the :code:`AppSyncWebsocketsTransport` transport which implements t
 for you to allow you to execute subscriptions.
 
 .. note::
-    It is only possible to execute subscriptions with this transport
+    It is only possible to execute subscriptions with this transport.
+    For queries or mutations, See :ref:`AppSync GraphQL Queries and mutations <appsync_http>`
 
 How to use it:
 
@@ -23,6 +24,10 @@ How to use it:
     gql will use by default the :class:`IAM auth <gql.transport.appsync_auth.AppSyncIAMAuthentication>`
     which will try to authenticate with environment variables or from your aws credentials file.
 
+.. note::
+    All the examples in this documentation are based on the sample app created
+    by following `this AWS blog post`_
+
 Full example with API key authentication from environment variables:
 
 .. literalinclude:: ../code_examples/appsync/subscription_api_key.py
@@ -30,6 +35,8 @@ Full example with API key authentication from environment variables:
 Reference: :class:`gql.transport.appsync_websockets.AppSyncWebsocketsTransport`
 
 .. _Building a real-time websocket client: https://docs.aws.amazon.com/appsync/latest/devguide/real-time-websocket-client.html
+.. _this AWS blog post: https://aws.amazon.com/fr/blogs/mobile/appsync-realtime/
+
 
 .. _appsync_authentication_methods:
 
@@ -134,6 +141,8 @@ For these authentication methods, you can use the :code:`AppSyncJWTAuthenticatio
     )
 
 Reference: :class:`gql.transport.appsync_auth.AppSyncJWTAuthentication`
+
+.. _appsync_http:
 
 AppSync GraphQL Queries and mutations
 -------------------------------------
