@@ -34,7 +34,12 @@ The complete documentation for GQL can be found at
 
 The main features of GQL are:
 
-* Execute GraphQL queries using [different protocols](https://gql.readthedocs.io/en/latest/transports/index.html) (http, websockets, ...)
+* Execute GraphQL queries using [different protocols](https://gql.readthedocs.io/en/latest/transports/index.html):
+  * http
+  * websockets:
+    * apollo or graphql-ws protocol
+    * Phoenix channels
+    * AWS AppSync realtime protocol (experimental)
 * Possibility to [validate the queries locally](https://gql.readthedocs.io/en/latest/usage/validation.html) using a GraphQL schema provided locally or fetched from the backend using an instrospection query
 * Supports GraphQL queries, mutations and [subscriptions](https://gql.readthedocs.io/en/latest/usage/subscriptions.html)
 * Supports [sync or async usage](https://gql.readthedocs.io/en/latest/async/index.html), [allowing concurrent requests](https://gql.readthedocs.io/en/latest/advanced/async_advanced_usage.html#async-advanced-usage)
