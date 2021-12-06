@@ -85,6 +85,8 @@ setup(
     ],
     keywords="api graphql protocol rest relay gql client",
     packages=find_packages(include=["gql*"]),
+    # PEP-561: https://www.python.org/dev/peps/pep-0561/
+    package_data={"gql": ["py.typed"]},
     install_requires=install_requires,
     tests_require=install_all_requires + tests_requires,
     extras_require={
