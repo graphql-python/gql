@@ -27,5 +27,6 @@ Sub-Packages
    transport_phoenix_channel_websockets
    transport_requests
    transport_websockets
+   transport_websockets_base
    dsl
    utilities
