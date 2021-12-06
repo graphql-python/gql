@@ -38,6 +38,7 @@ def test_appsync_init_with_no_credentials(caplog, fake_session_factory):
     assert expected_error in caplog.text
 
 
+@pytest.mark.websockets
 def test_appsync_init_with_jwt_auth():
     from gql.transport.appsync_auth import AppSyncJWTAuthentication
     from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
@@ -52,6 +53,7 @@ def test_appsync_init_with_jwt_auth():
     }
 
 
+@pytest.mark.websockets
 def test_appsync_init_with_apikey_auth():
     from gql.transport.appsync_auth import AppSyncApiKeyAuthentication
     from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
