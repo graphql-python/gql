@@ -1,12 +1,10 @@
 import pytest
 
-# Marking all tests in this file with the appsync marker
-pytestmark = pytest.mark.appsync
-
 mock_transport_host = "appsyncapp.awsgateway.com.example.org"
 mock_transport_url = f"https://{mock_transport_host}/graphql"
 
 
+@pytest.mark.botocore
 def test_appsync_init_with_minimal_args(fake_session_factory):
     from gql.transport.appsync_auth import AppSyncIAMAuthentication
     from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
@@ -22,6 +20,7 @@ def test_appsync_init_with_minimal_args(fake_session_factory):
     assert sample_transport.connect_args == {}
 
 
+@pytest.mark.botocore
 def test_appsync_init_with_no_credentials(caplog, fake_session_factory):
     import botocore.exceptions
     from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
@@ -67,6 +66,7 @@ def test_appsync_init_with_apikey_auth():
     }
 
 
+@pytest.mark.botocore
 def test_appsync_init_with_iam_auth_without_creds(fake_session_factory):
     import botocore.exceptions
     from gql.transport.appsync_auth import AppSyncIAMAuthentication
@@ -79,6 +79,7 @@ def test_appsync_init_with_iam_auth_without_creds(fake_session_factory):
         AppSyncWebsocketsTransport(url=mock_transport_url, auth=auth)
 
 
+@pytest.mark.botocore
 def test_appsync_init_with_iam_auth_with_creds(fake_credentials_factory):
     from gql.transport.appsync_auth import AppSyncIAMAuthentication
     from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
@@ -92,6 +93,7 @@ def test_appsync_init_with_iam_auth_with_creds(fake_credentials_factory):
     assert sample_transport.auth is auth
 
 
+@pytest.mark.botocore
 def test_appsync_init_with_iam_auth_and_no_region(
     caplog, fake_credentials_factory, fake_session_factory
 ):
@@ -128,6 +130,7 @@ def test_appsync_init_with_iam_auth_and_no_region(
     assert expected_error in caplog.text
 
 
+@pytest.mark.botocore
 def test_munge_url(fake_signer_factory, fake_request_factory):
     from gql.transport.appsync_auth import AppSyncIAMAuthentication
     from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
@@ -153,6 +156,7 @@ def test_munge_url(fake_signer_factory, fake_request_factory):
     assert sample_transport.url == expected_url
 
 
+@pytest.mark.botocore
 def test_munge_url_format(
     fake_signer_factory,
     fake_request_factory,

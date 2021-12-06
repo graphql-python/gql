@@ -5,11 +5,11 @@ from abc import ABC, abstractmethod
 from base64 import b64encode
 from typing import Any, Callable, Dict, Optional
 
-from botocore.auth import BaseSigner, SigV4Auth
-from botocore.awsrequest import AWSRequest, create_request_object
-from botocore.credentials import Credentials
-from botocore.exceptions import NoRegionError
-from botocore.session import Session, get_session
+try:
+    import botocore
+except ImportError:  # pragma: no cover
+    # botocore is only needed for the IAM AppSync authentication method
+    pass
 
 log = logging.getLogger("gql.transport.appsync")
 
@@ -103,16 +103,23 @@ class AppSyncIAMAuthentication(AppSyncAuthentication):
         self,
         host: str,
         region_name: Optional[str] = None,
-        signer: Optional[BaseSigner] = None,
-        request_creator: Optional[Callable[[Dict[str, Any]], AWSRequest]] = None,
-        credentials: Optional[Credentials] = None,
-        session: Optional[Session] = None,
+        signer: Optional["botocore.auth.BaseSigner"] = None,
+        request_creator: Optional[
+            Callable[[Dict[str, Any]], "botocore.awsrequest.AWSRequest"]
+        ] = None,
+        credentials: Optional["botocore.credentials.Credentials"] = None,
+        session: Optional["botocore.session.Session"] = None,
     ) -> None:
         """Initialize itself, saving the found credentials used
         to sign the headers later.
 
         if no credentials are found, then a NoCredentialsError is raised.
         """
+
+        from botocore.auth import SigV4Auth
+        from botocore.awsrequest import create_request_object
+        from botocore.session import get_session
+
         self._host = host
         self._session = session if session else get_session()
         self._credentials = (
@@ -140,6 +147,8 @@ class AppSyncIAMAuthentication(AppSyncAuthentication):
 
         If no region_name was found, then raise a NoRegionError exception."""
 
+        from botocore.exceptions import NoRegionError
+
         # Regular expression from botocore.utils.validate_region
         m = re.search(
             r"appsync-api\.((?![0-9]+$)(?!-)[a-zA-Z0-9-]{,63}(?<!-))\.", self._host
@@ -156,6 +165,11 @@ class AppSyncIAMAuthentication(AppSyncAuthentication):
             )
 
         if region_name is None:
+            log.warning(
+                "Region name not found. "
+                "It was not possible to detect your region either from the host "
+                "or from your default AWS configuration."
+            )
             raise NoRegionError
 
         return region_name
@@ -164,6 +178,8 @@ class AppSyncIAMAuthentication(AppSyncAuthentication):
         self, data: Optional[str] = None, headers: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
 
+        from botocore.exceptions import NoCredentialsError
+
         # Default headers for a websocket connection
         headers = headers or {
             "accept": "application/json, text/javascript",
@@ -171,7 +187,7 @@ class AppSyncIAMAuthentication(AppSyncAuthentication):
             "content-type": "application/json; charset=UTF-8",
         }
 
-        request: AWSRequest = self._request_creator(
+        request: "botocore.awsrequest.AWSRequest" = self._request_creator(
             {
                 "method": "POST",
                 "url": f"https://{self._host}/graphql{'' if data else '/connect'}",
@@ -181,7 +197,14 @@ class AppSyncIAMAuthentication(AppSyncAuthentication):
             }
         )
 
-        self._signer.add_auth(request)
+        try:
+            self._signer.add_auth(request)
+        except NoCredentialsError:
+            log.warning(
+                "Credentials not found. "
+                "Do you have default AWS credentials configured?",
+            )
+            raise
 
         headers = dict(request.headers)
 

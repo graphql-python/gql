@@ -14,6 +14,7 @@ from aiohttp.typedefs import LooseCookies, LooseHeaders
 from graphql import DocumentNode, ExecutionResult, print_ast
 
 from ..utils import extract_files
+from .appsync_auth import AppSyncAuthentication
 from .async_transport import AsyncTransport
 from .exceptions import (
     TransportAlreadyConnected,
@@ -21,11 +22,6 @@ from .exceptions import (
     TransportProtocolError,
     TransportServerError,
 )
-
-try:
-    from .appsync_auth import AppSyncAuthentication
-except ImportError:
-    pass
 
 log = logging.getLogger(__name__)
 
@@ -95,10 +91,10 @@ class AIOHTTPTransport(AsyncTransport):
             client_session_args: Dict[str, Any] = {
                 "cookies": self.cookies,
                 "headers": self.headers,
+                "auth": None
+                if isinstance(self.auth, AppSyncAuthentication)
+                else self.auth,
             }
-
-            if isinstance(self.auth, BasicAuth):
-                client_session_args["auth"] = self.auth
 
             if self.timeout is not None:
                 client_session_args["timeout"] = aiohttp.ClientTimeout(
@@ -275,13 +271,10 @@ class AIOHTTPTransport(AsyncTransport):
             post_args.update(extra_args)
 
         # Add headers for AppSync if requested
-        try:
-            if isinstance(self.auth, AppSyncAuthentication):
-                post_args["headers"] = self.auth.get_headers(
-                    json.dumps(payload), {"content-type": "application/json"},
-                )
-        except NameError:
-            pass
+        if isinstance(self.auth, AppSyncAuthentication):
+            post_args["headers"] = self.auth.get_headers(
+                json.dumps(payload), {"content-type": "application/json"},
+            )
 
         if self.session is None:
             raise TransportClosed("Transport is not connected")

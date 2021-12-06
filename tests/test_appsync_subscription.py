@@ -10,8 +10,8 @@ from gql import Client, gql
 
 from .conftest import MS, WebSocketServerHelper
 
-# Marking all tests in this file with the appsync marker
-pytestmark = pytest.mark.appsync
+# Marking all tests in this file with the websockets marker
+pytestmark = pytest.mark.websockets
 
 SEND_MESSAGE_DELAY = 20 * MS
 NB_MESSAGES = 10
@@ -411,6 +411,7 @@ async def test_appsync_subscription_api_key(event_loop, server):
 
 
 @pytest.mark.asyncio
+@pytest.mark.botocore
 @pytest.mark.parametrize("server", [realtime_appsync_server], indirect=True)
 async def test_appsync_subscription_iam_with_token(event_loop, server):
 
@@ -437,6 +438,7 @@ async def test_appsync_subscription_iam_with_token(event_loop, server):
 
 
 @pytest.mark.asyncio
+@pytest.mark.botocore
 @pytest.mark.parametrize("server", [realtime_appsync_server], indirect=True)
 async def test_appsync_subscription_iam_without_token(event_loop, server):
 
@@ -461,6 +463,7 @@ async def test_appsync_subscription_iam_without_token(event_loop, server):
 
 
 @pytest.mark.asyncio
+@pytest.mark.botocore
 @pytest.mark.parametrize("server", [realtime_appsync_server], indirect=True)
 async def test_appsync_execute_method_not_allowed(event_loop, server):
 
@@ -507,6 +510,7 @@ mutation createMessage($message: String!) {
 
 
 @pytest.mark.asyncio
+@pytest.mark.botocore
 async def test_appsync_fetch_schema_from_transport_not_allowed(event_loop):
 
     from gql.transport.appsync_auth import AppSyncIAMAuthentication
@@ -557,8 +561,9 @@ async def test_appsync_subscription_api_key_unauthorized(event_loop, server):
 
 
 @pytest.mark.asyncio
+@pytest.mark.botocore
 @pytest.mark.parametrize("server", [realtime_appsync_server], indirect=True)
-async def test_appsync_subscription_api_key_not_allowed(event_loop, server):
+async def test_appsync_subscription_iam_not_allowed(event_loop, server):
 
     from gql.transport.appsync_auth import AppSyncIAMAuthentication
     from gql.transport.appsync_websockets import AppSyncWebsocketsTransport

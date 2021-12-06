@@ -36,6 +36,8 @@ Reference: :class:`gql.transport.appsync_websockets.AppSyncWebsocketsTransport`
 Authentication methods
 ----------------------
 
+.. _appsync_api_key_auth:
+
 API key
 ^^^^^^^
 
@@ -54,6 +56,8 @@ Use the :code:`AppSyncApiKeyAuthentication` class to provide your API key:
     )
 
 Reference: :class:`gql.transport.appsync_auth.AppSyncApiKeyAuthentication`
+
+.. _appsync_iam_auth:
 
 IAM
 ^^^
@@ -104,6 +108,8 @@ OR You can also provide the credentials manually by creating the
     )
 
 Reference: :class:`gql.transport.appsync_auth.AppSyncIAMAuthentication`
+
+.. _appsync_jwt_auth:
 
 Json Web Tokens (jwt)
 ^^^^^^^^^^^^^^^^^^^^^

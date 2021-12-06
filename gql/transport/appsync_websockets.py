@@ -4,8 +4,6 @@ from ssl import SSLContext
 from typing import Any, Dict, Optional, Tuple, Union, cast
 from urllib.parse import urlparse
 
-from botocore.exceptions import NoCredentialsError, NoRegionError
-from botocore.session import Session
 from graphql import DocumentNode, ExecutionResult, print_ast
 
 from .appsync_auth import AppSyncAuthentication, AppSyncIAMAuthentication
@@ -13,6 +11,12 @@ from .exceptions import TransportProtocolError, TransportServerError
 from .websockets import WebsocketsTransport, WebsocketsTransportBase
 
 log = logging.getLogger("gql.transport.appsync")
+
+try:
+    import botocore
+except ImportError:  # pragma: no cover
+    # botocore is only needed for the IAM AppSync authentication method
+    pass
 
 
 class AppSyncWebsocketsTransport(WebsocketsTransportBase):
@@ -29,7 +33,7 @@ class AppSyncWebsocketsTransport(WebsocketsTransportBase):
         self,
         url: str,
         auth: Optional[AppSyncAuthentication] = None,
-        session: Optional[Session] = None,
+        session: Optional["botocore.session.Session"] = None,
         ssl: Union[SSLContext, bool] = False,
         connect_timeout: int = 10,
         close_timeout: int = 10,
@@ -56,31 +60,18 @@ class AppSyncWebsocketsTransport(WebsocketsTransportBase):
             a sign of liveness from the server.
         :param connect_args: Other parameters forwarded to websockets.connect
         """
-        try:
-            if not auth:
 
-                # Extract host from url
-                host = str(urlparse(url).netloc)
+        if not auth:
 
-                auth = AppSyncIAMAuthentication(host=host, session=session)
+            # Extract host from url
+            host = str(urlparse(url).netloc)
 
-            self.auth = auth
+            # May raise NoRegionError or NoCredentialsError or ImportError
+            auth = AppSyncIAMAuthentication(host=host, session=session)
 
-            url = self.auth.get_auth_url(url)
+        self.auth = auth
 
-        except NoCredentialsError:
-            log.warning(
-                "Credentials not found. "
-                "Do you have default AWS credentials configured?",
-            )
-            raise
-        except NoRegionError:
-            log.warning(
-                "Region name not found. "
-                "It was not possible to detect your region either from the host "
-                "or from your default AWS configuration."
-            )
-            raise
+        url = self.auth.get_auth_url(url)
 
         super().__init__(
             url,
