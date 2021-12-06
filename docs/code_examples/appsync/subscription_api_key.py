@@ -1,5 +1,4 @@
 import asyncio
-import logging
 import os
 import sys
 from urllib.parse import urlparse
@@ -8,7 +7,9 @@ from gql import Client, gql
 from gql.transport.appsync_auth import AppSyncApiKeyAuthentication
 from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
 
-logging.basicConfig(level=logging.DEBUG)
+# Uncomment the following lines to enable debug output
+# import logging
+# logging.basicConfig(level=logging.DEBUG)
 
 
 async def main():
@@ -42,6 +43,8 @@ subscription onCreateMessage {
 }
 """
         )
+
+        print("Waiting for messages...")
 
         async for result in session.subscribe(subscription):
             print(result)
