@@ -1,8 +1,8 @@
 import abc
 from typing import Any, AsyncGenerator, Dict, Optional
 
-from graphql.language.ast import Document as DocumentNode
 from graphql.execution import ExecutionResult
+from graphql.language.ast import Document as DocumentNode
 
 
 class AsyncTransport:

@@ -1,13 +1,6 @@
 import asyncio
 import warnings
-from typing import Any, AsyncGenerator, Dict, Generator, Optional, Union
-
-from graphql.language.ast import Document as DocumentNode
-from graphql.execution import ExecutionResult
-from graphql.utils.introspection_query import introspection_query
-
-def get_introspection_query():
-    return introspection_query
+from typing import Any, AsyncGenerator, Dict, Generator, Optional, Union, cast
 
 from graphql import (
     GraphQLSchema,
@@ -16,11 +9,18 @@ from graphql import (
     parse,
     validate,
 )
+from graphql.execution import ExecutionResult
+from graphql.language.ast import Document as DocumentNode
+from graphql.utils.introspection_query import introspection_query
 
 from .transport.async_transport import AsyncTransport
 from .transport.exceptions import TransportQueryError
 from .transport.local_schema import LocalSchemaTransport
 from .transport.transport import Transport
+
+
+def get_introspection_query():
+    return introspection_query
 
 
 class Client:
@@ -84,18 +84,20 @@ class Client:
 
         if isinstance(schema, str):
             type_def_ast = parse(schema)
-            schema = build_ast_schema(type_def_ast)
+            schema_ast = build_ast_schema(type_def_ast)
+        else:
+            schema_ast = cast(GraphQLSchema, schema)
 
         if transport and fetch_schema_from_transport:
             assert (
-                not schema
+                not schema_ast
             ), "Cannot fetch the schema from transport if is already provided."
 
-        if schema and not transport:
-            transport = LocalSchemaTransport(schema)
+        if schema_ast and not transport:
+            transport = LocalSchemaTransport(schema_ast)
 
         # GraphQL schema
-        self.schema: Optional[GraphQLSchema] = schema
+        self.schema: Optional[GraphQLSchema] = schema_ast
 
         # Answer of the introspection query
         self.introspection = introspection

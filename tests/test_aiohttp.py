@@ -1009,7 +1009,7 @@ async def test_aiohttp_using_cli_invalid_query(
     captured_err = str(captured.err).strip()
     print(f"Captured: {captured_err}")
 
-    expected_error = "Syntax Error: Unexpected Name 'BLAHBLAH'"
+    expected_error = 'Syntax Error GraphQL request (1:1) Unexpected Name "BLAHBLAH"'
 
     assert expected_error in captured_err
 

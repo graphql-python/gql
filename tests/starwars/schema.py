@@ -1,11 +1,9 @@
-import asyncio
-
 from graphql import (
     GraphQLArgument,
     GraphQLEnumType,
     GraphQLEnumValue,
     GraphQLField,
-    GraphQLInputField,
+    GraphQLInputObjectField,
     GraphQLInputObjectType,
     GraphQLInt,
     GraphQLInterfaceType,
@@ -14,17 +12,18 @@ from graphql import (
     GraphQLObjectType,
     GraphQLSchema,
     GraphQLString,
-    get_introspection_query,
-    graphql_sync,
+    graphql,
     print_schema,
 )
+from graphql.utils.introspection_query import introspection_query
+from rx import Observable
 
 from .fixtures import (
     createReview,
     getCharacters,
     getDroid,
     getFriends,
-    getHeroAsync,
+    getHero,
     getHuman,
     reviews,
 )
@@ -72,7 +71,7 @@ humanType = GraphQLObjectType(
         "friends": GraphQLField(
             GraphQLList(characterInterface),
             description="The friends of the human, or an empty list if they have none.",
-            resolve=lambda human, info, **args: getFriends(human),
+            resolver=lambda human, info, **args: getFriends(human),
         ),
         "appearsIn": GraphQLField(
             GraphQLList(episodeEnum), description="Which movies they appear in.",
@@ -96,7 +95,7 @@ droidType = GraphQLObjectType(
         "friends": GraphQLField(
             GraphQLList(characterInterface),
             description="The friends of the droid, or an empty list if they have none.",
-            resolve=lambda droid, info, **args: getFriends(droid),
+            resolver=lambda droid, info, **args: getFriends(droid),
         ),
         "appearsIn": GraphQLField(
             GraphQLList(episodeEnum), description="Which movies they appear in.",
@@ -127,8 +126,8 @@ reviewInputType = GraphQLInputObjectType(
     "ReviewInput",
     description="The input object sent when someone is creating a new review",
     fields={
-        "stars": GraphQLInputField(GraphQLInt, description="0-5 stars"),
-        "commentary": GraphQLInputField(
+        "stars": GraphQLInputObjectField(GraphQLInt, description="0-5 stars"),
+        "commentary": GraphQLInputObjectField(
             GraphQLString, description="Comment about the movie, optional"
         ),
     },
@@ -146,7 +145,7 @@ queryType = GraphQLObjectType(
                     type_=episodeEnum,  # type: ignore
                 )
             },
-            resolve=lambda root, info, **args: getHeroAsync(args.get("episode")),
+            resolver=lambda root, info, **args: getHero(args.get("episode")),
         ),
         "human": GraphQLField(
             humanType,
@@ -155,7 +154,7 @@ queryType = GraphQLObjectType(
                     description="id of the human", type_=GraphQLNonNull(GraphQLString),
                 )
             },
-            resolve=lambda root, info, **args: getHuman(args["id"]),
+            resolver=lambda root, info, **args: getHuman(args["id"]),
         ),
         "droid": GraphQLField(
             droidType,
@@ -164,7 +163,7 @@ queryType = GraphQLObjectType(
                     description="id of the droid", type_=GraphQLNonNull(GraphQLString),
                 )
             },
-            resolve=lambda root, info, **args: getDroid(args["id"]),
+            resolver=lambda root, info, **args: getDroid(args["id"]),
         ),
         "characters": GraphQLField(
             GraphQLList(characterInterface),
@@ -174,7 +173,7 @@ queryType = GraphQLObjectType(
                     type_=GraphQLList(GraphQLString),
                 )
             },
-            resolve=lambda root, info, **args: getCharacters(args["ids"]),
+            resolver=lambda root, info, **args: getCharacters(args["ids"]),
         ),
     },
 )
@@ -194,7 +193,7 @@ mutationType = GraphQLObjectType(
                     description="set alive status", type_=reviewInputType,
                 ),
             },
-            resolve=lambda root, info, **args: createReview(
+            resolver=lambda root, info, **args: createReview(
                 args.get("episode"), args.get("review")
             ),
         ),
@@ -202,14 +201,8 @@ mutationType = GraphQLObjectType(
 )
 
 
-async def subscribe_reviews(_root, _info, episode):
-    for review in reviews[episode]:
-        yield review
-        await asyncio.sleep(0.1)
-
-
-async def resolve_review(review, _info, **_args):
-    return review
+def subscribe_reviews(_root, _info, episode):
+    return Observable.from_iterable(reviews[episode])
 
 
 subscriptionType = GraphQLObjectType(
@@ -219,11 +212,10 @@ subscriptionType = GraphQLObjectType(
             reviewType,
             args={
                 "episode": GraphQLArgument(
-                    description="Episode to review", type_=episodeEnum,
+                    description="Episode to review", type_=episodeEnum,  # type: ignore
                 )
             },
-            subscribe=subscribe_reviews,
-            resolve=resolve_review,
+            resolver=subscribe_reviews,
         )
     },
 )
@@ -236,7 +228,7 @@ StarWarsSchema = GraphQLSchema(
     types=[humanType, droidType, reviewType, reviewInputType],
 )
 
-
-StarWarsIntrospection = graphql_sync(StarWarsSchema, get_introspection_query()).data
+execution_result = graphql(StarWarsSchema, introspection_query)
+StarWarsIntrospection = execution_result.data  # type: ignore
 
 StarWarsTypeDef = print_schema(StarWarsSchema)

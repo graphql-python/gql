@@ -3,52 +3,56 @@ from abc import ABC
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple, Union, cast
 
 from graphql import (
-    ArgumentNode,
-    DocumentNode,
-    FieldNode,
     GraphQLArgument,
     GraphQLField,
     GraphQLInputObjectType,
-    GraphQLInputType,
     GraphQLInterfaceType,
     GraphQLList,
-    GraphQLNamedType,
     GraphQLNonNull,
     GraphQLObjectType,
     GraphQLSchema,
-    GraphQLWrappingType,
-    ListTypeNode,
-    ListValueNode,
-    NamedTypeNode,
-    NameNode,
-    NonNullTypeNode,
-    NullValueNode,
-    ObjectFieldNode,
-    ObjectValueNode,
-    OperationDefinitionNode,
-    OperationType,
-    SelectionSetNode,
-    TypeNode,
-    Undefined,
-    ValueNode,
-    VariableDefinitionNode,
-    VariableNode,
-    assert_named_type,
-    is_input_object_type,
-    is_list_type,
-    is_non_null_type,
-    is_wrapping_type,
     print_ast,
 )
-from graphql.pyutils import FrozenList
-from graphql.utilities import ast_from_value as default_ast_from_value
+from graphql.language.ast import Argument as ArgumentNode
+from graphql.language.ast import Document as DocumentNode
+from graphql.language.ast import Field as FieldNode
+from graphql.language.ast import ListType as ListTypeNode
+from graphql.language.ast import ListValue as ListValueNode
+from graphql.language.ast import Name as NameNode
+from graphql.language.ast import NamedType as NamedTypeNode
+from graphql.language.ast import NonNullType as NonNullTypeNode
+from graphql.language.ast import ObjectField as ObjectFieldNode
+from graphql.language.ast import ObjectValue as ObjectValueNode
+from graphql.language.ast import OperationDefinition as OperationDefinitionNode
+from graphql.language.ast import SelectionSet as SelectionSetNode
+from graphql.language.ast import Type as TypeNode
+from graphql.language.ast import Value as ValueNode
+from graphql.language.ast import Variable as VariableNode
+from graphql.language.ast import VariableDefinition as VariableDefinitionNode
+from graphql.type.definition import GraphQLNamedType
+from graphql.utils.ast_from_value import ast_from_value as default_ast_from_value
+from graphql.utils.undefined import Undefined
 
 from .utils import to_camel_case
+
+
+def is_named_type(type_: Any) -> bool:
+    return isinstance(type_, GraphQLNamedType)
+
+
+def assert_named_type(type_: Any) -> GraphQLNamedType:
+    if not is_named_type(type_):
+        raise TypeError(f"Expected {type_} to be a GraphQL named type.")
+    return cast(GraphQLNamedType, type_)
+
+
+FrozenList = list
+
 
 log = logging.getLogger(__name__)
 
 
-def ast_from_value(value: Any, type_: GraphQLInputType) -> Optional[ValueNode]:
+def ast_from_value(value: Any, type_) -> Optional[ValueNode]:
     """
     This is a partial copy paste of the ast_from_value function in
     graphql-core utilities/ast_from_value.py
@@ -61,49 +65,36 @@ def ast_from_value(value: Any, type_: GraphQLInputType) -> Optional[ValueNode]:
     if isinstance(value, DSLVariable):
         return value.set_type(type_).ast_variable
 
-    if is_non_null_type(type_):
-        type_ = cast(GraphQLNonNull, type_)
-        ast_value = ast_from_value(value, type_.of_type)
-        if isinstance(ast_value, NullValueNode):
-            return None
-        return ast_value
+    if isinstance(type_, GraphQLNonNull):
+        return ast_from_value(value, type_.of_type)
 
-    # only explicit None, not Undefined or NaN
-    if value is None:
-        return NullValueNode()
-
-    # undefined
     if value is Undefined:
         return None
 
-    # Convert Python list to GraphQL list. If the GraphQLType is a list, but the value
-    # is not a list, convert the value using the list's item type.
-    if is_list_type(type_):
-        type_ = cast(GraphQLList, type_)
-        item_type = type_.of_type
-        if isinstance(value, Iterable) and not isinstance(value, str):
-            maybe_value_nodes = (ast_from_value(item, item_type) for item in value)
-            value_nodes = filter(None, maybe_value_nodes)
-            return ListValueNode(values=FrozenList(value_nodes))
-        return ast_from_value(value, item_type)
+    if isinstance(value, list):
+        item_type = type_.of_type if isinstance(type_, GraphQLList) else None
+        return ListValueNode([ast_from_value(item, item_type) for item in value])
 
-    # Populate the fields of the input object by creating ASTs from each value in the
-    # Python dict according to the fields in the input type.
-    if is_input_object_type(type_):
+    elif isinstance(type_, GraphQLList):
+        return ast_from_value(value, type_.of_type)
+
+    is_graph_ql_input_object_type = isinstance(type_, GraphQLInputObjectType)
+    if is_graph_ql_input_object_type:
         if value is None or not isinstance(value, Mapping):
             return None
         type_ = cast(GraphQLInputObjectType, type_)
-        field_items = (
-            (field_name, ast_from_value(value[field_name], field.type))
-            for field_name, field in type_.fields.items()
-            if field_name in value
-        )
-        field_nodes = (
-            ObjectFieldNode(name=NameNode(value=field_name), value=field_value)
-            for field_name, field_value in field_items
-            if field_value
-        )
-        return ObjectValueNode(fields=FrozenList(field_nodes))
+
+        fields = []
+        for field_name, field_value in value.items():
+            field_type = None
+            if is_graph_ql_input_object_type:
+                field_def = type_.fields.get(field_name)
+                field_type = field_def and field_def.type
+
+            field_value = ast_from_value(field_value, field_type)
+            if field_value:
+                fields.append(ObjectFieldNode(NameNode(field_name), field_value))
+        return ObjectValueNode(fields)
 
     return default_ast_from_value(value, type_)
 
@@ -157,12 +148,12 @@ def dsl_gql(
     return DocumentNode(
         definitions=[
             OperationDefinitionNode(
-                operation=OperationType(operation.operation_type),
+                operation=operation.operation_type,
                 selection_set=operation.selection_set,
                 variable_definitions=FrozenList(
                     operation.variable_definitions.get_ast_definitions()
                 ),
-                **({"name": NameNode(value=operation.name)} if operation.name else {}),
+                name=NameNode(value=operation.name or ""),
             )
             for operation in all_operations
         ]
@@ -217,7 +208,7 @@ class DSLOperation(ABC):
     :class:`DSLSubscription <gql.dsl.DSLSubscription>`
     """
 
-    operation_type: OperationType
+    operation_type: str
 
     def __init__(
         self, *fields: "DSLField", **fields_with_alias: "DSLField",
@@ -258,8 +249,8 @@ class DSLOperation(ABC):
                         f"Received type: {type(field)}"
                     )
                 )
-            assert field.type_name.upper() == self.operation_type.name, (
-                f"Invalid root field for operation {self.operation_type.name}.\n"
+            assert field.type_name.lower() == self.operation_type, (
+                f"Invalid root field for operation {self.operation_type}.\n"
                 f"Received: {field.type_name}"
             )
 
@@ -269,15 +260,15 @@ class DSLOperation(ABC):
 
 
 class DSLQuery(DSLOperation):
-    operation_type = OperationType.QUERY
+    operation_type = "query"
 
 
 class DSLMutation(DSLOperation):
-    operation_type = OperationType.MUTATION
+    operation_type = "mutation"
 
 
 class DSLSubscription(DSLOperation):
-    operation_type = OperationType.SUBSCRIPTION
+    operation_type = "subscription"
 
 
 class DSLVariable:
@@ -296,19 +287,18 @@ class DSLVariable:
         self.ast_variable = VariableNode(name=NameNode(value=self.name))
 
     def to_ast_type(
-        self, type_: Union[GraphQLWrappingType, GraphQLNamedType]
+        self, type_: Union[GraphQLList, GraphQLNonNull, GraphQLNamedType]
     ) -> TypeNode:
-        if is_wrapping_type(type_):
-            if isinstance(type_, GraphQLList):
-                return ListTypeNode(type=self.to_ast_type(type_.of_type))
-            elif isinstance(type_, GraphQLNonNull):
-                return NonNullTypeNode(type=self.to_ast_type(type_.of_type))
+        if isinstance(type_, GraphQLList):
+            return ListTypeNode(type=self.to_ast_type(type_.of_type))  # type: ignore
+        elif isinstance(type_, GraphQLNonNull):
+            return NonNullTypeNode(type=self.to_ast_type(type_.of_type))  # type: ignore
 
         type_ = assert_named_type(type_)
         return NamedTypeNode(name=NameNode(value=type_.name))
 
     def set_type(
-        self, type_: Union[GraphQLWrappingType, GraphQLNamedType]
+        self, type_: Union[GraphQLList, GraphQLNonNull, GraphQLNamedType]
     ) -> "DSLVariable":
         self.type = self.to_ast_type(type_)
         return self

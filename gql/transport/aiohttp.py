@@ -9,7 +9,9 @@ from aiohttp.client_exceptions import ClientResponseError
 from aiohttp.client_reqrep import Fingerprint
 from aiohttp.helpers import BasicAuth
 from aiohttp.typedefs import LooseCookies, LooseHeaders
-from graphql import DocumentNode, ExecutionResult, print_ast
+from graphql import print_ast
+from graphql.execution.base import ExecutionResult
+from graphql.language.ast import Document as DocumentNode
 
 from ..utils import extract_files
 from .async_transport import AsyncTransport

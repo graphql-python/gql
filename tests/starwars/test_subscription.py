@@ -1,5 +1,6 @@
 import pytest
-from graphql import ExecutionResult, GraphQLError, subscribe
+from graphql import GraphQLError, subscribe
+from graphql.execution import ExecutionResult
 
 from gql import Client, gql
 
@@ -30,13 +31,16 @@ async def test_subscription_support():
     params = {"ep": "JEDI"}
     expected = [{**review, "episode": "JEDI"} for review in reviews[6]]
 
-    ai = await subscribe(StarWarsSchema, subs, variable_values=params)
+    ai = subscribe(StarWarsSchema, subs, variable_values=params)
+    submissions = []
+    ai.subscribe(submissions.append)
 
-    result = [result.data["reviewAdded"] async for result in ai]
+    result = [result.data["reviewAdded"] for result in submissions]
 
     assert result == expected
 
 
+@pytest.mark.skip(reason="graphql-core v2 API doesn't support asynchronous generators")
 @pytest.mark.asyncio
 async def test_subscription_support_using_client():
     # reset review data for this test
@@ -50,11 +54,10 @@ async def test_subscription_support_using_client():
     params = {"ep": "JEDI"}
     expected = [{**review, "episode": "JEDI"} for review in reviews[6]]
 
+    results = []
     async with Client(schema=StarWarsSchema) as session:
-        results = [
-            result["reviewAdded"]
-            async for result in session.subscribe(subs, variable_values=params)
-        ]
+        for result in session.subscribe(subs, variable_values=params):
+            results.append(result["reviewAdded"])
 
     assert results == expected
 
@@ -66,6 +69,7 @@ subscription_invalid_str = """
 """
 
 
+@pytest.mark.skip(reason="graphql-core v2 API doesn't support asynchronous generators")
 @pytest.mark.asyncio
 async def test_subscription_support_using_client_invalid_field():
 

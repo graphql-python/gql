@@ -50,7 +50,7 @@ install_all_requires = (
 
 # Get version from __version__.py file
 current_folder = os.path.abspath(os.path.dirname(__file__))
-about = {}
+about = {} # type: ignore
 with open(os.path.join(current_folder, "gql", "__version__.py"), "r") as f:
     exec(f.read(), about)
 

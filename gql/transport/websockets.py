@@ -6,9 +6,9 @@ from ssl import SSLContext
 from typing import Any, AsyncGenerator, Dict, Optional, Tuple, Union, cast
 
 import websockets
-from graphql.language.ast import Document as DocumentNode
-from graphql.execution import ExecutionResult
 from graphql import print_ast
+from graphql.execution import ExecutionResult
+from graphql.language.ast import Document as DocumentNode
 from websockets.client import WebSocketClientProtocol
 from websockets.datastructures import HeadersLike
 from websockets.exceptions import ConnectionClosed

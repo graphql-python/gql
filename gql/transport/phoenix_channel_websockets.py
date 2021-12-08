@@ -2,7 +2,9 @@ import asyncio
 import json
 from typing import Any, Dict, Optional, Tuple
 
-from graphql import DocumentNode, ExecutionResult, print_ast
+from graphql import print_ast
+from graphql.execution.base import ExecutionResult
+from graphql.language.ast import Document as DocumentNode
 from websockets.exceptions import ConnectionClosed
 
 from .exceptions import (

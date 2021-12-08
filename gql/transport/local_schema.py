@@ -1,9 +1,9 @@
 from inspect import isawaitable
 from typing import AsyncGenerator, Awaitable, cast
 
-from graphql.language.ast import Document as DocumentNode
-from graphql.execution import ExecutionResult
 from graphql import GraphQLSchema, execute, subscribe
+from graphql.execution import ExecutionResult
+from graphql.language.ast import Document as DocumentNode
 
 from gql.transport import AsyncTransport
 
@@ -41,11 +41,11 @@ class LocalSchemaTransport(AsyncTransport):
         execution_result: ExecutionResult
 
         if isawaitable(result_or_awaitable):
-            result_or_awaitable = cast(Awaitable[ExecutionResult], result_or_awaitable)
-            execution_result = await result_or_awaitable
+            awaitable = cast(Awaitable[ExecutionResult], result_or_awaitable)
+            execution_result = await awaitable
         else:
-            result_or_awaitable = cast(ExecutionResult, result_or_awaitable)
-            execution_result = result_or_awaitable
+            result = cast(ExecutionResult, result_or_awaitable)
+            execution_result = result
 
         return execution_result
 
@@ -57,7 +57,7 @@ class LocalSchemaTransport(AsyncTransport):
         The results are sent as an ExecutionResult object
         """
 
-        subscribe_result = await subscribe(self.schema, document, *args, **kwargs)
+        subscribe_result = subscribe(self.schema, document, *args, **kwargs)
 
         if isinstance(subscribe_result, ExecutionResult):
             yield subscribe_result

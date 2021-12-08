@@ -1,17 +1,10 @@
 import pytest
-from graphql import (
-    GraphQLInt,
-    GraphQLList,
-    GraphQLNonNull,
-    IntValueNode,
-    ListTypeNode,
-    NamedTypeNode,
-    NameNode,
-    NonNullTypeNode,
-    NullValueNode,
-    Undefined,
-    print_ast,
-)
+from graphql import GraphQLInt, GraphQLList, GraphQLNonNull, Undefined, print_ast
+from graphql.language.ast import IntValue as IntValueNode
+from graphql.language.ast import ListType as ListTypeNode
+from graphql.language.ast import Name as NameNode
+from graphql.language.ast import NamedType as NamedTypeNode
+from graphql.language.ast import NonNullType as NonNullTypeNode
 
 from gql import Client
 from gql.dsl import (
@@ -48,7 +41,7 @@ def test_ast_from_value_with_list_type_and_non_iterable_value():
 
 
 def test_ast_from_value_with_none():
-    assert ast_from_value(None, GraphQLInt) == NullValueNode()
+    assert ast_from_value(None, GraphQLInt) is None
 
 
 def test_ast_from_value_with_undefined():
@@ -136,10 +129,7 @@ def test_add_variable_definitions_in_input_object(ds):
     assert (
         print_ast(query)
         == """mutation ($stars: Int, $commentary: String, $episode: Episode) {
-  createReview(
-    review: {stars: $stars, commentary: $commentary}
-    episode: $episode
-  ) {
+  createReview(review: {stars: $stars, commentary: $commentary}, episode: $episode) {
     stars
     commentary
   }
@@ -237,7 +227,7 @@ human(id: "1000") {
 
 def test_fetch_luke_aliased(ds):
     query = """
-luke: human(id: "1000") {
+luke: human(id: 1000) {
   name
 }
     """.strip()
@@ -247,18 +237,19 @@ luke: human(id: "1000") {
 
 def test_fetch_name_aliased(ds: DSLSchema):
     query = """
-human(id: "1000") {
+human(id: 1000) {
   my_name: name
 }
     """.strip()
     query_dsl = ds.Query.human.args(id=1000).select(ds.Character.name.alias("my_name"))
-    print(str(query_dsl))
-    assert query == str(query_dsl)
+    query_str = str(query_dsl)
+    print(query_str)
+    assert query == query_str
 
 
 def test_fetch_name_aliased_as_kwargs(ds: DSLSchema):
     query = """
-human(id: "1000") {
+human(id: 1000) {
   my_name: name
 }
     """.strip()
@@ -276,7 +267,9 @@ def test_hero_name_query_result(ds, client):
 def test_arg_serializer_list(ds, client):
     query = dsl_gql(
         DSLQuery(
-            ds.Query.characters.args(ids=[1000, 1001, 1003]).select(ds.Character.name,)
+            ds.Query.characters.args(ids=["1000", "1001", "1003"]).select(
+                ds.Character.name,
+            )
         )
     )
     result = client.execute(query)
@@ -291,7 +284,9 @@ def test_arg_serializer_list(ds, client):
 
 
 def test_arg_serializer_enum(ds, client):
-    query = dsl_gql(DSLQuery(ds.Query.hero.args(episode=5).select(ds.Character.name)))
+    query = dsl_gql(
+        DSLQuery(ds.Query.hero.args(episode="EMPIRE").select(ds.Character.name))
+    )
     result = client.execute(query)
     expected = {"hero": {"name": "Luke Skywalker"}}
     assert result == expected
@@ -302,7 +297,8 @@ def test_create_review_mutation_result(ds, client):
     query = dsl_gql(
         DSLMutation(
             ds.Mutation.createReview.args(
-                episode=6, review={"stars": 5, "commentary": "This is a great movie!"}
+                episode="JEDI",
+                review={"stars": 5, "commentary": "This is a great movie!"},
             ).select(ds.Review.stars, ds.Review.commentary)
         )
     )
@@ -323,7 +319,7 @@ def test_subscription(ds):
     assert (
         print_ast(query)
         == """subscription {
-  reviewAdded(episode: JEDI) {
+  reviewAdded(episode: 6) {
     stars
     commentary
   }
@@ -334,7 +330,8 @@ def test_subscription(ds):
 
 def test_invalid_arg(ds):
     with pytest.raises(
-        KeyError, match="Argument invalid_arg does not exist in Field: Character."
+        KeyError,
+        match="Argument invalid_arg does not exist in <graphql.type.definition.GraphQLField object at 0x[0-9A-Fa-f]+>.",  # noqa: E501
     ):
         ds.Query.hero.args(invalid_arg=5).select(ds.Character.name)
 
@@ -343,7 +340,7 @@ def test_multiple_root_fields(ds, client):
     query = dsl_gql(
         DSLQuery(
             ds.Query.hero.select(ds.Character.name),
-            ds.Query.hero(episode=5)
+            ds.Query.hero(episode="EMPIRE")
             .alias("hero_of_episode_5")
             .select(ds.Character.name),
         )
@@ -360,7 +357,7 @@ def test_root_fields_aliased(ds, client):
     query = dsl_gql(
         DSLQuery(
             ds.Query.hero.select(ds.Character.name),
-            hero_of_episode_5=ds.Query.hero(episode=5).select(ds.Character.name),
+            hero_of_episode_5=ds.Query.hero(episode="EMPIRE").select(ds.Character.name),
         )
     )
     result = client.execute(query)
@@ -372,11 +369,11 @@ def test_root_fields_aliased(ds, client):
 
 
 def test_operation_name(ds):
-    query = dsl_gql(GetHeroName=DSLQuery(ds.Query.hero.select(ds.Character.name),))
+    query = dsl_gql(DSLQuery(ds.Query.hero.select(ds.Character.name),))
 
     assert (
         print_ast(query)
-        == """query GetHeroName {
+        == """{
   hero {
     name
   }
@@ -387,27 +384,25 @@ def test_operation_name(ds):
 
 def test_multiple_operations(ds):
     query = dsl_gql(
-        GetHeroName=DSLQuery(ds.Query.hero.select(ds.Character.name)),
-        CreateReviewMutation=DSLMutation(
+        DSLQuery(ds.Query.hero.select(ds.Character.name)),
+        DSLMutation(
             ds.Mutation.createReview.args(
                 episode=6, review={"stars": 5, "commentary": "This is a great movie!"}
             ).select(ds.Review.stars, ds.Review.commentary)
         ),
     )
 
+    result = print_ast(query)
     assert (
-        print_ast(query)
-        == """query GetHeroName {
+        result
+        == """{
   hero {
     name
   }
 }
 
-mutation CreateReviewMutation {
-  createReview(
-    episode: JEDI
-    review: {stars: 5, commentary: "This is a great movie!"}
-  ) {
+mutation {
+  createReview(episode: 6, review: {stars: 5, commentary: "This is a great movie!"}) {
     stars
     commentary
   }
@@ -427,7 +422,7 @@ def test_dsl_query_all_fields_should_correspond_to_the_root_type(ds):
     with pytest.raises(AssertionError) as excinfo:
         DSLQuery(ds.Character.name)
 
-    assert ("Invalid root field for operation QUERY.\n" "Received: Character") in str(
+    assert ("Invalid root field for operation query.\nReceived: Character") in str(
         excinfo.value
     )
 

@@ -1,5 +1,5 @@
-from graphql.language.ast import Document as DocumentNode
 from graphql import Source, parse
+from graphql.language.ast import Document as DocumentNode
 
 
 def gql(request_string: str) -> DocumentNode:

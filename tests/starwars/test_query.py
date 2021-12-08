@@ -304,7 +304,16 @@ def test_parse_error(client):
     assert isinstance(error, GraphQLError)
     formatted_error = format_error(error)
     assert formatted_error["locations"] == [{"column": 13, "line": 2}]
-    assert formatted_error["message"] == "Syntax Error: Unexpected Name 'qeury'."
+    assert (
+        formatted_error["message"]
+        == """Syntax Error GraphQL request (2:13) Unexpected Name \"qeury\"
+
+1: 
+2:             qeury
+               ^
+3:             
+"""  # noqa: W291
+    )
 
 
 def test_mutation_result(client):
