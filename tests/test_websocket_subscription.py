@@ -521,6 +521,8 @@ def test_websocket_subscription_sync_graceful_shutdown(server, subscription_str)
     count = 10
     subscription = gql(subscription_str.format(count=count))
 
+    interrupt_task = None
+
     with pytest.raises(KeyboardInterrupt):
         for result in client.subscribe(subscription):
 
@@ -536,13 +538,16 @@ def test_websocket_subscription_sync_graceful_shutdown(server, subscription_str)
                     warnings.filterwarnings(
                         "ignore", message="There is no current event loop"
                     )
-                    asyncio.ensure_future(
+                    interrupt_task = asyncio.ensure_future(
                         client.session._generator.athrow(KeyboardInterrupt)
                     )
 
             count -= 1
 
     assert count == 4
+
+    # Catch interrupt_task exception to remove warning
+    interrupt_task.exception()
 
     # Check that the server received a connection_terminate message last
     assert logged_messages.pop() == '{"type": "connection_terminate"}'

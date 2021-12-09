@@ -226,11 +226,9 @@ class Client:
                 # Note: we need to create a task here in order to be able to close
                 # the async generator properly on python 3.8
                 # See https://bugs.python.org/issue38559
-                with warnings.catch_warnings():
-                    warnings.filterwarnings(
-                        "ignore", message="There is no current event loop"
-                    )
-                    generator_task = asyncio.ensure_future(async_generator.__anext__())
+                generator_task = asyncio.ensure_future(
+                    async_generator.__anext__(), loop=loop
+                )
                 result = loop.run_until_complete(generator_task)
                 yield result
 
