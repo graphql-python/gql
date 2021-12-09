@@ -2,6 +2,7 @@ from typing import Dict
 
 from graphql import GraphQLSchema
 from graphql import build_client_schema as build_client_schema_orig
+from graphql.pyutils import inspect
 
 __all__ = ["build_client_schema"]
 
@@ -62,7 +63,22 @@ def build_client_schema(introspection: Dict) -> GraphQLSchema:
         outside gql.
     """
 
-    directives = introspection["__schema"]["directives"]
+    if not isinstance(introspection, dict) or not isinstance(
+        introspection.get("__schema"), dict
+    ):
+        raise TypeError(
+            "Invalid or incomplete introspection result. Ensure that you"
+            " are passing the 'data' attribute of an introspection response"
+            f" and no 'errors' were returned alongside: {inspect(introspection)}."
+        )
+
+    schema_introspection = introspection["__schema"]
+
+    directives = schema_introspection.get("directives", None)
+
+    if directives is None:
+        directives = []
+        schema_introspection["directives"] = directives
 
     if not any(directive["name"] == "skip" for directive in directives):
         directives.append(SKIP_DIRECTIVE_JSON)

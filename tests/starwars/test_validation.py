@@ -61,11 +61,21 @@ def introspection_schema():
 
 
 @pytest.fixture
-def introspection_schema_no_directives():
+def introspection_schema_empty_directives():
     introspection = StarWarsIntrospection
 
     # Simulate an empty dictionary for directives
     introspection["__schema"]["directives"] = []
+
+    return Client(introspection=introspection)
+
+
+@pytest.fixture
+def introspection_schema_no_directives():
+    introspection = StarWarsIntrospection
+
+    # Simulate no directives key
+    del introspection["__schema"]["directives"]
 
     return Client(introspection=introspection)
 
@@ -75,6 +85,7 @@ def introspection_schema_no_directives():
         "local_schema",
         "typedef_schema",
         "introspection_schema",
+        "introspection_schema_empty_directives",
         "introspection_schema_no_directives",
     ]
 )
@@ -233,3 +244,16 @@ def test_skip_directive(client):
     """
     print(StarWarsIntrospection)
     assert not validation_errors(client, query)
+
+
+def test_build_client_schema_invalid_introspection():
+    from gql.utilities import build_client_schema
+
+    with pytest.raises(TypeError) as exc_info:
+        build_client_schema("blah")
+
+    assert (
+        "Invalid or incomplete introspection result. Ensure that you are passing the "
+        "'data' attribute of an introspection response and no 'errors' were returned "
+        "alongside: 'blah'."
+    ) in str(exc_info.value)
