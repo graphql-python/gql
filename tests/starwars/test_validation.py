@@ -242,7 +242,6 @@ def test_skip_directive(client):
           }
         }
     """
-    print(StarWarsIntrospection)
     assert not validation_errors(client, query)
 
 
