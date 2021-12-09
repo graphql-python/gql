@@ -7,7 +7,6 @@ from graphql import (
     ExecutionResult,
     GraphQLSchema,
     build_ast_schema,
-    build_client_schema,
     get_introspection_query,
     parse,
     validate,
@@ -17,6 +16,7 @@ from .transport.async_transport import AsyncTransport
 from .transport.exceptions import TransportQueryError
 from .transport.local_schema import LocalSchemaTransport
 from .transport.transport import Transport
+from .utilities import build_client_schema
 from .utilities import parse_result as parse_result_fn
 from .utilities import serialize_variable_values
 

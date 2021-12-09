@@ -60,7 +60,24 @@ def introspection_schema():
     return Client(introspection=StarWarsIntrospection)
 
 
-@pytest.fixture(params=["local_schema", "typedef_schema", "introspection_schema"])
+@pytest.fixture
+def introspection_schema_no_directives():
+    introspection = StarWarsIntrospection
+
+    # Simulate an empty dictionary for directives
+    introspection["__schema"]["directives"] = []
+
+    return Client(introspection=introspection)
+
+
+@pytest.fixture(
+    params=[
+        "local_schema",
+        "typedef_schema",
+        "introspection_schema",
+        "introspection_schema_no_directives",
+    ]
+)
 def client(request):
     return request.getfixturevalue(request.param)
 
@@ -186,4 +203,33 @@ def test_allows_object_fields_in_inline_fragments(client):
           }
         }
     """
+    assert not validation_errors(client, query)
+
+
+def test_include_directive(client):
+    query = """
+        query fetchHero($with_friends: Boolean!) {
+          hero {
+            name
+            friends @include(if: $with_friends) {
+                name
+            }
+          }
+        }
+    """
+    assert not validation_errors(client, query)
+
+
+def test_skip_directive(client):
+    query = """
+        query fetchHero($without_friends: Boolean!) {
+          hero {
+            name
+            friends @skip(if: $without_friends) {
+                name
+            }
+          }
+        }
+    """
+    print(StarWarsIntrospection)
     assert not validation_errors(client, query)
