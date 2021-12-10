@@ -32,8 +32,6 @@ The complete documentation for GQL can be found at
 
 ## Features
 
-The main features of GQL are:
-
 * Execute GraphQL queries using [different protocols](https://gql.readthedocs.io/en/latest/transports/index.html):
   * http
   * websockets:
