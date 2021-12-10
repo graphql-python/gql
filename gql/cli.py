@@ -2,7 +2,7 @@ import json
 import logging
 import sys
 from argparse import ArgumentParser, Namespace, RawDescriptionHelpFormatter
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from graphql import GraphQLError, print_schema
 from yarl import URL
@@ -101,6 +101,43 @@ def get_parser(with_examples: bool = False) -> ArgumentParser:
         action="store_true",
         dest="print_schema",
     )
+    parser.add_argument(
+        "--transport",
+        default="auto",
+        choices=[
+            "auto",
+            "aiohttp",
+            "phoenix",
+            "websockets",
+            "appsync_http",
+            "appsync_websockets",
+        ],
+        help=(
+            "select the transport. 'auto' by default: "
+            "aiohttp or websockets depending on url scheme"
+        ),
+        dest="transport",
+    )
+
+    appsync_description = """
+By default, for an AppSync backend, the IAM authentication is chosen.
+
+If you want API key or JWT authentication, you can provide one of the
+following arguments:"""
+
+    appsync_group = parser.add_argument_group(
+        "AWS AppSync options", description=appsync_description
+    )
+
+    appsync_auth_group = appsync_group.add_mutually_exclusive_group()
+
+    appsync_auth_group.add_argument(
+        "--api-key", help="Provide an API key for authentication", dest="api_key",
+    )
+
+    appsync_auth_group.add_argument(
+        "--jwt", help="Provide an JSON Web token for authentication", dest="jwt",
+    )
 
     return parser
 
@@ -191,7 +228,20 @@ def get_execute_args(args: Namespace) -> Dict[str, Any]:
     return execute_args
 
 
-def get_transport(args: Namespace) -> AsyncTransport:
+def autodetect_transport(url: URL) -> str:
+    """Detects which transport should be used depending on url."""
+
+    if url.scheme in ["ws", "wss"]:
+        transport_name = "websockets"
+
+    else:
+        assert url.scheme in ["http", "https"]
+        transport_name = "aiohttp"
+
+    return transport_name
+
+
+def get_transport(args: Namespace) -> Optional[AsyncTransport]:
     """Instantiate a transport from the parsed command line arguments
 
     :param args: parsed command line arguments
@@ -199,28 +249,85 @@ def get_transport(args: Namespace) -> AsyncTransport:
 
     # Get the url scheme from server parameter
     url = URL(args.server)
-    scheme = url.scheme
+
+    # Validate scheme
+    if url.scheme not in ["http", "https", "ws", "wss"]:
+        raise ValueError("URL protocol should be one of: http, https, ws, wss")
 
     # Get extra transport parameters from command line arguments
     # (headers)
     transport_args = get_transport_args(args)
 
-    # Instantiate transport depending on url scheme
-    transport: AsyncTransport
-    if scheme in ["ws", "wss"]:
-        from gql.transport.websockets import WebsocketsTransport
+    # Either use the requested transport or autodetect it
+    if args.transport == "auto":
+        transport_name = autodetect_transport(url)
+    else:
+        transport_name = args.transport
 
-        transport = WebsocketsTransport(
-            url=args.server, ssl=(scheme == "wss"), **transport_args
-        )
-    elif scheme in ["http", "https"]:
+    # Import the correct transport class depending on the transport name
+    if transport_name == "aiohttp":
         from gql.transport.aiohttp import AIOHTTPTransport
 
-        transport = AIOHTTPTransport(url=args.server, **transport_args)
-    else:
-        raise ValueError("URL protocol should be one of: http, https, ws, wss")
+        return AIOHTTPTransport(url=args.server, **transport_args)
 
-    return transport
+    elif transport_name == "phoenix":
+        from gql.transport.phoenix_channel_websockets import (
+            PhoenixChannelWebsocketsTransport,
+        )
+
+        return PhoenixChannelWebsocketsTransport(url=args.server, **transport_args)
+
+    elif transport_name == "websockets":
+        from gql.transport.websockets import WebsocketsTransport
+
+        transport_args["ssl"] = url.scheme == "wss"
+
+        return WebsocketsTransport(url=args.server, **transport_args)
+
+    else:
+
+        from gql.transport.appsync_auth import AppSyncAuthentication
+
+        assert transport_name in ["appsync_http", "appsync_websockets"]
+        assert url.host is not None
+
+        auth: AppSyncAuthentication
+
+        if args.api_key:
+            from gql.transport.appsync_auth import AppSyncApiKeyAuthentication
+
+            auth = AppSyncApiKeyAuthentication(host=url.host, api_key=args.api_key)
+
+        elif args.jwt:
+            from gql.transport.appsync_auth import AppSyncJWTAuthentication
+
+            auth = AppSyncJWTAuthentication(host=url.host, jwt=args.jwt)
+
+        else:
+            from gql.transport.appsync_auth import AppSyncIAMAuthentication
+            from botocore.exceptions import NoRegionError
+
+            try:
+                auth = AppSyncIAMAuthentication(host=url.host)
+            except NoRegionError:
+                # A warning message has been printed in the console
+                return None
+
+        transport_args["auth"] = auth
+
+        if transport_name == "appsync_http":
+            from gql.transport.aiohttp import AIOHTTPTransport
+
+            return AIOHTTPTransport(url=args.server, **transport_args)
+
+        else:
+            from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
+
+            try:
+                return AppSyncWebsocketsTransport(url=args.server, **transport_args)
+            except Exception:
+                # This is for the NoCredentialsError but we cannot import it here
+                return None
 
 
 async def main(args: Namespace) -> int:
@@ -238,13 +345,16 @@ async def main(args: Namespace) -> int:
         # Instantiate transport from command line arguments
         transport = get_transport(args)
 
+        if transport is None:
+            return 1
+
         # Get extra execute parameters from command line arguments
         # (variables, operation_name)
         execute_args = get_execute_args(args)
 
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
+        return 1
 
     # By default, the exit_code is 0 (everything is ok)
     exit_code = 0

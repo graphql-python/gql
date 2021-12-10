@@ -994,9 +994,9 @@ async def test_aiohttp_using_cli_invalid_param(
     # via the standard input
     monkeypatch.setattr("sys.stdin", io.StringIO(query1_str))
 
-    # Checking that sys.exit() is called
-    with pytest.raises(SystemExit):
-        await main(args)
+    # Check that the exit_code is an error
+    exit_code = await main(args)
+    assert exit_code == 1
 
     # Check that the error has been printed on stdout
     captured = capsys.readouterr()

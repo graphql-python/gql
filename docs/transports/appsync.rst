@@ -154,3 +154,31 @@ a normal http session and reuse the authentication classes to create the headers
 Full example with API key authentication from environment variables:
 
 .. literalinclude:: ../code_examples/appsync/mutation_api_key.py
+
+From the command line
+---------------------
+
+Using :ref:`gql-cli <gql_cli>`, it is possible to execute GraphQL queries and subscriptions
+from the command line on an AppSync endpoint.
+
+- For queries and mutations, use the :code:`--transport appsync_http` argument::
+
+    # Put the request in a file
+    $ echo 'mutation createMessage($message: String!) {
+      createMessage(input: {message: $message}) {
+        id
+        message
+        createdAt
+      }
+    }' > mutation.graphql
+
+    # Execute the request using gql-cli with --transport appsync_http
+    $ cat mutation.graphql | gql-cli $AWS_GRAPHQL_API_ENDPOINT --transport appsync_http -V message:"Hello world!"
+
+- For subscriptions, use the :code:`--transport appsync_websockets` argument::
+
+    echo "subscription{onCreateMessage{message}}" | gql-cli $AWS_GRAPHQL_API_ENDPOINT --transport appsync_websockets
+
+- You can also get the full GraphQL schema from the backend from introspection::
+
+    $ gql-cli $AWS_GRAPHQL_API_ENDPOINT --transport appsync_http --print-schema > schema.graphql

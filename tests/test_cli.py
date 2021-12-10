@@ -2,7 +2,13 @@ import logging
 
 import pytest
 
-from gql.cli import get_execute_args, get_parser, get_transport, get_transport_args
+from gql.cli import (
+    get_execute_args,
+    get_parser,
+    get_transport,
+    get_transport_args,
+    main,
+)
 
 
 @pytest.fixture
@@ -175,6 +181,155 @@ def test_cli_get_transport_websockets(parser, url):
     transport = get_transport(args)
 
     assert isinstance(transport, WebsocketsTransport)
+
+
+@pytest.mark.websockets
+@pytest.mark.parametrize(
+    "url", ["ws://your_server.com", "wss://your_server.com"],
+)
+def test_cli_get_transport_phoenix(parser, url):
+
+    from gql.transport.phoenix_channel_websockets import (
+        PhoenixChannelWebsocketsTransport,
+    )
+
+    args = parser.parse_args([url, "--transport", "phoenix"])
+
+    transport = get_transport(args)
+
+    assert isinstance(transport, PhoenixChannelWebsocketsTransport)
+
+
+@pytest.mark.websockets
+@pytest.mark.botocore
+@pytest.mark.parametrize(
+    "url",
+    [
+        "wss://XXXXXX.appsync-api.eu-west-3.amazonaws.com/graphql",
+        "wss://noregion.amazonaws.com/graphql",
+    ],
+)
+def test_cli_get_transport_appsync_websockets_iam(parser, url):
+
+    args = parser.parse_args([url, "--transport", "appsync_websockets"])
+
+    transport = get_transport(args)
+
+    # In the tests, the AWS Appsync credentials are not set
+    # So the transport is None
+    assert transport is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.websockets
+@pytest.mark.botocore
+@pytest.mark.parametrize(
+    "url", ["wss://XXXXXX.appsync-api.eu-west-3.amazonaws.com/graphql"],
+)
+async def test_cli_main_appsync_websockets_iam(parser, url):
+
+    args = parser.parse_args([url, "--transport", "appsync_websockets"])
+
+    exit_code = await main(args)
+
+    # In the tests, the AWS Appsync credentials are not set
+    # So the transport is None and the main returns
+    # an exit_code of 1
+    assert exit_code == 1
+
+
+@pytest.mark.websockets
+@pytest.mark.parametrize(
+    "url", ["wss://XXXXXX.appsync-api.eu-west-3.amazonaws.com/graphql"],
+)
+def test_cli_get_transport_appsync_websockets_api_key(parser, url):
+
+    from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
+    from gql.transport.appsync_auth import AppSyncApiKeyAuthentication
+
+    args = parser.parse_args(
+        [url, "--transport", "appsync_websockets", "--api-key", "test-api-key"]
+    )
+
+    transport = get_transport(args)
+
+    assert isinstance(transport, AppSyncWebsocketsTransport)
+    assert isinstance(transport.auth, AppSyncApiKeyAuthentication)
+    assert transport.auth.api_key == "test-api-key"
+
+
+@pytest.mark.websockets
+@pytest.mark.parametrize(
+    "url", ["wss://XXXXXX.appsync-api.eu-west-3.amazonaws.com/graphql"],
+)
+def test_cli_get_transport_appsync_websockets_jwt(parser, url):
+
+    from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
+    from gql.transport.appsync_auth import AppSyncJWTAuthentication
+
+    args = parser.parse_args(
+        [url, "--transport", "appsync_websockets", "--jwt", "test-jwt"]
+    )
+
+    transport = get_transport(args)
+
+    assert isinstance(transport, AppSyncWebsocketsTransport)
+    assert isinstance(transport.auth, AppSyncJWTAuthentication)
+    assert transport.auth.jwt == "test-jwt"
+
+
+@pytest.mark.aiohttp
+@pytest.mark.botocore
+@pytest.mark.parametrize(
+    "url", ["https://XXXXXX.appsync-api.eu-west-3.amazonaws.com/graphql"],
+)
+def test_cli_get_transport_appsync_http_iam(parser, url):
+
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    args = parser.parse_args([url, "--transport", "appsync_http"])
+
+    transport = get_transport(args)
+
+    assert isinstance(transport, AIOHTTPTransport)
+
+
+@pytest.mark.aiohttp
+@pytest.mark.parametrize(
+    "url", ["https://XXXXXX.appsync-api.eu-west-3.amazonaws.com/graphql"],
+)
+def test_cli_get_transport_appsync_http_api_key(parser, url):
+
+    from gql.transport.aiohttp import AIOHTTPTransport
+    from gql.transport.appsync_auth import AppSyncApiKeyAuthentication
+
+    args = parser.parse_args(
+        [url, "--transport", "appsync_http", "--api-key", "test-api-key"]
+    )
+
+    transport = get_transport(args)
+
+    assert isinstance(transport, AIOHTTPTransport)
+    assert isinstance(transport.auth, AppSyncApiKeyAuthentication)
+    assert transport.auth.api_key == "test-api-key"
+
+
+@pytest.mark.aiohttp
+@pytest.mark.parametrize(
+    "url", ["https://XXXXXX.appsync-api.eu-west-3.amazonaws.com/graphql"],
+)
+def test_cli_get_transport_appsync_http_jwt(parser, url):
+
+    from gql.transport.aiohttp import AIOHTTPTransport
+    from gql.transport.appsync_auth import AppSyncJWTAuthentication
+
+    args = parser.parse_args([url, "--transport", "appsync_http", "--jwt", "test-jwt"])
+
+    transport = get_transport(args)
+
+    assert isinstance(transport, AIOHTTPTransport)
+    assert isinstance(transport.auth, AppSyncJWTAuthentication)
+    assert transport.auth.jwt == "test-jwt"
 
 
 def test_cli_get_transport_no_protocol(parser):

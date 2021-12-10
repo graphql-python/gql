@@ -54,7 +54,7 @@ class AppSyncApiKeyAuthentication(AppSyncAuthentication):
                      XXXXXXXXXXXXXXXXXXXXXXXXXX.appsync-api.REGION.amazonaws.com
         :param api_key: the API key
         """
-        self._host = host
+        self._host = host.replace("appsync-realtime-api", "appsync-api")
         self.api_key = api_key
 
     def get_headers(
@@ -77,7 +77,7 @@ class AppSyncJWTAuthentication(AppSyncAuthentication):
                      XXXXXXXXXXXXXXXXXXXXXXXXXX.appsync-api.REGION.amazonaws.com
         :param jwt: the JWT Access Token
         """
-        self._host = host
+        self._host = host.replace("appsync-realtime-api", "appsync-api")
         self.jwt = jwt
 
     def get_headers(
@@ -120,7 +120,7 @@ class AppSyncIAMAuthentication(AppSyncAuthentication):
         from botocore.awsrequest import create_request_object
         from botocore.session import get_session
 
-        self._host = host
+        self._host = host.replace("appsync-realtime-api", "appsync-api")
         self._session = session if session else get_session()
         self._credentials = (
             credentials if credentials else self._session.get_credentials()
@@ -201,7 +201,7 @@ class AppSyncIAMAuthentication(AppSyncAuthentication):
             self._signer.add_auth(request)
         except NoCredentialsError:
             log.warning(
-                "Credentials not found. "
+                "Credentials not found for the IAM auth. "
                 "Do you have default AWS credentials configured?",
             )
             raise
