@@ -11,7 +11,7 @@ from .exceptions import (
     TransportQueryError,
     TransportServerError,
 )
-from .websockets import WebsocketsTransport
+from .websockets_base import WebsocketsTransportBase
 
 log = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ class Subscription:
         self.unsubscribe_id: Optional[int] = None
 
 
-class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
+class PhoenixChannelWebsocketsTransport(WebsocketsTransportBase):
     """The PhoenixChannelWebsocketsTransport is an async transport
     which allows you to execute queries and subscriptions against an `Absinthe`_
     backend using the `Phoenix`_ framework `channels`_.
@@ -54,7 +54,7 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
         self.subscriptions: Dict[str, Subscription] = {}
         super(PhoenixChannelWebsocketsTransport, self).__init__(*args, **kwargs)
 
-    async def _send_init_message_and_wait_ack(self) -> None:
+    async def _initialize(self) -> None:
         """Join the specified channel and wait for the connection ACK.
 
         If the answer is not a connection_ack message, we will return an Exception.
@@ -131,6 +131,9 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
 
         await self._send(unsubscribe_message)
 
+    async def _stop_listener(self, query_id: int) -> None:
+        await self._send_stop_message(query_id)
+
     async def _send_connection_terminate_message(self) -> None:
         """Send a phx_leave message to disconnect from the provided channel."""
 
@@ -147,6 +150,9 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransport):
         )
 
         await self._send(connection_terminate_message)
+
+    async def _connection_terminate(self):
+        await self._send_connection_terminate_message()
 
     async def _send_query(
         self,
