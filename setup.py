@@ -50,8 +50,12 @@ install_websockets_requires = [
     "websockets>=10,<11;python_version>'3.6'",
 ]
 
+install_botocore_requires = [
+    "botocore>=1.21,<2",
+]
+
 install_all_requires = (
-    install_aiohttp_requires + install_requests_requires + install_websockets_requires
+    install_aiohttp_requires + install_requests_requires + install_websockets_requires + install_botocore_requires
 )
 
 # Get version from __version__.py file
@@ -97,6 +101,7 @@ setup(
         "aiohttp": install_aiohttp_requires,
         "requests": install_requests_requires,
         "websockets": install_websockets_requires,
+        "botocore": install_botocore_requires,
     },
     include_package_data=True,
     zip_safe=False,

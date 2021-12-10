@@ -14,11 +14,7 @@ import pytest
 
 from gql import Client
 
-all_transport_dependencies = [
-    "aiohttp",
-    "requests",
-    "websockets",
-]
+all_transport_dependencies = ["aiohttp", "requests", "websockets", "botocore"]
 
 
 def pytest_addoption(parser):
@@ -116,10 +112,11 @@ async def ssl_aiohttp_server():
         yield server
 
 
-# Adding debug logs to websocket tests
+# Adding debug logs
 for name in [
     "websockets.legacy.server",
     "gql.transport.aiohttp",
+    "gql.transport.appsync",
     "gql.transport.phoenix_channel_websockets",
     "gql.transport.requests",
     "gql.transport.websockets",
@@ -492,3 +489,11 @@ async def run_sync_test():
             await server.close()
 
     return run_sync_test_inner
+
+
+pytest_plugins = [
+    "tests.fixtures.aws.fake_credentials",
+    "tests.fixtures.aws.fake_request",
+    "tests.fixtures.aws.fake_session",
+    "tests.fixtures.aws.fake_signer",
+]

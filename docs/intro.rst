@@ -35,19 +35,23 @@ which needs the :code:`aiohttp` dependency, then you can install GQL with::
 
     pip install --pre gql[aiohttp]
 
-The corresponding between extra dependencies required and the GQL transports is:
+The corresponding between extra dependencies required and the GQL classes is:
 
-+-------------------+----------------------------------------------------------------+
-| Extra dependency  | Transports                                                     |
-+===================+================================================================+
-| aiohttp           | :ref:`AIOHTTPTransport <aiohttp_transport>`                    |
-+-------------------+----------------------------------------------------------------+
-| websockets        | :ref:`WebsocketsTransport <websockets_transport>`              |
-|                   |                                                                |
-|                   | :ref:`PhoenixChannelWebsocketsTransport <phoenix_transport>`   |
-+-------------------+----------------------------------------------------------------+
-| requests          | :ref:`RequestsHTTPTransport <requests_transport>`              |
-+-------------------+----------------------------------------------------------------+
++---------------------+----------------------------------------------------------------+
+| Extra dependencies  | Classes                                                        |
++=====================+================================================================+
+| aiohttp             | :ref:`AIOHTTPTransport <aiohttp_transport>`                    |
++---------------------+----------------------------------------------------------------+
+| websockets          | :ref:`WebsocketsTransport <websockets_transport>`              |
+|                     |                                                                |
+|                     | :ref:`PhoenixChannelWebsocketsTransport <phoenix_transport>`   |
+|                     |                                                                |
+|                     | :ref:`AppSyncWebsocketsTransport <appsync_transport>`          |
++---------------------+----------------------------------------------------------------+
+| requests            | :ref:`RequestsHTTPTransport <requests_transport>`              |
++---------------------+----------------------------------------------------------------+
+| botocore            | :ref:`AppSyncIAMAuthentication <appsync_iam_auth>`             |
++---------------------+----------------------------------------------------------------+
 
 .. note::
 

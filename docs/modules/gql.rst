@@ -20,6 +20,13 @@ Sub-Packages
 
    client
    transport
+   transport_aiohttp
+   transport_appsync_auth
+   transport_appsync_websockets
    transport_exceptions
+   transport_phoenix_channel_websockets
+   transport_requests
+   transport_websockets
+   transport_websockets_base
    dsl
    utilities

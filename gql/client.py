@@ -82,6 +82,12 @@ class Client:
                 not schema
             ), "Cannot fetch the schema from transport if is already provided."
 
+            assert not type(transport).__name__ == "AppSyncWebsocketsTransport", (
+                "fetch_schema_from_transport=True is not allowed "
+                "for AppSyncWebsocketsTransport "
+                "because only subscriptions are allowed on the realtime endpoint."
+            )
+
         if schema and not transport:
             transport = LocalSchemaTransport(schema)
 
