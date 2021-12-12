@@ -856,7 +856,7 @@ class DSLMetaField(DSLField):
     """
 
     meta_type = GraphQLObjectType(
-        "meta-field",
+        "meta_field",
         fields={
             "__typename": GraphQLField(GraphQLString),
             "__schema": GraphQLField(
