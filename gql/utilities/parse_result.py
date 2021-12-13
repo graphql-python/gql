@@ -102,6 +102,8 @@ class ParseResultVisitor(Visitor):
 
         self.result_stack: List[Any] = []
 
+        super().__init__()
+
     @property
     def current_result(self):
         try:
