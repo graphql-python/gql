@@ -347,7 +347,7 @@ file_upload_mutation_1 = """
 
 file_upload_mutation_1_operations = (
     '{"query": "mutation ($file: Upload!) {\\n  uploadFile(input: {other_var: '
-    '$other_var, file: $file}) {\\n    success\\n  }\\n}\\n", "variables": '
+    '$other_var, file: $file}) {\\n    success\\n  }\\n}", "variables": '
     '{"file": null, "other_var": 42}}'
 )
 
@@ -551,7 +551,7 @@ async def test_requests_binary_file_upload(event_loop, aiohttp_server, run_sync_
 
 file_upload_mutation_2_operations = (
     '{"query": "mutation ($file1: Upload!, $file2: Upload!) {\\n  '
-    'uploadFile(input: {file1: $file, file2: $file}) {\\n    success\\n  }\\n}\\n", '
+    'uploadFile(input: {file1: $file, file2: $file}) {\\n    success\\n  }\\n}", '
     '"variables": {"file1": null, "file2": null}}'
 )
 
@@ -651,7 +651,7 @@ async def test_requests_file_upload_two_files(
 
 file_upload_mutation_3_operations = (
     '{"query": "mutation ($files: [Upload!]!) {\\n  uploadFiles(input: {files: $files})'
-    ' {\\n    success\\n  }\\n}\\n", "variables": {"files": [null, null]}}'
+    ' {\\n    success\\n  }\\n}", "variables": {"files": [null, null]}}'
 )
 
 
