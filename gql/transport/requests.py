@@ -40,7 +40,7 @@ class RequestsHTTPTransport(Transport):
         auth: Optional[AuthBase] = None,
         use_json: bool = True,
         timeout: Optional[int] = None,
-        verify: bool = True,
+        verify: Union[bool, str] = True,
         retries: int = 0,
         method: str = "POST",
         **kwargs: Any,
