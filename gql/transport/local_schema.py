@@ -44,8 +44,7 @@ class LocalSchemaTransport(AsyncTransport):
             awaitable = cast(Awaitable[ExecutionResult], result_or_awaitable)
             execution_result = await awaitable
         else:
-            result = cast(ExecutionResult, result_or_awaitable)
-            execution_result = result
+            execution_result = cast(ExecutionResult, result_or_awaitable)
 
         return execution_result
 

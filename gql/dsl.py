@@ -29,11 +29,19 @@ from graphql.language.ast import Type as TypeNode
 from graphql.language.ast import Value as ValueNode
 from graphql.language.ast import Variable as VariableNode
 from graphql.language.ast import VariableDefinition as VariableDefinitionNode
-from graphql.type.definition import GraphQLNamedType
+from graphql.type.definition import GraphQLEnumType, GraphQLNamedType, GraphQLScalarType
 from graphql.utils.ast_from_value import ast_from_value as default_ast_from_value
 from graphql.utils.undefined import Undefined
 
 from .utils import to_camel_case
+
+GraphQLInputType = Union[
+    GraphQLScalarType,
+    GraphQLEnumType,
+    GraphQLInputObjectType,
+    GraphQLList,
+    GraphQLNonNull,
+]
 
 
 def is_named_type(type_: Any) -> bool:
@@ -52,7 +60,7 @@ FrozenList = list
 log = logging.getLogger(__name__)
 
 
-def ast_from_value(value: Any, type_) -> Optional[ValueNode]:
+def ast_from_value(value: Any, type_: GraphQLInputType) -> Optional[ValueNode]:
     """
     This is a partial copy paste of the ast_from_value function in
     graphql-core utilities/ast_from_value.py
@@ -66,7 +74,7 @@ def ast_from_value(value: Any, type_) -> Optional[ValueNode]:
         return value.set_type(type_).ast_variable
 
     if isinstance(type_, GraphQLNonNull):
-        return ast_from_value(value, type_.of_type)
+        return ast_from_value(value, cast(GraphQLInputType, type_.of_type))
 
     if value is Undefined:
         return None
@@ -91,7 +99,9 @@ def ast_from_value(value: Any, type_) -> Optional[ValueNode]:
                 field_def = type_.fields.get(field_name)
                 field_type = field_def and field_def.type
 
-            field_value = ast_from_value(field_value, field_type)
+            field_value = ast_from_value(
+                field_value, cast(GraphQLInputType, field_type)
+            )
             if field_value:
                 fields.append(ObjectFieldNode(NameNode(field_name), field_value))
         return ObjectValueNode(fields)
@@ -153,7 +163,7 @@ def dsl_gql(
                 variable_definitions=FrozenList(
                     operation.variable_definitions.get_ast_definitions()
                 ),
-                name=NameNode(value=operation.name or ""),
+                name=NameNode(value=operation.name) if operation.name else None,
             )
             for operation in all_operations
         ]

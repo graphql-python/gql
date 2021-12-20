@@ -227,33 +227,34 @@ human(id: "1000") {
 
 def test_fetch_luke_aliased(ds):
     query = """
-luke: human(id: 1000) {
+luke: human(id: "1000") {
   name
 }
     """.strip()
-    query_dsl = ds.Query.human.args(id=1000).alias("luke").select(ds.Character.name,)
+    query_dsl = ds.Query.human.args(id="1000").alias("luke").select(ds.Character.name,)
     assert query == str(query_dsl)
 
 
 def test_fetch_name_aliased(ds: DSLSchema):
     query = """
-human(id: 1000) {
+human(id: "1000") {
   my_name: name
 }
     """.strip()
-    query_dsl = ds.Query.human.args(id=1000).select(ds.Character.name.alias("my_name"))
+    query_dsl = ds.Query.human.args(id="1000").select(
+        ds.Character.name.alias("my_name")
+    )
     query_str = str(query_dsl)
-    print(query_str)
     assert query == query_str
 
 
 def test_fetch_name_aliased_as_kwargs(ds: DSLSchema):
     query = """
-human(id: 1000) {
+human(id: "1000") {
   my_name: name
 }
     """.strip()
-    query_dsl = ds.Query.human.args(id=1000).select(my_name=ds.Character.name,)
+    query_dsl = ds.Query.human.args(id="1000").select(my_name=ds.Character.name,)
     assert query == str(query_dsl)
 
 
@@ -311,7 +312,7 @@ def test_subscription(ds):
 
     query = dsl_gql(
         DSLSubscription(
-            ds.Subscription.reviewAdded(episode=6).select(
+            ds.Subscription.reviewAdded(episode="JEDI").select(
                 ds.Review.stars, ds.Review.commentary
             )
         )
@@ -319,7 +320,7 @@ def test_subscription(ds):
     assert (
         print_ast(query)
         == """subscription {
-  reviewAdded(episode: 6) {
+  reviewAdded(episode: JEDI) {
     stars
     commentary
   }
@@ -369,11 +370,11 @@ def test_root_fields_aliased(ds, client):
 
 
 def test_operation_name(ds):
-    query = dsl_gql(DSLQuery(ds.Query.hero.select(ds.Character.name),))
+    query = dsl_gql(GetHeroName=DSLQuery(ds.Query.hero.select(ds.Character.name),))
 
     assert (
         print_ast(query)
-        == """{
+        == """query GetHeroName {
   hero {
     name
   }
@@ -384,30 +385,32 @@ def test_operation_name(ds):
 
 def test_multiple_operations(ds):
     query = dsl_gql(
-        DSLQuery(ds.Query.hero.select(ds.Character.name)),
-        DSLMutation(
+        GetHeroName=DSLQuery(ds.Query.hero.select(ds.Character.name)),
+        CreateReviewMutation=DSLMutation(
             ds.Mutation.createReview.args(
-                episode=6, review={"stars": 5, "commentary": "This is a great movie!"}
+                episode="JEDI",
+                review={"stars": 5, "commentary": "This is a great movie!"},
             ).select(ds.Review.stars, ds.Review.commentary)
         ),
     )
 
     result = print_ast(query)
+    print(result)
     assert (
         result
-        == """{
+        == """query GetHeroName {
   hero {
     name
   }
 }
 
-mutation {
-  createReview(episode: 6, review: {stars: 5, commentary: "This is a great movie!"}) {
+mutation CreateReviewMutation {
+  createReview(episode: JEDI, review: {stars: 5, commentary: "This is a great movie!"}) {
     stars
     commentary
   }
 }
-"""
+"""  # noqa: E501
     )
 
 
