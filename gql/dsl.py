@@ -6,7 +6,7 @@ import logging
 import re
 from abc import ABC, abstractmethod
 from math import isfinite
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple, Union, cast
+from typing import Any, Dict, Iterable, Mapping, Optional, Tuple, Union, cast
 
 from graphql import (
     ArgumentNode,
@@ -61,7 +61,7 @@ from graphql import (
     is_wrapping_type,
     print_ast,
 )
-from graphql.pyutils import FrozenList, inspect
+from graphql.pyutils import inspect
 
 from .utils import to_camel_case
 
@@ -90,17 +90,17 @@ def ast_from_serialized_value_untyped(serialized: Any) -> Optional[ValueNode]:
             (key, ast_from_serialized_value_untyped(value))
             for key, value in serialized.items()
         )
-        field_nodes = (
+        field_nodes = tuple(
             ObjectFieldNode(name=NameNode(value=field_name), value=field_value)
             for field_name, field_value in field_items
             if field_value
         )
-        return ObjectValueNode(fields=FrozenList(field_nodes))
+        return ObjectValueNode(fields=field_nodes)
 
     if isinstance(serialized, Iterable) and not isinstance(serialized, str):
         maybe_nodes = (ast_from_serialized_value_untyped(item) for item in serialized)
-        nodes = filter(None, maybe_nodes)
-        return ListValueNode(values=FrozenList(nodes))
+        nodes = tuple(node for node in maybe_nodes if node)
+        return ListValueNode(values=nodes)
 
     if isinstance(serialized, bool):
         return BooleanValueNode(value=serialized)
@@ -158,8 +158,8 @@ def ast_from_value(value: Any, type_: GraphQLInputType) -> Optional[ValueNode]:
         item_type = type_.of_type
         if isinstance(value, Iterable) and not isinstance(value, str):
             maybe_value_nodes = (ast_from_value(item, item_type) for item in value)
-            value_nodes = filter(None, maybe_value_nodes)
-            return ListValueNode(values=FrozenList(value_nodes))
+            value_nodes = tuple(node for node in maybe_value_nodes if node)
+            return ListValueNode(values=value_nodes)
         return ast_from_value(value, item_type)
 
     # Populate the fields of the input object by creating ASTs from each value in the
@@ -173,12 +173,12 @@ def ast_from_value(value: Any, type_: GraphQLInputType) -> Optional[ValueNode]:
             for field_name, field in type_.fields.items()
             if field_name in value
         )
-        field_nodes = (
+        field_nodes = tuple(
             ObjectFieldNode(name=NameNode(value=field_name), value=field_value)
             for field_name, field_value in field_items
             if field_value
         )
-        return ObjectValueNode(fields=FrozenList(field_nodes))
+        return ObjectValueNode(fields=field_nodes)
 
     if is_leaf_type(type_):
         # Since value is an internally represented value, it must be serialized to an
@@ -314,7 +314,7 @@ class DSLSelector(ABC):
         self, *fields: "DSLSelectable", **fields_with_alias: "DSLSelectableWithAlias",
     ):
         """:meta private:"""
-        self.selection_set = SelectionSetNode(selections=FrozenList([]))
+        self.selection_set = SelectionSetNode(selections=())
 
         if fields or fields_with_alias:
             self.select(*fields, **fields_with_alias)
@@ -355,14 +355,12 @@ class DSLSelector(ABC):
                 raise GraphQLError(f"Invalid field for {self!r}: {field!r}")
 
         # Get a list of AST Nodes for each added field
-        added_selections: List[
-            Union[FieldNode, InlineFragmentNode, FragmentSpreadNode]
-        ] = [field.ast_field for field in added_fields]
+        added_selections: Tuple[
+            Union[FieldNode, InlineFragmentNode, FragmentSpreadNode], ...
+        ] = tuple(field.ast_field for field in added_fields)
 
         # Update the current selection list with new selections
-        self.selection_set.selections = FrozenList(
-            self.selection_set.selections + added_selections
-        )
+        self.selection_set.selections = self.selection_set.selections + added_selections
 
         log.debug(f"Added fields: {added_fields} in {self!r}")
 
@@ -470,9 +468,7 @@ class DSLOperation(DSLExecutable, DSLRootFieldSelector):
         return OperationDefinitionNode(
             operation=OperationType(self.operation_type),
             selection_set=self.selection_set,
-            variable_definitions=FrozenList(
-                self.variable_definitions.get_ast_definitions()
-            ),
+            variable_definitions=self.variable_definitions.get_ast_definitions(),
             **({"name": NameNode(value=self.name)} if self.name else {}),
         )
 
@@ -548,19 +544,19 @@ class DSLVariableDefinitions:
             self.variables[name] = DSLVariable(name)
         return self.variables[name]
 
-    def get_ast_definitions(self) -> List[VariableDefinitionNode]:
+    def get_ast_definitions(self) -> Tuple[VariableDefinitionNode, ...]:
         """
         :meta private:
 
         Return a list of VariableDefinitionNodes for each variable with a type
         """
-        return [
+        return tuple(
             VariableDefinitionNode(
                 type=var.type, variable=var.ast_variable, default_value=None,
             )
             for var in self.variables.values()
             if var.type is not None  # only variables used
-        ]
+        )
 
 
 class DSLType:
@@ -770,7 +766,7 @@ class DSLField(DSLSelectableWithAlias, DSLFieldSelector):
         """
         self.parent_type = parent_type
         self.field = field
-        self.ast_field = FieldNode(name=NameNode(value=name), arguments=FrozenList())
+        self.ast_field = FieldNode(name=NameNode(value=name), arguments=())
 
         log.debug(f"Creating {self!r}")
 
@@ -803,15 +799,12 @@ class DSLField(DSLSelectableWithAlias, DSLFieldSelector):
 
         assert self.ast_field.arguments is not None
 
-        self.ast_field.arguments = FrozenList(
-            self.ast_field.arguments
-            + [
-                ArgumentNode(
-                    name=NameNode(value=name),
-                    value=ast_from_value(value, self._get_argument(name).type),
-                )
-                for name, value in kwargs.items()
-            ]
+        self.ast_field.arguments = self.ast_field.arguments + tuple(
+            ArgumentNode(
+                name=NameNode(value=name),
+                value=ast_from_value(value, self._get_argument(name).type),
+            )
+            for name, value in kwargs.items()
         )
 
         log.debug(f"Added arguments {kwargs} in field {self!r})")
@@ -1022,9 +1015,7 @@ class DSLFragment(DSLSelectable, DSLFragmentSelector, DSLExecutable):
         return FragmentDefinitionNode(
             type_condition=NamedTypeNode(name=NameNode(value=self._type.name)),
             selection_set=self.selection_set,
-            variable_definitions=FrozenList(
-                self.variable_definitions.get_ast_definitions()
-            ),
+            variable_definitions=self.variable_definitions.get_ast_definitions(),
             name=NameNode(value=self.name),
         )
 

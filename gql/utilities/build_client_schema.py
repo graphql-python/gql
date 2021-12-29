@@ -1,6 +1,4 @@
-from typing import Dict
-
-from graphql import GraphQLSchema
+from graphql import GraphQLSchema, IntrospectionQuery
 from graphql import build_client_schema as build_client_schema_orig
 from graphql.pyutils import inspect
 
@@ -50,7 +48,7 @@ SKIP_DIRECTIVE_JSON = {
 }
 
 
-def build_client_schema(introspection: Dict) -> GraphQLSchema:
+def build_client_schema(introspection: IntrospectionQuery) -> GraphQLSchema:
     """This is an alternative to the graphql-core function
     :code:`build_client_schema` but with default include and skip directives
     added to the schema to fix
@@ -77,13 +75,12 @@ def build_client_schema(introspection: Dict) -> GraphQLSchema:
     directives = schema_introspection.get("directives", None)
 
     if directives is None:
-        directives = []
-        schema_introspection["directives"] = directives
+        schema_introspection["directives"] = directives = []
 
     if not any(directive["name"] == "skip" for directive in directives):
-        directives.append(SKIP_DIRECTIVE_JSON)
+        directives.append(SKIP_DIRECTIVE_JSON)  # type: ignore
 
     if not any(directive["name"] == "include" for directive in directives):
-        directives.append(INCLUDE_DIRECTIVE_JSON)
+        directives.append(INCLUDE_DIRECTIVE_JSON)  # type: ignore
 
     return build_client_schema_orig(introspection, assume_valid=False)

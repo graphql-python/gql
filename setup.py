@@ -3,7 +3,7 @@ import os
 from setuptools import setup, find_packages
 
 install_requires = [
-    "graphql-core>=3.2.0rc3,<3.3",
+    "graphql-core>=3.2.0rc4,<3.3",
     "yarl>=1.6,<2.0",
 ]
 
