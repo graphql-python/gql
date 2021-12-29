@@ -1,17 +1,25 @@
 from graphql import GraphQLSchema, IntrospectionQuery
 from graphql import build_client_schema as build_client_schema_orig
 from graphql.pyutils import inspect
+from graphql.utilities.get_introspection_query import (
+    DirectiveLocation,
+    IntrospectionDirective,
+)
 
 __all__ = ["build_client_schema"]
 
 
-INCLUDE_DIRECTIVE_JSON = {
+INCLUDE_DIRECTIVE_JSON: IntrospectionDirective = {
     "name": "include",
     "description": (
         "Directs the executor to include this field or fragment "
         "only when the `if` argument is true."
     ),
-    "locations": ["FIELD", "FRAGMENT_SPREAD", "INLINE_FRAGMENT"],
+    "locations": [
+        DirectiveLocation.FIELD,
+        DirectiveLocation.FRAGMENT_SPREAD,
+        DirectiveLocation.INLINE_FRAGMENT,
+    ],
     "args": [
         {
             "name": "if",
@@ -26,13 +34,17 @@ INCLUDE_DIRECTIVE_JSON = {
     ],
 }
 
-SKIP_DIRECTIVE_JSON = {
+SKIP_DIRECTIVE_JSON: IntrospectionDirective = {
     "name": "skip",
     "description": (
         "Directs the executor to skip this field or fragment "
         "when the `if` argument is true."
     ),
-    "locations": ["FIELD", "FRAGMENT_SPREAD", "INLINE_FRAGMENT"],
+    "locations": [
+        DirectiveLocation.FIELD,
+        DirectiveLocation.FRAGMENT_SPREAD,
+        DirectiveLocation.INLINE_FRAGMENT,
+    ],
     "args": [
         {
             "name": "if",
@@ -78,9 +90,9 @@ def build_client_schema(introspection: IntrospectionQuery) -> GraphQLSchema:
         schema_introspection["directives"] = directives = []
 
     if not any(directive["name"] == "skip" for directive in directives):
-        directives.append(SKIP_DIRECTIVE_JSON)  # type: ignore
+        directives.append(SKIP_DIRECTIVE_JSON)
 
     if not any(directive["name"] == "include" for directive in directives):
-        directives.append(INCLUDE_DIRECTIVE_JSON)  # type: ignore
+        directives.append(INCLUDE_DIRECTIVE_JSON)
 
     return build_client_schema_orig(introspection, assume_valid=False)
