@@ -1,6 +1,6 @@
 import asyncio
 import warnings
-from typing import Any, AsyncGenerator, Dict, Generator, Optional, Union
+from typing import Any, AsyncGenerator, Dict, Generator, Optional, Union, overload
 
 from graphql import (
     DocumentNode,
@@ -12,6 +12,7 @@ from graphql import (
     validate,
 )
 
+from .compat import Literal
 from .transport.async_transport import AsyncTransport
 from .transport.exceptions import TransportQueryError
 from .transport.local_schema import LocalSchemaTransport
@@ -362,6 +363,34 @@ class SyncClientSession:
 
         return result
 
+    @overload
+    def execute(
+        self,
+        document: DocumentNode,
+        *args,
+        variable_values: Optional[Dict[str, Any]] = ...,
+        operation_name: Optional[str] = ...,
+        serialize_variables: Optional[bool] = ...,
+        parse_result: Optional[bool] = ...,
+        get_execution_result: Literal[False] = ...,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        ...
+
+    @overload
+    def execute(
+        self,
+        document: DocumentNode,
+        *args,
+        variable_values: Optional[Dict[str, Any]] = ...,
+        operation_name: Optional[str] = ...,
+        serialize_variables: Optional[bool] = ...,
+        parse_result: Optional[bool] = ...,
+        get_execution_result: Literal[True],
+        **kwargs,
+    ) -> ExecutionResult:
+        ...
+
     def execute(
         self,
         document: DocumentNode,
@@ -525,7 +554,35 @@ class AsyncClientSession:
         finally:
             await inner_generator.aclose()
 
+    @overload
     async def subscribe(
+        self,
+        document: DocumentNode,
+        *args,
+        variable_values: Optional[Dict[str, Any]] = ...,
+        operation_name: Optional[str] = ...,
+        serialize_variables: Optional[bool] = ...,
+        parse_result: Optional[bool] = ...,
+        get_execution_result: Literal[False] = ...,
+        **kwargs,
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        ...
+
+    @overload
+    async def subscribe(
+        self,
+        document: DocumentNode,
+        *args,
+        variable_values: Optional[Dict[str, Any]] = ...,
+        operation_name: Optional[str] = ...,
+        serialize_variables: Optional[bool] = ...,
+        parse_result: Optional[bool] = ...,
+        get_execution_result: Literal[True],
+        **kwargs,
+    ) -> AsyncGenerator[ExecutionResult, None]:
+        ...
+
+    async def subscribe(  # type: ignore[misc]
         self,
         document: DocumentNode,
         *args,
@@ -652,6 +709,34 @@ class AsyncClientSession:
                 )
 
         return result
+
+    @overload
+    async def execute(
+        self,
+        document: DocumentNode,
+        *args,
+        variable_values: Optional[Dict[str, Any]] = ...,
+        operation_name: Optional[str] = ...,
+        serialize_variables: Optional[bool] = ...,
+        parse_result: Optional[bool] = ...,
+        get_execution_result: Literal[False] = ...,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        ...
+
+    @overload
+    async def execute(
+        self,
+        document: DocumentNode,
+        *args,
+        variable_values: Optional[Dict[str, Any]] = ...,
+        operation_name: Optional[str] = ...,
+        serialize_variables: Optional[bool] = ...,
+        parse_result: Optional[bool] = ...,
+        get_execution_result: Literal[True],
+        **kwargs,
+    ) -> ExecutionResult:
+        ...
 
     async def execute(
         self,
