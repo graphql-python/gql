@@ -565,7 +565,7 @@ class AsyncClientSession:
             await inner_generator.aclose()
 
     @overload
-    async def subscribe(
+    def subscribe(
         self,
         document: DocumentNode,
         *args,
@@ -579,7 +579,7 @@ class AsyncClientSession:
         ...
 
     @overload
-    async def subscribe(
+    def subscribe(
         self,
         document: DocumentNode,
         *args,
@@ -592,7 +592,7 @@ class AsyncClientSession:
     ) -> AsyncGenerator[ExecutionResult, None]:
         ...
 
-    async def subscribe(  # type: ignore[misc]
+    async def subscribe(
         self,
         document: DocumentNode,
         *args,
@@ -602,7 +602,9 @@ class AsyncClientSession:
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
         **kwargs,
-    ) -> AsyncGenerator[Union[Dict[str, Any], ExecutionResult], None]:
+    ) -> Union[
+        AsyncGenerator[Dict[str, Any], None], AsyncGenerator[ExecutionResult, None]
+    ]:
         """Coroutine to subscribe asynchronously to the provided document AST
         asynchronously using the async transport.
 
