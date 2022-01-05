@@ -85,6 +85,7 @@ def test_no_schema_exception():
     )
 
 
+@pytest.mark.online
 @pytest.mark.requests
 def test_execute_result_error():
 
@@ -111,6 +112,7 @@ def test_execute_result_error():
     assert 'Cannot query field "id" on type "Continent".' in str(exc_info.value)
 
 
+@pytest.mark.online
 @pytest.mark.requests
 def test_http_transport_raise_for_status_error(http_transport_query):
     from gql.transport.requests import RequestsHTTPTransport
@@ -127,6 +129,7 @@ def test_http_transport_raise_for_status_error(http_transport_query):
     assert "400 Client Error: Bad Request for url" in str(exc_info.value)
 
 
+@pytest.mark.online
 @pytest.mark.requests
 def test_http_transport_verify_error(http_transport_query):
     from gql.transport.requests import RequestsHTTPTransport
@@ -142,6 +145,7 @@ def test_http_transport_verify_error(http_transport_query):
     assert "Unverified HTTPS request is being made to host" in str(record[0].message)
 
 
+@pytest.mark.online
 @pytest.mark.requests
 def test_http_transport_specify_method_valid(http_transport_query):
     from gql.transport.requests import RequestsHTTPTransport
@@ -155,6 +159,7 @@ def test_http_transport_specify_method_valid(http_transport_query):
     assert result is not None
 
 
+@pytest.mark.online
 @pytest.mark.requests
 def test_http_transport_specify_method_invalid(http_transport_query):
     from gql.transport.requests import RequestsHTTPTransport
