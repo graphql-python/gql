@@ -1,6 +1,7 @@
 import asyncio
+import sys
 import warnings
-from typing import Any, AsyncGenerator, Dict, Generator, Optional, Union
+from typing import Any, AsyncGenerator, Dict, Generator, Optional, Union, overload
 
 from graphql import (
     DocumentNode,
@@ -19,6 +20,16 @@ from .transport.transport import Transport
 from .utilities import build_client_schema
 from .utilities import parse_result as parse_result_fn
 from .utilities import serialize_variable_values
+
+"""
+Load the appropriate instance of the Literal type
+Note: we cannot use try: except ImportError because of the following mypy issue:
+https://github.com/python/mypy/issues/8520
+"""
+if sys.version_info[:2] >= (3, 8):
+    from typing import Literal
+else:
+    from typing_extensions import Literal  # pragma: no cover
 
 
 class Client:
@@ -362,6 +373,34 @@ class SyncClientSession:
 
         return result
 
+    @overload
+    def execute(
+        self,
+        document: DocumentNode,
+        *args,
+        variable_values: Optional[Dict[str, Any]] = ...,
+        operation_name: Optional[str] = ...,
+        serialize_variables: Optional[bool] = ...,
+        parse_result: Optional[bool] = ...,
+        get_execution_result: Literal[False] = ...,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        ...  # pragma: no cover
+
+    @overload
+    def execute(
+        self,
+        document: DocumentNode,
+        *args,
+        variable_values: Optional[Dict[str, Any]] = ...,
+        operation_name: Optional[str] = ...,
+        serialize_variables: Optional[bool] = ...,
+        parse_result: Optional[bool] = ...,
+        get_execution_result: Literal[True],
+        **kwargs,
+    ) -> ExecutionResult:
+        ...  # pragma: no cover
+
     def execute(
         self,
         document: DocumentNode,
@@ -525,6 +564,34 @@ class AsyncClientSession:
         finally:
             await inner_generator.aclose()
 
+    @overload
+    def subscribe(
+        self,
+        document: DocumentNode,
+        *args,
+        variable_values: Optional[Dict[str, Any]] = ...,
+        operation_name: Optional[str] = ...,
+        serialize_variables: Optional[bool] = ...,
+        parse_result: Optional[bool] = ...,
+        get_execution_result: Literal[False] = ...,
+        **kwargs,
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        ...  # pragma: no cover
+
+    @overload
+    def subscribe(
+        self,
+        document: DocumentNode,
+        *args,
+        variable_values: Optional[Dict[str, Any]] = ...,
+        operation_name: Optional[str] = ...,
+        serialize_variables: Optional[bool] = ...,
+        parse_result: Optional[bool] = ...,
+        get_execution_result: Literal[True],
+        **kwargs,
+    ) -> AsyncGenerator[ExecutionResult, None]:
+        ...  # pragma: no cover
+
     async def subscribe(
         self,
         document: DocumentNode,
@@ -535,7 +602,9 @@ class AsyncClientSession:
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
         **kwargs,
-    ) -> AsyncGenerator[Union[Dict[str, Any], ExecutionResult], None]:
+    ) -> Union[
+        AsyncGenerator[Dict[str, Any], None], AsyncGenerator[ExecutionResult, None]
+    ]:
         """Coroutine to subscribe asynchronously to the provided document AST
         asynchronously using the async transport.
 
@@ -652,6 +721,34 @@ class AsyncClientSession:
                 )
 
         return result
+
+    @overload
+    async def execute(
+        self,
+        document: DocumentNode,
+        *args,
+        variable_values: Optional[Dict[str, Any]] = ...,
+        operation_name: Optional[str] = ...,
+        serialize_variables: Optional[bool] = ...,
+        parse_result: Optional[bool] = ...,
+        get_execution_result: Literal[False] = ...,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        ...  # pragma: no cover
+
+    @overload
+    async def execute(
+        self,
+        document: DocumentNode,
+        *args,
+        variable_values: Optional[Dict[str, Any]] = ...,
+        operation_name: Optional[str] = ...,
+        serialize_variables: Optional[bool] = ...,
+        parse_result: Optional[bool] = ...,
+        get_execution_result: Literal[True],
+        **kwargs,
+    ) -> ExecutionResult:
+        ...  # pragma: no cover
 
     async def execute(
         self,
