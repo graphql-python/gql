@@ -1,4 +1,5 @@
 import asyncio
+import sys
 import warnings
 from typing import Any, AsyncGenerator, Dict, Generator, Optional, Union, overload
 
@@ -12,7 +13,6 @@ from graphql import (
     validate,
 )
 
-from .compat import Literal
 from .transport.async_transport import AsyncTransport
 from .transport.exceptions import TransportQueryError
 from .transport.local_schema import LocalSchemaTransport
@@ -20,6 +20,16 @@ from .transport.transport import Transport
 from .utilities import build_client_schema
 from .utilities import parse_result as parse_result_fn
 from .utilities import serialize_variable_values
+
+"""
+Load the appropriate instance of the Literal type
+Note: we cannot use try: except ImportError because of the following mypy issue:
+https://github.com/python/mypy/issues/8520
+"""
+if sys.version_info[:2] >= (3, 8):
+    from typing import Literal
+else:
+    from typing_extensions import Literal
 
 
 class Client:
