@@ -29,7 +29,7 @@ https://github.com/python/mypy/issues/8520
 if sys.version_info[:2] >= (3, 8):
     from typing import Literal
 else:
-    from typing_extensions import Literal
+    from typing_extensions import Literal  # pragma: no cover
 
 
 class Client:
@@ -385,7 +385,7 @@ class SyncClientSession:
         get_execution_result: Literal[False] = ...,
         **kwargs,
     ) -> Dict[str, Any]:
-        ...
+        ...  # pragma: no cover
 
     @overload
     def execute(
@@ -399,7 +399,7 @@ class SyncClientSession:
         get_execution_result: Literal[True],
         **kwargs,
     ) -> ExecutionResult:
-        ...
+        ...  # pragma: no cover
 
     def execute(
         self,
@@ -576,7 +576,7 @@ class AsyncClientSession:
         get_execution_result: Literal[False] = ...,
         **kwargs,
     ) -> AsyncGenerator[Dict[str, Any], None]:
-        ...
+        ...  # pragma: no cover
 
     @overload
     def subscribe(
@@ -590,7 +590,7 @@ class AsyncClientSession:
         get_execution_result: Literal[True],
         **kwargs,
     ) -> AsyncGenerator[ExecutionResult, None]:
-        ...
+        ...  # pragma: no cover
 
     async def subscribe(
         self,
@@ -734,7 +734,7 @@ class AsyncClientSession:
         get_execution_result: Literal[False] = ...,
         **kwargs,
     ) -> Dict[str, Any]:
-        ...
+        ...  # pragma: no cover
 
     @overload
     async def execute(
@@ -748,7 +748,7 @@ class AsyncClientSession:
         get_execution_result: Literal[True],
         **kwargs,
     ) -> ExecutionResult:
-        ...
+        ...  # pragma: no cover
 
     async def execute(
         self,
