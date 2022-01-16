@@ -59,7 +59,7 @@ def get_introspection_query_ast(
     if descriptions:
         fragment_FullType.select(ds.__Type.description)
     if specified_by_url:
-        fragment_FullType.select(ds.__Type.specifiedByUrl)
+        fragment_FullType.select(ds.__Type.specifiedByURL)
 
     fields = ds.__Type.fields(includeDeprecated=True).select(ds.__Field.name)
 

@@ -1,11 +1,12 @@
 import asyncio
+from math import isfinite
 from typing import Any, Dict, NamedTuple, Optional
 
 import pytest
 from graphql import graphql_sync
 from graphql.error import GraphQLError
 from graphql.language import ValueNode
-from graphql.pyutils import inspect, is_finite
+from graphql.pyutils import inspect
 from graphql.type import (
     GraphQLArgument,
     GraphQLField,
@@ -32,6 +33,13 @@ pytestmark = pytest.mark.aiohttp
 class Money(NamedTuple):
     amount: float
     currency: str
+
+
+def is_finite(value: Any) -> bool:
+    """Return true if a value is a finite number."""
+    return (isinstance(value, int) and not isinstance(value, bool)) or (
+        isinstance(value, float) and isfinite(value)
+    )
 
 
 def serialize_money(output_value: Any) -> Dict[str, Any]:

@@ -1,7 +1,37 @@
 import asyncio
-from collections import namedtuple
+from typing import Collection
 
-Human = namedtuple("Human", "id name friends appearsIn homePlanet")
+
+class Character:
+    id: str
+    name: str
+    friends: Collection[str]
+    appearsIn: Collection[str]
+
+
+# noinspection PyPep8Naming
+class Human(Character):
+    type = "Human"
+    homePlanet: str
+
+    # noinspection PyShadowingBuiltins
+    def __init__(self, id, name, friends, appearsIn, homePlanet):
+        self.id, self.name = id, name
+        self.friends, self.appearsIn = friends, appearsIn
+        self.homePlanet = homePlanet
+
+
+# noinspection PyPep8Naming
+class Droid(Character):
+    type = "Droid"
+    primaryFunction: str
+
+    # noinspection PyShadowingBuiltins
+    def __init__(self, id, name, friends, appearsIn, primaryFunction):
+        self.id, self.name = id, name
+        self.friends, self.appearsIn = friends, appearsIn
+        self.primaryFunction = primaryFunction
+
 
 luke = Human(
     id="1000",
@@ -47,8 +77,6 @@ humanData = {
     "1004": tarkin,
 }
 
-Droid = namedtuple("Droid", "id name friends appearsIn primaryFunction")
-
 threepio = Droid(
     id="2000",
     name="C-3PO",
@@ -77,38 +105,38 @@ reviews = {
 }
 
 
-def getCharacter(id):
+def get_character(id):
     return humanData.get(id) or droidData.get(id)
 
 
-def getCharacters(ids):
-    return map(getCharacter, ids)
+def get_characters(ids):
+    return map(get_character, ids)
 
 
-def getFriends(character):
-    return map(getCharacter, character.friends)
+def get_friends(character):
+    return map(get_character, character.friends)
 
 
-def getHero(episode):
+def get_hero(episode):
     if episode == 5:
         return luke
     return artoo
 
 
-async def getHeroAsync(episode):
+async def get_hero_async(episode):
     await asyncio.sleep(0.001)
-    return getHero(episode)
+    return get_hero(episode)
 
 
-def getHuman(id):
+def get_human(id):
     return humanData.get(id)
 
 
-def getDroid(id):
+def get_droid(id):
     return droidData.get(id)
 
 
-def createReview(episode, review):
+def create_review(episode, review):
     reviews[episode].append(review)
     review["episode"] = episode
     return review

@@ -129,8 +129,7 @@ def test_use_variable_definition_multiple_times(ds):
     stars
     commentary
   }
-}
-"""
+}"""
     )
 
 
@@ -151,8 +150,7 @@ def test_add_variable_definitions(ds):
     stars
     commentary
   }
-}
-"""
+}"""
     )
 
 
@@ -177,8 +175,7 @@ def test_add_variable_definitions_in_input_object(ds):
     stars
     commentary
   }
-}
-"""
+}"""
     )
 
 
@@ -376,8 +373,7 @@ def test_subscription(ds):
     stars
     commentary
   }
-}
-"""
+}"""
     )
 
 
@@ -445,8 +441,7 @@ def test_operation_name(ds):
   hero {
     name
   }
-}
-"""
+}"""
     )
 
 
@@ -476,8 +471,7 @@ mutation CreateReviewMutation {
     stars
     commentary
   }
-}
-"""
+}"""
     )
 
 
@@ -535,8 +529,7 @@ def test_fragments(ds):
   hero {
     ...NameAndAppearances
   }
-}
-"""
+}"""
 
     name_and_appearances = (
         DSLFragment("NameAndAppearances")
@@ -624,8 +617,7 @@ query NestedQueryWithFragment {
       }
     }
   }
-}
-"""
+}"""
 
     name_and_appearances = (
         DSLFragment("NameAndAppearances")

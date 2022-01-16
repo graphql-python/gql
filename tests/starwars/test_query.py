@@ -1,5 +1,5 @@
 import pytest
-from graphql import GraphQLError, format_error
+from graphql import GraphQLError
 
 from gql import Client, gql
 from tests.starwars.schema import StarWarsSchema
@@ -302,9 +302,7 @@ def test_parse_error(client):
         )
     error = exc_info.value
     assert isinstance(error, GraphQLError)
-    formatted_error = format_error(error)
-    assert formatted_error["locations"] == [{"column": 13, "line": 2}]
-    assert formatted_error["message"] == "Syntax Error: Unexpected Name 'qeury'."
+    assert "Syntax Error: Unexpected Name 'qeury'." in str(error)
 
 
 def test_mutation_result(client):
