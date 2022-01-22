@@ -60,7 +60,7 @@ It is also possible to upload multiple files using a list.
     ''')
 
     f1 = open("YOUR_FILE_PATH_1", "rb")
-    f2 = open("YOUR_FILE_PATH_1", "rb")
+    f2 = open("YOUR_FILE_PATH_2", "rb")
 
     params = {"files": [f1, f2]}
 

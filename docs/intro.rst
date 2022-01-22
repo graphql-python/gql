@@ -12,12 +12,7 @@ Installation
 
 You can install GQL 3 and all the extra dependencies using pip_::
 
-    pip install --pre gql[all]
-
-.. warning::
-
-    Please note that the following documentation describes the current version which is currently only available
-    as a pre-release and needs to be installed with "`--pre`"
+    pip install gql[all]
 
 After installation, you can start using GQL by importing from the top-level
 :mod:`gql` package.
@@ -33,7 +28,7 @@ instead of using the "`all`" extra dependency as described above, which installs
 If for example you only need the :ref:`AIOHTTPTransport <aiohttp_transport>`,
 which needs the :code:`aiohttp` dependency, then you can install GQL with::
 
-    pip install --pre gql[aiohttp]
+    pip install gql[aiohttp]
 
 The corresponding between extra dependencies required and the GQL classes is:
 

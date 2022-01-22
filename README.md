@@ -5,9 +5,6 @@ Plays nicely with `graphene`, `graphql-core`, `graphql-js` and any other GraphQL
 
 GQL architecture is inspired by `React-Relay` and `Apollo-Client`.
 
-> **WARNING**: Please note that the following documentation describes the current version which is currently only available as a pre-release
-> The documentation for the 2.x version compatible with python<3.6 is available in the [2.x branch](https://github.com/graphql-python/gql/tree/v2.x)
-
 [![GitHub-Actions][gh-image]][gh-url]
 [![pyversion][pyversion-image]][pyversion-url]
 [![pypi][pypi-image]][pypi-url]
@@ -48,11 +45,11 @@ The complete documentation for GQL can be found at
 
 ## Installation
 
-> **WARNING**: Please note that the following documentation describes the current version which is currently only available as a pre-release and needs to be installed with
+You can install GQL with all the optional dependencies using pip:
 
-    $ pip install --pre gql[all]
+    pip install gql[all]
 
-> **NOTE**: See also [the documentation](https://gql.readthedocs.io/en/latest/intro.html#less-dependencies) to install GQL with less extra dependencies
+> **NOTE**: See also [the documentation](https://gql.readthedocs.io/en/latest/intro.html#less-dependencies) to install GQL with less extra dependencies depending on the transports you would like to use
 
 ## Usage
 
