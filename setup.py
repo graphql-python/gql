@@ -75,7 +75,7 @@ setup(
     author_email="me@syrusakbary.com",
     license="MIT",
     classifiers=[
-        "Development Status :: 4 - Beta",
+        "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",
         "Topic :: Software Development :: Libraries",
         "Programming Language :: Python :: 3",
