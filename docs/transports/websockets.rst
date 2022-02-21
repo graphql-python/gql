@@ -8,7 +8,14 @@ The websockets transport supports both:
  - the `Apollo websockets transport protocol`_.
  - the `GraphQL-ws websockets transport protocol`_
 
-It will detect the backend supported protocol from the response http headers returned.
+It will propose both subprotocols to the backend and detect the supported protocol
+from the response http headers returned by the backend.
+
+.. note::
+    For some backends (graphql-ws without backwards compatibility), it may be necessary to specify
+    only one subprotocol to the backend. It can be done by using
+    :code:`subprotocols=[WebsocketsTransport.GRAPHQLWS_SUBPROTOCOL]`
+    or :code:`subprotocols=[WebsocketsTransport.APOLLO_SUBPROTOCOL]` in the transport arguments.
 
 This transport allows to do multiple queries, mutations and subscriptions on the same websocket connection.
 
