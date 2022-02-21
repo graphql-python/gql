@@ -420,6 +420,40 @@ async def test_aiohttp_query_variable_values(event_loop, aiohttp_server):
 
 
 @pytest.mark.asyncio
+async def test_aiohttp_query_variable_values_fix_issue_292(event_loop, aiohttp_server):
+    """Allow to specify variable_values without keyword.
+
+    See https://github.com/graphql-python/gql/issues/292"""
+
+    from aiohttp import web
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    async def handler(request):
+        return web.Response(text=query2_server_answer, content_type="application/json")
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    sample_transport = AIOHTTPTransport(url=url, timeout=10)
+
+    async with Client(transport=sample_transport,) as session:
+
+        params = {"code": "EU"}
+
+        query = gql(query2_str)
+
+        # Execute query asynchronously
+        result = await session.execute(query, params, operation_name="getEurope")
+
+        continent = result["continent"]
+
+        assert continent["name"] == "Europe"
+
+
+@pytest.mark.asyncio
 async def test_aiohttp_execute_running_in_thread(
     event_loop, aiohttp_server, run_sync_test
 ):
