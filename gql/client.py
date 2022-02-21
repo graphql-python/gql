@@ -301,7 +301,7 @@ class Client:
             if self.fetch_schema_from_transport and not self.schema:
                 self.session.fetch_schema()
         except Exception:
-            await self.transport.close()
+            self.transport.close()
             raise
 
         return self.session
