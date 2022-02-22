@@ -200,3 +200,50 @@ def test_gql():
     client = Client(schema=schema)
     result = client.execute(query)
     assert result["user"] is None
+
+
+@pytest.mark.requests
+def test_sync_transport_close_on_schema_retrieval_failure():
+    """
+    Ensure that the transport session is closed if an error occurs when
+    entering the context manager (e.g., because schema retrieval fails)
+    """
+
+    from gql.transport.requests import RequestsHTTPTransport
+
+    transport = RequestsHTTPTransport(url="http://localhost/")
+    client = Client(transport=transport, fetch_schema_from_transport=True)
+
+    try:
+        with client:
+            pass
+    except Exception:
+        # we don't care what exception is thrown, we just want to check if the
+        # transport is closed afterwards
+        pass
+
+    assert client.transport.session is None
+
+
+@pytest.mark.aiohttp
+@pytest.mark.asyncio
+async def test_async_transport_close_on_schema_retrieval_failure():
+    """
+    Ensure that the transport session is closed if an error occurs when
+    entering the context manager (e.g., because schema retrieval fails)
+    """
+
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    transport = AIOHTTPTransport(url="http://localhost/")
+    client = Client(transport=transport, fetch_schema_from_transport=True)
+
+    try:
+        async with client:
+            pass
+    except Exception:
+        # we don't care what exception is thrown, we just want to check if the
+        # transport is closed afterwards
+        pass
+
+    assert client.transport.session is None

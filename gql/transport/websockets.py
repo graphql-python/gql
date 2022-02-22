@@ -279,6 +279,7 @@ class WebsocketsTransport(WebsocketsTransportBase):
             - instead of a unidirectional keep-alive (ka) message from server to client,
               there is now the possibility to send bidirectional ping/pong messages
             - connection_ack has an optional payload
+            - the 'error' answer type returns a list of errors instead of a single error
         """
 
         answer_type: str = ""
@@ -295,10 +296,10 @@ class WebsocketsTransport(WebsocketsTransportBase):
 
                     payload = json_answer.get("payload")
 
-                    if not isinstance(payload, dict):
-                        raise ValueError("payload is not a dict")
-
                     if answer_type == "next":
+
+                        if not isinstance(payload, dict):
+                            raise ValueError("payload is not a dict")
 
                         if "errors" not in payload and "data" not in payload:
                             raise ValueError(
@@ -316,8 +317,11 @@ class WebsocketsTransport(WebsocketsTransportBase):
 
                     elif answer_type == "error":
 
+                        if not isinstance(payload, list):
+                            raise ValueError("payload is not a list")
+
                         raise TransportQueryError(
-                            str(payload), query_id=answer_id, errors=[payload]
+                            str(payload[0]), query_id=answer_id, errors=payload
                         )
 
             elif answer_type in ["ping", "pong", "connection_ack"]:
