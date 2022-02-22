@@ -271,8 +271,15 @@ class Client:
             self.session = AsyncClientSession(client=self)
 
         # Get schema from transport if needed
-        if self.fetch_schema_from_transport and not self.schema:
-            await self.session.fetch_schema()
+        try:
+            if self.fetch_schema_from_transport and not self.schema:
+                await self.session.fetch_schema()
+        except Exception:
+            # we don't know what type of exception is thrown here because it
+            # depends on the underlying transport; we just make sure that the
+            # transport is closed and re-raise the exception
+            await self.transport.close()
+            raise
 
         return self.session
 
@@ -293,8 +300,15 @@ class Client:
             self.session = SyncClientSession(client=self)
 
         # Get schema from transport if needed
-        if self.fetch_schema_from_transport and not self.schema:
-            self.session.fetch_schema()
+        try:
+            if self.fetch_schema_from_transport and not self.schema:
+                self.session.fetch_schema()
+        except Exception:
+            # we don't know what type of exception is thrown here because it
+            # depends on the underlying transport; we just make sure that the
+            # transport is closed and re-raise the exception
+            self.transport.close()
+            raise
 
         return self.session
 
