@@ -3,7 +3,7 @@ import json
 import logging
 from contextlib import suppress
 from ssl import SSLContext
-from typing import Any, Dict, Optional, Tuple, Union, cast
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 from graphql import DocumentNode, ExecutionResult, print_ast
 from websockets.datastructures import HeadersLike
@@ -46,6 +46,7 @@ class WebsocketsTransport(WebsocketsTransportBase):
         pong_timeout: Optional[Union[int, float]] = None,
         answer_pings: bool = True,
         connect_args: Dict[str, Any] = {},
+        subprotocols: Optional[List[Subprotocol]] = None,
     ) -> None:
         """Initialize the transport with the given parameters.
 
@@ -71,6 +72,9 @@ class WebsocketsTransport(WebsocketsTransportBase):
             (for the graphql-ws protocol).
             By default: True
         :param connect_args: Other parameters forwarded to websockets.connect
+        :param subprotocols: list of subprotocols sent to the
+            backend in the 'subprotocols' http header.
+            By default: both apollo and graphql-ws subprotocols.
         """
 
         super().__init__(
@@ -105,10 +109,13 @@ class WebsocketsTransport(WebsocketsTransportBase):
         """pong_received is an asyncio Event which will fire  each time
         a pong is received with the graphql-ws protocol"""
 
-        self.supported_subprotocols = [
-            self.APOLLO_SUBPROTOCOL,
-            self.GRAPHQLWS_SUBPROTOCOL,
-        ]
+        if subprotocols is None:
+            self.supported_subprotocols = [
+                self.APOLLO_SUBPROTOCOL,
+                self.GRAPHQLWS_SUBPROTOCOL,
+            ]
+        else:
+            self.supported_subprotocols = subprotocols
 
     async def _wait_ack(self) -> None:
         """Wait for the connection_ack message. Keep alive messages are ignored"""
@@ -272,6 +279,7 @@ class WebsocketsTransport(WebsocketsTransportBase):
             - instead of a unidirectional keep-alive (ka) message from server to client,
               there is now the possibility to send bidirectional ping/pong messages
             - connection_ack has an optional payload
+            - the 'error' answer type returns a list of errors instead of a single error
         """
 
         answer_type: str = ""
@@ -288,10 +296,10 @@ class WebsocketsTransport(WebsocketsTransportBase):
 
                     payload = json_answer.get("payload")
 
-                    if not isinstance(payload, dict):
-                        raise ValueError("payload is not a dict")
-
                     if answer_type == "next":
+
+                        if not isinstance(payload, dict):
+                            raise ValueError("payload is not a dict")
 
                         if "errors" not in payload and "data" not in payload:
                             raise ValueError(
@@ -309,8 +317,11 @@ class WebsocketsTransport(WebsocketsTransportBase):
 
                     elif answer_type == "error":
 
+                        if not isinstance(payload, list):
+                            raise ValueError("payload is not a list")
+
                         raise TransportQueryError(
-                            str(payload), query_id=answer_id, errors=[payload]
+                            str(payload[0]), query_id=answer_id, errors=payload
                         )
 
             elif answer_type in ["ping", "pong", "connection_ack"]:
