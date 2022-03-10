@@ -174,6 +174,9 @@ class WebSocketServer:
             self.testcert, ssl_context = get_localhost_ssl_context()
             extra_serve_args["ssl"] = ssl_context
 
+        # Adding dummy response headers
+        extra_serve_args["extra_headers"] = {"dummy": "test1234"}
+
         # Start a server with a random open port
         self.start_server = websockets.server.serve(
             handler, "127.0.0.1", 0, **extra_serve_args

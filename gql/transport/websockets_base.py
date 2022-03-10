@@ -9,7 +9,7 @@ from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple, Union, cast
 import websockets
 from graphql import DocumentNode, ExecutionResult
 from websockets.client import WebSocketClientProtocol
-from websockets.datastructures import HeadersLike
+from websockets.datastructures import Headers, HeadersLike
 from websockets.exceptions import ConnectionClosed
 from websockets.typing import Data, Subprotocol
 
@@ -168,6 +168,8 @@ class WebsocketsTransportBase(AsyncTransport):
 
         # The list of supported subprotocols should be defined in the subclass
         self.supported_subprotocols: List[Subprotocol] = []
+
+        self.response_headers: Optional[Headers] = None
 
     async def _initialize(self):
         """Hook to send the initialization messages after the connection
@@ -494,6 +496,8 @@ class WebsocketsTransportBase(AsyncTransport):
                 self._connecting = False
 
             self.websocket = cast(WebSocketClientProtocol, self.websocket)
+
+            self.response_headers = self.websocket.response_headers
 
             # Run the after_connect hook of the subclass
             await self._after_connect()

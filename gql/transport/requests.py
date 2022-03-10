@@ -81,6 +81,8 @@ class RequestsHTTPTransport(Transport):
 
         self.session = None
 
+        self.response_headers = None
+
     def connect(self):
 
         if self.session is None:
@@ -217,6 +219,7 @@ class RequestsHTTPTransport(Transport):
         response = self.session.request(
             self.method, self.url, **post_args  # type: ignore
         )
+        self.response_headers = response.headers
 
         def raise_response_error(resp: requests.Response, reason: str):
             # We raise a TransportServerError if the status code is 400 or higher
