@@ -1,3 +1,5 @@
+from typing import Mapping
+
 import pytest
 
 from gql import Client, gql
@@ -38,7 +40,11 @@ async def test_requests_query(event_loop, aiohttp_server, run_sync_test):
     from gql.transport.requests import RequestsHTTPTransport
 
     async def handler(request):
-        return web.Response(text=query1_server_answer, content_type="application/json")
+        return web.Response(
+            text=query1_server_answer,
+            content_type="application/json",
+            headers={"dummy": "test1234"},
+        )
 
     app = web.Application()
     app.router.add_route("POST", "/", handler)
@@ -47,9 +53,9 @@ async def test_requests_query(event_loop, aiohttp_server, run_sync_test):
     url = server.make_url("/")
 
     def test_code():
-        sample_transport = RequestsHTTPTransport(url=url)
+        transport = RequestsHTTPTransport(url=url)
 
-        with Client(transport=sample_transport,) as session:
+        with Client(transport=transport) as session:
 
             query = gql(query1_str)
 
@@ -61,6 +67,11 @@ async def test_requests_query(event_loop, aiohttp_server, run_sync_test):
             africa = continents[0]
 
             assert africa["code"] == "AF"
+
+            # Checking response headers are saved in the transport
+            assert hasattr(transport, "response_headers")
+            assert isinstance(transport.response_headers, Mapping)
+            assert transport.response_headers["dummy"] == "test1234"
 
     await run_sync_test(event_loop, server, test_code)
 
@@ -84,9 +95,9 @@ async def test_requests_cookies(event_loop, aiohttp_server, run_sync_test):
     url = server.make_url("/")
 
     def test_code():
-        sample_transport = RequestsHTTPTransport(url=url, cookies={"cookie1": "val1"})
+        transport = RequestsHTTPTransport(url=url, cookies={"cookie1": "val1"})
 
-        with Client(transport=sample_transport,) as session:
+        with Client(transport=transport) as session:
 
             query = gql(query1_str)
 
@@ -123,9 +134,9 @@ async def test_requests_error_code_401(event_loop, aiohttp_server, run_sync_test
     url = server.make_url("/")
 
     def test_code():
-        sample_transport = RequestsHTTPTransport(url=url)
+        transport = RequestsHTTPTransport(url=url)
 
-        with Client(transport=sample_transport,) as session:
+        with Client(transport=transport) as session:
 
             query = gql(query1_str)
 
@@ -154,9 +165,9 @@ async def test_requests_error_code_500(event_loop, aiohttp_server, run_sync_test
     url = server.make_url("/")
 
     def test_code():
-        sample_transport = RequestsHTTPTransport(url=url)
+        transport = RequestsHTTPTransport(url=url)
 
-        with Client(transport=sample_transport,) as session:
+        with Client(transport=transport) as session:
 
             query = gql(query1_str)
 
@@ -187,9 +198,9 @@ async def test_requests_error_code(event_loop, aiohttp_server, run_sync_test):
     url = server.make_url("/")
 
     def test_code():
-        sample_transport = RequestsHTTPTransport(url=url)
+        transport = RequestsHTTPTransport(url=url)
 
-        with Client(transport=sample_transport,) as session:
+        with Client(transport=transport) as session:
 
             query = gql(query1_str)
 
@@ -225,9 +236,9 @@ async def test_requests_invalid_protocol(
     url = server.make_url("/")
 
     def test_code():
-        sample_transport = RequestsHTTPTransport(url=url)
+        transport = RequestsHTTPTransport(url=url)
 
-        with Client(transport=sample_transport,) as session:
+        with Client(transport=transport) as session:
 
             query = gql(query1_str)
 
@@ -253,9 +264,9 @@ async def test_requests_cannot_connect_twice(event_loop, aiohttp_server, run_syn
     url = server.make_url("/")
 
     def test_code():
-        sample_transport = RequestsHTTPTransport(url=url)
+        transport = RequestsHTTPTransport(url=url)
 
-        with Client(transport=sample_transport,) as session:
+        with Client(transport=transport) as session:
 
             with pytest.raises(TransportAlreadyConnected):
                 session.transport.connect()
@@ -281,12 +292,12 @@ async def test_requests_cannot_execute_if_not_connected(
     url = server.make_url("/")
 
     def test_code():
-        sample_transport = RequestsHTTPTransport(url=url)
+        transport = RequestsHTTPTransport(url=url)
 
         query = gql(query1_str)
 
         with pytest.raises(TransportClosed):
-            sample_transport.execute(query)
+            transport.execute(query)
 
     await run_sync_test(event_loop, server, test_code)
 
@@ -322,9 +333,9 @@ async def test_requests_query_with_extensions(
     url = server.make_url("/")
 
     def test_code():
-        sample_transport = RequestsHTTPTransport(url=url)
+        transport = RequestsHTTPTransport(url=url)
 
-        with Client(transport=sample_transport,) as session:
+        with Client(transport=transport) as session:
 
             query = gql(query1_str)
 
@@ -399,10 +410,10 @@ async def test_requests_file_upload(event_loop, aiohttp_server, run_sync_test):
     url = server.make_url("/")
 
     def test_code():
-        sample_transport = RequestsHTTPTransport(url=url)
+        transport = RequestsHTTPTransport(url=url)
 
         with TemporaryFile(file_1_content) as test_file:
-            with Client(transport=sample_transport) as session:
+            with Client(transport=transport) as session:
                 query = gql(file_upload_mutation_1)
 
                 file_path = test_file.filename
@@ -463,10 +474,10 @@ async def test_requests_file_upload_additional_headers(
     url = server.make_url("/")
 
     def test_code():
-        sample_transport = RequestsHTTPTransport(url=url, headers={"X-Auth": "foobar"})
+        transport = RequestsHTTPTransport(url=url, headers={"X-Auth": "foobar"})
 
         with TemporaryFile(file_1_content) as test_file:
-            with Client(transport=sample_transport) as session:
+            with Client(transport=transport) as session:
                 query = gql(file_upload_mutation_1)
 
                 file_path = test_file.filename
@@ -526,11 +537,11 @@ async def test_requests_binary_file_upload(event_loop, aiohttp_server, run_sync_
 
     url = server.make_url("/")
 
-    sample_transport = RequestsHTTPTransport(url=url)
+    transport = RequestsHTTPTransport(url=url)
 
     def test_code():
         with TemporaryFile(binary_file_content) as test_file:
-            with Client(transport=sample_transport,) as session:
+            with Client(transport=transport) as session:
 
                 query = gql(file_upload_mutation_1)
 
@@ -617,12 +628,12 @@ async def test_requests_file_upload_two_files(
     url = server.make_url("/")
 
     def test_code():
-        sample_transport = RequestsHTTPTransport(url=url)
+        transport = RequestsHTTPTransport(url=url)
 
         with TemporaryFile(file_1_content) as test_file_1:
             with TemporaryFile(file_2_content) as test_file_2:
 
-                with Client(transport=sample_transport,) as session:
+                with Client(transport=transport) as session:
 
                     query = gql(file_upload_mutation_2)
 
@@ -718,11 +729,11 @@ async def test_requests_file_upload_list_of_two_files(
     url = server.make_url("/")
 
     def test_code():
-        sample_transport = RequestsHTTPTransport(url=url)
+        transport = RequestsHTTPTransport(url=url)
 
         with TemporaryFile(file_1_content) as test_file_1:
             with TemporaryFile(file_2_content) as test_file_2:
-                with Client(transport=sample_transport,) as session:
+                with Client(transport=transport) as session:
 
                     query = gql(file_upload_mutation_3)
 
