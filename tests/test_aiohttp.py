@@ -1,5 +1,6 @@
 import io
 import json
+from typing import Mapping
 
 import pytest
 
@@ -45,7 +46,11 @@ async def test_aiohttp_query(event_loop, aiohttp_server):
     from gql.transport.aiohttp import AIOHTTPTransport
 
     async def handler(request):
-        return web.Response(text=query1_server_answer, content_type="application/json")
+        return web.Response(
+            text=query1_server_answer,
+            content_type="application/json",
+            headers={"dummy": "test1234"},
+        )
 
     app = web.Application()
     app.router.add_route("POST", "/", handler)
@@ -53,9 +58,9 @@ async def test_aiohttp_query(event_loop, aiohttp_server):
 
     url = server.make_url("/")
 
-    sample_transport = AIOHTTPTransport(url=url, timeout=10)
+    transport = AIOHTTPTransport(url=url, timeout=10)
 
-    async with Client(transport=sample_transport,) as session:
+    async with Client(transport=transport) as session:
 
         query = gql(query1_str)
 
@@ -67,6 +72,11 @@ async def test_aiohttp_query(event_loop, aiohttp_server):
         africa = continents[0]
 
         assert africa["code"] == "AF"
+
+        # Checking response headers are saved in the transport
+        assert hasattr(transport, "response_headers")
+        assert isinstance(transport.response_headers, Mapping)
+        assert transport.response_headers["dummy"] == "test1234"
 
 
 @pytest.mark.asyncio
@@ -83,9 +93,9 @@ async def test_aiohttp_ignore_backend_content_type(event_loop, aiohttp_server):
 
     url = server.make_url("/")
 
-    sample_transport = AIOHTTPTransport(url=url, timeout=10)
+    transport = AIOHTTPTransport(url=url, timeout=10)
 
-    async with Client(transport=sample_transport,) as session:
+    async with Client(transport=transport) as session:
 
         query = gql(query1_str)
 
@@ -115,9 +125,9 @@ async def test_aiohttp_cookies(event_loop, aiohttp_server):
 
     url = server.make_url("/")
 
-    sample_transport = AIOHTTPTransport(url=url, cookies={"cookie1": "val1"})
+    transport = AIOHTTPTransport(url=url, cookies={"cookie1": "val1"})
 
-    async with Client(transport=sample_transport,) as session:
+    async with Client(transport=transport) as session:
 
         query = gql(query1_str)
 
@@ -150,9 +160,9 @@ async def test_aiohttp_error_code_401(event_loop, aiohttp_server):
 
     url = server.make_url("/")
 
-    sample_transport = AIOHTTPTransport(url=url)
+    transport = AIOHTTPTransport(url=url)
 
-    async with Client(transport=sample_transport,) as session:
+    async with Client(transport=transport) as session:
 
         query = gql(query1_str)
 
@@ -177,9 +187,9 @@ async def test_aiohttp_error_code_500(event_loop, aiohttp_server):
 
     url = server.make_url("/")
 
-    sample_transport = AIOHTTPTransport(url=url)
+    transport = AIOHTTPTransport(url=url)
 
-    async with Client(transport=sample_transport,) as session:
+    async with Client(transport=transport) as session:
 
         query = gql(query1_str)
 
@@ -208,9 +218,9 @@ async def test_aiohttp_error_code(event_loop, aiohttp_server):
 
     url = server.make_url("/")
 
-    sample_transport = AIOHTTPTransport(url=url)
+    transport = AIOHTTPTransport(url=url)
 
-    async with Client(transport=sample_transport,) as session:
+    async with Client(transport=transport) as session:
 
         query = gql(query1_str)
 
@@ -259,9 +269,9 @@ async def test_aiohttp_invalid_protocol(event_loop, aiohttp_server, param):
 
     url = server.make_url("/")
 
-    sample_transport = AIOHTTPTransport(url=url)
+    transport = AIOHTTPTransport(url=url)
 
-    async with Client(transport=sample_transport,) as session:
+    async with Client(transport=transport) as session:
 
         query = gql(query1_str)
 
@@ -285,9 +295,9 @@ async def test_aiohttp_subscribe_not_supported(event_loop, aiohttp_server):
 
     url = server.make_url("/")
 
-    sample_transport = AIOHTTPTransport(url=url)
+    transport = AIOHTTPTransport(url=url)
 
-    async with Client(transport=sample_transport,) as session:
+    async with Client(transport=transport) as session:
 
         query = gql(query1_str)
 
@@ -310,9 +320,9 @@ async def test_aiohttp_cannot_connect_twice(event_loop, aiohttp_server):
 
     url = server.make_url("/")
 
-    sample_transport = AIOHTTPTransport(url=url, timeout=10)
+    transport = AIOHTTPTransport(url=url, timeout=10)
 
-    async with Client(transport=sample_transport,) as session:
+    async with Client(transport=transport) as session:
 
         with pytest.raises(TransportAlreadyConnected):
             await session.transport.connect()
@@ -332,12 +342,12 @@ async def test_aiohttp_cannot_execute_if_not_connected(event_loop, aiohttp_serve
 
     url = server.make_url("/")
 
-    sample_transport = AIOHTTPTransport(url=url, timeout=10)
+    transport = AIOHTTPTransport(url=url, timeout=10)
 
     query = gql(query1_str)
 
     with pytest.raises(TransportClosed):
-        await sample_transport.execute(query)
+        await transport.execute(query)
 
 
 @pytest.mark.asyncio
@@ -358,11 +368,11 @@ async def test_aiohttp_extra_args(event_loop, aiohttp_server):
     from aiohttp import DummyCookieJar
 
     jar = DummyCookieJar()
-    sample_transport = AIOHTTPTransport(
+    transport = AIOHTTPTransport(
         url=url, timeout=10, client_session_args={"version": "1.1", "cookie_jar": jar}
     )
 
-    async with Client(transport=sample_transport,) as session:
+    async with Client(transport=transport) as session:
 
         query = gql(query1_str)
 
@@ -401,9 +411,9 @@ async def test_aiohttp_query_variable_values(event_loop, aiohttp_server):
 
     url = server.make_url("/")
 
-    sample_transport = AIOHTTPTransport(url=url, timeout=10)
+    transport = AIOHTTPTransport(url=url, timeout=10)
 
-    async with Client(transport=sample_transport,) as session:
+    async with Client(transport=transport) as session:
 
         params = {"code": "EU"}
 
@@ -437,9 +447,9 @@ async def test_aiohttp_query_variable_values_fix_issue_292(event_loop, aiohttp_s
 
     url = server.make_url("/")
 
-    sample_transport = AIOHTTPTransport(url=url, timeout=10)
+    transport = AIOHTTPTransport(url=url, timeout=10)
 
-    async with Client(transport=sample_transport,) as session:
+    async with Client(transport=transport) as session:
 
         params = {"code": "EU"}
 
@@ -470,9 +480,9 @@ async def test_aiohttp_execute_running_in_thread(
     url = server.make_url("/")
 
     def test_code():
-        sample_transport = AIOHTTPTransport(url=url)
+        transport = AIOHTTPTransport(url=url)
 
-        client = Client(transport=sample_transport)
+        client = Client(transport=transport)
 
         query = gql(query1_str)
 
@@ -498,9 +508,9 @@ async def test_aiohttp_subscribe_running_in_thread(
     url = server.make_url("/")
 
     def test_code():
-        sample_transport = AIOHTTPTransport(url=url)
+        transport = AIOHTTPTransport(url=url)
 
-        client = Client(transport=sample_transport)
+        client = Client(transport=transport)
 
         query = gql(query1_str)
 
@@ -580,11 +590,11 @@ async def test_aiohttp_file_upload(event_loop, aiohttp_server):
 
     url = server.make_url("/")
 
-    sample_transport = AIOHTTPTransport(url=url, timeout=10)
+    transport = AIOHTTPTransport(url=url, timeout=10)
 
     with TemporaryFile(file_1_content) as test_file:
 
-        async with Client(transport=sample_transport,) as session:
+        async with Client(transport=transport) as session:
 
             query = gql(file_upload_mutation_1)
 
@@ -618,11 +628,11 @@ async def test_aiohttp_file_upload_without_session(
     url = server.make_url("/")
 
     def test_code():
-        sample_transport = AIOHTTPTransport(url=url, timeout=10)
+        transport = AIOHTTPTransport(url=url, timeout=10)
 
         with TemporaryFile(file_1_content) as test_file:
 
-            client = Client(transport=sample_transport,)
+            client = Client(transport=transport)
 
             query = gql(file_upload_mutation_1)
 
@@ -685,11 +695,11 @@ async def test_aiohttp_binary_file_upload(event_loop, aiohttp_server):
 
     url = server.make_url("/")
 
-    sample_transport = AIOHTTPTransport(url=url, timeout=10)
+    transport = AIOHTTPTransport(url=url, timeout=10)
 
     with TemporaryFile(binary_file_content) as test_file:
 
-        async with Client(transport=sample_transport,) as session:
+        async with Client(transport=transport) as session:
 
             query = gql(file_upload_mutation_1)
 
@@ -728,9 +738,9 @@ async def test_aiohttp_stream_reader_upload(event_loop, aiohttp_server):
     url = server.make_url("/")
     binary_data_url = server.make_url("/binary_data")
 
-    sample_transport = AIOHTTPTransport(url=url, timeout=10)
+    transport = AIOHTTPTransport(url=url, timeout=10)
 
-    async with Client(transport=sample_transport) as session:
+    async with Client(transport=transport) as session:
         query = gql(file_upload_mutation_1)
         async with ClientSession() as client:
             async with client.get(binary_data_url) as resp:
@@ -758,11 +768,11 @@ async def test_aiohttp_async_generator_upload(event_loop, aiohttp_server):
 
     url = server.make_url("/")
 
-    sample_transport = AIOHTTPTransport(url=url, timeout=10)
+    transport = AIOHTTPTransport(url=url, timeout=10)
 
     with TemporaryFile(binary_file_content) as test_file:
 
-        async with Client(transport=sample_transport,) as session:
+        async with Client(transport=transport) as session:
 
             query = gql(file_upload_mutation_1)
 
@@ -851,12 +861,12 @@ async def test_aiohttp_file_upload_two_files(event_loop, aiohttp_server):
 
     url = server.make_url("/")
 
-    sample_transport = AIOHTTPTransport(url=url, timeout=10)
+    transport = AIOHTTPTransport(url=url, timeout=10)
 
     with TemporaryFile(file_1_content) as test_file_1:
         with TemporaryFile(file_2_content) as test_file_2:
 
-            async with Client(transport=sample_transport,) as session:
+            async with Client(transport=transport) as session:
 
                 query = gql(file_upload_mutation_2)
 
@@ -941,12 +951,12 @@ async def test_aiohttp_file_upload_list_of_two_files(event_loop, aiohttp_server)
 
     url = server.make_url("/")
 
-    sample_transport = AIOHTTPTransport(url=url, timeout=10)
+    transport = AIOHTTPTransport(url=url, timeout=10)
 
     with TemporaryFile(file_1_content) as test_file_1:
         with TemporaryFile(file_2_content) as test_file_2:
 
-            async with Client(transport=sample_transport,) as session:
+            async with Client(transport=transport) as session:
 
                 query = gql(file_upload_mutation_3)
 
@@ -1098,9 +1108,9 @@ async def test_aiohttp_query_with_extensions(event_loop, aiohttp_server):
 
     url = server.make_url("/")
 
-    sample_transport = AIOHTTPTransport(url=url, timeout=10)
+    transport = AIOHTTPTransport(url=url, timeout=10)
 
-    async with Client(transport=sample_transport,) as session:
+    async with Client(transport=transport) as session:
 
         query = gql(query1_str)
 
@@ -1126,11 +1136,11 @@ async def test_aiohttp_query_https(event_loop, ssl_aiohttp_server, ssl_close_tim
 
     assert str(url).startswith("https://")
 
-    sample_transport = AIOHTTPTransport(
+    transport = AIOHTTPTransport(
         url=url, timeout=10, ssl_close_timeout=ssl_close_timeout
     )
 
-    async with Client(transport=sample_transport,) as session:
+    async with Client(transport=transport) as session:
 
         query = gql(query1_str)
 
