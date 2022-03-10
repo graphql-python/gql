@@ -8,7 +8,14 @@ The websockets transport supports both:
  - the `Apollo websockets transport protocol`_.
  - the `GraphQL-ws websockets transport protocol`_
 
-It will detect the backend supported protocol from the response http headers returned.
+It will propose both subprotocols to the backend and detect the supported protocol
+from the response http headers returned by the backend.
+
+.. note::
+    For some backends (graphql-ws before `version 5.6.1`_ without backwards compatibility), it may be necessary to specify
+    only one subprotocol to the backend. It can be done by using
+    :code:`subprotocols=[WebsocketsTransport.GRAPHQLWS_SUBPROTOCOL]`
+    or :code:`subprotocols=[WebsocketsTransport.APOLLO_SUBPROTOCOL]` in the transport arguments.
 
 This transport allows to do multiple queries, mutations and subscriptions on the same websocket connection.
 
@@ -118,5 +125,6 @@ Here is an example with a ping sent every 60 seconds, expecting a pong within 10
         pong_timeout=10,
     )
 
+.. _version 5.6.1: https://github.com/enisdenjo/graphql-ws/releases/tag/v5.6.1
 .. _Apollo websockets transport protocol:  https://github.com/apollographql/subscriptions-transport-ws/blob/master/PROTOCOL.md
 .. _GraphQL-ws websockets transport protocol: https://github.com/enisdenjo/graphql-ws/blob/master/PROTOCOL.md
