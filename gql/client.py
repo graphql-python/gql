@@ -131,17 +131,186 @@ class Client:
         if validation_errors:
             raise validation_errors[0]
 
-    def execute_sync(self, document: DocumentNode, *args, **kwargs) -> Dict:
+    @overload
+    def execute_sync(
+        self,
+        document: DocumentNode,
+        variable_values: Optional[Dict[str, Any]] = ...,
+        operation_name: Optional[str] = ...,
+        serialize_variables: Optional[bool] = ...,
+        parse_result: Optional[bool] = ...,
+        *,  # https://github.com/python/mypy/issues/7333#issuecomment-788255229
+        get_execution_result: Literal[False] = ...,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        ...  # pragma: no cover
+
+    @overload
+    def execute_sync(
+        self,
+        document: DocumentNode,
+        variable_values: Optional[Dict[str, Any]] = ...,
+        operation_name: Optional[str] = ...,
+        serialize_variables: Optional[bool] = ...,
+        parse_result: Optional[bool] = ...,
+        *,
+        get_execution_result: Literal[True],
+        **kwargs,
+    ) -> ExecutionResult:
+        ...  # pragma: no cover
+
+    @overload
+    def execute_sync(
+        self,
+        document: DocumentNode,
+        variable_values: Optional[Dict[str, Any]] = ...,
+        operation_name: Optional[str] = ...,
+        serialize_variables: Optional[bool] = ...,
+        parse_result: Optional[bool] = ...,
+        *,
+        get_execution_result: bool,
+        **kwargs,
+    ) -> Union[Dict[str, Any], ExecutionResult]:
+        ...  # pragma: no cover
+
+    def execute_sync(
+        self,
+        document: DocumentNode,
+        variable_values: Optional[Dict[str, Any]] = None,
+        operation_name: Optional[str] = None,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        get_execution_result: bool = False,
+        **kwargs,
+    ) -> Union[Dict[str, Any], ExecutionResult]:
         """:meta private:"""
         with self as session:
-            return session.execute(document, *args, **kwargs)
+            return session.execute(
+                document,
+                variable_values=variable_values,
+                operation_name=operation_name,
+                serialize_variables=serialize_variables,
+                parse_result=parse_result,
+                get_execution_result=get_execution_result,
+                **kwargs,
+            )
 
-    async def execute_async(self, document: DocumentNode, *args, **kwargs) -> Dict:
+    @overload
+    async def execute_async(
+        self,
+        document: DocumentNode,
+        variable_values: Optional[Dict[str, Any]] = ...,
+        operation_name: Optional[str] = ...,
+        serialize_variables: Optional[bool] = ...,
+        parse_result: Optional[bool] = ...,
+        *,  # https://github.com/python/mypy/issues/7333#issuecomment-788255229
+        get_execution_result: Literal[False] = ...,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        ...  # pragma: no cover
+
+    @overload
+    async def execute_async(
+        self,
+        document: DocumentNode,
+        variable_values: Optional[Dict[str, Any]] = ...,
+        operation_name: Optional[str] = ...,
+        serialize_variables: Optional[bool] = ...,
+        parse_result: Optional[bool] = ...,
+        *,
+        get_execution_result: Literal[True],
+        **kwargs,
+    ) -> ExecutionResult:
+        ...  # pragma: no cover
+
+    @overload
+    async def execute_async(
+        self,
+        document: DocumentNode,
+        variable_values: Optional[Dict[str, Any]] = ...,
+        operation_name: Optional[str] = ...,
+        serialize_variables: Optional[bool] = ...,
+        parse_result: Optional[bool] = ...,
+        *,
+        get_execution_result: bool,
+        **kwargs,
+    ) -> Union[Dict[str, Any], ExecutionResult]:
+        ...  # pragma: no cover
+
+    async def execute_async(
+        self,
+        document: DocumentNode,
+        variable_values: Optional[Dict[str, Any]] = None,
+        operation_name: Optional[str] = None,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        get_execution_result: bool = False,
+        **kwargs,
+    ) -> Union[Dict[str, Any], ExecutionResult]:
         """:meta private:"""
         async with self as session:
-            return await session.execute(document, *args, **kwargs)
+            return await session.execute(
+                document,
+                variable_values=variable_values,
+                operation_name=operation_name,
+                serialize_variables=serialize_variables,
+                parse_result=parse_result,
+                get_execution_result=get_execution_result,
+                **kwargs,
+            )
 
-    def execute(self, document: DocumentNode, *args, **kwargs) -> Dict:
+    @overload
+    def execute(
+        self,
+        document: DocumentNode,
+        variable_values: Optional[Dict[str, Any]] = ...,
+        operation_name: Optional[str] = ...,
+        serialize_variables: Optional[bool] = ...,
+        parse_result: Optional[bool] = ...,
+        *,  # https://github.com/python/mypy/issues/7333#issuecomment-788255229
+        get_execution_result: Literal[False] = ...,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        ...  # pragma: no cover
+
+    @overload
+    def execute(
+        self,
+        document: DocumentNode,
+        variable_values: Optional[Dict[str, Any]] = ...,
+        operation_name: Optional[str] = ...,
+        serialize_variables: Optional[bool] = ...,
+        parse_result: Optional[bool] = ...,
+        *,
+        get_execution_result: Literal[True],
+        **kwargs,
+    ) -> ExecutionResult:
+        ...  # pragma: no cover
+
+    @overload
+    def execute(
+        self,
+        document: DocumentNode,
+        variable_values: Optional[Dict[str, Any]] = ...,
+        operation_name: Optional[str] = ...,
+        serialize_variables: Optional[bool] = ...,
+        parse_result: Optional[bool] = ...,
+        *,
+        get_execution_result: bool,
+        **kwargs,
+    ) -> Union[Dict[str, Any], ExecutionResult]:
+        ...  # pragma: no cover
+
+    def execute(
+        self,
+        document: DocumentNode,
+        variable_values: Optional[Dict[str, Any]] = None,
+        operation_name: Optional[str] = None,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        get_execution_result: bool = False,
+        **kwargs,
+    ) -> Union[Dict[str, Any], ExecutionResult]:
         """Execute the provided document AST against the remote server using
         the transport provided during init.
 
@@ -183,31 +352,160 @@ class Client:
                 " Use 'await client.execute_async(query)' instead."
             )
 
-            data: Dict[Any, Any] = loop.run_until_complete(
-                self.execute_async(document, *args, **kwargs)
+            data = loop.run_until_complete(
+                self.execute_async(
+                    document,
+                    variable_values=variable_values,
+                    operation_name=operation_name,
+                    serialize_variables=serialize_variables,
+                    parse_result=parse_result,
+                    get_execution_result=get_execution_result,
+                    **kwargs,
+                )
             )
 
             return data
 
         else:  # Sync transports
-            return self.execute_sync(document, *args, **kwargs)
+            return self.execute_sync(
+                document,
+                variable_values=variable_values,
+                operation_name=operation_name,
+                serialize_variables=serialize_variables,
+                parse_result=parse_result,
+                get_execution_result=get_execution_result,
+                **kwargs,
+            )
+
+    @overload
+    def subscribe_async(
+        self,
+        document: DocumentNode,
+        variable_values: Optional[Dict[str, Any]] = ...,
+        operation_name: Optional[str] = ...,
+        serialize_variables: Optional[bool] = ...,
+        parse_result: Optional[bool] = ...,
+        *,
+        get_execution_result: Literal[False] = ...,
+        **kwargs,
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        ...  # pragma: no cover
+
+    @overload
+    def subscribe_async(
+        self,
+        document: DocumentNode,
+        variable_values: Optional[Dict[str, Any]] = ...,
+        operation_name: Optional[str] = ...,
+        serialize_variables: Optional[bool] = ...,
+        parse_result: Optional[bool] = ...,
+        *,
+        get_execution_result: Literal[True],
+        **kwargs,
+    ) -> AsyncGenerator[ExecutionResult, None]:
+        ...  # pragma: no cover
+
+    @overload
+    def subscribe_async(
+        self,
+        document: DocumentNode,
+        variable_values: Optional[Dict[str, Any]] = ...,
+        operation_name: Optional[str] = ...,
+        serialize_variables: Optional[bool] = ...,
+        parse_result: Optional[bool] = ...,
+        *,
+        get_execution_result: bool,
+        **kwargs,
+    ) -> Union[
+        AsyncGenerator[Dict[str, Any], None], AsyncGenerator[ExecutionResult, None]
+    ]:
+        ...  # pragma: no cover
 
     async def subscribe_async(
-        self, document: DocumentNode, *args, **kwargs
-    ) -> AsyncGenerator[Dict, None]:
+        self,
+        document: DocumentNode,
+        variable_values: Optional[Dict[str, Any]] = None,
+        operation_name: Optional[str] = None,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        get_execution_result: bool = False,
+        **kwargs,
+    ) -> Union[
+        AsyncGenerator[Dict[str, Any], None], AsyncGenerator[ExecutionResult, None]
+    ]:
         """:meta private:"""
         async with self as session:
 
-            generator: AsyncGenerator[Dict, None] = session.subscribe(
-                document, *args, **kwargs
+            generator = session.subscribe(
+                document,
+                variable_values=variable_values,
+                operation_name=operation_name,
+                serialize_variables=serialize_variables,
+                parse_result=parse_result,
+                get_execution_result=get_execution_result,
+                **kwargs,
             )
 
             async for result in generator:
                 yield result
 
+    @overload
     def subscribe(
-        self, document: DocumentNode, *args, **kwargs
-    ) -> Generator[Dict, None, None]:
+        self,
+        document: DocumentNode,
+        variable_values: Optional[Dict[str, Any]] = ...,
+        operation_name: Optional[str] = ...,
+        serialize_variables: Optional[bool] = ...,
+        parse_result: Optional[bool] = ...,
+        *,
+        get_execution_result: Literal[False] = ...,
+        **kwargs,
+    ) -> Generator[Dict[str, Any], None, None]:
+        ...  # pragma: no cover
+
+    @overload
+    def subscribe(
+        self,
+        document: DocumentNode,
+        variable_values: Optional[Dict[str, Any]] = ...,
+        operation_name: Optional[str] = ...,
+        serialize_variables: Optional[bool] = ...,
+        parse_result: Optional[bool] = ...,
+        *,
+        get_execution_result: Literal[True],
+        **kwargs,
+    ) -> Generator[ExecutionResult, None, None]:
+        ...  # pragma: no cover
+
+    @overload
+    def subscribe(
+        self,
+        document: DocumentNode,
+        variable_values: Optional[Dict[str, Any]] = ...,
+        operation_name: Optional[str] = ...,
+        serialize_variables: Optional[bool] = ...,
+        parse_result: Optional[bool] = ...,
+        *,
+        get_execution_result: bool,
+        **kwargs,
+    ) -> Union[
+        Generator[Dict[str, Any], None, None], Generator[ExecutionResult, None, None]
+    ]:
+        ...  # pragma: no cover
+
+    def subscribe(
+        self,
+        document: DocumentNode,
+        variable_values: Optional[Dict[str, Any]] = None,
+        operation_name: Optional[str] = None,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        *,
+        get_execution_result: bool = False,
+        **kwargs,
+    ) -> Union[
+        Generator[Dict[str, Any], None, None], Generator[ExecutionResult, None, None]
+    ]:
         """Execute a GraphQL subscription with a python generator.
 
         We need an async transport for this functionality.
@@ -225,7 +523,17 @@ class Client:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
 
-        async_generator = self.subscribe_async(document, *args, **kwargs)
+        async_generator: Union[
+            AsyncGenerator[Dict[str, Any], None], AsyncGenerator[ExecutionResult, None]
+        ] = self.subscribe_async(
+            document,
+            variable_values=variable_values,
+            operation_name=operation_name,
+            serialize_variables=serialize_variables,
+            parse_result=parse_result,
+            get_execution_result=get_execution_result,
+            **kwargs,
+        )
 
         assert not loop.is_running(), (
             "Cannot run client.subscribe(query) if an asyncio loop is running."
@@ -240,7 +548,11 @@ class Client:
                 generator_task = asyncio.ensure_future(
                     async_generator.__anext__(), loop=loop
                 )
-                result = loop.run_until_complete(generator_task)
+                result: Union[
+                    Dict[str, Any], ExecutionResult
+                ] = loop.run_until_complete(
+                    generator_task
+                )  # type: ignore
                 yield result
 
         except StopAsyncIteration:
@@ -330,7 +642,6 @@ class SyncClientSession:
     def _execute(
         self,
         document: DocumentNode,
-        *args,
         variable_values: Optional[Dict[str, Any]] = None,
         operation_name: Optional[str] = None,
         serialize_variables: Optional[bool] = None,
@@ -369,7 +680,6 @@ class SyncClientSession:
 
         result = self.transport.execute(
             document,
-            *args,
             variable_values=variable_values,
             operation_name=operation_name,
             **kwargs,
@@ -391,11 +701,11 @@ class SyncClientSession:
     def execute(
         self,
         document: DocumentNode,
-        *args,
         variable_values: Optional[Dict[str, Any]] = ...,
         operation_name: Optional[str] = ...,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
+        *,
         get_execution_result: Literal[False] = ...,
         **kwargs,
     ) -> Dict[str, Any]:
@@ -405,20 +715,33 @@ class SyncClientSession:
     def execute(
         self,
         document: DocumentNode,
-        *args,
         variable_values: Optional[Dict[str, Any]] = ...,
         operation_name: Optional[str] = ...,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
+        *,
         get_execution_result: Literal[True],
         **kwargs,
     ) -> ExecutionResult:
         ...  # pragma: no cover
 
+    @overload
     def execute(
         self,
         document: DocumentNode,
-        *args,
+        variable_values: Optional[Dict[str, Any]] = ...,
+        operation_name: Optional[str] = ...,
+        serialize_variables: Optional[bool] = ...,
+        parse_result: Optional[bool] = ...,
+        *,
+        get_execution_result: bool,
+        **kwargs,
+    ) -> Union[Dict[str, Any], ExecutionResult]:
+        ...  # pragma: no cover
+
+    def execute(
+        self,
+        document: DocumentNode,
         variable_values: Optional[Dict[str, Any]] = None,
         operation_name: Optional[str] = None,
         serialize_variables: Optional[bool] = None,
@@ -448,7 +771,6 @@ class SyncClientSession:
         # Validate and execute on the transport
         result = self._execute(
             document,
-            *args,
             variable_values=variable_values,
             operation_name=operation_name,
             serialize_variables=serialize_variables,
@@ -503,7 +825,6 @@ class AsyncClientSession:
     async def _subscribe(
         self,
         document: DocumentNode,
-        *args,
         variable_values: Optional[Dict[str, Any]] = None,
         operation_name: Optional[str] = None,
         serialize_variables: Optional[bool] = None,
@@ -549,7 +870,6 @@ class AsyncClientSession:
             ExecutionResult, None
         ] = self.transport.subscribe(
             document,
-            *args,
             variable_values=variable_values,
             operation_name=operation_name,
             **kwargs,
@@ -582,11 +902,11 @@ class AsyncClientSession:
     def subscribe(
         self,
         document: DocumentNode,
-        *args,
         variable_values: Optional[Dict[str, Any]] = ...,
         operation_name: Optional[str] = ...,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
+        *,
         get_execution_result: Literal[False] = ...,
         **kwargs,
     ) -> AsyncGenerator[Dict[str, Any], None]:
@@ -596,20 +916,35 @@ class AsyncClientSession:
     def subscribe(
         self,
         document: DocumentNode,
-        *args,
         variable_values: Optional[Dict[str, Any]] = ...,
         operation_name: Optional[str] = ...,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
+        *,
         get_execution_result: Literal[True],
         **kwargs,
     ) -> AsyncGenerator[ExecutionResult, None]:
         ...  # pragma: no cover
 
+    @overload
+    def subscribe(
+        self,
+        document: DocumentNode,
+        variable_values: Optional[Dict[str, Any]] = ...,
+        operation_name: Optional[str] = ...,
+        serialize_variables: Optional[bool] = ...,
+        parse_result: Optional[bool] = ...,
+        *,
+        get_execution_result: bool,
+        **kwargs,
+    ) -> Union[
+        AsyncGenerator[Dict[str, Any], None], AsyncGenerator[ExecutionResult, None]
+    ]:
+        ...  # pragma: no cover
+
     async def subscribe(
         self,
         document: DocumentNode,
-        *args,
         variable_values: Optional[Dict[str, Any]] = None,
         operation_name: Optional[str] = None,
         serialize_variables: Optional[bool] = None,
@@ -640,7 +975,6 @@ class AsyncClientSession:
 
         inner_generator: AsyncGenerator[ExecutionResult, None] = self._subscribe(
             document,
-            *args,
             variable_values=variable_values,
             operation_name=operation_name,
             serialize_variables=serialize_variables,
@@ -672,7 +1006,6 @@ class AsyncClientSession:
     async def _execute(
         self,
         document: DocumentNode,
-        *args,
         variable_values: Optional[Dict[str, Any]] = None,
         operation_name: Optional[str] = None,
         serialize_variables: Optional[bool] = None,
@@ -718,7 +1051,6 @@ class AsyncClientSession:
                 document,
                 variable_values=variable_values,
                 operation_name=operation_name,
-                *args,
                 **kwargs,
             ),
             self.client.execute_timeout,
@@ -740,11 +1072,11 @@ class AsyncClientSession:
     async def execute(
         self,
         document: DocumentNode,
-        *args,
         variable_values: Optional[Dict[str, Any]] = ...,
         operation_name: Optional[str] = ...,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
+        *,
         get_execution_result: Literal[False] = ...,
         **kwargs,
     ) -> Dict[str, Any]:
@@ -754,20 +1086,33 @@ class AsyncClientSession:
     async def execute(
         self,
         document: DocumentNode,
-        *args,
         variable_values: Optional[Dict[str, Any]] = ...,
         operation_name: Optional[str] = ...,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
+        *,
         get_execution_result: Literal[True],
         **kwargs,
     ) -> ExecutionResult:
         ...  # pragma: no cover
 
+    @overload
     async def execute(
         self,
         document: DocumentNode,
-        *args,
+        variable_values: Optional[Dict[str, Any]] = ...,
+        operation_name: Optional[str] = ...,
+        serialize_variables: Optional[bool] = ...,
+        parse_result: Optional[bool] = ...,
+        *,
+        get_execution_result: bool,
+        **kwargs,
+    ) -> Union[Dict[str, Any], ExecutionResult]:
+        ...  # pragma: no cover
+
+    async def execute(
+        self,
+        document: DocumentNode,
         variable_values: Optional[Dict[str, Any]] = None,
         operation_name: Optional[str] = None,
         serialize_variables: Optional[bool] = None,
@@ -797,7 +1142,6 @@ class AsyncClientSession:
         # Validate and execute on the transport
         result = await self._execute(
             document,
-            *args,
             variable_values=variable_values,
             operation_name=operation_name,
             serialize_variables=serialize_variables,
