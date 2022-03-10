@@ -12,6 +12,7 @@ from aiohttp.client_reqrep import Fingerprint
 from aiohttp.helpers import BasicAuth
 from aiohttp.typedefs import LooseCookies, LooseHeaders
 from graphql import DocumentNode, ExecutionResult, print_ast
+from multidict import CIMultiDictProxy
 
 from ..utils import extract_files
 from .appsync_auth import AppSyncAuthentication
@@ -75,6 +76,7 @@ class AIOHTTPTransport(AsyncTransport):
         self.ssl_close_timeout: Optional[Union[int, float]] = ssl_close_timeout
         self.client_session_args = client_session_args
         self.session: Optional[aiohttp.ClientSession] = None
+        self.response_headers: Optional[CIMultiDictProxy[str]]
 
     async def connect(self) -> None:
         """Coroutine which will create an aiohttp ClientSession() as self.session.
@@ -310,6 +312,9 @@ class AIOHTTPTransport(AsyncTransport):
 
             if "errors" not in result and "data" not in result:
                 await raise_response_error(resp, 'No "data" or "errors" keys in answer')
+
+            # Saving latest response headers in the transport
+            self.response_headers = resp.headers
 
             return ExecutionResult(
                 errors=result.get("errors"),
