@@ -2,7 +2,7 @@ import asyncio
 import json
 import ssl
 import sys
-from typing import Dict
+from typing import Dict, Mapping
 
 import pytest
 
@@ -58,12 +58,12 @@ async def test_websocket_starting_client_in_context_manager(event_loop, server):
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    sample_transport = WebsocketsTransport(url=url)
+    transport = WebsocketsTransport(url=url)
 
-    async with Client(transport=sample_transport) as session:
+    async with Client(transport=transport) as session:
 
         assert isinstance(
-            sample_transport.websocket, websockets.client.WebSocketClientProtocol
+            transport.websocket, websockets.client.WebSocketClientProtocol
         )
 
         query1 = gql(query1_str)
@@ -80,8 +80,13 @@ async def test_websocket_starting_client_in_context_manager(event_loop, server):
 
         assert africa["code"] == "AF"
 
+        # Checking response headers are saved in the transport
+        assert hasattr(transport, "response_headers")
+        assert isinstance(transport.response_headers, Mapping)
+        assert transport.response_headers["dummy"] == "test1234"
+
     # Check client is disconnect here
-    assert sample_transport.websocket is None
+    assert transport.websocket is None
 
 
 @pytest.mark.asyncio
@@ -98,12 +103,12 @@ async def test_websocket_using_ssl_connection(event_loop, ws_ssl_server):
     ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
     ssl_context.load_verify_locations(ws_ssl_server.testcert)
 
-    sample_transport = WebsocketsTransport(url=url, ssl=ssl_context)
+    transport = WebsocketsTransport(url=url, ssl=ssl_context)
 
-    async with Client(transport=sample_transport) as session:
+    async with Client(transport=transport) as session:
 
         assert isinstance(
-            sample_transport.websocket, websockets.client.WebSocketClientProtocol
+            transport.websocket, websockets.client.WebSocketClientProtocol
         )
 
         query1 = gql(query1_str)
@@ -121,7 +126,7 @@ async def test_websocket_using_ssl_connection(event_loop, ws_ssl_server):
         assert africa["code"] == "AF"
 
     # Check client is disconnect here
-    assert sample_transport.websocket is None
+    assert transport.websocket is None
 
 
 @pytest.mark.asyncio
@@ -301,19 +306,19 @@ async def test_websocket_multiple_connections_in_series(event_loop, server):
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    sample_transport = WebsocketsTransport(url=url)
+    transport = WebsocketsTransport(url=url)
 
-    async with Client(transport=sample_transport) as session:
+    async with Client(transport=transport) as session:
         await assert_client_is_working(session)
 
     # Check client is disconnect here
-    assert sample_transport.websocket is None
+    assert transport.websocket is None
 
-    async with Client(transport=sample_transport) as session:
+    async with Client(transport=transport) as session:
         await assert_client_is_working(session)
 
     # Check client is disconnect here
-    assert sample_transport.websocket is None
+    assert transport.websocket is None
 
 
 @pytest.mark.asyncio
@@ -325,8 +330,8 @@ async def test_websocket_multiple_connections_in_parallel(event_loop, server):
     print(f"url = {url}")
 
     async def task_coro():
-        sample_transport = WebsocketsTransport(url=url)
-        async with Client(transport=sample_transport) as session:
+        transport = WebsocketsTransport(url=url)
+        async with Client(transport=transport) as session:
             await assert_client_is_working(session)
 
     task1 = asyncio.ensure_future(task_coro())
@@ -345,12 +350,12 @@ async def test_websocket_trying_to_connect_to_already_connected_transport(
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    sample_transport = WebsocketsTransport(url=url)
-    async with Client(transport=sample_transport) as session:
+    transport = WebsocketsTransport(url=url)
+    async with Client(transport=transport) as session:
         await assert_client_is_working(session)
 
         with pytest.raises(TransportAlreadyConnected):
-            async with Client(transport=sample_transport):
+            async with Client(transport=transport):
                 pass
 
 
@@ -395,9 +400,9 @@ async def test_websocket_connect_success_with_authentication_in_connection_init(
 
     init_payload = {"Authorization": 12345}
 
-    sample_transport = WebsocketsTransport(url=url, init_payload=init_payload)
+    transport = WebsocketsTransport(url=url, init_payload=init_payload)
 
-    async with Client(transport=sample_transport) as session:
+    async with Client(transport=transport) as session:
 
         query1 = gql(query_str)
 
@@ -428,10 +433,10 @@ async def test_websocket_connect_failed_with_authentication_in_connection_init(
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    sample_transport = WebsocketsTransport(url=url, init_payload=init_payload)
+    transport = WebsocketsTransport(url=url, init_payload=init_payload)
 
     with pytest.raises(TransportServerError):
-        async with Client(transport=sample_transport) as session:
+        async with Client(transport=transport) as session:
             query1 = gql(query_str)
 
             await session.execute(query1)
@@ -444,9 +449,9 @@ def test_websocket_execute_sync(server):
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    sample_transport = WebsocketsTransport(url=url)
+    transport = WebsocketsTransport(url=url)
 
-    client = Client(transport=sample_transport)
+    client = Client(transport=transport)
 
     query1 = gql(query1_str)
 
@@ -476,7 +481,7 @@ def test_websocket_execute_sync(server):
     assert africa["code"] == "AF"
 
     # Check client is disconnect here
-    assert sample_transport.websocket is None
+    assert transport.websocket is None
 
 
 @pytest.mark.asyncio
@@ -487,11 +492,11 @@ async def test_websocket_add_extra_parameters_to_connect(event_loop, server):
     url = f"ws://{server.hostname}:{server.port}/graphql"
 
     # Increase max payload size to avoid websockets.exceptions.PayloadTooBig exceptions
-    sample_transport = WebsocketsTransport(url=url, connect_args={"max_size": 2 ** 21})
+    transport = WebsocketsTransport(url=url, connect_args={"max_size": 2 ** 21})
 
     query = gql(query1_str)
 
-    async with Client(transport=sample_transport) as session:
+    async with Client(transport=transport) as session:
         await session.execute(query)
 
 
