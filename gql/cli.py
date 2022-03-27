@@ -426,7 +426,11 @@ def gql_cli() -> None:
 
         # Add signal handlers to close gql-cli cleanly on Control-C
         for signal in [SIGINT, SIGTERM]:
-            loop.add_signal_handler(signal, main_task.cancel)
+            try:
+                loop.add_signal_handler(signal, main_task.cancel)
+            except NotImplementedError:  # pragma: no cover
+                # not all signals supported on all platforms
+                pass
 
         # Run the asyncio loop to execute the task
         exit_code = 0

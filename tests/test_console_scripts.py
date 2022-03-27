@@ -20,7 +20,7 @@ def test_cli_ep_version(script_runner):
 
 @pytest.mark.asyncio
 @pytest.mark.script_launch_mode("subprocess")
-async def test_ep_aiohttp_using_cli(
+async def test_cli_ep_aiohttp_using_cli(
     event_loop, aiohttp_server, monkeypatch, script_runner, run_sync_test
 ):
     from aiohttp import web
