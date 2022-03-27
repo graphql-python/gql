@@ -437,9 +437,5 @@ def gql_cli() -> None:
 
         # Return with the correct exit code
         sys.exit(exit_code)
-    except KeyboardInterrupt:
+    except KeyboardInterrupt:  # pragma: no cover
         pass
-
-
-if __name__ == "__main__":
-    gql_cli()
