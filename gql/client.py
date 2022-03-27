@@ -1,8 +1,20 @@
 import asyncio
+import logging
 import sys
 import warnings
-from typing import Any, AsyncGenerator, Dict, Generator, Optional, Union, overload
+from typing import (
+    Any,
+    AsyncGenerator,
+    Callable,
+    Dict,
+    Generator,
+    Optional,
+    TypeVar,
+    Union,
+    overload,
+)
 
+import backoff
 from graphql import (
     DocumentNode,
     ExecutionResult,
@@ -14,7 +26,7 @@ from graphql import (
 )
 
 from .transport.async_transport import AsyncTransport
-from .transport.exceptions import TransportQueryError
+from .transport.exceptions import TransportClosed, TransportQueryError
 from .transport.local_schema import LocalSchemaTransport
 from .transport.transport import Transport
 from .utilities import build_client_schema
@@ -30,6 +42,9 @@ if sys.version_info[:2] >= (3, 8):
     from typing import Literal
 else:
     from typing_extensions import Literal  # pragma: no cover
+
+
+log = logging.getLogger(__name__)
 
 
 class Client:
@@ -571,15 +586,17 @@ class Client:
             # Then reraise the exception
             raise
 
-    async def __aenter__(self):
+    async def connect_async(self, reconnecting=False, **kwargs):
 
         assert isinstance(
             self.transport, AsyncTransport
         ), "Only a transport of type AsyncTransport can be used asynchronously"
 
-        await self.transport.connect()
-
-        if not hasattr(self, "session"):
+        if reconnecting:
+            self.session = ReconnectingAsyncClientSession(client=self, **kwargs)
+            await self.session.start_connecting_task()
+        else:
+            await self.transport.connect()
             self.session = AsyncClientSession(client=self)
 
         # Get schema from transport if needed
@@ -595,11 +612,22 @@ class Client:
 
         return self.session
 
-    async def __aexit__(self, exc_type, exc, tb):
+    async def close_async(self):
+
+        if isinstance(self.session, ReconnectingAsyncClientSession):
+            await self.session.stop_connecting_task()
 
         await self.transport.close()
 
-    def __enter__(self):
+    async def __aenter__(self):
+
+        return await self.connect_async()
+
+    async def __aexit__(self, exc_type, exc, tb):
+
+        await self.close_async()
+
+    def connect_sync(self):
 
         assert not isinstance(self.transport, AsyncTransport), (
             "Only a sync transport can be used."
@@ -624,8 +652,15 @@ class Client:
 
         return self.session
 
-    def __exit__(self, *args):
+    def close_sync(self):
         self.transport.close()
+
+    def __enter__(self):
+
+        return self.connect_sync()
+
+    def __exit__(self, *args):
+        self.close_sync()
 
 
 class SyncClientSession:
@@ -1181,3 +1216,192 @@ class AsyncClientSession:
     @property
     def transport(self):
         return self.client.transport
+
+
+_CallableT = TypeVar("_CallableT", bound=Callable[..., Any])
+_Decorator = Callable[[_CallableT], _CallableT]
+
+
+class ReconnectingAsyncClientSession(AsyncClientSession):
+    """An instance of this class is created when using the
+    :meth:`connect_async <gql.client.Client.connect_async>` method of the
+    :class:`client <gql.client.Client>` class with :code:`reconnecting=True`.
+
+    It is used to provide a single session which will reconnect automatically if
+    the connection fails.
+    """
+
+    def __init__(
+        self,
+        client: Client,
+        retry_connect: Union[bool, _Decorator] = True,
+        retry_execute: Union[bool, _Decorator] = True,
+    ):
+        """
+        :param client: the :class:`client <gql.client.Client>` used.
+        :param retry_connect: Either a Boolean to activate/deactivate the retries
+            for the connection to the transport OR a backoff decorator to
+            provide specific retries parameters for the connections.
+        :param retry_execute: Either a Boolean to activate/deactivate the retries
+            for the execute method OR a backoff decorator to
+            provide specific retries parameters for this method.
+        """
+        self.client = client
+        self._connect_task = None
+
+        self._reconnect_request_event = asyncio.Event()
+        self._connected_event = asyncio.Event()
+
+        if retry_connect is True:
+            # By default, retry again and again, with maximum 60 seconds
+            # between retries
+            self.retry_connect = backoff.on_exception(
+                backoff.expo, Exception, max_value=60, jitter=None,
+            )
+        elif retry_connect is False:
+            self.retry_connect = lambda e: e
+        else:
+            assert callable(retry_connect)
+            self.retry_connect = retry_connect
+
+        if retry_execute is True:
+            # By default, retry 5 times, except if we receive a TransportQueryError
+            self.retry_execute = backoff.on_exception(
+                backoff.expo,
+                Exception,
+                max_tries=5,
+                giveup=lambda e: isinstance(e, TransportQueryError),
+            )
+        elif retry_execute is False:
+            self.retry_execute = lambda e: e
+        else:
+            assert callable(retry_execute)
+            self.retry_execute = retry_execute
+
+        # Creating the execute_with_retries method using the provided backoff decorator
+        self.execute_with_retries = self.retry_execute(self._execute_once)
+
+    async def _connection_loop(self):
+        """Coroutine used for the connection task.
+
+        - try to connect to the transport with retries
+        - send a connected event when the connection has been made
+        - then wait for a reconnect request to try to connect again
+        """
+
+        # Make the connect method using the provided backoff decorator
+        connect = self.retry_connect(self.transport.connect)
+
+        while True:
+
+            # Connect to the transport with the retry decorator
+            # By default it should keep retrying until it connect
+            await connect()
+
+            # Once connected, set the connected event
+            self._connected_event.set()
+            self._connected_event.clear()
+
+            # Then wait for the reconnect event
+            self._reconnect_request_event.clear()
+            await self._reconnect_request_event.wait()
+
+    async def start_connecting_task(self):
+        """Start the task responsible to restart the connection
+        of the transport when requested by an event.
+        """
+        if self._connect_task:
+            log.warning("connect task already started!")
+        else:
+            self._connect_task = asyncio.create_task(self._connection_loop())
+
+            await self._connected_event.wait()
+
+    async def stop_connecting_task(self):
+        """Stop the connecting task."""
+        if self._connect_task is not None:
+            self._connect_task.cancel()
+            self._connect_task = None
+
+    async def _execute_once(
+        self,
+        document: DocumentNode,
+        variable_values: Optional[Dict[str, Any]] = None,
+        operation_name: Optional[str] = None,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        **kwargs,
+    ) -> ExecutionResult:
+        """Same Coroutine as parent method _execute but requesting a
+        reconnection if we receive a TransportClosed exception.
+        """
+
+        try:
+            answer = await super()._execute(
+                document,
+                variable_values=variable_values,
+                operation_name=operation_name,
+                serialize_variables=serialize_variables,
+                parse_result=parse_result,
+                **kwargs,
+            )
+        except TransportClosed:
+            self._reconnect_request_event.set()
+            raise
+
+        return answer
+
+    async def _execute(
+        self,
+        document: DocumentNode,
+        variable_values: Optional[Dict[str, Any]] = None,
+        operation_name: Optional[str] = None,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        **kwargs,
+    ) -> ExecutionResult:
+        """Same Coroutine as parent, but with optional retries
+        and requesting a reconnection if we receive a TransportClosed exception.
+        """
+
+        return await self.execute_with_retries(
+            document,
+            variable_values=variable_values,
+            operation_name=operation_name,
+            serialize_variables=serialize_variables,
+            parse_result=parse_result,
+            **kwargs,
+        )
+
+    async def _subscribe(
+        self,
+        document: DocumentNode,
+        variable_values: Optional[Dict[str, Any]] = None,
+        operation_name: Optional[str] = None,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        **kwargs,
+    ) -> AsyncGenerator[ExecutionResult, None]:
+        """Same Async generator as parent method _subscribe but requesting a
+        reconnection if we receive a TransportClosed exception.
+        """
+
+        inner_generator: AsyncGenerator[ExecutionResult, None] = super()._subscribe(
+            document,
+            variable_values=variable_values,
+            operation_name=operation_name,
+            serialize_variables=serialize_variables,
+            parse_result=parse_result,
+            **kwargs,
+        )
+
+        try:
+            async for result in inner_generator:
+                yield result
+
+        except TransportClosed:
+            self._reconnect_request_event.set()
+            raise
+
+        finally:
+            await inner_generator.aclose()
