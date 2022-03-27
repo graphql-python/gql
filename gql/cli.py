@@ -1,9 +1,9 @@
 import asyncio
 import json
 import logging
+import signal as signal_module
 import sys
 from argparse import ArgumentParser, Namespace, RawDescriptionHelpFormatter
-from signal import SIGINT, SIGTERM
 from typing import Any, Dict, Optional
 
 from graphql import GraphQLError, print_schema
@@ -425,7 +425,12 @@ def gql_cli() -> None:
         main_task = asyncio.ensure_future(main(args), loop=loop)
 
         # Add signal handlers to close gql-cli cleanly on Control-C
-        for signal in [SIGINT, SIGTERM]:
+        for signal_name in ["SIGINT", "SIGTERM", "CTRL_C_EVENT", "CTRL_BREAK_EVENT"]:
+            signal = getattr(signal_module, signal_name)
+
+            if signal is None:
+                continue
+
             try:
                 loop.add_signal_handler(signal, main_task.cancel)
             except NotImplementedError:  # pragma: no cover
