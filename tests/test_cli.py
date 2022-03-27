@@ -3,7 +3,6 @@ import logging
 import pytest
 
 from gql import __version__
-
 from gql.cli import (
     get_execute_args,
     get_parser,
