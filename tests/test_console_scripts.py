@@ -6,8 +6,6 @@ import pytest
 
 from gql import __version__
 
-from .test_aiohttp import query1_server_answer, query1_server_answer_data, query1_str
-
 
 def test_cli_ep_version(script_runner):
     ret = script_runner.run("gql-cli", "--version")
@@ -24,6 +22,12 @@ async def test_cli_ep_aiohttp_using_cli(
     event_loop, aiohttp_server, monkeypatch, script_runner, run_sync_test
 ):
     from aiohttp import web
+
+    from .test_aiohttp import (
+        query1_server_answer,
+        query1_server_answer_data,
+        query1_str,
+    )
 
     async def handler(request):
         return web.Response(text=query1_server_answer, content_type="application/json")
