@@ -7,8 +7,8 @@ install_requires = [
     "yarl>=1.6,<2.0",
 ]
 
-scripts = [
-    "scripts/gql-cli",
+console_scripts = [
+    "gql-cli=gql.cli:gql_cli",
 ]
 
 tests_requires = [
@@ -106,5 +106,5 @@ setup(
     include_package_data=True,
     zip_safe=False,
     platforms="any",
-    scripts=scripts,
+    entry_scripts={"console_scripts": console_scripts},
 )

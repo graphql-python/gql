@@ -11,8 +11,6 @@ include Makefile
 
 include tox.ini
 
-include scripts/gql-cli
-
 include gql/py.typed
 
 recursive-include tests *.py *.graphql *.cnf *.yaml *.pem
