@@ -106,5 +106,5 @@ setup(
     include_package_data=True,
     zip_safe=False,
     platforms="any",
-    entry_scripts={"console_scripts": console_scripts},
+    entry_points={"console_scripts": console_scripts},
 )
