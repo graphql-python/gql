@@ -426,7 +426,7 @@ def gql_cli() -> None:
 
         # Add signal handlers to close gql-cli cleanly on Control-C
         for signal_name in ["SIGINT", "SIGTERM", "CTRL_C_EVENT", "CTRL_BREAK_EVENT"]:
-            signal = getattr(signal_module, signal_name)
+            signal = getattr(signal_module, signal_name, None)
 
             if signal is None:
                 continue
