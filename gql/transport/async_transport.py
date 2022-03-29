@@ -7,16 +7,14 @@ from graphql import DocumentNode, ExecutionResult
 class AsyncTransport:
     @abc.abstractmethod
     async def connect(self):
-        """Coroutine used to create a connection to the specified address
-        """
+        """Coroutine used to create a connection to the specified address"""
         raise NotImplementedError(
             "Any AsyncTransport subclass must implement connect method"
         )  # pragma: no cover
 
     @abc.abstractmethod
     async def close(self):
-        """Coroutine used to Close an established connection
-        """
+        """Coroutine used to Close an established connection"""
         raise NotImplementedError(
             "Any AsyncTransport subclass must implement close method"
         )  # pragma: no cover
@@ -28,8 +26,8 @@ class AsyncTransport:
         variable_values: Optional[Dict[str, Any]] = None,
         operation_name: Optional[str] = None,
     ) -> ExecutionResult:
-        """Execute the provided document AST for either a remote or local GraphQL Schema.
-        """
+        """Execute the provided document AST for either a remote or local GraphQL
+        Schema."""
         raise NotImplementedError(
             "Any AsyncTransport subclass must implement execute method"
         )  # pragma: no cover

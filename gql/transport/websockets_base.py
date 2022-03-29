@@ -196,8 +196,7 @@ class WebsocketsTransportBase(AsyncTransport):
         pass  # pragma: no cover
 
     async def _close_hook(self):
-        """Hook to add custom code for subclasses for the connection close
-        """
+        """Hook to add custom code for subclasses for the connection close"""
         pass  # pragma: no cover
 
     async def _connection_terminate(self):

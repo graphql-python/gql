@@ -2,7 +2,9 @@ from gql import Client, gql
 from gql.transport.requests import RequestsHTTPTransport
 
 transport = RequestsHTTPTransport(
-    url="https://countries.trevorblades.com/", verify=True, retries=3,
+    url="https://countries.trevorblades.com/",
+    verify=True,
+    retries=3,
 )
 
 client = Client(transport=transport, fetch_schema_from_transport=True)

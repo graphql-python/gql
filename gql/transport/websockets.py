@@ -152,8 +152,7 @@ class WebsocketsTransport(WebsocketsTransportBase):
         await self._send_init_message_and_wait_ack()
 
     async def send_ping(self, payload: Optional[Any] = None) -> None:
-        """Send a ping message for the graphql-ws protocol
-        """
+        """Send a ping message for the graphql-ws protocol"""
 
         ping_message = {"type": "ping"}
 
@@ -163,8 +162,7 @@ class WebsocketsTransport(WebsocketsTransportBase):
         await self._send(json.dumps(ping_message))
 
     async def send_pong(self, payload: Optional[Any] = None) -> None:
-        """Send a pong message for the graphql-ws protocol
-        """
+        """Send a pong message for the graphql-ws protocol"""
 
         pong_message = {"type": "pong"}
 

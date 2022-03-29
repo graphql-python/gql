@@ -492,7 +492,7 @@ async def test_websocket_add_extra_parameters_to_connect(event_loop, server):
     url = f"ws://{server.hostname}:{server.port}/graphql"
 
     # Increase max payload size to avoid websockets.exceptions.PayloadTooBig exceptions
-    transport = WebsocketsTransport(url=url, connect_args={"max_size": 2 ** 21})
+    transport = WebsocketsTransport(url=url, connect_args={"max_size": 2**21})
 
     query = gql(query1_str)
 

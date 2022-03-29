@@ -533,7 +533,9 @@ async def test_graphqlws_subscription_with_ping_interval_ok(
     path = "/graphql"
     url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}{path}"
     transport = WebsocketsTransport(
-        url=url, ping_interval=(5 * COUNTING_DELAY), pong_timeout=(4 * COUNTING_DELAY),
+        url=url,
+        ping_interval=(5 * COUNTING_DELAY),
+        pong_timeout=(4 * COUNTING_DELAY),
     )
 
     client = Client(transport=transport)
@@ -709,7 +711,7 @@ def test_graphqlws_subscription_sync(graphqlws_server, subscription_str):
 def test_graphqlws_subscription_sync_graceful_shutdown(
     graphqlws_server, subscription_str
 ):
-    """ Note: this test will simulate a control-C happening while a sync subscription
+    """Note: this test will simulate a control-C happening while a sync subscription
     is in progress. To do that we will throw a KeyboardInterrupt exception inside
     the subscription async generator.
 

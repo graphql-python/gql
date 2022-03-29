@@ -469,7 +469,8 @@ async def client_and_graphqlws_server(graphqlws_server):
     path = "/graphql"
     url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}{path}"
     sample_transport = WebsocketsTransport(
-        url=url, subprotocols=[WebsocketsTransport.GRAPHQLWS_SUBPROTOCOL],
+        url=url,
+        subprotocols=[WebsocketsTransport.GRAPHQLWS_SUBPROTOCOL],
     )
 
     async with Client(transport=sample_transport) as session:

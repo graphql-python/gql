@@ -134,11 +134,15 @@ following arguments:"""
     appsync_auth_group = appsync_group.add_mutually_exclusive_group()
 
     appsync_auth_group.add_argument(
-        "--api-key", help="Provide an API key for authentication", dest="api_key",
+        "--api-key",
+        help="Provide an API key for authentication",
+        dest="api_key",
     )
 
     appsync_auth_group.add_argument(
-        "--jwt", help="Provide an JSON Web token for authentication", dest="jwt",
+        "--jwt",
+        help="Provide an JSON Web token for authentication",
+        dest="jwt",
     )
 
     return parser
