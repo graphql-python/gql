@@ -155,7 +155,8 @@ def test_cli_parse_variable_value_invalid_param(parser, param):
 
 @pytest.mark.aiohttp
 @pytest.mark.parametrize(
-    "url", ["http://your_server.com", "https://your_server.com"],
+    "url",
+    ["http://your_server.com", "https://your_server.com"],
 )
 def test_cli_get_transport_aiohttp(parser, url):
 
@@ -170,7 +171,8 @@ def test_cli_get_transport_aiohttp(parser, url):
 
 @pytest.mark.websockets
 @pytest.mark.parametrize(
-    "url", ["ws://your_server.com", "wss://your_server.com"],
+    "url",
+    ["ws://your_server.com", "wss://your_server.com"],
 )
 def test_cli_get_transport_websockets(parser, url):
 
@@ -185,7 +187,8 @@ def test_cli_get_transport_websockets(parser, url):
 
 @pytest.mark.websockets
 @pytest.mark.parametrize(
-    "url", ["ws://your_server.com", "wss://your_server.com"],
+    "url",
+    ["ws://your_server.com", "wss://your_server.com"],
 )
 def test_cli_get_transport_phoenix(parser, url):
 
@@ -224,7 +227,8 @@ def test_cli_get_transport_appsync_websockets_iam(parser, url):
 @pytest.mark.websockets
 @pytest.mark.botocore
 @pytest.mark.parametrize(
-    "url", ["wss://XXXXXX.appsync-api.eu-west-3.amazonaws.com/graphql"],
+    "url",
+    ["wss://XXXXXX.appsync-api.eu-west-3.amazonaws.com/graphql"],
 )
 async def test_cli_main_appsync_websockets_iam(parser, url):
 
@@ -240,7 +244,8 @@ async def test_cli_main_appsync_websockets_iam(parser, url):
 
 @pytest.mark.websockets
 @pytest.mark.parametrize(
-    "url", ["wss://XXXXXX.appsync-api.eu-west-3.amazonaws.com/graphql"],
+    "url",
+    ["wss://XXXXXX.appsync-api.eu-west-3.amazonaws.com/graphql"],
 )
 def test_cli_get_transport_appsync_websockets_api_key(parser, url):
 
@@ -260,7 +265,8 @@ def test_cli_get_transport_appsync_websockets_api_key(parser, url):
 
 @pytest.mark.websockets
 @pytest.mark.parametrize(
-    "url", ["wss://XXXXXX.appsync-api.eu-west-3.amazonaws.com/graphql"],
+    "url",
+    ["wss://XXXXXX.appsync-api.eu-west-3.amazonaws.com/graphql"],
 )
 def test_cli_get_transport_appsync_websockets_jwt(parser, url):
 
@@ -281,7 +287,8 @@ def test_cli_get_transport_appsync_websockets_jwt(parser, url):
 @pytest.mark.aiohttp
 @pytest.mark.botocore
 @pytest.mark.parametrize(
-    "url", ["https://XXXXXX.appsync-api.eu-west-3.amazonaws.com/graphql"],
+    "url",
+    ["https://XXXXXX.appsync-api.eu-west-3.amazonaws.com/graphql"],
 )
 def test_cli_get_transport_appsync_http_iam(parser, url):
 
@@ -296,7 +303,8 @@ def test_cli_get_transport_appsync_http_iam(parser, url):
 
 @pytest.mark.aiohttp
 @pytest.mark.parametrize(
-    "url", ["https://XXXXXX.appsync-api.eu-west-3.amazonaws.com/graphql"],
+    "url",
+    ["https://XXXXXX.appsync-api.eu-west-3.amazonaws.com/graphql"],
 )
 def test_cli_get_transport_appsync_http_api_key(parser, url):
 
@@ -316,7 +324,8 @@ def test_cli_get_transport_appsync_http_api_key(parser, url):
 
 @pytest.mark.aiohttp
 @pytest.mark.parametrize(
-    "url", ["https://XXXXXX.appsync-api.eu-west-3.amazonaws.com/graphql"],
+    "url",
+    ["https://XXXXXX.appsync-api.eu-west-3.amazonaws.com/graphql"],
 )
 def test_cli_get_transport_appsync_http_jwt(parser, url):
 

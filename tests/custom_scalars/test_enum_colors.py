@@ -71,7 +71,10 @@ def resolve_list(_root, _info):
 queryType = GraphQLObjectType(
     name="RootQueryType",
     fields={
-        "all": GraphQLField(GraphQLList(ColorType), resolve=resolve_all,),
+        "all": GraphQLField(
+            GraphQLList(ColorType),
+            resolve=resolve_all,
+        ),
         "opposite": GraphQLField(
             ColorType,
             args={"color": GraphQLArgument(ColorType)},
@@ -90,7 +93,8 @@ queryType = GraphQLObjectType(
             resolve=resolve_list_of_list,
         ),
         "list": GraphQLField(
-            GraphQLNonNull(GraphQLList(ColorType)), resolve=resolve_list,
+            GraphQLNonNull(GraphQLList(ColorType)),
+            resolve=resolve_list,
         ),
     },
 )

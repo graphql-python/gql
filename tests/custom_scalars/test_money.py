@@ -155,7 +155,8 @@ queryType = GraphQLObjectType(
             GraphQLList(MoneyScalar), resolve=resolve_friends_balance
         ),
         "countries_balance": GraphQLField(
-            GraphQLNonNull(countriesBalance), resolve=resolve_countries_balance,
+            GraphQLNonNull(countriesBalance),
+            resolve=resolve_countries_balance,
         ),
     },
 )
@@ -184,7 +185,10 @@ subscriptionType = GraphQLObjectType(
     },
 )
 
-schema = GraphQLSchema(query=queryType, subscription=subscriptionType,)
+schema = GraphQLSchema(
+    query=queryType,
+    subscription=subscriptionType,
+)
 
 
 def test_custom_scalar_in_output():
@@ -470,7 +474,9 @@ async def test_custom_scalar_in_output_with_transport(event_loop, aiohttp_server
 
     transport = await make_money_transport(aiohttp_server)
 
-    async with Client(transport=transport,) as session:
+    async with Client(
+        transport=transport,
+    ) as session:
 
         query = gql("{balance}")
 
@@ -486,7 +492,9 @@ async def test_custom_scalar_in_input_query_with_transport(event_loop, aiohttp_s
 
     transport = await make_money_transport(aiohttp_server)
 
-    async with Client(transport=transport,) as session:
+    async with Client(
+        transport=transport,
+    ) as session:
 
         query = gql('{toEuros(money: {amount: 10, currency: "DM"})}')
 
@@ -508,7 +516,9 @@ async def test_custom_scalar_in_input_variable_values_with_transport(
 
     transport = await make_money_transport(aiohttp_server)
 
-    async with Client(transport=transport,) as session:
+    async with Client(
+        transport=transport,
+    ) as session:
 
         query = gql("query myquery($money: Money) {toEuros(money: $money)}")
 
@@ -530,7 +540,9 @@ async def test_custom_scalar_in_input_variable_values_split_with_transport(
 
     transport = await make_money_transport(aiohttp_server)
 
-    async with Client(transport=transport,) as session:
+    async with Client(
+        transport=transport,
+    ) as session:
 
         query = gql(
             """
@@ -552,7 +564,10 @@ async def test_custom_scalar_serialize_variables(event_loop, aiohttp_server):
 
     transport = await make_money_transport(aiohttp_server)
 
-    async with Client(schema=schema, transport=transport,) as session:
+    async with Client(
+        schema=schema,
+        transport=transport,
+    ) as session:
 
         query = gql("query myquery($money: Money) {toEuros(money: $money)}")
 
@@ -571,7 +586,9 @@ async def test_custom_scalar_serialize_variables_no_schema(event_loop, aiohttp_s
 
     transport = await make_money_transport(aiohttp_server)
 
-    async with Client(transport=transport,) as session:
+    async with Client(
+        transport=transport,
+    ) as session:
 
         query = gql("query myquery($money: Money) {toEuros(money: $money)}")
 
@@ -670,7 +687,9 @@ def test_update_schema_scalars_invalid_scalar_argument():
 
 def test_update_schema_scalars_scalar_not_found_in_schema():
 
-    NotFoundScalar = GraphQLScalarType(name="abcd",)
+    NotFoundScalar = GraphQLScalarType(
+        name="abcd",
+    )
 
     with pytest.raises(KeyError) as exc_info:
         update_schema_scalars(schema, [MoneyScalar, NotFoundScalar])
