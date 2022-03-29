@@ -10,7 +10,8 @@ class LocalSchemaTransport(AsyncTransport):
     """A transport for executing GraphQL queries against a local schema."""
 
     def __init__(
-        self, schema: GraphQLSchema,
+        self,
+        schema: GraphQLSchema,
     ):
         """Initialize the transport with the given local schema.
 
@@ -19,20 +20,20 @@ class LocalSchemaTransport(AsyncTransport):
         self.schema = schema
 
     async def connect(self):
-        """No connection needed on local transport
-        """
+        """No connection needed on local transport"""
         pass
 
     async def close(self):
-        """No close needed on local transport
-        """
+        """No close needed on local transport"""
         pass
 
     async def execute(
-        self, document: DocumentNode, *args, **kwargs,
+        self,
+        document: DocumentNode,
+        *args,
+        **kwargs,
     ) -> ExecutionResult:
-        """Execute the provided document AST for on a local GraphQL Schema.
-        """
+        """Execute the provided document AST for on a local GraphQL Schema."""
 
         result_or_awaitable = execute(self.schema, document, *args, **kwargs)
 
@@ -48,7 +49,10 @@ class LocalSchemaTransport(AsyncTransport):
         return execution_result
 
     async def subscribe(
-        self, document: DocumentNode, *args, **kwargs,
+        self,
+        document: DocumentNode,
+        *args,
+        **kwargs,
     ) -> AsyncGenerator[ExecutionResult, None]:
         """Send a subscription and receive the results using an async generator
 

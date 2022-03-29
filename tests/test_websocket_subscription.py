@@ -498,7 +498,7 @@ def test_websocket_subscription_sync(server, subscription_str):
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 def test_websocket_subscription_sync_graceful_shutdown(server, subscription_str):
-    """ Note: this test will simulate a control-C happening while a sync subscription
+    """Note: this test will simulate a control-C happening while a sync subscription
     is in progress. To do that we will throw a KeyboardInterrupt exception inside
     the subscription async generator.
 

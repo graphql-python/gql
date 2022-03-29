@@ -18,8 +18,7 @@ class Transport:
         )  # pragma: no cover
 
     def connect(self):
-        """Establish a session with the transport.
-        """
+        """Establish a session with the transport."""
         pass  # pragma: no cover
 
     def close(self):
