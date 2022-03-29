@@ -71,6 +71,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install .[test]
       - name: Test with coverage
-        run: pytest --cov=gql --cov-report=xml tests
+        run: pytest --cov=gql --cov-report=xml --cov-report=term-missing tests
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
