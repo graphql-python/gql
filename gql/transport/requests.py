@@ -155,7 +155,8 @@ class RequestsHTTPTransport(Transport):
             # If we upload files, we will extract the files present in the
             # variable_values dict and replace them by null values
             nulled_variable_values, files = extract_files(
-                variables=variable_values, file_classes=self.file_classes,
+                variables=variable_values,
+                file_classes=self.file_classes,
             )
 
             # Save the nulled variable values in the payload

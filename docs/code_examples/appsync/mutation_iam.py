@@ -30,7 +30,8 @@ async def main():
     transport = AIOHTTPTransport(url=url, auth=auth)
 
     async with Client(
-        transport=transport, fetch_schema_from_transport=False,
+        transport=transport,
+        fetch_schema_from_transport=False,
     ) as session:
 
         query = gql(

@@ -27,7 +27,8 @@ def test_appsync_init_with_no_credentials(caplog, fake_session_factory):
 
     with pytest.raises(botocore.exceptions.NoCredentialsError):
         sample_transport = AppSyncWebsocketsTransport(
-            url=mock_transport_url, session=fake_session_factory(credentials=None),
+            url=mock_transport_url,
+            session=fake_session_factory(credentials=None),
         )
         assert sample_transport.auth is None
 
@@ -75,7 +76,8 @@ def test_appsync_init_with_iam_auth_without_creds(fake_session_factory):
     from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
 
     auth = AppSyncIAMAuthentication(
-        host=mock_transport_host, session=fake_session_factory(credentials=None),
+        host=mock_transport_host,
+        session=fake_session_factory(credentials=None),
     )
     with pytest.raises(botocore.exceptions.NoCredentialsError):
         AppSyncWebsocketsTransport(url=mock_transport_url, auth=auth)
@@ -105,7 +107,7 @@ def test_appsync_init_with_iam_auth_and_no_region(
      - you have a default region set in ~/.aws/config
      - you have the AWS_DEFAULT_REGION environment variable set
 
-     """
+    """
     from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
     from botocore.exceptions import NoRegionError
     import logging

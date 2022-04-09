@@ -68,7 +68,8 @@ def resolve_players(root, _info):
 
 
 queryType = GraphQLObjectType(
-    name="Query", fields={"players": GraphQLField(JsonScalar, resolve=resolve_players)},
+    name="Query",
+    fields={"players": GraphQLField(JsonScalar, resolve=resolve_players)},
 )
 
 

@@ -311,7 +311,9 @@ class DSLSelector(ABC):
     selection_set: SelectionSetNode
 
     def __init__(
-        self, *fields: "DSLSelectable", **fields_with_alias: "DSLSelectableWithAlias",
+        self,
+        *fields: "DSLSelectable",
+        **fields_with_alias: "DSLSelectableWithAlias",
     ):
         """:meta private:"""
         self.selection_set = SelectionSetNode(selections=())
@@ -326,7 +328,9 @@ class DSLSelector(ABC):
         )  # pragma: no cover
 
     def select(
-        self, *fields: "DSLSelectable", **fields_with_alias: "DSLSelectableWithAlias",
+        self,
+        *fields: "DSLSelectable",
+        **fields_with_alias: "DSLSelectableWithAlias",
     ):
         r"""Select the fields which should be added.
 
@@ -387,7 +391,9 @@ class DSLExecutable(DSLSelector):
         )  # pragma: no cover
 
     def __init__(
-        self, *fields: "DSLSelectable", **fields_with_alias: "DSLSelectableWithAlias",
+        self,
+        *fields: "DSLSelectable",
+        **fields_with_alias: "DSLSelectableWithAlias",
     ):
         r"""Given arguments of type :class:`DSLSelectable` containing GraphQL requests,
         generate an operation which can be converted to a Document
@@ -552,7 +558,9 @@ class DSLVariableDefinitions:
         """
         return tuple(
             VariableDefinitionNode(
-                type=var.type, variable=var.ast_variable, default_value=None,
+                type=var.type,
+                variable=var.ast_variable,
+                default_value=None,
             )
             for var in self.variables.values()
             if var.type is not None  # only variables used
@@ -889,7 +897,9 @@ class DSLInlineFragment(DSLSelectable, DSLFragmentSelector):
     ast_field: InlineFragmentNode
 
     def __init__(
-        self, *fields: "DSLSelectable", **fields_with_alias: "DSLSelectableWithAlias",
+        self,
+        *fields: "DSLSelectable",
+        **fields_with_alias: "DSLSelectableWithAlias",
     ):
         r"""Initialize the DSLInlineFragment.
 
@@ -944,7 +954,8 @@ class DSLFragment(DSLSelectable, DSLFragmentSelector, DSLExecutable):
     name: str
 
     def __init__(
-        self, name: str,
+        self,
+        name: str,
     ):
         r"""Initialize the DSLFragment.
 

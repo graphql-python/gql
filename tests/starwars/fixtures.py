@@ -66,7 +66,11 @@ leia = Human(
 )
 
 tarkin = Human(
-    id="1004", name="Wilhuff Tarkin", friends=["1001"], appearsIn=[4], homePlanet=None,
+    id="1004",
+    name="Wilhuff Tarkin",
+    friends=["1001"],
+    appearsIn=[4],
+    homePlanet=None,
 )
 
 humanData = {

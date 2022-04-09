@@ -1,5 +1,7 @@
+import asyncio
 import json
 import logging
+import signal as signal_module
 import sys
 from argparse import ArgumentParser, Namespace, RawDescriptionHelpFormatter
 from typing import Any, Dict, Optional
@@ -132,11 +134,15 @@ following arguments:"""
     appsync_auth_group = appsync_group.add_mutually_exclusive_group()
 
     appsync_auth_group.add_argument(
-        "--api-key", help="Provide an API key for authentication", dest="api_key",
+        "--api-key",
+        help="Provide an API key for authentication",
+        dest="api_key",
     )
 
     appsync_auth_group.add_argument(
-        "--jwt", help="Provide an JSON Web token for authentication", dest="jwt",
+        "--jwt",
+        help="Provide an JSON Web token for authentication",
+        dest="jwt",
     )
 
     return parser
@@ -403,3 +409,46 @@ async def main(args: Namespace) -> int:
                 exit_code = 1
 
     return exit_code
+
+
+def gql_cli() -> None:
+    """Synchronously invoke ``main`` with the parsed command line arguments.
+
+    Formerly ``scripts/gql-cli``, now registered as an ``entry_point``
+    """
+    # Get arguments from command line
+    parser = get_parser(with_examples=True)
+    args = parser.parse_args()
+
+    try:
+        # Create a new asyncio event loop
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        # Create a gql-cli task with the supplied arguments
+        main_task = asyncio.ensure_future(main(args), loop=loop)
+
+        # Add signal handlers to close gql-cli cleanly on Control-C
+        for signal_name in ["SIGINT", "SIGTERM", "CTRL_C_EVENT", "CTRL_BREAK_EVENT"]:
+            signal = getattr(signal_module, signal_name, None)
+
+            if signal is None:
+                continue
+
+            try:
+                loop.add_signal_handler(signal, main_task.cancel)
+            except NotImplementedError:  # pragma: no cover
+                # not all signals supported on all platforms
+                pass
+
+        # Run the asyncio loop to execute the task
+        exit_code = 0
+        try:
+            exit_code = loop.run_until_complete(main_task)
+        finally:
+            loop.close()
+
+        # Return with the correct exit code
+        sys.exit(exit_code)
+    except KeyboardInterrupt:  # pragma: no cover
+        pass
