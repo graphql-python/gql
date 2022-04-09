@@ -7,14 +7,15 @@ install_requires = [
     "yarl>=1.6,<2.0",
 ]
 
-scripts = [
-    "scripts/gql-cli",
+console_scripts = [
+    "gql-cli=gql.cli:gql_cli",
 ]
 
 tests_requires = [
     "parse==1.15.0",
     "pytest==6.2.5",
     "pytest-asyncio==0.16.0",
+    "pytest-console-scripts==1.3.1",
     "pytest-cov==3.0.0",
     "mock==4.0.2",
     "vcrpy==4.0.2",
@@ -106,5 +107,5 @@ setup(
     include_package_data=True,
     zip_safe=False,
     platforms="any",
-    scripts=scripts,
+    entry_points={"console_scripts": console_scripts},
 )

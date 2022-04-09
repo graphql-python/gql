@@ -1,6 +1,6 @@
 .PHONY: clean tests docs
 
-SRC_PYTHON := gql tests scripts/gql-cli docs/code_examples
+SRC_PYTHON := gql tests docs/code_examples
 
 dev-setup:
 	python pip install -e ".[test]"

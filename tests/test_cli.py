@@ -2,6 +2,7 @@ import logging
 
 import pytest
 
+from gql import __version__
 from gql.cli import (
     get_execute_args,
     get_parser,
@@ -347,3 +348,12 @@ def test_cli_get_transport_no_protocol(parser):
 
     with pytest.raises(ValueError):
         get_transport(args)
+
+
+def test_cli_ep_version(script_runner):
+    ret = script_runner.run("gql-cli", "--version")
+
+    assert ret.success
+
+    assert ret.stdout == f"v{__version__}\n"
+    assert ret.stderr == ""
