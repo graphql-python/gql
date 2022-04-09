@@ -125,6 +125,12 @@ It can also be done using the :meth:`args <gql.dsl.DSLField.args>` method::
 
     ds.Query.human.args(id="1000").select(ds.Human.name)
 
+.. note::
+    If your argument name is a Python keyword (for, in, from, ...), you will receive a
+    SyntaxError (See `issue #308`_). To fix this, you can provide the arguments by unpacking a dictionary.
+
+    For example, instead of using :code:`from=5`, you can use :code:`**{"from":5}`
+
 Aliases
 ^^^^^^^
 
@@ -364,3 +370,4 @@ Sync example
 
 .. _Fragment: https://graphql.org/learn/queries/#fragments
 .. _Inline Fragment: https://graphql.org/learn/queries/#inline-fragments
+.. _issue #308: https://github.com/graphql-python/gql/issues/308
