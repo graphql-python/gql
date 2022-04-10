@@ -106,10 +106,13 @@ def ast_from_serialized_value_untyped(serialized: Any) -> Optional[ValueNode]:
         return BooleanValueNode(value=serialized)
 
     if isinstance(serialized, int):
-        return IntValueNode(value=f"{serialized:d}")
+        return IntValueNode(value=str(serialized))
 
     if isinstance(serialized, float) and isfinite(serialized):
-        return FloatValueNode(value=f"{serialized:g}")
+        value = str(serialized)
+        if value.endswith(".0"):
+            value = value[:-2]
+        return FloatValueNode(value=value)
 
     if isinstance(serialized, str):
         return StringValueNode(value=serialized)

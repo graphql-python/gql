@@ -1,6 +1,8 @@
 import pytest
 from graphql import (
+    FloatValueNode,
     GraphQLError,
+    GraphQLFloat,
     GraphQLID,
     GraphQLInt,
     GraphQLList,
@@ -85,6 +87,20 @@ def test_ast_from_value_with_non_null_type_and_none():
         ast_from_value(None, typ)
 
     assert "Received Null value for a Non-Null type Int." in str(exc_info.value)
+
+
+def test_ast_from_value_float_precision():
+
+    # Checking precision of float serialization
+    # See https://github.com/graphql-python/graphql-core/pull/164
+
+    assert ast_from_value(123456789.01234567, GraphQLFloat) == FloatValueNode(
+        value="123456789.01234567"
+    )
+
+    assert ast_from_value(1.1, GraphQLFloat) == FloatValueNode(value="1.1")
+
+    assert ast_from_value(123.0, GraphQLFloat) == FloatValueNode(value="123")
 
 
 def test_ast_from_serialized_value_untyped_typeerror():
