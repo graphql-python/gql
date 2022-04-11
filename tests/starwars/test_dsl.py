@@ -712,6 +712,42 @@ def test_dsl_query_all_fields_should_correspond_to_the_root_type(ds):
     )
 
 
+def test_dsl_root_type_not_default():
+
+    from graphql import parse, build_ast_schema
+
+    schema_str = """
+schema {
+  query: QueryNotDefault
+}
+
+type QueryNotDefault {
+  version: String
+}
+"""
+
+    type_def_ast = parse(schema_str)
+    schema = build_ast_schema(type_def_ast)
+
+    ds = DSLSchema(schema)
+
+    query = dsl_gql(DSLQuery(ds.QueryNotDefault.version))
+
+    expected_query = """
+{
+  version
+}
+"""
+    assert print_ast(query) == expected_query.strip()
+
+    with pytest.raises(GraphQLError) as excinfo:
+        DSLSubscription(ds.QueryNotDefault.version)
+
+    assert (
+        "Invalid field for <DSLSubscription>: <DSLField QueryNotDefault::version>"
+    ) in str(excinfo.value)
+
+
 def test_dsl_gql_all_arguments_should_be_operations_or_fragments():
     with pytest.raises(
         TypeError, match="Operations should be instances of DSLExecutable "
