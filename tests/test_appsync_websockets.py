@@ -450,7 +450,8 @@ async def test_appsync_subscription_iam_without_token(event_loop, server):
     url = f"ws://{server.hostname}:{server.port}{path}"
 
     dummy_credentials = Credentials(
-        access_key=DUMMY_ACCESS_KEY_ID, secret_key=DUMMY_SECRET_ACCESS_KEY,
+        access_key=DUMMY_ACCESS_KEY_ID,
+        secret_key=DUMMY_SECRET_ACCESS_KEY,
     )
 
     auth = AppSyncIAMAuthentication(
@@ -475,7 +476,8 @@ async def test_appsync_execute_method_not_allowed(event_loop, server):
     url = f"ws://{server.hostname}:{server.port}{path}"
 
     dummy_credentials = Credentials(
-        access_key=DUMMY_ACCESS_KEY_ID, secret_key=DUMMY_SECRET_ACCESS_KEY,
+        access_key=DUMMY_ACCESS_KEY_ID,
+        secret_key=DUMMY_SECRET_ACCESS_KEY,
     )
 
     auth = AppSyncIAMAuthentication(
@@ -518,7 +520,8 @@ async def test_appsync_fetch_schema_from_transport_not_allowed(event_loop):
     from botocore.credentials import Credentials
 
     dummy_credentials = Credentials(
-        access_key=DUMMY_ACCESS_KEY_ID, secret_key=DUMMY_SECRET_ACCESS_KEY,
+        access_key=DUMMY_ACCESS_KEY_ID,
+        secret_key=DUMMY_SECRET_ACCESS_KEY,
     )
 
     auth = AppSyncIAMAuthentication(

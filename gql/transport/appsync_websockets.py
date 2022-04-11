@@ -172,7 +172,12 @@ class AppSyncWebsocketsTransport(WebsocketsTransportBase):
             "authorization": self.auth.get_headers(serialized_data)
         }
 
-        await self._send(json.dumps(message, separators=(",", ":"),))
+        await self._send(
+            json.dumps(
+                message,
+                separators=(",", ":"),
+            )
+        )
 
         return query_id
 

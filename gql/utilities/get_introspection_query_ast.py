@@ -48,13 +48,15 @@ def get_introspection_query_ast(
     if directive_is_repeatable:
         directives.select(ds.__Directive.isRepeatable)
     directives.select(
-        ds.__Directive.locations, ds.__Directive.args.select(fragment_InputValue),
+        ds.__Directive.locations,
+        ds.__Directive.args.select(fragment_InputValue),
     )
 
     schema.select(directives)
 
     fragment_FullType.select(
-        ds.__Type.kind, ds.__Type.name,
+        ds.__Type.kind,
+        ds.__Type.name,
     )
     if descriptions:
         fragment_FullType.select(ds.__Type.description)
@@ -81,7 +83,8 @@ def get_introspection_query_ast(
         enum_values.select(ds.__EnumValue.description)
 
     enum_values.select(
-        ds.__EnumValue.isDeprecated, ds.__EnumValue.deprecationReason,
+        ds.__EnumValue.isDeprecated,
+        ds.__EnumValue.deprecationReason,
     )
 
     fragment_FullType.select(
@@ -98,11 +101,13 @@ def get_introspection_query_ast(
         fragment_InputValue.select(ds.__InputValue.description)
 
     fragment_InputValue.select(
-        ds.__InputValue.type.select(fragment_TypeRef), ds.__InputValue.defaultValue,
+        ds.__InputValue.type.select(fragment_TypeRef),
+        ds.__InputValue.defaultValue,
     )
 
     fragment_TypeRef.select(
-        ds.__Type.kind, ds.__Type.name,
+        ds.__Type.kind,
+        ds.__Type.name,
     )
 
     if type_recursion_level >= 1:

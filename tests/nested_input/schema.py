@@ -30,4 +30,7 @@ queryType = GraphQLObjectType(
     },
 )
 
-NestedInputSchema = GraphQLSchema(query=queryType, types=[nestedInput],)
+NestedInputSchema = GraphQLSchema(
+    query=queryType,
+    types=[nestedInput],
+)
