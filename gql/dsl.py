@@ -454,7 +454,7 @@ class DSLRootFieldSelector(DSLSelector):
 
             assert field.dsl_type is not None
 
-            schema = field.dsl_type.dsl_schema._schema
+            schema = field.dsl_type._dsl_schema._schema
 
             root_type = None
 
@@ -466,7 +466,9 @@ class DSLRootFieldSelector(DSLSelector):
                 root_type = schema.subscription_type
 
             if root_type is None:
-                log.error(f"Root type of type {operation_name} not found in the schema!")
+                log.error(
+                    f"Root type of type {operation_name} not found in the schema!"
+                )
                 return False
 
             return field.parent_type.name == root_type.name
@@ -615,7 +617,7 @@ class DSLType:
         :param dsl_schema: reference to the DSLSchema which created this type
         """
         self._type: Union[GraphQLObjectType, GraphQLInterfaceType] = graphql_type
-        self.dsl_schema = dsl_schema
+        self._dsl_schema = dsl_schema
         log.debug(f"Creating {self!r})")
 
     def __getattr__(self, name: str) -> "DSLField":
