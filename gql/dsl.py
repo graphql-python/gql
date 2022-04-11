@@ -456,12 +456,18 @@ class DSLRootFieldSelector(DSLSelector):
 
             schema = field.dsl_type.dsl_schema._schema
 
+            root_type = None
+
             if operation_name == "QUERY":
                 root_type = schema.query_type
             elif operation_name == "MUTATION":
                 root_type = schema.mutation_type
             elif operation_name == "SUBSCRIPTION":
                 root_type = schema.subscription_type
+
+            if root_type is None:
+                log.error(f"Root type of type {operation_name} not found in the schema!")
+                return False
 
             return field.parent_type.name == root_type.name
 
