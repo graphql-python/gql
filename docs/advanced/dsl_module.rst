@@ -206,6 +206,35 @@ will generate a query equivalent to::
       }
     }
 
+Variable arguments with a default value
+"""""""""""""""""""""""""""""""""""""""
+
+If you want to provide a **default value** for your variable, you can use
+the :code:`default` method on a variable.
+
+The following code:
+
+.. code-block:: python
+
+    var = DSLVariableDefinitions()
+    op = DSLMutation(
+        ds.Mutation.createReview.args(
+            review=var.review.default({"stars": 5, "commentary": "Wow!"}),
+            episode=var.episode,
+        ).select(ds.Review.stars, ds.Review.commentary)
+    )
+    op.variable_definitions = var
+    query = dsl_gql(op)
+
+will generate a query equivalent to::
+
+    mutation ($review: ReviewInput = {stars: 5, commentary: "Wow!"}, $episode: Episode) {
+      createReview(review: $review, episode: $episode) {
+        stars
+        commentary
+      }
+    }
+
 Subscriptions
 ^^^^^^^^^^^^^
 
