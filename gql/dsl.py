@@ -18,6 +18,7 @@ from graphql import (
     FragmentDefinitionNode,
     FragmentSpreadNode,
     GraphQLArgument,
+    GraphQLEnumType,
     GraphQLError,
     GraphQLField,
     GraphQLID,
@@ -28,9 +29,9 @@ from graphql import (
     GraphQLNamedType,
     GraphQLNonNull,
     GraphQLObjectType,
+    GraphQLScalarType,
     GraphQLSchema,
     GraphQLString,
-    GraphQLWrappingType,
     InlineFragmentNode,
     IntValueNode,
     ListTypeNode,
@@ -50,7 +51,6 @@ from graphql import (
     ValueNode,
     VariableDefinitionNode,
     VariableNode,
-    assert_named_type,
     get_named_type,
     introspection_types,
     is_enum_type,
@@ -134,7 +134,7 @@ def ast_from_value(value: Any, type_: GraphQLInputType) -> Optional[ValueNode]:
     of if we receive a Null value for a Non-Null type.
     """
     if isinstance(value, DSLVariable):
-        return value.set_type(type_).ast_variable
+        return value.set_type(type_).ast_variable_name
 
     if is_non_null_type(type_):
         type_ = cast(GraphQLNonNull, type_)
@@ -529,26 +529,33 @@ class DSLVariable:
 
     def __init__(self, name: str):
         """:meta private:"""
-        self.type: Optional[TypeNode] = None
         self.name = name
-        self.ast_variable = VariableNode(name=NameNode(value=self.name))
+        self.ast_variable_type: Optional[TypeNode] = None
+        self.ast_variable_name = VariableNode(name=NameNode(value=self.name))
+        self.default_value = None
+        self.type: Optional[GraphQLInputType] = None
 
-    def to_ast_type(
-        self, type_: Union[GraphQLWrappingType, GraphQLNamedType]
-    ) -> TypeNode:
+    def to_ast_type(self, type_: GraphQLInputType) -> TypeNode:
         if is_wrapping_type(type_):
             if isinstance(type_, GraphQLList):
                 return ListTypeNode(type=self.to_ast_type(type_.of_type))
+
             elif isinstance(type_, GraphQLNonNull):
                 return NonNullTypeNode(type=self.to_ast_type(type_.of_type))
 
-        type_ = assert_named_type(type_)
+        assert isinstance(
+            type_, (GraphQLScalarType, GraphQLEnumType, GraphQLInputObjectType)
+        )
+
         return NamedTypeNode(name=NameNode(value=type_.name))
 
-    def set_type(
-        self, type_: Union[GraphQLWrappingType, GraphQLNamedType]
-    ) -> "DSLVariable":
-        self.type = self.to_ast_type(type_)
+    def set_type(self, type_: GraphQLInputType) -> "DSLVariable":
+        self.type = type_
+        self.ast_variable_type = self.to_ast_type(type_)
+        return self
+
+    def default(self, default_value: Any) -> "DSLVariable":
+        self.default_value = default_value
         return self
 
 
@@ -581,9 +588,11 @@ class DSLVariableDefinitions:
         """
         return tuple(
             VariableDefinitionNode(
-                type=var.type,
-                variable=var.ast_variable,
-                default_value=None,
+                type=var.ast_variable_type,
+                variable=var.ast_variable_name,
+                default_value=None
+                if var.default_value is None
+                else ast_from_value(var.default_value, var.type),
             )
             for var in self.variables.values()
             if var.type is not None  # only variables used

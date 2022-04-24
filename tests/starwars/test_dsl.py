@@ -111,11 +111,11 @@ def test_ast_from_serialized_value_untyped_typeerror():
 
 
 def test_variable_to_ast_type_passing_wrapping_type():
-    wrapping_type = GraphQLNonNull(GraphQLList(StarWarsSchema.get_type("Droid")))
-    variable = DSLVariable("droids")
+    wrapping_type = GraphQLNonNull(GraphQLList(StarWarsSchema.get_type("ReviewInput")))
+    variable = DSLVariable("review_input")
     ast = variable.to_ast_type(wrapping_type)
     assert ast == NonNullTypeNode(
-        type=ListTypeNode(type=NamedTypeNode(name=NameNode(value="Droid")))
+        type=ListTypeNode(type=NamedTypeNode(name=NameNode(value="ReviewInput")))
     )
 
 
@@ -167,6 +167,50 @@ def test_add_variable_definitions(ds):
     commentary
   }
 }"""
+    )
+
+
+def test_add_variable_definitions_with_default_value_enum(ds):
+    var = DSLVariableDefinitions()
+    op = DSLMutation(
+        ds.Mutation.createReview.args(
+            review=var.review, episode=var.episode.default(4)
+        ).select(ds.Review.stars, ds.Review.commentary)
+    )
+    op.variable_definitions = var
+    query = dsl_gql(op)
+
+    assert (
+        print_ast(query)
+        == """mutation ($review: ReviewInput, $episode: Episode = NEWHOPE) {
+  createReview(review: $review, episode: $episode) {
+    stars
+    commentary
+  }
+}"""
+    )
+
+
+def test_add_variable_definitions_with_default_value_input_object(ds):
+    var = DSLVariableDefinitions()
+    op = DSLMutation(
+        ds.Mutation.createReview.args(
+            review=var.review.default({"stars": 5, "commentary": "Wow!"}),
+            episode=var.episode,
+        ).select(ds.Review.stars, ds.Review.commentary)
+    )
+    op.variable_definitions = var
+    query = dsl_gql(op)
+
+    assert (
+        print_ast(query)
+        == """
+mutation ($review: ReviewInput = {stars: 5, commentary: "Wow!"}, $episode: Episode) {
+  createReview(review: $review, episode: $episode) {
+    stars
+    commentary
+  }
+}""".strip()
     )
 
 
