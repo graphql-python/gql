@@ -172,7 +172,10 @@ async def test_websocket_sending_invalid_payload(
     # Monkey patching the _send_query method to send an invalid payload
 
     async def monkey_patch_send_query(
-        self, document, variable_values=None, operation_name=None,
+        self,
+        document,
+        variable_values=None,
+        operation_name=None,
     ) -> int:
         query_id = self.next_query_id
         self.next_query_id += 1

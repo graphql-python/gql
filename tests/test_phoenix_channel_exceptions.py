@@ -434,7 +434,9 @@ server_error_server_answer = '{"event":"phx_error", "ref":2, "topic":"test_topic
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "server", [query_server(server_error_server_answer)], indirect=True,
+    "server",
+    [query_server(server_error_server_answer)],
+    indirect=True,
 )
 @pytest.mark.parametrize("query_str", [query1_str])
 async def test_phoenix_channel_server_error(event_loop, server, query_str):

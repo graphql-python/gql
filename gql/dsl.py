@@ -18,6 +18,7 @@ from graphql import (
     FragmentDefinitionNode,
     FragmentSpreadNode,
     GraphQLArgument,
+    GraphQLEnumType,
     GraphQLError,
     GraphQLField,
     GraphQLID,
@@ -28,9 +29,9 @@ from graphql import (
     GraphQLNamedType,
     GraphQLNonNull,
     GraphQLObjectType,
+    GraphQLScalarType,
     GraphQLSchema,
     GraphQLString,
-    GraphQLWrappingType,
     InlineFragmentNode,
     IntValueNode,
     ListTypeNode,
@@ -50,7 +51,6 @@ from graphql import (
     ValueNode,
     VariableDefinitionNode,
     VariableNode,
-    assert_named_type,
     get_named_type,
     introspection_types,
     is_enum_type,
@@ -106,10 +106,13 @@ def ast_from_serialized_value_untyped(serialized: Any) -> Optional[ValueNode]:
         return BooleanValueNode(value=serialized)
 
     if isinstance(serialized, int):
-        return IntValueNode(value=f"{serialized:d}")
+        return IntValueNode(value=str(serialized))
 
     if isinstance(serialized, float) and isfinite(serialized):
-        return FloatValueNode(value=f"{serialized:g}")
+        value = str(serialized)
+        if value.endswith(".0"):
+            value = value[:-2]
+        return FloatValueNode(value=value)
 
     if isinstance(serialized, str):
         return StringValueNode(value=serialized)
@@ -131,7 +134,7 @@ def ast_from_value(value: Any, type_: GraphQLInputType) -> Optional[ValueNode]:
     of if we receive a Null value for a Non-Null type.
     """
     if isinstance(value, DSLVariable):
-        return value.set_type(type_).ast_variable
+        return value.set_type(type_).ast_variable_name
 
     if is_non_null_type(type_):
         type_ = cast(GraphQLNonNull, type_)
@@ -294,7 +297,7 @@ class DSLSchema:
 
         assert isinstance(type_def, (GraphQLObjectType, GraphQLInterfaceType))
 
-        return DSLType(type_def)
+        return DSLType(type_def, self)
 
 
 class DSLSelector(ABC):
@@ -311,7 +314,9 @@ class DSLSelector(ABC):
     selection_set: SelectionSetNode
 
     def __init__(
-        self, *fields: "DSLSelectable", **fields_with_alias: "DSLSelectableWithAlias",
+        self,
+        *fields: "DSLSelectable",
+        **fields_with_alias: "DSLSelectableWithAlias",
     ):
         """:meta private:"""
         self.selection_set = SelectionSetNode(selections=())
@@ -326,7 +331,9 @@ class DSLSelector(ABC):
         )  # pragma: no cover
 
     def select(
-        self, *fields: "DSLSelectable", **fields_with_alias: "DSLSelectableWithAlias",
+        self,
+        *fields: "DSLSelectable",
+        **fields_with_alias: "DSLSelectableWithAlias",
     ):
         r"""Select the fields which should be added.
 
@@ -387,7 +394,9 @@ class DSLExecutable(DSLSelector):
         )  # pragma: no cover
 
     def __init__(
-        self, *fields: "DSLSelectable", **fields_with_alias: "DSLSelectableWithAlias",
+        self,
+        *fields: "DSLSelectable",
+        **fields_with_alias: "DSLSelectableWithAlias",
     ):
         r"""Given arguments of type :class:`DSLSelectable` containing GraphQL requests,
         generate an operation which can be converted to a Document
@@ -445,7 +454,27 @@ class DSLRootFieldSelector(DSLSelector):
                 return operation_name != "SUBSCRIPTION"
 
         elif isinstance(field, DSLField):
-            return field.parent_type.name.upper() == operation_name
+
+            assert field.dsl_type is not None
+
+            schema = field.dsl_type._dsl_schema._schema
+
+            root_type = None
+
+            if operation_name == "QUERY":
+                root_type = schema.query_type
+            elif operation_name == "MUTATION":
+                root_type = schema.mutation_type
+            elif operation_name == "SUBSCRIPTION":
+                root_type = schema.subscription_type
+
+            if root_type is None:
+                log.error(
+                    f"Root type of type {operation_name} not found in the schema!"
+                )
+                return False
+
+            return field.parent_type.name == root_type.name
 
         return False
 
@@ -500,26 +529,33 @@ class DSLVariable:
 
     def __init__(self, name: str):
         """:meta private:"""
-        self.type: Optional[TypeNode] = None
         self.name = name
-        self.ast_variable = VariableNode(name=NameNode(value=self.name))
+        self.ast_variable_type: Optional[TypeNode] = None
+        self.ast_variable_name = VariableNode(name=NameNode(value=self.name))
+        self.default_value = None
+        self.type: Optional[GraphQLInputType] = None
 
-    def to_ast_type(
-        self, type_: Union[GraphQLWrappingType, GraphQLNamedType]
-    ) -> TypeNode:
+    def to_ast_type(self, type_: GraphQLInputType) -> TypeNode:
         if is_wrapping_type(type_):
             if isinstance(type_, GraphQLList):
                 return ListTypeNode(type=self.to_ast_type(type_.of_type))
+
             elif isinstance(type_, GraphQLNonNull):
                 return NonNullTypeNode(type=self.to_ast_type(type_.of_type))
 
-        type_ = assert_named_type(type_)
+        assert isinstance(
+            type_, (GraphQLScalarType, GraphQLEnumType, GraphQLInputObjectType)
+        )
+
         return NamedTypeNode(name=NameNode(value=type_.name))
 
-    def set_type(
-        self, type_: Union[GraphQLWrappingType, GraphQLNamedType]
-    ) -> "DSLVariable":
-        self.type = self.to_ast_type(type_)
+    def set_type(self, type_: GraphQLInputType) -> "DSLVariable":
+        self.type = type_
+        self.ast_variable_type = self.to_ast_type(type_)
+        return self
+
+    def default(self, default_value: Any) -> "DSLVariable":
+        self.default_value = default_value
         return self
 
 
@@ -552,7 +588,11 @@ class DSLVariableDefinitions:
         """
         return tuple(
             VariableDefinitionNode(
-                type=var.type, variable=var.ast_variable, default_value=None,
+                type=var.ast_variable_type,
+                variable=var.ast_variable_name,
+                default_value=None
+                if var.default_value is None
+                else ast_from_value(var.default_value, var.type),
             )
             for var in self.variables.values()
             if var.type is not None  # only variables used
@@ -574,7 +614,11 @@ class DSLType:
     instances of :class:`DSLField`
     """
 
-    def __init__(self, graphql_type: Union[GraphQLObjectType, GraphQLInterfaceType]):
+    def __init__(
+        self,
+        graphql_type: Union[GraphQLObjectType, GraphQLInterfaceType],
+        dsl_schema: DSLSchema,
+    ):
         """Initialize the DSLType with the GraphQL type.
 
         .. warning::
@@ -582,8 +626,10 @@ class DSLType:
             Use attributes of the :class:`DSLSchema` instead.
 
         :param graphql_type: the GraphQL type definition from the schema
+        :param dsl_schema: reference to the DSLSchema which created this type
         """
         self._type: Union[GraphQLObjectType, GraphQLInterfaceType] = graphql_type
+        self._dsl_schema = dsl_schema
         log.debug(f"Creating {self!r})")
 
     def __getattr__(self, name: str) -> "DSLField":
@@ -600,7 +646,7 @@ class DSLType:
                 f"Field {name} does not exist in type {self._type.name}."
             )
 
-        return DSLField(formatted_name, self._type, field)
+        return DSLField(formatted_name, self._type, field, self)
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} {self._type!r}>"
@@ -752,6 +798,7 @@ class DSLField(DSLSelectableWithAlias, DSLFieldSelector):
         name: str,
         parent_type: Union[GraphQLObjectType, GraphQLInterfaceType],
         field: GraphQLField,
+        dsl_type: Optional[DSLType] = None,
     ):
         """Initialize the DSLField.
 
@@ -763,10 +810,12 @@ class DSLField(DSLSelectableWithAlias, DSLFieldSelector):
         :param parent_type: the GraphQL type definition from the schema of the
                             parent type of the field
         :param field: the GraphQL field definition from the schema
+        :param dsl_type: reference of the DSLType instance which created this field
         """
         self.parent_type = parent_type
         self.field = field
         self.ast_field = FieldNode(name=NameNode(value=name), arguments=())
+        self.dsl_type = dsl_type
 
         log.debug(f"Creating {self!r}")
 
@@ -889,7 +938,9 @@ class DSLInlineFragment(DSLSelectable, DSLFragmentSelector):
     ast_field: InlineFragmentNode
 
     def __init__(
-        self, *fields: "DSLSelectable", **fields_with_alias: "DSLSelectableWithAlias",
+        self,
+        *fields: "DSLSelectable",
+        **fields_with_alias: "DSLSelectableWithAlias",
     ):
         r"""Initialize the DSLInlineFragment.
 
@@ -944,7 +995,8 @@ class DSLFragment(DSLSelectable, DSLFragmentSelector, DSLExecutable):
     name: str
 
     def __init__(
-        self, name: str,
+        self,
+        name: str,
     ):
         r"""Initialize the DSLFragment.
 

@@ -1,6 +1,8 @@
 import pytest
 from graphql import (
+    FloatValueNode,
     GraphQLError,
+    GraphQLFloat,
     GraphQLID,
     GraphQLInt,
     GraphQLList,
@@ -87,6 +89,20 @@ def test_ast_from_value_with_non_null_type_and_none():
     assert "Received Null value for a Non-Null type Int." in str(exc_info.value)
 
 
+def test_ast_from_value_float_precision():
+
+    # Checking precision of float serialization
+    # See https://github.com/graphql-python/graphql-core/pull/164
+
+    assert ast_from_value(123456789.01234567, GraphQLFloat) == FloatValueNode(
+        value="123456789.01234567"
+    )
+
+    assert ast_from_value(1.1, GraphQLFloat) == FloatValueNode(value="1.1")
+
+    assert ast_from_value(123.0, GraphQLFloat) == FloatValueNode(value="123")
+
+
 def test_ast_from_serialized_value_untyped_typeerror():
     with pytest.raises(TypeError) as exc_info:
         ast_from_serialized_value_untyped(GraphQLInt)
@@ -95,11 +111,11 @@ def test_ast_from_serialized_value_untyped_typeerror():
 
 
 def test_variable_to_ast_type_passing_wrapping_type():
-    wrapping_type = GraphQLNonNull(GraphQLList(StarWarsSchema.get_type("Droid")))
-    variable = DSLVariable("droids")
+    wrapping_type = GraphQLNonNull(GraphQLList(StarWarsSchema.get_type("ReviewInput")))
+    variable = DSLVariable("review_input")
     ast = variable.to_ast_type(wrapping_type)
     assert ast == NonNullTypeNode(
-        type=ListTypeNode(type=NamedTypeNode(name=NameNode(value="Droid")))
+        type=ListTypeNode(type=NamedTypeNode(name=NameNode(value="ReviewInput")))
     )
 
 
@@ -151,6 +167,50 @@ def test_add_variable_definitions(ds):
     commentary
   }
 }"""
+    )
+
+
+def test_add_variable_definitions_with_default_value_enum(ds):
+    var = DSLVariableDefinitions()
+    op = DSLMutation(
+        ds.Mutation.createReview.args(
+            review=var.review, episode=var.episode.default(4)
+        ).select(ds.Review.stars, ds.Review.commentary)
+    )
+    op.variable_definitions = var
+    query = dsl_gql(op)
+
+    assert (
+        print_ast(query)
+        == """mutation ($review: ReviewInput, $episode: Episode = NEWHOPE) {
+  createReview(review: $review, episode: $episode) {
+    stars
+    commentary
+  }
+}"""
+    )
+
+
+def test_add_variable_definitions_with_default_value_input_object(ds):
+    var = DSLVariableDefinitions()
+    op = DSLMutation(
+        ds.Mutation.createReview.args(
+            review=var.review.default({"stars": 5, "commentary": "Wow!"}),
+            episode=var.episode,
+        ).select(ds.Review.stars, ds.Review.commentary)
+    )
+    op.variable_definitions = var
+    query = dsl_gql(op)
+
+    assert (
+        print_ast(query)
+        == """
+mutation ($review: ReviewInput = {stars: 5, commentary: "Wow!"}, $episode: Episode) {
+  createReview(review: $review, episode: $episode) {
+    stars
+    commentary
+  }
+}""".strip()
     )
 
 
@@ -217,7 +277,9 @@ hero {
     query_dsl = ds.Query.hero.select(
         ds.Character.id,
         ds.Character.name,
-        ds.Character.friends.select(ds.Character.name,),
+        ds.Character.friends.select(
+            ds.Character.name,
+        ),
     )
     assert query == str(query_dsl)
 
@@ -225,7 +287,11 @@ hero {
     query_dsl = (
         ds.Query.hero.select(ds.Character.id)
         .select(ds.Character.name)
-        .select(ds.Character.friends.select(ds.Character.name,),)
+        .select(
+            ds.Character.friends.select(
+                ds.Character.name,
+            ),
+        )
     )
     assert query == str(query_dsl)
 
@@ -272,7 +338,9 @@ human(id: "1000") {
   name
 }
     """.strip()
-    query_dsl = ds.Query.human(id="1000").select(ds.Human.name,)
+    query_dsl = ds.Query.human(id="1000").select(
+        ds.Human.name,
+    )
 
     assert query == str(query_dsl)
 
@@ -283,11 +351,23 @@ luke: human(id: "1000") {
   name
 }
     """.strip()
-    query_dsl = ds.Query.human.args(id=1000).alias("luke").select(ds.Character.name,)
+    query_dsl = (
+        ds.Query.human.args(id=1000)
+        .alias("luke")
+        .select(
+            ds.Character.name,
+        )
+    )
     assert query == str(query_dsl)
 
     # Should also work with select before alias
-    query_dsl = ds.Query.human.args(id=1000).select(ds.Character.name,).alias("luke")
+    query_dsl = (
+        ds.Query.human.args(id=1000)
+        .select(
+            ds.Character.name,
+        )
+        .alias("luke")
+    )
     assert query == str(query_dsl)
 
 
@@ -308,7 +388,9 @@ human(id: "1000") {
   my_name: name
 }
     """.strip()
-    query_dsl = ds.Query.human.args(id=1000).select(my_name=ds.Character.name,)
+    query_dsl = ds.Query.human.args(id=1000).select(
+        my_name=ds.Character.name,
+    )
     assert query == str(query_dsl)
 
 
@@ -322,7 +404,9 @@ def test_hero_name_query_result(ds, client):
 def test_arg_serializer_list(ds, client):
     query = dsl_gql(
         DSLQuery(
-            ds.Query.characters.args(ids=[1000, 1001, 1003]).select(ds.Character.name,)
+            ds.Query.characters.args(ids=[1000, 1001, 1003]).select(
+                ds.Character.name,
+            )
         )
     )
     result = client.execute(query)
@@ -433,7 +517,11 @@ def test_root_fields_aliased(ds, client):
 
 
 def test_operation_name(ds):
-    query = dsl_gql(GetHeroName=DSLQuery(ds.Query.hero.select(ds.Character.name),))
+    query = dsl_gql(
+        GetHeroName=DSLQuery(
+            ds.Query.hero.select(ds.Character.name),
+        )
+    )
 
     assert (
         print_ast(query)
@@ -574,7 +662,8 @@ def test_inline_fragment_in_dsl_gql(ds):
     query = DSLQuery()
 
     with pytest.raises(
-        GraphQLError, match=r"Invalid field for <DSLQuery>: <DSLInlineFragment>",
+        GraphQLError,
+        match=r"Invalid field for <DSLQuery>: <DSLInlineFragment>",
     ):
         query.select(inline_fragment)
 
@@ -681,6 +770,42 @@ def test_dsl_query_all_fields_should_correspond_to_the_root_type(ds):
     assert ("Invalid field for <DSLQuery>: <DSLField Character::name>") in str(
         excinfo.value
     )
+
+
+def test_dsl_root_type_not_default():
+
+    from graphql import parse, build_ast_schema
+
+    schema_str = """
+schema {
+  query: QueryNotDefault
+}
+
+type QueryNotDefault {
+  version: String
+}
+"""
+
+    type_def_ast = parse(schema_str)
+    schema = build_ast_schema(type_def_ast)
+
+    ds = DSLSchema(schema)
+
+    query = dsl_gql(DSLQuery(ds.QueryNotDefault.version))
+
+    expected_query = """
+{
+  version
+}
+"""
+    assert print_ast(query) == expected_query.strip()
+
+    with pytest.raises(GraphQLError) as excinfo:
+        DSLSubscription(ds.QueryNotDefault.version)
+
+    assert (
+        "Invalid field for <DSLSubscription>: <DSLField QueryNotDefault::version>"
+    ) in str(excinfo.value)
 
 
 def test_dsl_gql_all_arguments_should_be_operations_or_fragments():

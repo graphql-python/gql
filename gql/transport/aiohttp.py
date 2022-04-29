@@ -227,7 +227,8 @@ class AIOHTTPTransport(AsyncTransport):
             # If we upload files, we will extract the files present in the
             # variable_values dict and replace them by null values
             nulled_variable_values, files = extract_files(
-                variables=variable_values, file_classes=self.file_classes,
+                variables=variable_values,
+                file_classes=self.file_classes,
             )
 
             # Save the nulled variable values in the payload
@@ -280,7 +281,8 @@ class AIOHTTPTransport(AsyncTransport):
         # Add headers for AppSync if requested
         if isinstance(self.auth, AppSyncAuthentication):
             post_args["headers"] = self.auth.get_headers(
-                json.dumps(payload), {"content-type": "application/json"},
+                json.dumps(payload),
+                {"content-type": "application/json"},
             )
 
         if self.session is None:

@@ -44,7 +44,9 @@ async def test_appsync_iam_mutation(
     host = str(urlparse(url).netloc)
 
     auth = AppSyncIAMAuthentication(
-        host=host, credentials=fake_credentials_factory(), region_name="us-east-1",
+        host=host,
+        credentials=fake_credentials_factory(),
+        region_name="us-east-1",
     )
 
     sample_transport = AIOHTTPTransport(url=url, auth=auth)

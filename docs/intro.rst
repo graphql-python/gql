@@ -53,6 +53,19 @@ The corresponding between extra dependencies required and the GQL classes is:
     It is also possible to install multiple extra dependencies if needed
     using commas: :code:`gql[aiohttp,websockets]`
 
+Installation with conda
+^^^^^^^^^^^^^^^^^^^^^^^
+
+It is also possible to install gql using `conda`_.
+
+To install gql with all extra dependencies::
+
+    conda install gql-with-all
+
+To install gql with less dependencies, you might want to instead install a combinaison of the
+following packages: :code:`gql-with-aiohttp`, :code:`gql-with-websockets`, :code:`gql-with-requests`,
+:code:`gql-with-botocore`
+
 Reporting Issues and Contributing
 ---------------------------------
 
@@ -69,3 +82,4 @@ Please check the  `Contributing`_ file to learn how to make a good pull request.
 .. _pip: https://pip.pypa.io/
 .. _GitHub repository for gql: https://github.com/graphql-python/gql
 .. _Contributing: https://github.com/graphql-python/gql/blob/master/CONTRIBUTING.md
+.. _conda: https://docs.conda.io
