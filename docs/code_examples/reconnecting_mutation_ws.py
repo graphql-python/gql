@@ -11,12 +11,17 @@ logging.basicConfig(level=logging.INFO)
 
 async def main():
 
+    # Note: this example used the test backend from
+    # https://github.com/slothmanxyz/typegraphql-ws-apollo
     transport = WebsocketsTransport(url="ws://localhost:5000/graphql")
 
     client = Client(transport=transport)
 
     retry_connect = backoff.on_exception(
-        backoff.expo, Exception, max_value=10, jitter=None,
+        backoff.expo,
+        Exception,
+        max_value=10,
+        jitter=None,
     )
     session = await client.connect_async(reconnecting=True, retry_connect=retry_connect)
 

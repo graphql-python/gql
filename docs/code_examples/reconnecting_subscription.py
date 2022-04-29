@@ -9,6 +9,8 @@ logging.basicConfig(level=logging.INFO)
 
 async def main():
 
+    # Note: this example used the test backend from
+    # https://github.com/slothmanxyz/typegraphql-ws-apollo
     transport = WebsocketsTransport(url="ws://localhost:5000/graphql")
 
     client = Client(transport=transport)

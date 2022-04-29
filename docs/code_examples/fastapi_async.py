@@ -15,7 +15,7 @@ from gql import Client, gql
 from gql.transport.aiohttp import AIOHTTPTransport
 
 logging.basicConfig(level=logging.DEBUG)
-
+log = logging.getLogger(__name__)
 
 transport = AIOHTTPTransport(url="https://countries.trevorblades.com/graphql")
 
@@ -95,7 +95,7 @@ async def get_continent(continent_code):
             query, variable_values={"code": continent_code}
         )
     except Exception as e:
-        # raise HTTPException(status_code=400, detail=str(e))
-        result = f"Received exception {e}"
+        log.debug(f"get_continent Error: {e}")
+        raise HTTPException(status_code=503, detail="GraphQL backend unavailable")
 
     return result

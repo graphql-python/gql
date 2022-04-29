@@ -587,6 +587,21 @@ class Client:
             raise
 
     async def connect_async(self, reconnecting=False, **kwargs):
+        r"""Connect asynchronously with the underlying async transport to
+        produce a session.
+
+        That session will be a permanent auto-reconnecting session
+        if :code:`reconnecting=True`.
+
+        If you call this method, you should call the
+        :meth:`close_async <gql.client.Client.close_async>` method
+        for cleanup.
+
+        :param reconnecting: if True, create a permanent reconnecting session
+        :param \**kwargs: additional arguments for the
+            :meth:`ReconnectingAsyncClientSession init method
+            <gql.client.ReconnectingAsyncClientSession.__init__>`.
+        """
 
         assert isinstance(
             self.transport, AsyncTransport
@@ -613,6 +628,7 @@ class Client:
         return self.session
 
     async def close_async(self):
+        """Close the async transport and stop the optional reconnecting task."""
 
         if isinstance(self.session, ReconnectingAsyncClientSession):
             await self.session.stop_connecting_task()
@@ -628,6 +644,13 @@ class Client:
         await self.close_async()
 
     def connect_sync(self):
+        r"""Connect synchronously with the underlying sync transport to
+        produce a session.
+
+        If you call this method, you should call the
+        :meth:`close_sync <gql.client.Client.close_sync>` method
+        for cleanup.
+        """
 
         assert not isinstance(self.transport, AsyncTransport), (
             "Only a sync transport can be used."
@@ -653,6 +676,7 @@ class Client:
         return self.session
 
     def close_sync(self):
+        """Close the sync transport."""
         self.transport.close()
 
     def __enter__(self):
@@ -1225,7 +1249,7 @@ _Decorator = Callable[[_CallableT], _CallableT]
 class ReconnectingAsyncClientSession(AsyncClientSession):
     """An instance of this class is created when using the
     :meth:`connect_async <gql.client.Client.connect_async>` method of the
-    :class:`client <gql.client.Client>` class with :code:`reconnecting=True`.
+    :class:`Client <gql.client.Client>` class with :code:`reconnecting=True`.
 
     It is used to provide a single session which will reconnect automatically if
     the connection fails.
@@ -1256,7 +1280,9 @@ class ReconnectingAsyncClientSession(AsyncClientSession):
             # By default, retry again and again, with maximum 60 seconds
             # between retries
             self.retry_connect = backoff.on_exception(
-                backoff.expo, Exception, max_value=60, jitter=None,
+                backoff.expo,
+                Exception,
+                max_value=60,
             )
         elif retry_connect is False:
             self.retry_connect = lambda e: e
@@ -1278,8 +1304,10 @@ class ReconnectingAsyncClientSession(AsyncClientSession):
             assert callable(retry_execute)
             self.retry_execute = retry_execute
 
-        # Creating the execute_with_retries method using the provided backoff decorator
-        self.execute_with_retries = self.retry_execute(self._execute_once)
+        # Creating the _execute_with_retries and _connect_with_retries  methods
+        # using the provided backoff decorators
+        self._execute_with_retries = self.retry_execute(self._execute_once)
+        self._connect_with_retries = self.retry_connect(self.transport.connect)
 
     async def _connection_loop(self):
         """Coroutine used for the connection task.
@@ -1289,14 +1317,11 @@ class ReconnectingAsyncClientSession(AsyncClientSession):
         - then wait for a reconnect request to try to connect again
         """
 
-        # Make the connect method using the provided backoff decorator
-        connect = self.retry_connect(self.transport.connect)
-
         while True:
 
             # Connect to the transport with the retry decorator
             # By default it should keep retrying until it connect
-            await connect()
+            await self._connect_with_retries()
 
             # Once connected, set the connected event
             self._connected_event.set()
@@ -1364,7 +1389,7 @@ class ReconnectingAsyncClientSession(AsyncClientSession):
         and requesting a reconnection if we receive a TransportClosed exception.
         """
 
-        return await self.execute_with_retries(
+        return await self._execute_with_retries(
             document,
             variable_values=variable_values,
             operation_name=operation_name,
