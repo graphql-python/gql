@@ -68,7 +68,12 @@ queryType = GraphQLObjectType(
 schema = GraphQLSchema(query=queryType)
 
 
-def test_null_mapping():
+def test_parse_results_null_mapping():
+    """This is a regression test for the issue:
+    https://github.com/graphql-python/gql/issues/325
+
+    Most of the parse_results tests are in tests/starwars/test_parse_results.py
+    """
 
     client = Client(schema=schema, parse_results=True)
     query = gql(
