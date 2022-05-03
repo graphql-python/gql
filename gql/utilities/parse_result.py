@@ -293,8 +293,7 @@ class ParseResultVisitor(Visitor):
 
         if self.current_result is None:
 
-            log.debug(f"Leave field {name}: returning None")
-            return_value: Dict[str, Any] = {name: None}
+            return_value = None
 
         elif node.selection_set is None:
 
@@ -308,23 +307,19 @@ class ParseResultVisitor(Visitor):
             assert is_leaf_type(result_type)
 
             # Finally parsing a single scalar using the parse_value method
-            parsed_value = result_type.parse_value(self.current_result)
-
-            return_value = {name: parsed_value}
+            return_value = result_type.parse_value(self.current_result)
         else:
 
             partial_results = cast(List[Dict[str, Any]], node.selection_set)
 
-            return_value = {
-                name: {k: v for pr in partial_results for k, v in pr.items()}
-            }
+            return_value = {k: v for pr in partial_results for k, v in pr.items()}
 
         # Go up a level in the result stack
         self.result_stack.pop()
 
         log.debug(f"Leave field {name}: returning {return_value}")
 
-        return return_value
+        return {name: return_value}
 
     # Fragments
 
