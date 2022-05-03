@@ -3,9 +3,9 @@ from graphql.type import (
     GraphQLField,
     GraphQLInt,
     GraphQLList,
+    GraphQLNonNull,
     GraphQLObjectType,
     GraphQLSchema,
-    GraphQLNonNull,
     GraphQLString,
 )
 

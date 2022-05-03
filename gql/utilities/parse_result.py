@@ -294,7 +294,7 @@ class ParseResultVisitor(Visitor):
         if self.current_result is None:
 
             log.debug(f"Leave field {name}: returning None")
-            return_value = {name: None}
+            return_value: Dict[str, Any] = {name: None}
 
         elif node.selection_set is None:
 
