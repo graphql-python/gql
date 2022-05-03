@@ -11,19 +11,21 @@ from graphql.type import (
 
 from gql import Client, gql
 
+static_result = {
+    "edges": [
+        {
+            "node": {
+                "from": {"address": "0x45b9ad45995577fe"},
+                "to": {"address": "0x6394e988297f5ed2"},
+            }
+        },
+        {"node": {"from": None, "to": {"address": "0x6394e988297f5ed2"}}},
+    ]
+}
 
-def static_result(root, _info, count):
-    return {
-        "edges": [
-            {
-                "node": {
-                    "from": {"address": "0x45b9ad45995577fe"},
-                    "to": {"address": "0x6394e988297f5ed2"},
-                }
-            },
-            {"node": {"from": None, "to": {"address": "0x6394e988297f5ed2"}}},
-        ]
-    }
+
+def resolve_test(root, _info, count):
+    return static_result
 
 
 Account = GraphQLObjectType(
@@ -60,7 +62,7 @@ queryType = GraphQLObjectType(
                 },
             ),
             args={"count": GraphQLArgument(GraphQLInt)},
-            resolve=static_result,
+            resolve=resolve_test,
         ),
     },
 )
@@ -92,15 +94,5 @@ def test_parse_results_null_mapping():
     )
 
     assert client.execute(query, variable_values={"count": 2}) == {
-        "test": {
-            "edges": [
-                {
-                    "node": {
-                        "from": {"address": "0x45b9ad45995577fe"},
-                        "to": {"address": "0x6394e988297f5ed2"},
-                    }
-                },
-                {"node": {"from": None, "to": {"address": "0x6394e988297f5ed2"}}},
-            ]
-        }
+        "test": static_result
     }
