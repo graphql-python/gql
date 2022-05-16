@@ -802,6 +802,15 @@ class SyncClientSession:
         Don't use this function and instead set the fetch_schema_from_transport
         attribute to True"""
         execution_result = self.transport.execute(parse(get_introspection_query()))
+
+        if execution_result.errors:
+            raise TransportQueryError(
+                str(execution_result.errors[0]),
+                errors=execution_result.errors,
+                data=execution_result.data,
+                extensions=execution_result.extensions,
+            )
+
         self.client.introspection = execution_result.data
         self.client.schema = build_client_schema(self.client.introspection)
 
@@ -1175,6 +1184,15 @@ class AsyncClientSession:
         execution_result = await self.transport.execute(
             parse(get_introspection_query())
         )
+
+        if execution_result.errors:
+            raise TransportQueryError(
+                str(execution_result.errors[0]),
+                errors=execution_result.errors,
+                data=execution_result.data,
+                extensions=execution_result.extensions,
+            )
+
         self.client.introspection = execution_result.data
         self.client.schema = build_client_schema(self.client.introspection)
 
