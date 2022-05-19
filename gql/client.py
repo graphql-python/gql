@@ -1,12 +1,13 @@
 import asyncio
 import sys
 import warnings
-from typing import Any, AsyncGenerator, Dict, Generator, Optional, Union, overload
+from typing import Any, AsyncGenerator, Dict, Generator, Optional, Union, cast, overload
 
 from graphql import (
     DocumentNode,
     ExecutionResult,
     GraphQLSchema,
+    IntrospectionQuery,
     build_ast_schema,
     get_introspection_query,
     parse,
@@ -55,7 +56,7 @@ class Client:
     def __init__(
         self,
         schema: Optional[Union[str, GraphQLSchema]] = None,
-        introspection=None,
+        introspection: Optional[IntrospectionQuery] = None,
         transport: Optional[Union[Transport, AsyncTransport]] = None,
         fetch_schema_from_transport: bool = False,
         execute_timeout: Optional[Union[int, float]] = 10,
@@ -106,7 +107,7 @@ class Client:
         self.schema: Optional[GraphQLSchema] = schema
 
         # Answer of the introspection query
-        self.introspection = introspection
+        self.introspection: Optional[IntrospectionQuery] = introspection
 
         # GraphQL transport chosen
         self.transport: Optional[Union[Transport, AsyncTransport]] = transport
@@ -130,6 +131,22 @@ class Client:
         validation_errors = validate(self.schema, document)
         if validation_errors:
             raise validation_errors[0]
+
+    def _build_schema_from_introspection(self, execution_result: ExecutionResult):
+        if execution_result.errors:
+            raise TransportQueryError(
+                (
+                    f"Error while fetching schema: {execution_result.errors[0]!s}\n"
+                    "If you don't need the schema, you can try with: "
+                    '"fetch_schema_from_transport=False"'
+                ),
+                errors=execution_result.errors,
+                data=execution_result.data,
+                extensions=execution_result.extensions,
+            )
+
+        self.introspection = cast(IntrospectionQuery, execution_result.data)
+        self.schema = build_client_schema(self.introspection)
 
     @overload
     def execute_sync(
@@ -803,20 +820,7 @@ class SyncClientSession:
         attribute to True"""
         execution_result = self.transport.execute(parse(get_introspection_query()))
 
-        if execution_result.errors:
-            raise TransportQueryError(
-                (
-                    f"Error while fetching schema: {execution_result.errors[0]!s}\n"
-                    "If you don't need the schema, you can try with: "
-                    '"fetch_schema_from_transport=False"'
-                ),
-                errors=execution_result.errors,
-                data=execution_result.data,
-                extensions=execution_result.extensions,
-            )
-
-        self.client.introspection = execution_result.data
-        self.client.schema = build_client_schema(self.client.introspection)
+        self.client._build_schema_from_introspection(execution_result)
 
     @property
     def transport(self):
@@ -1189,20 +1193,7 @@ class AsyncClientSession:
             parse(get_introspection_query())
         )
 
-        if execution_result.errors:
-            raise TransportQueryError(
-                (
-                    f"Error while fetching schema: {execution_result.errors[0]!s}\n"
-                    "If you don't need the schema, you can try with: "
-                    '"fetch_schema_from_transport=False"'
-                ),
-                errors=execution_result.errors,
-                data=execution_result.data,
-                extensions=execution_result.extensions,
-            )
-
-        self.client.introspection = execution_result.data
-        self.client.schema = build_client_schema(self.client.introspection)
+        self.client._build_schema_from_introspection(execution_result)
 
     @property
     def transport(self):
