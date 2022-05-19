@@ -41,6 +41,11 @@ Here are the possible Transport Errors:
   The message of the exception contains the first error returned by the backend.
   All the errors messages are available in the exception :code:`errors` attribute.
 
+  If the error message begins with :code:`Error while fetching schema:`, it means
+  that gql was not able to get the schema from the backend.
+  If you don't need the schema, you can try to create the client with
+  :code:`fetch_schema_from_transport=False`
+
 - :class:`TransportClosed <gql.transport.exceptions.TransportClosed>`:
   This exception is generated when the client is trying to use the transport
   while the transport was previously closed.

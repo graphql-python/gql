@@ -755,3 +755,52 @@ async def test_requests_file_upload_list_of_two_files(
                     f2.close()
 
     await run_sync_test(event_loop, server, test_code)
+
+
+@pytest.mark.aiohttp
+@pytest.mark.asyncio
+async def test_requests_error_fetching_schema(
+    event_loop, aiohttp_server, run_sync_test
+):
+    from aiohttp import web
+    from gql.transport.requests import RequestsHTTPTransport
+
+    error_answer = """
+{
+    "errors": [
+        {
+            "errorType": "UnauthorizedException",
+            "message": "Permission denied"
+        }
+    ]
+}
+"""
+
+    async def handler(request):
+        return web.Response(
+            text=error_answer,
+            content_type="application/json",
+        )
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    def test_code():
+        transport = RequestsHTTPTransport(url=url)
+
+        with pytest.raises(TransportQueryError) as exc_info:
+            with Client(transport=transport, fetch_schema_from_transport=True):
+                pass
+
+        expected_error = (
+            "Error while fetching schema: "
+            "{'errorType': 'UnauthorizedException', 'message': 'Permission denied'}"
+        )
+
+        assert expected_error in str(exc_info.value)
+        assert transport.session is None
+
+    await run_sync_test(event_loop, server, test_code)
