@@ -805,7 +805,7 @@ class SyncClientSession:
 
         if execution_result.errors:
             raise TransportQueryError(
-                str(execution_result.errors[0]),
+                f"Error while fetching schema: {execution_result.errors[0]!s}",
                 errors=execution_result.errors,
                 data=execution_result.data,
                 extensions=execution_result.extensions,
@@ -1187,7 +1187,7 @@ class AsyncClientSession:
 
         if execution_result.errors:
             raise TransportQueryError(
-                str(execution_result.errors[0]),
+                f"Error while fetching schema: {execution_result.errors[0]!s}",
                 errors=execution_result.errors,
                 data=execution_result.data,
                 extensions=execution_result.extensions,
