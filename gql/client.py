@@ -805,7 +805,11 @@ class SyncClientSession:
 
         if execution_result.errors:
             raise TransportQueryError(
-                f"Error while fetching schema: {execution_result.errors[0]!s}",
+                (
+                    f"Error while fetching schema: {execution_result.errors[0]!s}\n"
+                    "If you don't need the schema, you can try with: "
+                    '"fetch_schema_from_transport=False"'
+                ),
                 errors=execution_result.errors,
                 data=execution_result.data,
                 extensions=execution_result.extensions,
@@ -1187,7 +1191,11 @@ class AsyncClientSession:
 
         if execution_result.errors:
             raise TransportQueryError(
-                f"Error while fetching schema: {execution_result.errors[0]!s}",
+                (
+                    f"Error while fetching schema: {execution_result.errors[0]!s}\n"
+                    "If you don't need the schema, you can try with: "
+                    '"fetch_schema_from_transport=False"'
+                ),
                 errors=execution_result.errors,
                 data=execution_result.data,
                 extensions=execution_result.extensions,
