@@ -85,6 +85,7 @@ def serialize_value(type_: GraphQLType, value: Any) -> Any:
         return {
             field_name: serialize_value(field.type, value[field_name])
             for field_name, field in type_.fields.items()
+            if field_name in value
         }
 
     raise GraphQLError(f"Impossible to serialize value with type: {inspect(type_)}.")
