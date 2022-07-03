@@ -77,7 +77,7 @@ IntervalInputType = GraphQLInputObjectType(
     fields={
         "start": GraphQLInputField(
             DatetimeScalar,
-            default_value=datetime.fromisoformat("2021-11-12T11:58:13.461161"),
+            default_value=datetime(2021, 11, 12, 11, 58, 13, 461161),
         ),
         "end": GraphQLInputField(DatetimeScalar),
     },
