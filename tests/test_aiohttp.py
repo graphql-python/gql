@@ -1339,3 +1339,48 @@ async def test_aiohttp_reconnecting_session_start_connecting_task_twice(
     assert expected_warning in caplog.text
 
     await client.close_async()
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_json_serializer(event_loop, aiohttp_server, caplog):
+    from aiohttp import web
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    async def handler(request):
+
+        request_text = await request.text()
+        print("Received on backend: " + request_text)
+
+        return web.Response(
+            text=query1_server_answer,
+            content_type="application/json",
+        )
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    transport = AIOHTTPTransport(
+        url=url,
+        timeout=10,
+        json_serialize=lambda e: json.dumps(e, separators=(",", ":")),
+    )
+
+    async with Client(transport=transport) as session:
+
+        query = gql(query1_str)
+
+        # Execute query asynchronously
+        result = await session.execute(query)
+
+        continents = result["continents"]
+
+        africa = continents[0]
+
+        assert africa["code"] == "AF"
+
+    # Checking that there is no space after the colon in the log
+    expected_log = '"query":"query getContinents'
+    assert expected_log in caplog.text
