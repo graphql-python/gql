@@ -82,6 +82,13 @@ result = client.execute(query)
 print(result)
 ```
 
+Executing the above code should output the following result:
+
+```
+$ python basic_example.py
+{'continents': [{'code': 'AF', 'name': 'Africa'}, {'code': 'AN', 'name': 'Antarctica'}, {'code': 'AS', 'name': 'Asia'}, {'code': 'EU', 'name': 'Europe'}, {'code': 'NA', 'name': 'North America'}, {'code': 'OC', 'name': 'Oceania'}, {'code': 'SA', 'name': 'South America'}]}
+```
+
 > **WARNING**: Please note that this basic example won't work if you have an asyncio event loop running. In some
 > python environments (as with Jupyter which uses IPython) an asyncio event loop is created for you. In that case you
 > should use instead the [async usage example](https://gql.readthedocs.io/en/latest/async/async_usage.html#async-usage).
