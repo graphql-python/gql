@@ -1356,7 +1356,7 @@ class ReconnectingAsyncClientSession(AsyncClientSession):
         if self._connect_task:
             log.warning("connect task already started!")
         else:
-            self._connect_task = asyncio.create_task(self._connection_loop())
+            self._connect_task = asyncio.ensure_future(self._connection_loop())
 
             await self._connected_event.wait()
 
