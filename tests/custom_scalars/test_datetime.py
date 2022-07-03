@@ -75,7 +75,10 @@ def resolve_seconds(root, _info, interval):
 IntervalInputType = GraphQLInputObjectType(
     "IntervalInput",
     fields={
-        "start": GraphQLInputField(DatetimeScalar),
+        "start": GraphQLInputField(
+            DatetimeScalar,
+            default_value=datetime.fromisoformat("2021-11-12T11:58:13.461161"),
+        ),
         "end": GraphQLInputField(DatetimeScalar),
     },
 )
@@ -208,6 +211,29 @@ def test_seconds():
     )
 
     variable_values = {"interval": {"start": now, "end": in_five_days}}
+
+    result = client.execute(
+        query, variable_values=variable_values, serialize_variables=True
+    )
+
+    print(result)
+
+    assert result["seconds"] == 432000
+
+
+@pytest.mark.skipif(
+    not hasattr(datetime, "fromisoformat"), reason="fromisoformat is new in Python 3.7+"
+)
+def test_seconds_omit_optional_start_argument():
+    client = Client(schema=schema)
+
+    in_five_days = datetime.fromisoformat("2021-11-17T11:58:13.461161")
+
+    query = gql(
+        "query seconds($interval: IntervalInput) {seconds(interval: $interval)}"
+    )
+
+    variable_values = {"interval": {"end": in_five_days}}
 
     result = client.execute(
         query, variable_values=variable_values, serialize_variables=True
