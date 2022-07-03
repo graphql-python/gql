@@ -1233,3 +1233,109 @@ async def test_aiohttp_error_fetching_schema(event_loop, aiohttp_server):
 
     assert expected_error in str(exc_info.value)
     assert transport.session is None
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_reconnecting_session(event_loop, aiohttp_server):
+    from aiohttp import web
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    async def handler(request):
+        return web.Response(
+            text=query1_server_answer,
+            content_type="application/json",
+        )
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    transport = AIOHTTPTransport(url=url, timeout=10)
+
+    client = Client(transport=transport)
+
+    session = await client.connect_async(reconnecting=True)
+
+    query = gql(query1_str)
+
+    # Execute query asynchronously
+    result = await session.execute(query)
+
+    continents = result["continents"]
+
+    africa = continents[0]
+
+    assert africa["code"] == "AF"
+
+    await client.close_async()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("retries", [False, lambda e: e])
+async def test_aiohttp_reconnecting_session_retries(
+    event_loop, aiohttp_server, retries
+):
+    from aiohttp import web
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    async def handler(request):
+        return web.Response(
+            text=query1_server_answer,
+            content_type="application/json",
+        )
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    transport = AIOHTTPTransport(url=url, timeout=10)
+
+    client = Client(transport=transport)
+
+    session = await client.connect_async(
+        reconnecting=True, retry_execute=retries, retry_connect=retries
+    )
+
+    assert session._execute_with_retries == session._execute_once
+    assert session._connect_with_retries == session.transport.connect
+
+    await client.close_async()
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_reconnecting_session_start_connecting_task_twice(
+    event_loop, aiohttp_server, caplog
+):
+    from aiohttp import web
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    async def handler(request):
+        return web.Response(
+            text=query1_server_answer,
+            content_type="application/json",
+        )
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    transport = AIOHTTPTransport(url=url, timeout=10)
+
+    client = Client(transport=transport)
+
+    session = await client.connect_async(reconnecting=True)
+
+    await session.start_connecting_task()
+
+    print(f"Captured log: {caplog.text}")
+
+    expected_warning = "connect task already started!"
+    assert expected_warning in caplog.text
+
+    await client.close_async()
