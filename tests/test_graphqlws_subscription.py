@@ -27,7 +27,9 @@ PONG_TIMEOUT = 100 * MS
 logged_messages: List[str] = []
 
 
-def server_countdown_factory(keepalive=False, answer_pings=True):
+def server_countdown_factory(
+    keepalive=False, answer_pings=True, simulate_disconnect=False
+):
     async def server_countdown_template(ws, path):
         import websockets
 
@@ -50,6 +52,9 @@ def server_countdown_factory(keepalive=False, answer_pings=True):
             count_found = search("count: {:d}", query)
             count = count_found[0]
             print(f"            Server: Countdown started from: {count}")
+
+            if simulate_disconnect and count == 8:
+                await ws.close()
 
             pong_received: asyncio.Event = asyncio.Event()
 
@@ -202,6 +207,12 @@ async def server_countdown_keepalive(ws, path):
 async def server_countdown_dont_answer_pings(ws, path):
 
     server = server_countdown_factory(answer_pings=False)
+    await server(ws, path)
+
+
+async def server_countdown_disconnect(ws, path):
+
+    server = server_countdown_factory(simulate_disconnect=True)
     await server(ws, path)
 
 
@@ -792,3 +803,76 @@ async def test_graphqlws_subscription_running_in_thread(
         assert count == -1
 
     await run_sync_test(event_loop, graphqlws_server, test_code)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "graphqlws_server", [server_countdown_disconnect], indirect=True
+)
+@pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
+@pytest.mark.parametrize("execute_instead_of_subscribe", [False, True])
+async def test_graphqlws_subscription_reconnecting_session(
+    event_loop, graphqlws_server, subscription_str, execute_instead_of_subscribe
+):
+
+    import websockets
+    from gql.transport.websockets import WebsocketsTransport
+    from gql.transport.exceptions import TransportClosed
+
+    path = "/graphql"
+    url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}{path}"
+    transport = WebsocketsTransport(url=url)
+
+    client = Client(transport=transport)
+
+    count = 8
+    subscription_with_disconnect = gql(subscription_str.format(count=count))
+
+    count = 10
+    subscription = gql(subscription_str.format(count=count))
+
+    session = await client.connect_async(
+        reconnecting=True, retry_connect=False, retry_execute=False
+    )
+
+    # First we make a subscription which will cause a disconnect in the backend
+    # (count=8)
+    try:
+        print("\nSUBSCRIPTION_1_WITH_DISCONNECT\n")
+        async for result in session.subscribe(subscription_with_disconnect):
+            pass
+    except websockets.exceptions.ConnectionClosedOK:
+        pass
+
+    await asyncio.sleep(50 * MS)
+
+    # Then with the same session handle, we make a subscription or an execute
+    # which will detect that the transport is closed so that the client could
+    # try to reconnect
+    try:
+        if execute_instead_of_subscribe:
+            print("\nEXECUTION_2\n")
+            await session.execute(subscription)
+        else:
+            print("\nSUBSCRIPTION_2\n")
+            async for result in session.subscribe(subscription):
+                pass
+    except TransportClosed:
+        pass
+
+    await asyncio.sleep(50 * MS)
+
+    # And finally with the same session handle, we make a subscription
+    # which works correctly
+    print("\nSUBSCRIPTION_3\n")
+    async for result in session.subscribe(subscription):
+
+        number = result["number"]
+        print(f"Number received: {number}")
+
+        assert number == count
+        count -= 1
+
+    assert count == -1
+
+    await client.close_async()

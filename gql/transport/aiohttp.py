@@ -107,6 +107,8 @@ class AIOHTTPTransport(AsyncTransport):
             if self.client_session_args:
                 client_session_args.update(self.client_session_args)  # type: ignore
 
+            log.debug("Connecting transport")
+
             self.session = aiohttp.ClientSession(**client_session_args)
 
         else:
@@ -173,6 +175,9 @@ class AIOHTTPTransport(AsyncTransport):
         when you exit the async context manager.
         """
         if self.session is not None:
+
+            log.debug("Closing transport")
+
             closed_event = self.create_aiohttp_closed_event(self.session)
             await self.session.close()
             try:
