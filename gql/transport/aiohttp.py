@@ -4,7 +4,7 @@ import io
 import json
 import logging
 from ssl import SSLContext
-from typing import Any, AsyncGenerator, Dict, Optional, Tuple, Type, Union
+from typing import Any, AsyncGenerator, Callable, Dict, Optional, Tuple, Type, Union
 
 import aiohttp
 from aiohttp.client_exceptions import ClientResponseError
@@ -49,6 +49,7 @@ class AIOHTTPTransport(AsyncTransport):
         ssl: Union[SSLContext, bool, Fingerprint] = False,
         timeout: Optional[int] = None,
         ssl_close_timeout: Optional[Union[int, float]] = 10,
+        json_serialize: Callable = json.dumps,
         client_session_args: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Initialize the transport with the given aiohttp parameters.
@@ -61,6 +62,8 @@ class AIOHTTPTransport(AsyncTransport):
         :param ssl: ssl_context of the connection. Use ssl=False to disable encryption
         :param ssl_close_timeout: Timeout in seconds to wait for the ssl connection
                                   to close properly
+        :param json_serialize: Json serializer callable.
+                By default json.dumps() function
         :param client_session_args: Dict of extra args passed to
                 `aiohttp.ClientSession`_
 
@@ -77,6 +80,7 @@ class AIOHTTPTransport(AsyncTransport):
         self.client_session_args = client_session_args
         self.session: Optional[aiohttp.ClientSession] = None
         self.response_headers: Optional[CIMultiDictProxy[str]]
+        self.json_serialize: Callable = json_serialize
 
     async def connect(self) -> None:
         """Coroutine which will create an aiohttp ClientSession() as self.session.
@@ -96,6 +100,7 @@ class AIOHTTPTransport(AsyncTransport):
                 "auth": None
                 if isinstance(self.auth, AppSyncAuthentication)
                 else self.auth,
+                "json_serialize": self.json_serialize,
             }
 
             if self.timeout is not None:
@@ -248,14 +253,14 @@ class AIOHTTPTransport(AsyncTransport):
             file_streams = {str(i): files[path] for i, path in enumerate(files)}
 
             # Add the payload to the operations field
-            operations_str = json.dumps(payload)
+            operations_str = self.json_serialize(payload)
             log.debug("operations %s", operations_str)
             data.add_field(
                 "operations", operations_str, content_type="application/json"
             )
 
             # Add the file map field
-            file_map_str = json.dumps(file_map)
+            file_map_str = self.json_serialize(file_map)
             log.debug("file_map %s", file_map_str)
             data.add_field("map", file_map_str, content_type="application/json")
 
@@ -270,7 +275,7 @@ class AIOHTTPTransport(AsyncTransport):
                 payload["variables"] = variable_values
 
             if log.isEnabledFor(logging.INFO):
-                log.info(">>> %s", json.dumps(payload))
+                log.info(">>> %s", self.json_serialize(payload))
 
             post_args = {"json": payload}
 
@@ -281,7 +286,7 @@ class AIOHTTPTransport(AsyncTransport):
         # Add headers for AppSync if requested
         if isinstance(self.auth, AppSyncAuthentication):
             post_args["headers"] = self.auth.get_headers(
-                json.dumps(payload),
+                self.json_serialize(payload),
                 {"content-type": "application/json"},
             )
 
