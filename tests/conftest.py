@@ -14,7 +14,7 @@ import pytest
 
 from gql import Client
 
-all_transport_dependencies = ["aiohttp", "requests", "websockets", "botocore"]
+all_transport_dependencies = ["aiohttp", "requests", "websockets", "botocore", "httpx"]
 
 
 def pytest_addoption(parser):
@@ -56,6 +56,7 @@ def pytest_collection_modifyitems(config, items):
     # --aiohttp-only
     # --requests-only
     # --websockets-only
+    # --httpx-only
     for transport in all_transport_dependencies:
 
         other_transport_dependencies = [
@@ -120,6 +121,7 @@ for name in [
     "gql.transport.phoenix_channel_websockets",
     "gql.transport.requests",
     "gql.transport.websockets",
+    "gql.transport.httpx_async",
     "gql.dsl",
     "gql.utilities.parse_result",
 ]:

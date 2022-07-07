@@ -56,6 +56,8 @@ install_botocore_requires = [
     "botocore>=1.21,<2",
 ]
 
+install_httpx_requires = ["httpx>=0.23.0,<1"]
+
 install_all_requires = (
     install_aiohttp_requires + install_requests_requires + install_websockets_requires + install_botocore_requires
 )
@@ -104,6 +106,7 @@ setup(
         "requests": install_requests_requires,
         "websockets": install_websockets_requires,
         "botocore": install_botocore_requires,
+        "httpx": install_httpx_requires,
     },
     include_package_data=True,
     zip_safe=False,
