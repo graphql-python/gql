@@ -1,10 +1,9 @@
+import httpx
 import json
 import logging
-from time import time
-from typing import Any, AsyncGenerator, Callable, Dict, Optional, Union
 from graphql import DocumentNode, ExecutionResult, print_ast
+from typing import Any, AsyncGenerator, Callable, Dict, Optional, Union
 
-import httpx
 from .async_transport import AsyncTransport
 from .exceptions import (
     TransportAlreadyConnected,
@@ -27,7 +26,10 @@ class HTTPXAsyncTransport(AsyncTransport):
     response_headers: Optional[httpx.Headers] = None
 
     def __init__(
-        self, url: Union[str, httpx.URL],timeout: Optional[int] = None, json_serialize: Callable = json.dumps
+        self,
+        url: Union[str, httpx.URL],
+        timeout: Optional[int] = None,
+        json_serialize: Callable = json.dumps,
     ) -> None:
         """Initialize the transport with the given httpx parameters.
 
@@ -38,7 +40,7 @@ class HTTPXAsyncTransport(AsyncTransport):
         .. _httpx.AsyncClient: https://www.python-httpx.org/async/
         """
         self.url: str = url
-        
+
         self.timeout: Optional[int] = timeout
         self.json_serialize: Callable = json_serialize
 
