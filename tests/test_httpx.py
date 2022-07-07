@@ -1,7 +1,8 @@
 import io
 import json
-import pytest
 from typing import Mapping
+
+import pytest
 
 from gql import Client, gql
 from gql.cli import get_parser, main
@@ -370,40 +371,43 @@ async def test_httpx_cannot_execute_if_not_connected(event_loop, aiohttp_server)
         await transport.execute(query)
 
 
-# @pytest.mark.asyncio
-# async def test_httpx_extra_args(event_loop, aiohttp_server):
-#     from aiohttp import web
-#     from gql.transport.httpx_async import HTTPXAsyncTransport
+@pytest.mark.asyncio
+@pytest.mark.skip(reason="cookies not yet implemented")
+async def test_httpx_extra_args(event_loop, aiohttp_server):
+    from aiohttp import web
+    from gql.transport.httpx_async import HTTPXAsyncTransport
 
-#     async def handler(request):
-#         return web.Response(text=query1_server_answer, content_type="application/json")
+    async def handler(request):
+        return web.Response(text=query1_server_answer, content_type="application/json")
 
-#     app = web.Application()
-#     app.router.add_route("POST", "/", handler)
-#     server = await aiohttp_server(app)
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
 
-#     url = server.make_url("/")
+    url = server.make_url("/")
 
-#     # passing extra arguments to aiohttp.ClientSession
-#     from aiohttp import DummyCookieJar
+    # passing extra arguments to aiohttp.ClientSession
+    from aiohttp import DummyCookieJar
 
-#     jar = DummyCookieJar()
-#     transport = AIOHTTPTransport(
-#         url=url, timeout=10, client_session_args={"version": "1.1", "cookie_jar": jar}
-#     )
+    jar = DummyCookieJar()
+    transport = HTTPXAsyncTransport(
+        url=str(url),
+        timeout=10,
+        client_session_args={"version": "1.1", "cookie_jar": jar},
+    )
 
-#     async with Client(transport=transport) as session:
+    async with Client(transport=transport) as session:
 
-#         query = gql(query1_str)
+        query = gql(query1_str)
 
-#         # Passing extra arguments to the post method of aiohttp
-#         result = await session.execute(query, extra_args={"allow_redirects": False})
+        # Passing extra arguments to the post method of aiohttp
+        result = await session.execute(query, extra_args={"allow_redirects": False})
 
-#         continents = result["continents"]
+        continents = result["continents"]
 
-#         africa = continents[0]
+        africa = continents[0]
 
-#         assert africa["code"] == "AF"
+        assert africa["code"] == "AF"
 
 
 query2_str = """

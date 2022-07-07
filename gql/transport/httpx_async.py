@@ -1,8 +1,9 @@
-import httpx
 import json
 import logging
-from graphql import DocumentNode, ExecutionResult, print_ast
 from typing import Any, AsyncGenerator, Callable, Dict, Optional, Union
+
+import httpx
+from graphql import DocumentNode, ExecutionResult, print_ast
 
 from .async_transport import AsyncTransport
 from .exceptions import (
@@ -36,11 +37,8 @@ class HTTPXAsyncTransport(AsyncTransport):
         :param url: The GraphQL server URL. Example: 'https://server.com:PORT/path'.
         :param json_serialize: Json serializer callable.
                 By default json.dumps() function
-
-        .. _httpx.AsyncClient: https://www.python-httpx.org/async/
         """
-        self.url: str = url
-
+        self.url: Union[str, httpx.URL] = url
         self.timeout: Optional[int] = timeout
         self.json_serialize: Callable = json_serialize
 
@@ -62,7 +60,7 @@ class HTTPXAsyncTransport(AsyncTransport):
 
             log.debug("Connecting transport")
 
-            self.client = httpx.AsyncClient()
+            self.client = httpx.AsyncClient(**client_args)
 
         else:
             raise TransportAlreadyConnected("Transport is already connected")
@@ -121,7 +119,7 @@ class HTTPXAsyncTransport(AsyncTransport):
             if log.isEnabledFor(logging.INFO):
                 log.info(">>> %s", self.json_serialize(payload))
 
-            post_args = {"json": payload}
+            post_args: Any = {"json": payload}
 
         # Pass post_args to httpx post method
         if extra_args:
