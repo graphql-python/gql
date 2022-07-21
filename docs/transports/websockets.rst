@@ -82,6 +82,8 @@ There are two ways to send authentication tokens with websockets depending on th
         init_payload={'Authorization': 'token'}
     )
 
+.. _websockets_transport_keepalives:
+
 Keep-Alives
 -----------
 
@@ -125,6 +127,28 @@ Here is an example with a ping sent every 60 seconds, expecting a pong within 10
         pong_timeout=10,
     )
 
+Underlying websockets protocol
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+In addition to the keep-alives described above for the apollo and graphql-ws protocols,
+there are also `ping frames`_ sent by the underlying websocket connection itself for both of them.
+
+These pings are enabled by default (every 20 seconds) and could be modified or disabled
+by passing extra arguments to the :code:`connect` call of the websockets client using the
+:code:`connect_args` argument of the transport.
+
+.. code-block:: python
+
+    # Disabling websocket protocol level pings
+    transport = WebsocketsTransport(
+        url='wss://SERVER_URL:SERVER_PORT/graphql',
+        connect_args={"ping_interval": None},
+    )
+
+See the `websockets keepalive documentation`_ for details.
+
 .. _version 5.6.1: https://github.com/enisdenjo/graphql-ws/releases/tag/v5.6.1
 .. _Apollo websockets transport protocol:  https://github.com/apollographql/subscriptions-transport-ws/blob/master/PROTOCOL.md
 .. _GraphQL-ws websockets transport protocol: https://github.com/enisdenjo/graphql-ws/blob/master/PROTOCOL.md
+.. _ping frames: https://www.rfc-editor.org/rfc/rfc6455.html#section-5.5.2
+.. _websockets keepalive documentation: https://websockets.readthedocs.io/en/stable/topics/timeouts.html#keepalive-in-websockets

@@ -64,14 +64,19 @@ class WebsocketsTransport(WebsocketsTransportBase):
             a sign of liveness from the server.
         :param ping_interval: Delay in seconds between pings sent by the client to
             the backend for the graphql-ws protocol. None (by default) means that
-            we don't send pings.
+            we don't send pings. Note: there are also pings sent by the underlying
+            websockets protocol. See the
+            :ref:`keepalive documentation <websockets_transport_keepalives>`
+            for more information about this.
         :param pong_timeout: Delay in seconds to receive a pong from the backend
             after we sent a ping (only for the graphql-ws protocol).
             By default equal to half of the ping_interval.
         :param answer_pings: Whether the client answers the pings from the backend
             (for the graphql-ws protocol).
             By default: True
-        :param connect_args: Other parameters forwarded to websockets.connect
+        :param connect_args: Other parameters forwarded to
+            `websockets.connect <https://websockets.readthedocs.io/en/stable/reference/\
+            client.html#opening-a-connection>`_
         :param subprotocols: list of subprotocols sent to the
             backend in the 'subprotocols' http header.
             By default: both apollo and graphql-ws subprotocols.
