@@ -78,6 +78,20 @@ def test_cli_parser(parser):
     args = parser.parse_args(["https://your_server.com", "--execute-timeout", "1"])
     assert args.execute_timeout == 1
 
+    # gql-cli https://your_server.com --execute-timeout=none
+    args = parser.parse_args(["https://your_server.com", "--execute-timeout", "none"])
+    assert args.execute_timeout is None
+
+    # gql-cli https://your_server.com --execute-timeout=-1
+    with pytest.raises(SystemExit):
+        args = parser.parse_args(["https://your_server.com", "--execute-timeout", "-1"])
+
+    # gql-cli https://your_server.com --execute-timeout=invalid
+    with pytest.raises(SystemExit):
+        args = parser.parse_args(
+            ["https://your_server.com", "--execute-timeout", "invalid"]
+        )
+
 
 def test_cli_parse_headers(parser):
 
