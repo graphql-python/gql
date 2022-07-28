@@ -104,6 +104,13 @@ def get_parser(with_examples: bool = False) -> ArgumentParser:
         dest="print_schema",
     )
     parser.add_argument(
+        "--execute-timeout",
+        help="set the execute_timeout argument of the Client (default: 10)",
+        type=int,
+        default=10,
+        dest="execute_timeout",
+    )
+    parser.add_argument(
         "--transport",
         default="auto",
         choices=[
@@ -367,7 +374,9 @@ async def main(args: Namespace) -> int:
 
     # Connect to the backend and provide a session
     async with Client(
-        transport=transport, fetch_schema_from_transport=args.print_schema
+        transport=transport,
+        fetch_schema_from_transport=args.print_schema,
+        execute_timeout=args.execute_timeout,
     ) as session:
 
         if args.print_schema:
