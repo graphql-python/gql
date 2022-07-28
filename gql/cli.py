@@ -107,7 +107,7 @@ def get_parser(with_examples: bool = False) -> ArgumentParser:
         "--execute-timeout",
         help="set the execute_timeout argument of the Client (default: 10)",
         type=int,
-        default=10,
+        default=None,
         dest="execute_timeout",
     )
     parser.add_argument(
