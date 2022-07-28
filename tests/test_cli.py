@@ -56,6 +56,13 @@ def test_cli_parser(parser):
     assert args.server == "https://your_server.com"
     assert args.headers == ["Authorization:Bearer blahblah"]
 
+    # Call with timeout parameter
+    # gql-cli https://your_server.com --timeout 60
+    args = parser.parse_args(["https://your_server.com", "--timeout", "60"])
+
+    assert args.server == "https://your_server.com"
+    assert args.timeout == 60
+
     # Check loglevel flags
     # gql-cli https://your_server.com --debug
     args = parser.parse_args(["https://your_server.com", "--debug"])

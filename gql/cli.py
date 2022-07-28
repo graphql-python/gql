@@ -73,6 +73,9 @@ def get_parser(with_examples: bool = False) -> ArgumentParser:
     parser.add_argument(
         "-H", "--headers", nargs="*", help="http headers in the form key:value"
     )
+    parser.add_argument(
+        "--timeout", type=int, default=None, help="Timeout in seconds for the request."
+    )
     parser.add_argument("--version", action="version", version=f"v{__version__}")
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
@@ -367,7 +370,9 @@ async def main(args: Namespace) -> int:
 
     # Connect to the backend and provide a session
     async with Client(
-        transport=transport, fetch_schema_from_transport=args.print_schema
+        transport=transport,
+        fetch_schema_from_transport=args.print_schema,
+        execute_timeout=args.timeout,
     ) as session:
 
         if args.print_schema:
