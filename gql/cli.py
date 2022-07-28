@@ -46,6 +46,25 @@ gql-cli https://countries.trevorblades.com/graphql --print-schema
 """
 
 
+def positive_int_or_none(value_str: str) -> Optional[int]:
+    """Convert a string argument value into either an int or None.
+
+    Raise a ValueError if the argument is negative or a string which is not "none"
+    """
+    try:
+        value_int = int(value_str)
+    except ValueError:
+        if value_str.lower() == "none":
+            return None
+        else:
+            raise
+
+    if value_int < 0:
+        raise ValueError
+
+    return value_int
+
+
 def get_parser(with_examples: bool = False) -> ArgumentParser:
     """Provides an ArgumentParser for the gql-cli script.
 
@@ -102,6 +121,13 @@ def get_parser(with_examples: bool = False) -> ArgumentParser:
         help="get the schema from instrospection and print it",
         action="store_true",
         dest="print_schema",
+    )
+    parser.add_argument(
+        "--execute-timeout",
+        help="set the execute_timeout argument of the Client (default: 10)",
+        type=positive_int_or_none,
+        default=10,
+        dest="execute_timeout",
     )
     parser.add_argument(
         "--transport",
@@ -367,7 +393,9 @@ async def main(args: Namespace) -> int:
 
     # Connect to the backend and provide a session
     async with Client(
-        transport=transport, fetch_schema_from_transport=args.print_schema
+        transport=transport,
+        fetch_schema_from_transport=args.print_schema,
+        execute_timeout=args.execute_timeout,
     ) as session:
 
         if args.print_schema:
