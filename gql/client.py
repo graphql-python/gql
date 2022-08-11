@@ -874,7 +874,7 @@ class SyncClientSession:
         return result.data
 
     def fetch_schema(self) -> None:
-        """Fetch the GraphQL schema explicitely using introspection.
+        """Fetch the GraphQL schema explicitly using introspection.
 
         Don't use this function and instead set the fetch_schema_from_transport
         attribute to True"""
@@ -1245,7 +1245,7 @@ class AsyncClientSession:
         return result.data
 
     async def fetch_schema(self) -> None:
-        """Fetch the GraphQL schema explicitely using introspection.
+        """Fetch the GraphQL schema explicitly using introspection.
 
         Don't use this function and instead set the fetch_schema_from_transport
         attribute to True"""
