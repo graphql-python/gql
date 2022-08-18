@@ -3,7 +3,7 @@ import abc
 from graphql import DocumentNode, ExecutionResult
 
 
-class Transport:
+class Transport(abc.ABC):
     @abc.abstractmethod
     def execute(self, document: DocumentNode, *args, **kwargs) -> ExecutionResult:
         """Execute GraphQL query.

@@ -4,7 +4,7 @@ from typing import Any, AsyncGenerator, Dict, Optional
 from graphql import DocumentNode, ExecutionResult
 
 
-class AsyncTransport:
+class AsyncTransport(abc.ABC):
     @abc.abstractmethod
     async def connect(self):
         """Coroutine used to create a connection to the specified address"""
