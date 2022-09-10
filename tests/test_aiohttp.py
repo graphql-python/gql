@@ -199,18 +199,21 @@ async def test_aiohttp_error_code_500(event_loop, aiohttp_server):
         assert "500, message='Internal Server Error'" in str(exc_info.value)
 
 
-query1_server_error_answer = '{"errors": ["Error 1", "Error 2"]}'
+transport_query_error_responses = [
+    '{"errors": ["Error 1", "Error 2"]}',
+    '{"errors": {"error_1": "Something"}}',
+    '{"errors": 5}',
+]
 
 
 @pytest.mark.asyncio
-async def test_aiohttp_error_code(event_loop, aiohttp_server):
+@pytest.mark.parametrize("query_error", transport_query_error_responses)
+async def test_aiohttp_error_code(event_loop, aiohttp_server, query_error):
     from aiohttp import web
     from gql.transport.aiohttp import AIOHTTPTransport
 
     async def handler(request):
-        return web.Response(
-            text=query1_server_error_answer, content_type="application/json"
-        )
+        return web.Response(text=query_error, content_type="application/json")
 
     app = web.Application()
     app.router.add_route("POST", "/", handler)
