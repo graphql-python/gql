@@ -34,6 +34,7 @@ from .transport.transport import Transport
 from .utilities import build_client_schema
 from .utilities import parse_result as parse_result_fn
 from .utilities import serialize_variable_values
+from .utils import str_first_element
 
 """
 Load the appropriate instance of the Literal type
@@ -152,7 +153,8 @@ class Client:
         if execution_result.errors:
             raise TransportQueryError(
                 (
-                    f"Error while fetching schema: {execution_result.errors[0]!s}\n"
+                    "Error while fetching schema: "
+                    f"{str_first_element(execution_result.errors)!s}\n"
                     "If you don't need the schema, you can try with: "
                     '"fetch_schema_from_transport=False"'
                 ),
@@ -858,7 +860,7 @@ class SyncClientSession:
         # Raise an error if an error is returned in the ExecutionResult object
         if result.errors:
             raise TransportQueryError(
-                str(result.errors[0]),
+                str_first_element(result.errors),
                 errors=result.errors,
                 data=result.data,
                 extensions=result.extensions,
@@ -1066,7 +1068,7 @@ class AsyncClientSession:
                 # Raise an error if an error is returned in the ExecutionResult object
                 if result.errors:
                     raise TransportQueryError(
-                        str(result.errors[0]),
+                        str_first_element(result.errors),
                         errors=result.errors,
                         data=result.data,
                         extensions=result.extensions,
@@ -1229,7 +1231,7 @@ class AsyncClientSession:
         # Raise an error if an error is returned in the ExecutionResult object
         if result.errors:
             raise TransportQueryError(
-                str(result.errors[0]),
+                str_first_element(result.errors),
                 errors=result.errors,
                 data=result.data,
                 extensions=result.extensions,
