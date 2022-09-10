@@ -154,7 +154,7 @@ class Client:
             raise TransportQueryError(
                 (
                     "Error while fetching schema: "
-                    f"{str_first_element(execution_result.errors)!s}\n"
+                    f"{str_first_element(execution_result.errors)}\n"
                     "If you don't need the schema, you can try with: "
                     '"fetch_schema_from_transport=False"'
                 ),
