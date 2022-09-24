@@ -535,15 +535,15 @@ file_upload_server_answer = '{"data":{"success":true}}'
 
 file_upload_mutation_1 = """
     mutation($file: Upload!) {
-      uploadFile(input:{other_var:$other_var, file:$file}) {
+      uploadFile(input:{ other_var:$other_var, file:$file }) {
         success
       }
     }
 """
 
 file_upload_mutation_1_operations = (
-    '{"query": "mutation ($file: Upload!) {\\n  uploadFile(input: {other_var: '
-    '$other_var, file: $file}) {\\n    success\\n  }\\n}", "variables": '
+    '{"query": "mutation ($file: Upload!) {\\n  uploadFile(input: { other_var: '
+    '$other_var, file: $file }) {\\n    success\\n  }\\n}", "variables": '
     '{"file": null, "other_var": 42}}'
 )
 
@@ -810,7 +810,7 @@ file_upload_mutation_2 = """
 
 file_upload_mutation_2_operations = (
     '{"query": "mutation ($file1: Upload!, $file2: Upload!) {\\n  '
-    'uploadFile(input: {file1: $file, file2: $file}) {\\n    success\\n  }\\n}", '
+    'uploadFile(input: { file1: $file, file2: $file }) {\\n    success\\n  }\\n}", '
     '"variables": {"file1": null, "file2": null}}'
 )
 
@@ -898,14 +898,14 @@ async def test_aiohttp_file_upload_two_files(event_loop, aiohttp_server):
 
 file_upload_mutation_3 = """
     mutation($files: [Upload!]!) {
-      uploadFiles(input:{files:$files}) {
+      uploadFiles(input:{ files:$files }) {
         success
       }
     }
 """
 
 file_upload_mutation_3_operations = (
-    '{"query": "mutation ($files: [Upload!]!) {\\n  uploadFiles(input: {files: $files})'
+    '{"query": "mutation ($files: [Upload!]!) {\\n  uploadFiles(input: { files: $files })'
     ' {\\n    success\\n  }\\n}", "variables": {"files": [null, null]}}'
 )
 

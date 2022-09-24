@@ -205,7 +205,7 @@ def test_add_variable_definitions_with_default_value_input_object(ds):
     assert (
         print_ast(query)
         == """
-mutation ($review: ReviewInput = {stars: 5, commentary: "Wow!"}, $episode: Episode) {
+mutation ($review: ReviewInput = { stars: 5, commentary: "Wow!" }, $episode: Episode) {
   createReview(review: $review, episode: $episode) {
     stars
     commentary
@@ -229,7 +229,7 @@ def test_add_variable_definitions_in_input_object(ds):
         print_ast(query)
         == """mutation ($stars: Int, $commentary: String, $episode: Episode) {
   createReview(
-    review: {stars: $stars, commentary: $commentary}
+    review: { stars: $stars, commentary: $commentary }
     episode: $episode
   ) {
     stars
@@ -554,7 +554,7 @@ def test_multiple_operations(ds):
 mutation CreateReviewMutation {
   createReview(
     episode: JEDI
-    review: {stars: 5, commentary: "This is a great movie!"}
+    review: { stars: 5, commentary: "This is a great movie!" }
   ) {
     stars
     commentary
