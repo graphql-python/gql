@@ -661,7 +661,8 @@ async def test_requests_file_upload_two_files(
 
 
 file_upload_mutation_3_operations = (
-    '{"query": "mutation ($files: [Upload!]!) {\\n  uploadFiles(input: { files: $files })'
+    '{"query": "mutation ($files: [Upload!]!) {\\n  uploadFiles'
+    "(input: { files: $files })"
     ' {\\n    success\\n  }\\n}", "variables": {"files": [null, null]}}'
 )
 
