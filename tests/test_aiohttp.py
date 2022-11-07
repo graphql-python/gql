@@ -299,6 +299,12 @@ invalid_protocol_responses = [
             'No "data" or "errors" keys in answer: {"not_data_or_errors": 35}'
         ),
     },
+    {
+        "response": "",
+        "expected_exception": (
+            "Server did not return a GraphQL result: Not a JSON answer: "
+        ),
+    },
 ]
 
 

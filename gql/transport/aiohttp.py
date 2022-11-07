@@ -325,6 +325,9 @@ class AIOHTTPTransport(AsyncTransport):
             except Exception:
                 await raise_response_error(resp, "Not a JSON answer")
 
+            if result is None:
+                await raise_response_error(resp, "Not a JSON answer")
+
             if "errors" not in result and "data" not in result:
                 await raise_response_error(resp, 'No "data" or "errors" keys in answer')
 
