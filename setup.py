@@ -3,7 +3,7 @@ import os
 from setuptools import setup, find_packages
 
 install_requires = [
-    "graphql-core>=3.2,<3.3",
+    "graphql-core>=3.3.0a2,<3.4",
     "yarl>=1.6,<2.0",
     "backoff>=1.11.1,<3.0",
 ]
@@ -48,8 +48,7 @@ install_requests_requires = [
 ]
 
 install_websockets_requires = [
-    "websockets>=9,<10;python_version<='3.6'",
-    "websockets>=10,<11;python_version>'3.6'",
+    "websockets>=10,<11",
 ]
 
 install_botocore_requires = [
@@ -82,7 +81,6 @@ setup(
         "Topic :: Software Development :: Libraries",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3 :: Only",
-        "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",

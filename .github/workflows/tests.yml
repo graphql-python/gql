@@ -8,11 +8,9 @@ jobs:
     strategy:
       max-parallel: 4
       matrix:
-        python-version: ["3.6", "3.7", "3.8", "3.9", "3.10", "pypy3"]
+        python-version: ["3.7", "3.8", "3.9", "3.10", "pypy3.8"]
         os: [ubuntu-latest, windows-latest]
         exclude:
-          - os: windows-latest
-            python-version: "3.6"
           - os: windows-latest
             python-version: "3.7"
           - os: windows-latest
@@ -20,12 +18,12 @@ jobs:
           - os: windows-latest
             python-version: "3.10"
           - os: windows-latest
-            python-version: "pypy3"
+            python-version: "pypy3.8"
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
@@ -45,9 +43,9 @@ jobs:
         dependency: ["aiohttp", "requests", "websockets"]
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Set up Python 3.8
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: 3.8
       - name: Install dependencies with only ${{ matrix.dependency }} extra dependency
@@ -61,9 +59,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Set up Python 3.8
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: 3.8
       - name: Install test dependencies

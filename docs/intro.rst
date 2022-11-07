@@ -1,7 +1,7 @@
 Introduction
 ============
 
-`GQL 3`_ is a `GraphQL`_ Client for Python 3.6+ which plays nicely with other
+`GQL 3`_ is a `GraphQL`_ Client for Python 3.7+ which plays nicely with other
 graphql implementations compatible with the spec.
 
 Under the hood, it uses `GraphQL-core`_ which is a Python port of `GraphQL.js`_,

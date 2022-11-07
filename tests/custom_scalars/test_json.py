@@ -203,7 +203,7 @@ def test_json_value_input_in_dsl_argument():
     assert (
         str(query)
         == """addPlayer(
-  player: {name: "Tim", level: 0, is_connected: false, score: 5, friends: ["Lea"]}
+  player: { name: "Tim", level: 0, is_connected: false, score: 5, friends: ["Lea"] }
 )"""
     )
 
@@ -237,6 +237,6 @@ def test_json_value_input_with_none_list_in_dsl_argument():
     assert (
         str(query)
         == """addPlayer(
-  player: {name: "Bob", level: 9001, is_connected: true, score: 666.66, friends: null}
+  player: { name: "Bob", level: 9001, is_connected: true, score: 666.66, friends: null }
 )"""
     )
