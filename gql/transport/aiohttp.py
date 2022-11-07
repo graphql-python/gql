@@ -295,6 +295,9 @@ class AIOHTTPTransport(AsyncTransport):
 
         async with self.session.post(self.url, ssl=self.ssl, **post_args) as resp:
 
+            # Saving latest response headers in the transport
+            self.response_headers = resp.headers
+
             async def raise_response_error(resp: aiohttp.ClientResponse, reason: str):
                 # We raise a TransportServerError if the status code is 400 or higher
                 # We raise a TransportProtocolError in the other cases
@@ -324,9 +327,6 @@ class AIOHTTPTransport(AsyncTransport):
 
             if "errors" not in result and "data" not in result:
                 await raise_response_error(resp, 'No "data" or "errors" keys in answer')
-
-            # Saving latest response headers in the transport
-            self.response_headers = resp.headers
 
             return ExecutionResult(
                 errors=result.get("errors"),

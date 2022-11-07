@@ -173,6 +173,53 @@ async def test_aiohttp_error_code_401(event_loop, aiohttp_server):
 
 
 @pytest.mark.asyncio
+async def test_aiohttp_error_code_429(event_loop, aiohttp_server):
+    from aiohttp import web
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    async def handler(request):
+        # Will generate http error code 429
+        return web.Response(
+            text="""
+<html>
+  <head>
+     <title>Too Many Requests</title>
+  </head>
+  <body>
+     <h1>Too Many Requests</h1>
+     <p>I only allow 50 requests per hour to this Web site per
+        logged in user.  Try again soon.</p>
+  </body>
+</html>""",
+            content_type="text/html",
+            status=429,
+            headers={"Retry-After": "3600"},
+        )
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    transport = AIOHTTPTransport(url=url)
+
+    async with Client(transport=transport) as session:
+
+        query = gql(query1_str)
+
+        with pytest.raises(TransportServerError) as exc_info:
+            await session.execute(query)
+
+        assert "429, message='Too Many Requests'" in str(exc_info.value)
+
+        # Checking response headers are saved in the transport
+        assert hasattr(transport, "response_headers")
+        assert isinstance(transport.response_headers, Mapping)
+        assert transport.response_headers["Retry-After"] == "3600"
+
+
+@pytest.mark.asyncio
 async def test_aiohttp_error_code_500(event_loop, aiohttp_server):
     from aiohttp import web
     from gql.transport.aiohttp import AIOHTTPTransport
