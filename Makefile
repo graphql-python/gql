@@ -3,7 +3,7 @@
 SRC_PYTHON := gql tests docs/code_examples
 
 dev-setup:
-	python pip install -e ".[test]"
+	python -m pip install -e ".[test]"
 
 tests:
 	pytest tests --cov=gql --cov-report=term-missing -vv
@@ -16,6 +16,9 @@ tests_aiohttp:
 
 tests_requests:
 	pytest tests --requests-only
+
+tests_httpx:
+	pytest tests --httpx-only
 
 tests_websockets:
 	pytest tests --websockets-only

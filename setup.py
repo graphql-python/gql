@@ -47,6 +47,10 @@ install_requests_requires = [
     "urllib3>=1.26",
 ]
 
+install_httpx_requires = [
+    "httpx>=0.23.1,<1",
+]
+
 install_websockets_requires = [
     "websockets>=10,<11",
 ]
@@ -56,7 +60,7 @@ install_botocore_requires = [
 ]
 
 install_all_requires = (
-    install_aiohttp_requires + install_requests_requires + install_websockets_requires + install_botocore_requires
+    install_aiohttp_requires + install_requests_requires + install_httpx_requires + install_websockets_requires + install_botocore_requires
 )
 
 # Get version from __version__.py file
@@ -100,6 +104,7 @@ setup(
         "dev": install_all_requires + dev_requires,
         "aiohttp": install_aiohttp_requires,
         "requests": install_requests_requires,
+        "httpx": install_httpx_requires,
         "websockets": install_websockets_requires,
         "botocore": install_botocore_requires,
     },

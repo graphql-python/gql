@@ -26,6 +26,7 @@ Sub-Packages
    transport_exceptions
    transport_phoenix_channel_websockets
    transport_requests
+   transport_httpx
    transport_websockets
    transport_websockets_base
    dsl

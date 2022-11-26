@@ -1,8 +1,9 @@
 File uploads
 ============
 
-GQL supports file uploads with the :ref:`aiohttp transport <aiohttp_transport>`
-and the :ref:`requests transport <requests_transport>`
+GQL supports file uploads with the :ref:`aiohttp transport <aiohttp_transport>`, the
+:ref:`requests transport <requests_transport>`, the :ref:`httpx transport <httpx_transport>`,
+and the :ref:`httpx async transport <httpx_async_transport>`,
 using the `GraphQL multipart request spec`_.
 
 .. _GraphQL multipart request spec: https://github.com/jaydenseric/graphql-multipart-request-spec
@@ -20,6 +21,8 @@ In order to upload a single file, you need to:
 
     transport = AIOHTTPTransport(url='YOUR_URL')
     # Or transport = RequestsHTTPTransport(url='YOUR_URL')
+    # Or transport = HTTPXTransport(url='YOUR_URL')
+    # Or transport = HTTPXAsyncTransport(url='YOUR_URL')
 
     client = Client(transport=transport)
 
@@ -48,6 +51,8 @@ It is also possible to upload multiple files using a list.
 
     transport = AIOHTTPTransport(url='YOUR_URL')
     # Or transport = RequestsHTTPTransport(url='YOUR_URL')
+    # Or transport = HTTPXTransport(url='YOUR_URL')
+    # Or transport = HTTPXAsyncTransport(url='YOUR_URL')
 
     client = Client(transport=transport)
 
