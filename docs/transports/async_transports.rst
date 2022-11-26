@@ -10,6 +10,7 @@ Async transports are transports which are using an underlying async library. The
    :maxdepth: 1
 
    aiohttp
+   httpx_async
    websockets
    phoenix
    appsync

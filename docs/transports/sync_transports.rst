@@ -10,3 +10,4 @@ They cannot be used asynchronously.
    :maxdepth: 1
 
    requests
+   httpx
