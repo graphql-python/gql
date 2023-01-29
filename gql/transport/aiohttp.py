@@ -183,12 +183,21 @@ class AIOHTTPTransport(AsyncTransport):
 
             log.debug("Closing transport")
 
-            closed_event = self.create_aiohttp_closed_event(self.session)
-            await self.session.close()
-            try:
-                await asyncio.wait_for(closed_event.wait(), self.ssl_close_timeout)
-            except asyncio.TimeoutError:
-                pass
+            if (
+                self.client_session_args
+                and self.client_session_args.get("connector_owner") is False
+            ):
+
+                log.debug("connector_owner is False -> not closing connector")
+
+            else:
+                closed_event = self.create_aiohttp_closed_event(self.session)
+                await self.session.close()
+                try:
+                    await asyncio.wait_for(closed_event.wait(), self.ssl_close_timeout)
+                except asyncio.TimeoutError:
+                    pass
+
         self.session = None
 
     async def execute(
