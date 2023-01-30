@@ -1441,3 +1441,47 @@ async def test_aiohttp_json_serializer(event_loop, aiohttp_server, caplog):
     # Checking that there is no space after the colon in the log
     expected_log = '"query":"query getContinents'
     assert expected_log in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_connector_owner_false(event_loop, aiohttp_server):
+    from aiohttp import web, TCPConnector
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    async def handler(request):
+        return web.Response(
+            text=query1_server_answer,
+            content_type="application/json",
+        )
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    connector = TCPConnector()
+    transport = AIOHTTPTransport(
+        url=url,
+        timeout=10,
+        client_session_args={
+            "connector": connector,
+            "connector_owner": False,
+        },
+    )
+
+    for _ in range(2):
+        async with Client(transport=transport) as session:
+
+            query = gql(query1_str)
+
+            # Execute query asynchronously
+            result = await session.execute(query)
+
+            continents = result["continents"]
+
+            africa = continents[0]
+
+            assert africa["code"] == "AF"
+
+    await connector.close()
