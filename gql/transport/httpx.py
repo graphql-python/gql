@@ -103,9 +103,9 @@ class _HTTPXTransport:
         # Prepare to send multipart-encoded data
         data: Dict[str, Any] = {}
         file_map: Dict[str, List[str]] = {}
-        file_streams: Dict[str, Tuple[str, Any]] = {}
+        file_streams: Dict[str, Tuple[str, ...]] = {}
 
-        for i, (path, val) in enumerate(files.items()):
+        for i, (path, f) in enumerate(files.items()):
             key = str(i)
 
             # Generate the file map
@@ -117,8 +117,13 @@ class _HTTPXTransport:
             # Generate the file streams
             # Will generate something like
             # {"0": ("variables.file", <_io.BufferedReader ...>)}
-            filename = cast(str, getattr(val, "name", key))
-            file_streams[key] = (filename, val)
+            name = cast(str, getattr(f, "name", key))
+            content_type = getattr(f, "content_type", None)
+
+            if content_type is None:
+                file_streams[key] = (name, f)
+            else:
+                file_streams[key] = (name, f, content_type)
 
         # Add the payload to the operations field
         operations_str = self.json_serialize(payload)

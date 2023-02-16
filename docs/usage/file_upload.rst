@@ -42,6 +42,25 @@ In order to upload a single file, you need to:
             query, variable_values=params, upload_files=True
         )
 
+Setting the content-type
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+If you need to set a specific Content-Type attribute to a file,
+you can set the :code:`content_type` attribute of the file like this:
+
+.. code-block:: python
+
+    with open("YOUR_FILE_PATH", "rb") as f:
+
+        # Setting the content-type to a pdf file for example
+        f.content_type = "application/pdf"
+
+        params = {"file": f}
+
+        result = client.execute(
+            query, variable_values=params, upload_files=True
+        )
+
 File list
 ---------
 

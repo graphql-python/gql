@@ -183,8 +183,14 @@ class RequestsHTTPTransport(Transport):
             fields = {"operations": operations_str, "map": file_map_str}
 
             # Add the extracted files as remaining fields
-            for k, v in file_streams.items():
-                fields[k] = (getattr(v, "name", k), v)
+            for k, f in file_streams.items():
+                name = getattr(f, "name", k)
+                content_type = getattr(f, "content_type", None)
+
+                if content_type is None:
+                    fields[k] = (name, f)
+                else:
+                    fields[k] = (name, f, content_type)
 
             # Prepare requests http to send multipart-encoded data
             data = MultipartEncoder(fields=fields)
