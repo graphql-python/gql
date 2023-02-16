@@ -670,6 +670,74 @@ async def test_aiohttp_file_upload(event_loop, aiohttp_server):
             assert success
 
 
+async def single_upload_handler_with_content_type(request):
+
+    from aiohttp import web
+
+    reader = await request.multipart()
+
+    field_0 = await reader.next()
+    assert field_0.name == "operations"
+    field_0_text = await field_0.text()
+    assert field_0_text == file_upload_mutation_1_operations
+
+    field_1 = await reader.next()
+    assert field_1.name == "map"
+    field_1_text = await field_1.text()
+    assert field_1_text == file_upload_mutation_1_map
+
+    field_2 = await reader.next()
+    assert field_2.name == "0"
+    field_2_text = await field_2.text()
+    assert field_2_text == file_1_content
+
+    # Verifying the content_type
+    assert field_2.headers["Content-Type"] == "application/pdf"
+
+    field_3 = await reader.next()
+    assert field_3 is None
+
+    return web.Response(text=file_upload_server_answer, content_type="application/json")
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_file_upload_with_content_type(event_loop, aiohttp_server):
+    from aiohttp import web
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    app = web.Application()
+    app.router.add_route("POST", "/", single_upload_handler_with_content_type)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    transport = AIOHTTPTransport(url=url, timeout=10)
+
+    with TemporaryFile(file_1_content) as test_file:
+
+        async with Client(transport=transport) as session:
+
+            query = gql(file_upload_mutation_1)
+
+            file_path = test_file.filename
+
+            with open(file_path, "rb") as f:
+
+                # Setting the content_type
+                f.content_type = "application/pdf"
+
+                params = {"file": f, "other_var": 42}
+
+                # Execute query asynchronously
+                result = await session.execute(
+                    query, variable_values=params, upload_files=True
+                )
+
+            success = result["success"]
+
+            assert success
+
+
 @pytest.mark.asyncio
 async def test_aiohttp_file_upload_without_session(
     event_loop, aiohttp_server, run_sync_test
