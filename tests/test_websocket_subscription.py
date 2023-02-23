@@ -494,6 +494,66 @@ def test_websocket_subscription_sync(server, subscription_str):
     assert count == -1
 
 
+@pytest.mark.parametrize("server", [server_countdown], indirect=True)
+@pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
+def test_websocket_subscription_sync_user_exception(server, subscription_str):
+    from gql.transport.websockets import WebsocketsTransport
+
+    url = f"ws://{server.hostname}:{server.port}/graphql"
+    print(f"url = {url}")
+
+    sample_transport = WebsocketsTransport(url=url)
+
+    client = Client(transport=sample_transport)
+
+    count = 10
+    subscription = gql(subscription_str.format(count=count))
+
+    with pytest.raises(Exception) as exc_info:
+        for result in client.subscribe(subscription):
+
+            number = result["number"]
+            print(f"Number received: {number}")
+
+            assert number == count
+            count -= 1
+
+            if count == 5:
+                raise Exception("This is an user exception")
+
+    assert count == 5
+    assert "This is an user exception" in str(exc_info.value)
+
+
+@pytest.mark.parametrize("server", [server_countdown], indirect=True)
+@pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
+def test_websocket_subscription_sync_break(server, subscription_str):
+    from gql.transport.websockets import WebsocketsTransport
+
+    url = f"ws://{server.hostname}:{server.port}/graphql"
+    print(f"url = {url}")
+
+    sample_transport = WebsocketsTransport(url=url)
+
+    client = Client(transport=sample_transport)
+
+    count = 10
+    subscription = gql(subscription_str.format(count=count))
+
+    for result in client.subscribe(subscription):
+
+        number = result["number"]
+        print(f"Number received: {number}")
+
+        assert number == count
+        count -= 1
+
+        if count == 5:
+            break
+
+    assert count == 5
+
+
 @pytest.mark.skipif(sys.platform.startswith("win"), reason="test failing on windows")
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
