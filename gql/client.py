@@ -593,15 +593,14 @@ class Client:
         except StopAsyncIteration:
             pass
 
-        except (KeyboardInterrupt, Exception):
+        except (KeyboardInterrupt, Exception, GeneratorExit):
 
-            # Graceful shutdown by cancelling the task and waiting clean shutdown
+            # Graceful shutdown
+            asyncio.ensure_future(async_generator.aclose(), loop=loop)
+
             generator_task.cancel()
 
-            try:
-                loop.run_until_complete(generator_task)
-            except (StopAsyncIteration, asyncio.CancelledError):
-                pass
+            loop.run_until_complete(loop.shutdown_asyncgens())
 
             # Then reraise the exception
             raise
