@@ -1,7 +1,7 @@
 Logging
 =======
 
-GQL use the python `logging`_ module.
+GQL uses the python `logging`_ module.
 
 In order to debug a problem, you can enable logging to see the messages exchanged between the client and the server.
 To do that, set the loglevel at **INFO** at the beginning of your code:
