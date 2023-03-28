@@ -76,6 +76,7 @@ class Client:
         introspection: Optional[IntrospectionQuery] = None,
         transport: Optional[Union[Transport, AsyncTransport]] = None,
         fetch_schema_from_transport: bool = False,
+        introspection_args: Optional[Dict] = None,
         execute_timeout: Optional[Union[int, float]] = 10,
         serialize_variables: bool = False,
         parse_results: bool = False,
@@ -86,7 +87,9 @@ class Client:
                 See :ref:`schema_validation`
         :param transport: The provided :ref:`transport <Transports>`.
         :param fetch_schema_from_transport: Boolean to indicate that if we want to fetch
-                the schema from the transport using an introspection query
+                the schema from the transport using an introspection query.
+        :param introspection_args: arguments passed to the get_introspection_query
+                method of graphql-core.
         :param execute_timeout: The maximum time in seconds for the execution of a
                 request before a TimeoutError is raised. Only used for async transports.
                 Passing None results in waiting forever for a response.
@@ -132,6 +135,9 @@ class Client:
         # Flag to indicate that we need to fetch the schema from the transport
         # On async transports, we fetch the schema before executing the first query
         self.fetch_schema_from_transport: bool = fetch_schema_from_transport
+        self.introspection_args = (
+            {} if introspection_args is None else introspection_args
+        )
 
         # Enforced timeout of the execute function (only for async transports)
         self.execute_timeout = execute_timeout
@@ -879,7 +885,8 @@ class SyncClientSession:
 
         Don't use this function and instead set the fetch_schema_from_transport
         attribute to True"""
-        execution_result = self.transport.execute(parse(get_introspection_query()))
+        introspection_query = get_introspection_query(**self.client.introspection_args)
+        execution_result = self.transport.execute(parse(introspection_query))
 
         self.client._build_schema_from_introspection(execution_result)
 
@@ -1250,9 +1257,8 @@ class AsyncClientSession:
 
         Don't use this function and instead set the fetch_schema_from_transport
         attribute to True"""
-        execution_result = await self.transport.execute(
-            parse(get_introspection_query())
-        )
+        introspection_query = get_introspection_query(**self.client.introspection_args)
+        execution_result = await self.transport.execute(parse(introspection_query))
 
         self.client._build_schema_from_introspection(execution_result)
 

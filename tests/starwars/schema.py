@@ -155,6 +155,11 @@ review_input_type = GraphQLInputObjectType(
         "commentary": GraphQLInputField(
             GraphQLString, description="Comment about the movie, optional"
         ),
+        "deprecated_input_field": GraphQLInputField(
+            GraphQLString,
+            description="deprecated field example",
+            deprecation_reason="deprecated for testing",
+        ),
     },
     description="The input object sent when someone is creating a new review",
 )

@@ -144,3 +144,45 @@ def create_review(episode, review):
     reviews[episode].append(review)
     review["episode"] = episode
     return review
+
+
+async def make_starwars_backend(aiohttp_server):
+    from aiohttp import web
+    from .schema import StarWarsSchema
+    from graphql import graphql_sync
+
+    async def handler(request):
+        data = await request.json()
+        source = data["query"]
+
+        try:
+            variables = data["variables"]
+        except KeyError:
+            variables = None
+
+        result = graphql_sync(StarWarsSchema, source, variable_values=variables)
+
+        return web.json_response(
+            {
+                "data": result.data,
+                "errors": [str(e) for e in result.errors] if result.errors else None,
+            }
+        )
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    return server
+
+
+async def make_starwars_transport(aiohttp_server):
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    server = await make_starwars_backend(aiohttp_server)
+
+    url = server.make_url("/")
+
+    transport = AIOHTTPTransport(url=url, timeout=10)
+
+    return transport
