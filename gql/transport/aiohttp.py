@@ -286,8 +286,8 @@ class AIOHTTPTransport(AsyncTransport):
             if variable_values:
                 payload["variables"] = variable_values
 
-            if log.isEnabledFor(logging.INFO):
-                log.info(">>> %s", self.json_serialize(payload))
+            if log.isEnabledFor(logging.DEBUG):
+                log.debug(">>> %s", self.json_serialize(payload))
 
             post_args = {"json": payload}
 
@@ -330,9 +330,9 @@ class AIOHTTPTransport(AsyncTransport):
             try:
                 result = await resp.json(content_type=None)
 
-                if log.isEnabledFor(logging.INFO):
+                if log.isEnabledFor(logging.DEBUG):
                     result_text = await resp.text()
-                    log.info("<<< %s", result_text)
+                    log.debug("<<< %s", result_text)
 
             except Exception:
                 await raise_response_error(resp, "Not a JSON answer")

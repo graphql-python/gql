@@ -212,8 +212,8 @@ class RequestsHTTPTransport(Transport):
             post_args[data_key] = payload
 
         # Log the payload
-        if log.isEnabledFor(logging.INFO):
-            log.info(">>> %s", json.dumps(payload))
+        if log.isEnabledFor(logging.DEBUG):
+            log.debug(">>> %s", json.dumps(payload))
 
         # Pass kwargs to requests post method
         post_args.update(self.kwargs)
@@ -248,8 +248,8 @@ class RequestsHTTPTransport(Transport):
         try:
             result = response.json()
 
-            if log.isEnabledFor(logging.INFO):
-                log.info("<<< %s", response.text)
+            if log.isEnabledFor(logging.DEBUG):
+                log.debug("<<< %s", response.text)
 
         except Exception:
             raise_response_error(response, "Not a JSON answer")
