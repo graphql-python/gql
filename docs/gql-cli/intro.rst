@@ -78,3 +78,13 @@ Print the GraphQL schema in a file
 .. code-block:: shell
 
     $ gql-cli https://countries.trevorblades.com/graphql --print-schema > schema.graphql
+
+.. note::
+
+    By default, deprecated input fields are not requested from the backend.
+    You can add :code:`--schema-download input_value_deprecation:true` to request them.
+
+.. note::
+
+    You can add :code:`--schema-download descriptions:false` to request a compact schema
+    without comments.

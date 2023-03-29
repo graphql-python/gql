@@ -3,7 +3,8 @@ import json
 import logging
 import signal as signal_module
 import sys
-from argparse import ArgumentParser, Namespace, RawDescriptionHelpFormatter
+import textwrap
+from argparse import ArgumentParser, Namespace, RawTextHelpFormatter
 from typing import Any, Dict, Optional
 
 from graphql import GraphQLError, print_schema
@@ -78,7 +79,7 @@ def get_parser(with_examples: bool = False) -> ArgumentParser:
     parser = ArgumentParser(
         description=description,
         epilog=examples if with_examples else None,
-        formatter_class=RawDescriptionHelpFormatter,
+        formatter_class=RawTextHelpFormatter,
     )
     parser.add_argument(
         "server", help="the server url starting with http://, https://, ws:// or wss://"
@@ -121,6 +122,27 @@ def get_parser(with_examples: bool = False) -> ArgumentParser:
         help="get the schema from instrospection and print it",
         action="store_true",
         dest="print_schema",
+    )
+    parser.add_argument(
+        "--schema-download",
+        nargs="*",
+        help=textwrap.dedent(
+            """select the introspection query arguments to download the schema.
+            Only useful if --print-schema is used.
+            By default, it will:
+
+             - request field descriptions
+             - not request deprecated input fields
+
+            Possible options:
+
+             - descriptions:false             for a compact schema without comments
+             - input_value_deprecation:true   to download deprecated input fields
+             - specified_by_url:true
+             - schema_description:true
+             - directive_is_repeatable:true"""
+        ),
+        dest="schema_download",
     )
     parser.add_argument(
         "--execute-timeout",
@@ -362,6 +384,42 @@ def get_transport(args: Namespace) -> Optional[AsyncTransport]:
                 return None
 
 
+def get_introspection_args(args: Namespace) -> Dict:
+    """Get the introspection args depending on the schema_download argument"""
+
+    # Parse the headers argument
+    introspection_args = {}
+
+    possible_args = [
+        "descriptions",
+        "specified_by_url",
+        "directive_is_repeatable",
+        "schema_description",
+        "input_value_deprecation",
+    ]
+
+    if args.schema_download is not None:
+        for arg in args.schema_download:
+
+            try:
+                # Split only the first colon (throw a ValueError if no colon is present)
+                arg_key, arg_value = arg.split(":", 1)
+
+                if arg_key not in possible_args:
+                    raise ValueError(f"Invalid schema_download: {args.schema_download}")
+
+                arg_value = arg_value.lower()
+                if arg_value not in ["true", "false"]:
+                    raise ValueError(f"Invalid schema_download: {args.schema_download}")
+
+                introspection_args[arg_key] = arg_value == "true"
+
+            except ValueError:
+                raise ValueError(f"Invalid schema_download: {args.schema_download}")
+
+    return introspection_args
+
+
 async def main(args: Namespace) -> int:
     """Main entrypoint of the gql-cli script
 
@@ -395,6 +453,7 @@ async def main(args: Namespace) -> int:
     async with Client(
         transport=transport,
         fetch_schema_from_transport=args.print_schema,
+        introspection_args=get_introspection_args(args),
         execute_timeout=args.execute_timeout,
     ) as session:
 
