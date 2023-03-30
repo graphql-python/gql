@@ -5,6 +5,7 @@ import pytest
 from gql import __version__
 from gql.cli import (
     get_execute_args,
+    get_introspection_args,
     get_parser,
     get_transport,
     get_transport_args,
@@ -376,3 +377,46 @@ def test_cli_ep_version(script_runner):
 
     assert ret.stdout == f"v{__version__}\n"
     assert ret.stderr == ""
+
+
+def test_cli_parse_schema_download(parser):
+
+    args = parser.parse_args(
+        [
+            "https://your_server.com",
+            "--schema-download",
+            "descriptions:false",
+            "input_value_deprecation:true",
+            "specified_by_url:True",
+            "schema_description:true",
+            "directive_is_repeatable:true",
+            "--print-schema",
+        ]
+    )
+
+    introspection_args = get_introspection_args(args)
+
+    expected_args = {
+        "descriptions": False,
+        "input_value_deprecation": True,
+        "specified_by_url": True,
+        "schema_description": True,
+        "directive_is_repeatable": True,
+    }
+
+    assert introspection_args == expected_args
+
+
+@pytest.mark.parametrize(
+    "invalid_args",
+    [
+        ["https://your_server.com", "--schema-download", "ArgWithoutColon"],
+        ["https://your_server.com", "--schema-download", "blahblah:true"],
+        ["https://your_server.com", "--schema-download", "descriptions:invalid_bool"],
+    ],
+)
+def test_cli_parse_schema_download_invalid_arg(parser, invalid_args):
+    args = parser.parse_args(invalid_args)
+
+    with pytest.raises(ValueError):
+        get_introspection_args(args)
