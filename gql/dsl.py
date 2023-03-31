@@ -924,12 +924,6 @@ class DSLMetaField(DSLField):
 
         super().__init__(name, self.meta_type, field)
 
-    def alias(self, alias: str) -> "DSLSelectableWithAlias":
-        """
-        :meta private:
-        """
-        return self
-
 
 class DSLInlineFragment(DSLSelectable, DSLFragmentSelector):
     """DSLInlineFragment represents an inline fragment for the DSL code."""

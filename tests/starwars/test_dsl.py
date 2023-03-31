@@ -870,11 +870,6 @@ def test_invalid_meta_field_selection(ds):
     metafield = DSLMetaField("__typename")
     assert metafield.name == "__typename"
 
-    # alias does not work
-    metafield.alias("test")
-
-    assert metafield.name == "__typename"
-
     with pytest.raises(GraphQLError):
         DSLMetaField("__invalid_meta_field")
 
@@ -936,3 +931,22 @@ def test_get_introspection_query_ast(option):
     )
 
     assert print_ast(gql(introspection_query)) == print_ast(dsl_introspection_query)
+
+
+def test_typename_aliased(ds):
+    query = """
+hero {
+  name
+  typenameField: __typename
+}
+""".strip()
+
+    query_dsl = ds.Query.hero.select(
+        ds.Character.name, typenameField=DSLMetaField("__typename")
+    )
+    assert query == str(query_dsl)
+
+    query_dsl = ds.Query.hero.select(
+        ds.Character.name, DSLMetaField("__typename").alias("typenameField")
+    )
+    assert query == str(query_dsl)
