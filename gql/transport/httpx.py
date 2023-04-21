@@ -32,7 +32,7 @@ log = logging.getLogger(__name__)
 class _HTTPXTransport:
     file_classes: Tuple[Type[Any], ...] = (io.IOBase,)
 
-    reponse_headers: Optional[httpx.Headers] = None
+    response_headers: Optional[httpx.Headers] = None
 
     def __init__(
         self,
