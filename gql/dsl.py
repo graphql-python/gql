@@ -295,7 +295,11 @@ class DSLSchema:
         if type_def is None:
             raise AttributeError(f"Type '{name}' not found in the schema!")
 
-        assert isinstance(type_def, (GraphQLObjectType, GraphQLInterfaceType))
+        if not isinstance(type_def, (GraphQLObjectType, GraphQLInterfaceType)):
+            raise AttributeError(
+                f'Type "{name} ({type_def!r})" is not valid as an attribute of'
+                " DSLSchema. Only Object types or Interface types are accepted."
+            )
 
         return DSLType(type_def, self)
 
