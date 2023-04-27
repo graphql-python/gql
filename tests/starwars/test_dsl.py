@@ -14,6 +14,8 @@ from graphql import (
     NonNullTypeNode,
     NullValueNode,
     Undefined,
+    build_ast_schema,
+    parse,
     print_ast,
 )
 from graphql.utilities import get_introspection_query
@@ -774,8 +776,6 @@ def test_dsl_query_all_fields_should_correspond_to_the_root_type(ds):
 
 def test_dsl_root_type_not_default():
 
-    from graphql import parse, build_ast_schema
-
     schema_str = """
 schema {
   query: QueryNotDefault
@@ -825,6 +825,41 @@ def test_invalid_type(ds):
         AttributeError, match="Type 'invalid_type' not found in the schema!"
     ):
         ds.invalid_type
+
+
+def test_invalid_type_union():
+    schema_str = """
+    type FloatValue {
+        floatValue: Float!
+    }
+
+    type IntValue {
+        intValue: Int!
+    }
+
+    union Value = FloatValue | IntValue
+
+    type Entry {
+        name: String!
+        value: Value
+    }
+
+    type Query {
+        values: [Entry!]!
+    }
+    """
+
+    schema = build_ast_schema(parse(schema_str))
+    ds = DSLSchema(schema)
+
+    with pytest.raises(
+        AttributeError,
+        match=(
+            "Type \"Value \\(<GraphQLUnionType 'Value'>\\)\" is not valid as an "
+            "attribute of DSLSchema. Only Object types or Interface types are accepted."
+        ),
+    ):
+        ds.Value
 
 
 def test_hero_name_query_with_typename(ds):
