@@ -59,7 +59,7 @@ class LocalSchemaTransport(AsyncTransport):
         The results are sent as an ExecutionResult object
         """
 
-        subscribe_result = await subscribe(self.schema, document, *args, **kwargs)
+        subscribe_result = subscribe(self.schema, document, *args, **kwargs)
 
         if isinstance(subscribe_result, ExecutionResult):
             yield subscribe_result
