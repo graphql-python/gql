@@ -47,7 +47,10 @@ The complete documentation for GQL can be found at
 
 You can install GQL with all the optional dependencies using pip:
 
-    pip install gql[all]
+```bash
+# Quotes may be required on certain shells such as zsh.
+pip install "gql[all]"
+```
 
 > **NOTE**: See also [the documentation](https://gql.readthedocs.io/en/latest/intro.html#less-dependencies) to install GQL with less extra dependencies depending on the transports you would like to use or for alternative installation methods.
 
