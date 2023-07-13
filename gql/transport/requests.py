@@ -1,7 +1,7 @@
 import io
 import json
 import logging
-from typing import Any, Dict, Optional, Tuple, Type, Union
+from typing import Any, Collection, Dict, Optional, Tuple, Type, Union
 
 import requests
 from graphql import DocumentNode, ExecutionResult, print_ast
@@ -31,6 +31,7 @@ class RequestsHTTPTransport(Transport):
     """
 
     file_classes: Tuple[Type[Any], ...] = (io.IOBase,)
+    _default_retry_codes = (429, 500, 502, 503, 504)
 
     def __init__(
         self,
@@ -43,6 +44,8 @@ class RequestsHTTPTransport(Transport):
         verify: Union[bool, str] = True,
         retries: int = 0,
         method: str = "POST",
+        retry_backoff_factor: float = 0.1,
+        retry_status_forcelist: Collection[int] = _default_retry_codes,
         **kwargs: Any,
     ):
         """Initialize the transport with the given request parameters.
@@ -62,6 +65,13 @@ class RequestsHTTPTransport(Transport):
             to a CA bundle to use. (Default: True).
         :param retries: Pre-setup of the requests' Session for performing retries
         :param method: HTTP method used for requests. (Default: POST).
+        :param retry_backoff_factor: A backoff factor to apply between attempts after
+            the second try. urllib3 will sleep for:
+            {backoff factor} * (2 ** ({number of previous retries}))
+        :param retry_status_forcelist: A set of integer HTTP status codes that we
+            should force a retry on. A retry is initiated if the request method is
+            in allowed_methods and the response status code is in status_forcelist.
+            (Default: [429, 500, 502, 503, 504])
         :param kwargs: Optional arguments that ``request`` takes.
             These can be seen at the `requests`_ source code or the official `docs`_
 
@@ -77,6 +87,8 @@ class RequestsHTTPTransport(Transport):
         self.verify = verify
         self.retries = retries
         self.method = method
+        self.retry_backoff_factor = retry_backoff_factor
+        self.retry_status_forcelist = retry_status_forcelist
         self.kwargs = kwargs
 
         self.session = None
@@ -95,8 +107,8 @@ class RequestsHTTPTransport(Transport):
                 adapter = HTTPAdapter(
                     max_retries=Retry(
                         total=self.retries,
-                        backoff_factor=0.1,
-                        status_forcelist=[500, 502, 503, 504],
+                        backoff_factor=self.retry_backoff_factor,
+                        status_forcelist=self.retry_status_forcelist,
                         allowed_methods=None,
                     )
                 )
