@@ -8,6 +8,7 @@ from typing import (
     Callable,
     Dict,
     Generator,
+    List,
     Optional,
     TypeVar,
     Union,
@@ -26,6 +27,8 @@ from graphql import (
     parse,
     validate,
 )
+
+from gql.transport.data_structures.graphql_request import GraphQLRequest
 
 from .transport.async_transport import AsyncTransport
 from .transport.exceptions import TransportClosed, TransportQueryError
@@ -236,6 +239,24 @@ class Client:
                 **kwargs,
             )
 
+    def execute_batch_sync(
+        self,
+        reqs: List[GraphQLRequest],
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        get_execution_result: bool = False,
+        **kwargs,
+    ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]:
+        """:meta private:"""
+        with self as session:
+            return session.execute_batch(
+                reqs,
+                serialize_variables=serialize_variables,
+                parse_result=parse_result,
+                get_execution_result=get_execution_result,
+                **kwargs,
+            )
+
     @overload
     async def execute_async(
         self,
@@ -375,7 +396,6 @@ class Client:
         """
 
         if isinstance(self.transport, AsyncTransport):
-
             # Get the current asyncio event loop
             # Or create a new event loop if there isn't one (in a new Thread)
             try:
@@ -412,6 +432,48 @@ class Client:
                 document,
                 variable_values=variable_values,
                 operation_name=operation_name,
+                serialize_variables=serialize_variables,
+                parse_result=parse_result,
+                get_execution_result=get_execution_result,
+                **kwargs,
+            )
+
+    def execute_batch(
+        self,
+        reqs: List[GraphQLRequest],
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        get_execution_result: bool = False,
+        **kwargs,
+    ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]:
+        """Execute the provided document AST against the remote server using
+        the transport provided during init.
+
+        This function **WILL BLOCK** until the result is received from the server.
+
+        Either the transport is sync and we execute the query synchronously directly
+        OR the transport is async and we execute the query in the asyncio loop
+        (blocking here until answer).
+
+        This method will:
+
+         - connect using the transport to get a session
+         - execute the GraphQL request on the transport session
+         - close the session and close the connection to the server
+
+         If you have multiple requests to send, it is better to get your own session
+         and execute the requests in your session.
+
+         The extra arguments passed in the method will be passed to the transport
+         execute method.
+        """
+
+        if isinstance(self.transport, AsyncTransport):
+            raise NotImplementedError("Batching is not implemented for async yet.")
+
+        else:  # Sync transports
+            return self.execute_batch_sync(
+                reqs,
                 serialize_variables=serialize_variables,
                 parse_result=parse_result,
                 get_execution_result=get_execution_result,
@@ -476,7 +538,6 @@ class Client:
     ]:
         """:meta private:"""
         async with self as session:
-
             generator = session.subscribe(
                 document,
                 variable_values=variable_values,
@@ -600,7 +661,6 @@ class Client:
             pass
 
         except (KeyboardInterrupt, Exception, GeneratorExit):
-
             # Graceful shutdown
             asyncio.ensure_future(async_generator.aclose(), loop=loop)
 
@@ -661,11 +721,9 @@ class Client:
         await self.transport.close()
 
     async def __aenter__(self):
-
         return await self.connect_async()
 
     async def __aexit__(self, exc_type, exc, tb):
-
         await self.close_async()
 
     def connect_sync(self):
@@ -705,7 +763,6 @@ class Client:
         self.transport.close()
 
     def __enter__(self):
-
         return self.connect_sync()
 
     def __exit__(self, *args):
@@ -880,6 +937,112 @@ class SyncClientSession:
 
         return result.data
 
+    def _execute_batch(
+        self,
+        reqs: List[GraphQLRequest],
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        **kwargs,
+    ) -> List[ExecutionResult]:
+        """Execute the provided document AST synchronously using
+        the sync transport, returning an ExecutionResult object.
+
+        :param document: GraphQL query as AST Node object.
+        :param variable_values: Dictionary of input parameters.
+        :param operation_name: Name of the operation that shall be executed.
+        :param serialize_variables: whether the variable values should be
+            serialized. Used for custom scalars and/or enums.
+            By default use the serialize_variables argument of the client.
+        :param parse_result: Whether gql will unserialize the result.
+            By default use the parse_results argument of the client.
+
+        The extra arguments are passed to the transport execute method."""
+
+        # Validate document
+        if self.client.schema:
+            for req in reqs:
+                self.client.validate(req.document)
+
+            # Parse variable values for custom scalars if requested
+            if serialize_variables or (
+                serialize_variables is None and self.client.serialize_variables
+            ):
+                reqs = [
+                    req.serialize_variable_values(self.client.schema)
+                    if req.variable_values is not None
+                    else req
+                    for req in reqs
+                ]
+
+        results = self.transport.execute_batch(reqs, **kwargs)
+
+        # Unserialize the result if requested
+        if self.client.schema:
+            if parse_result or (parse_result is None and self.client.parse_results):
+                for result in results:
+                    result.data = parse_result_fn(
+                        self.client.schema,
+                        req.document,
+                        result.data,
+                        operation_name=req.operation_name,
+                    )
+
+        return results
+
+    def execute_batch(
+        self,
+        reqs: List[GraphQLRequest],
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        get_execution_result: bool = False,
+        **kwargs,
+    ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]:
+        """Execute the provided document AST synchronously using
+        the sync transport.
+
+        Raises a TransportQueryError if an error has been returned in
+            the ExecutionResult.
+
+        :param document: GraphQL query as AST Node object.
+        :param variable_values: Dictionary of input parameters.
+        :param operation_name: Name of the operation that shall be executed.
+        :param serialize_variables: whether the variable values should be
+            serialized. Used for custom scalars and/or enums.
+            By default use the serialize_variables argument of the client.
+        :param parse_result: Whether gql will unserialize the result.
+            By default use the parse_results argument of the client.
+        :param get_execution_result: return the full ExecutionResult instance instead of
+            only the "data" field. Necessary if you want to get the "extensions" field.
+
+        The extra arguments are passed to the transport execute method."""
+
+        # Validate and execute on the transport
+        results = self._execute_batch(
+            reqs,
+            serialize_variables=serialize_variables,
+            parse_result=parse_result,
+            **kwargs,
+        )
+
+        for result in results:
+            # Raise an error if an error is returned in the ExecutionResult object
+            if result.errors:
+                raise TransportQueryError(
+                    str_first_element(result.errors),
+                    errors=result.errors,
+                    data=result.data,
+                    extensions=result.extensions,
+                )
+
+            assert (
+                result.data is not None
+            ), "Transport returned an ExecutionResult without data or errors"
+
+        if get_execution_result:
+            return results
+
+        return [result.data for result in results]  # type: ignore
+
     def fetch_schema(self) -> None:
         """Fetch the GraphQL schema explicitly using introspection.
 
@@ -966,7 +1129,6 @@ class AsyncClientSession:
 
         try:
             async for result in inner_generator:
-
                 if self.client.schema:
                     if parse_result or (
                         parse_result is None and self.client.parse_results
@@ -1070,7 +1232,6 @@ class AsyncClientSession:
         try:
             # Validate and subscribe on the transport
             async for result in inner_generator:
-
                 # Raise an error if an error is returned in the ExecutionResult object
                 if result.errors:
                     raise TransportQueryError(
@@ -1343,7 +1504,6 @@ class ReconnectingAsyncClientSession(AsyncClientSession):
         """
 
         while True:
-
             # Connect to the transport with the retry decorator
             # By default it should keep retrying until it connect
             await self._connect_with_retries()

@@ -1,7 +1,7 @@
 import io
 import json
 import logging
-from typing import Any, Collection, Dict, Optional, Tuple, Type, Union
+from typing import Any, Collection, Dict, List, Optional, Tuple, Type, Union
 
 import requests
 from graphql import DocumentNode, ExecutionResult, print_ast
@@ -13,6 +13,7 @@ from requests_toolbelt.multipart.encoder import MultipartEncoder
 from gql.transport import Transport
 
 from ..utils import extract_files
+from .data_structures import GraphQLRequest
 from .exceptions import (
     TransportAlreadyConnected,
     TransportClosed,
@@ -96,9 +97,7 @@ class RequestsHTTPTransport(Transport):
         self.response_headers = None
 
     def connect(self):
-
         if self.session is None:
-
             # Creating a session that can later be re-use to configure custom mechanisms
             self.session = requests.Session()
 
@@ -274,6 +273,152 @@ class RequestsHTTPTransport(Transport):
             data=result.get("data"),
             extensions=result.get("extensions"),
         )
+
+    def execute_batch(  # type: ignore
+        self,
+        reqs: List[GraphQLRequest],
+        timeout: Optional[int] = None,
+        extra_args: Dict[str, Any] = None,
+    ) -> List[ExecutionResult]:
+        """Execute GraphQL query.
+
+        Execute the provided document ASTs against the configured remote server. This
+        uses the requests library to perform a HTTP POST request to the remote server.
+
+        :param reqs: GraphQL requests as an iterable of GraphQLRequest objects.
+        :param timeout: Specifies a default timeout for requests (Default: None).
+        :param extra_args: additional arguments to send to the requests post method
+        :param upload_files: Set to True if you want to put files in the variable values
+        :return: A list of results of execution.
+            For every result `data` is the result of executing the query,
+            `errors` is null if no errors occurred, and is a non-empty array
+            if an error occurred.
+        """
+
+        if not self.session:
+            raise TransportClosed("Transport is not connected")
+
+        # Using the created session to perform requests
+        response = self.session.request(
+            self.method,
+            self.url,
+            **self._build_batch_post_args(reqs, timeout, extra_args),  # type: ignore
+        )
+        self.response_headers = response.headers
+
+        answers = self._extract_response(response)
+
+        self._validate_answer_is_a_list(answers)
+        self._validate_num_of_answers_same_as_requests(reqs, answers)
+        self._validate_every_answer_is_a_dict(answers)
+        self._validate_data_and_errors_keys_in_answers(answers)
+
+        return [self._answer_to_execution_result(answer) for answer in answers]
+
+    def _answer_to_execution_result(self, result: Dict[str, Any]) -> ExecutionResult:
+        return ExecutionResult(
+            errors=result.get("errors"),
+            data=result.get("data"),
+            extensions=result.get("extensions"),
+        )
+
+    def _validate_answer_is_a_list(self, results: Any) -> None:
+        if not isinstance(results, list):
+            self._raise_invalid_result(
+                str(results),
+                "Answer is not a list",
+            )
+
+    def _validate_data_and_errors_keys_in_answers(
+        self, results: List[Dict[str, Any]]
+    ) -> None:
+        for result in results:
+            if "errors" not in result and "data" not in result:
+                self._raise_invalid_result(
+                    str(results),
+                    'No "data" or "errors" keys in answer',
+                )
+
+    def _validate_every_answer_is_a_dict(self, results: List[Dict[str, Any]]) -> None:
+        for result in results:
+            if not isinstance(result, dict):
+                self._raise_invalid_result(str(results), "Not every answer is dict")
+
+    def _validate_num_of_answers_same_as_requests(
+        self,
+        reqs: List[GraphQLRequest],
+        results: List[Dict[str, Any]],
+    ) -> None:
+        if len(reqs) != len(results):
+            self._raise_invalid_result(
+                str(results),
+                "Invalid answer length",
+            )
+
+    def _raise_invalid_result(self, result_text: str, reason: str) -> None:
+        raise TransportProtocolError(
+            f"Server did not return a valid GraphQL result: "
+            f"{reason}: "
+            f"{result_text}"
+        )
+
+    def _extract_response(self, response: requests.Response) -> Any:
+        try:
+            response.raise_for_status()
+            result = response.json()
+
+            if log.isEnabledFor(logging.INFO):
+                log.info("<<< %s", response.text)
+
+        except requests.HTTPError as e:
+            raise TransportServerError(str(e), e.response.status_code) from e
+
+        except Exception:
+            self._raise_invalid_result(str(response.text), "Not a JSON answer")
+
+        return result
+
+    def _build_batch_post_args(
+        self,
+        reqs: List[GraphQLRequest],
+        timeout: Optional[int] = None,
+        extra_args: Dict[str, Any] = None,
+    ) -> Dict[str, Any]:
+        post_args: Dict[str, Any] = {
+            "headers": self.headers,
+            "auth": self.auth,
+            "cookies": self.cookies,
+            "timeout": timeout or self.default_timeout,
+            "verify": self.verify,
+        }
+
+        data_key = "json" if self.use_json else "data"
+        post_args[data_key] = [self._build_data(req) for req in reqs]
+
+        # Log the payload
+        if log.isEnabledFor(logging.INFO):
+            log.info(">>> %s", json.dumps(post_args[data_key]))
+
+        # Pass kwargs to requests post method
+        post_args.update(self.kwargs)
+
+        # Pass post_args to requests post method
+        if extra_args:
+            post_args.update(extra_args)
+
+        return post_args
+
+    def _build_data(self, req: GraphQLRequest) -> Dict[str, Any]:
+        query_str = print_ast(req.document)
+        payload: Dict[str, Any] = {"query": query_str}
+
+        if req.operation_name:
+            payload["operationName"] = req.operation_name
+
+        if req.variable_values:
+            payload["variables"] = req.variable_values
+
+        return payload
 
     def close(self):
         """Closing the transport by closing the inner session"""

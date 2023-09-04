@@ -17,6 +17,8 @@ from typing import (
 import httpx
 from graphql import DocumentNode, ExecutionResult, print_ast
 
+from gql.transport.data_structures import GraphQLRequest
+
 from ..utils import extract_files
 from . import AsyncTransport, Transport
 from .exceptions import (
@@ -228,6 +230,14 @@ class HTTPXTransport(Transport, _HTTPXTransport):
         response = self.client.post(self.url, **post_args)
 
         return self._prepare_result(response)
+
+    def execute_batch(
+        self,
+        reqs: List[GraphQLRequest],
+        *args,
+        **kwargs,
+    ) -> List[ExecutionResult]:
+        return super().execute_batch(reqs, *args, **kwargs)
 
     def close(self):
         """Closing the transport by closing the inner session"""

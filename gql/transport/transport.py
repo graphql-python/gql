@@ -1,6 +1,9 @@
 import abc
+from typing import List
 
 from graphql import DocumentNode, ExecutionResult
+
+from .data_structures import GraphQLRequest
 
 
 class Transport(abc.ABC):
@@ -15,6 +18,24 @@ class Transport(abc.ABC):
         """
         raise NotImplementedError(
             "Any Transport subclass must implement execute method"
+        )  # pragma: no cover
+
+    @abc.abstractmethod
+    def execute_batch(
+        self,
+        reqs: List[GraphQLRequest],
+        *args,
+        **kwargs,
+    ) -> List[ExecutionResult]:
+        """Execute multiple GraphQL requests in batch.
+
+        Execute the provided requests for either a remote or local GraphQL Schema.
+
+        :param reqs: GraphQL requests as an iterable of GraphQLRequest objects.
+        :return: iterable of ExecutionResult
+        """
+        raise NotImplementedError(
+            "Any Transport subclass must implement execute_batch method"
         )  # pragma: no cover
 
     def connect(self):
