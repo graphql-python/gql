@@ -49,7 +49,9 @@ def test_request_transport_not_implemented(http_transport_query):
     )
 
 
-def test_request_async_execute_batch_not_implemented_yet(http_transport_query):
+@pytest.mark.aiohttp
+@pytest.mark.asyncio
+def test_request_async_execute_batch_not_implemented_yet():
     from gql.transport.aiohttp import AIOHTTPTransport
 
     transport = AIOHTTPTransport(url="http://localhost/")

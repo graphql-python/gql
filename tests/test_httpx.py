@@ -34,6 +34,8 @@ query1_server_answer = (
 )
 
 
+@pytest.mark.aiohttp
+@pytest.mark.asyncio
 def test_httpx_execute_batch_is_not_implemented():
     from gql.transport.httpx import HTTPXTransport
 
