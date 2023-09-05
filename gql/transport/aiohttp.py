@@ -205,7 +205,7 @@ class AIOHTTPTransport(AsyncTransport):
         document: DocumentNode,
         variable_values: Optional[Dict[str, Any]] = None,
         operation_name: Optional[str] = None,
-        extra_args: Dict[str, Any] = None,
+        extra_args: Optional[Dict[str, Any]] = None,
         upload_files: bool = False,
     ) -> ExecutionResult:
         """Execute the provided document AST against the configured remote server

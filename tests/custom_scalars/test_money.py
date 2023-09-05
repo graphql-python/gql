@@ -3,7 +3,7 @@ from math import isfinite
 from typing import Any, Dict, NamedTuple, Optional
 
 import pytest
-from graphql import graphql_sync
+from graphql import ExecutionResult, graphql_sync
 from graphql.error import GraphQLError
 from graphql.language import ValueNode
 from graphql.pyutils import inspect
@@ -20,7 +20,7 @@ from graphql.type import (
 )
 from graphql.utilities import value_from_ast_untyped
 
-from gql import Client, gql
+from gql import Client, GraphQLRequest, gql
 from gql.transport.exceptions import TransportQueryError
 from gql.utilities import serialize_value, update_schema_scalar, update_schema_scalars
 
@@ -419,24 +419,45 @@ async def make_money_backend(aiohttp_server):
     from aiohttp import web
 
     async def handler(request):
-        data = await request.json()
-        source = data["query"]
+        req_data = await request.json()
 
-        try:
-            variables = data["variables"]
-        except KeyError:
-            variables = None
+        def handle_single(data: Dict[str, Any]) -> ExecutionResult:
+            source = data["query"]
+            try:
+                variables = data["variables"]
+            except KeyError:
+                variables = None
 
-        result = graphql_sync(
-            schema, source, variable_values=variables, root_value=root_value
-        )
+            result = graphql_sync(
+                schema, source, variable_values=variables, root_value=root_value
+            )
 
-        return web.json_response(
-            {
-                "data": result.data,
-                "errors": [str(e) for e in result.errors] if result.errors else None,
-            }
-        )
+            return result
+
+        if isinstance(req_data, list):
+            results = [handle_single(d) for d in req_data]
+
+            return web.json_response(
+                [
+                    {
+                        "data": result.data,
+                        "errors": [str(e) for e in result.errors]
+                        if result.errors
+                        else None,
+                    }
+                    for result in results
+                ]
+            )
+        else:
+            result = handle_single(req_data)
+            return web.json_response(
+                {
+                    "data": result.data,
+                    "errors": [str(e) for e in result.errors]
+                    if result.errors
+                    else None,
+                }
+            )
 
     app = web.Application()
     app.router.add_route("POST", "/", handler)
@@ -732,6 +753,35 @@ async def test_custom_scalar_serialize_variables_sync_transport(
 
             print(f"result = {result!r}")
             assert result["toEuros"] == 5
+
+    await run_sync_test(event_loop, server, test_code)
+
+
+@pytest.mark.asyncio
+@pytest.mark.requests
+async def test_custom_scalar_serialize_variables_sync_transport_2(
+    event_loop, aiohttp_server, run_sync_test
+):
+    server, transport = await make_sync_money_transport(aiohttp_server)
+
+    def test_code():
+        with Client(schema=schema, transport=transport, parse_results=True) as session:
+
+            query = gql("query myquery($money: Money) {toEuros(money: $money)}")
+
+            variable_values = {"money": Money(10, "DM")}
+
+            results = session.execute_batch(
+                [
+                    GraphQLRequest(document=query, variable_values=variable_values),
+                    GraphQLRequest(document=query, variable_values=variable_values),
+                ],
+                serialize_variables=True,
+            )
+
+            print(f"result = {results!r}")
+            assert results[0]["toEuros"] == 5
+            assert results[1]["toEuros"] == 5
 
     await run_sync_test(event_loop, server, test_code)
 
