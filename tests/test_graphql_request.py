@@ -18,8 +18,7 @@ from graphql.type import (
 )
 from graphql.utilities import value_from_ast_untyped
 
-from gql import gql
-from gql.graphql_request import GraphQLRequest
+from gql import gql, GraphQLRequest
 
 from .conftest import MS
 

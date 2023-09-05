@@ -3,7 +3,7 @@ from typing import List
 
 from graphql import DocumentNode, ExecutionResult
 
-from gql.graphql_request import GraphQLRequest
+from ..graphql_request import GraphQLRequest
 
 
 class Transport(abc.ABC):

@@ -20,8 +20,7 @@ from graphql.type import (
 )
 from graphql.utilities import value_from_ast_untyped
 
-from gql import Client, gql
-from gql.graphql_request import GraphQLRequest
+from gql import Client, GraphQLRequest, gql
 from gql.transport.exceptions import TransportQueryError
 from gql.utilities import serialize_value, update_schema_scalar, update_schema_scalars
 

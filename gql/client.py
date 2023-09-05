@@ -28,7 +28,7 @@ from graphql import (
     validate,
 )
 
-from gql.graphql_request import GraphQLRequest
+from .graphql_request import GraphQLRequest
 
 from .transport.async_transport import AsyncTransport
 from .transport.exceptions import TransportClosed, TransportQueryError

@@ -10,7 +10,7 @@ from requests.auth import AuthBase
 from requests.cookies import RequestsCookieJar
 from requests_toolbelt.multipart.encoder import MultipartEncoder
 
-from gql.graphql_request import GraphQLRequest
+from ..graphql_request import GraphQLRequest
 from gql.transport import Transport
 
 from ..utils import extract_files
