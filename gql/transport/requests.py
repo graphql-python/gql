@@ -10,9 +10,9 @@ from requests.auth import AuthBase
 from requests.cookies import RequestsCookieJar
 from requests_toolbelt.multipart.encoder import MultipartEncoder
 
-from ..graphql_request import GraphQLRequest
 from gql.transport import Transport
 
+from ..graphql_request import GraphQLRequest
 from ..utils import extract_files
 from .exceptions import (
     TransportAlreadyConnected,

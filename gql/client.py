@@ -29,7 +29,6 @@ from graphql import (
 )
 
 from .graphql_request import GraphQLRequest
-
 from .transport.async_transport import AsyncTransport
 from .transport.exceptions import TransportClosed, TransportQueryError
 from .transport.local_schema import LocalSchemaTransport
