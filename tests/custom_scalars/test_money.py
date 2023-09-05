@@ -21,7 +21,7 @@ from graphql.type import (
 from graphql.utilities import value_from_ast_untyped
 
 from gql import Client, gql
-from gql.transport.data_structures.graphql_request import GraphQLRequest
+from gql.graphql_request import GraphQLRequest
 from gql.transport.exceptions import TransportQueryError
 from gql.utilities import serialize_value, update_schema_scalar, update_schema_scalars
 
@@ -763,7 +763,6 @@ async def test_custom_scalar_serialize_variables_sync_transport(
 async def test_custom_scalar_serialize_variables_sync_transport_2(
     event_loop, aiohttp_server, run_sync_test
 ):
-
     server, transport = await make_sync_money_transport(aiohttp_server)
 
     def test_code():
@@ -774,12 +773,16 @@ async def test_custom_scalar_serialize_variables_sync_transport_2(
             variable_values = {"money": Money(10, "DM")}
 
             results = session.execute_batch(
-                [GraphQLRequest(document=query, variable_values=variable_values)],
+                [
+                    GraphQLRequest(document=query, variable_values=variable_values),
+                    GraphQLRequest(document=query, variable_values=variable_values),
+                ],
                 serialize_variables=True,
             )
 
             print(f"result = {results!r}")
             assert results[0]["toEuros"] == 5
+            assert results[1]["toEuros"] == 5
 
     await run_sync_test(event_loop, server, test_code)
 
