@@ -943,7 +943,7 @@ class SyncClientSession:
         parse_result: Optional[bool] = None,
         **kwargs,
     ) -> List[ExecutionResult]:
-        """Execute the provided requests synchronously using
+        """Execute multiple GraphQL requests in a batch, using
         the sync transport, returning a list of ExecutionResult objects.
 
         :param reqs: List of requests that will be executed.
