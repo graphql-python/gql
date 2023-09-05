@@ -26,7 +26,7 @@ class Transport(abc.ABC):
         *args,
         **kwargs,
     ) -> List[ExecutionResult]:
-        """Execute multiple GraphQL requests in batch.
+        """Execute multiple GraphQL requests in a batch.
 
         Execute the provided requests for either a remote or local GraphQL Schema.
 

@@ -446,7 +446,7 @@ class Client:
         get_execution_result: bool = False,
         **kwargs,
     ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]:
-        """Execute the provided requests against the remote server using
+        """Execute multiple GraphQL requests in a batch against the remote server using
         the transport provided during init.
 
         This function **WILL BLOCK** until the result is received from the server.
@@ -995,7 +995,7 @@ class SyncClientSession:
         get_execution_result: bool = False,
         **kwargs,
     ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]:
-        """Execute the provided requests synchronously using
+        """Execute multiple GraphQL requests in a batch, using
         the sync transport. This method sends the requests to the server all at once.
 
         Raises a TransportQueryError if an error has been returned in any

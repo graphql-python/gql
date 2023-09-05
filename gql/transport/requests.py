@@ -280,7 +280,7 @@ class RequestsHTTPTransport(Transport):
         timeout: Optional[int] = None,
         extra_args: Optional[Dict[str, Any]] = None,
     ) -> List[ExecutionResult]:
-        """Execute GraphQL query.
+        """Execute multiple GraphQL requests in a batch.
 
         Execute the provided requests against the configured remote server. This
         uses the requests library to perform a HTTP POST request to the remote server.
@@ -288,7 +288,6 @@ class RequestsHTTPTransport(Transport):
         :param reqs: GraphQL requests as a list of GraphQLRequest objects.
         :param timeout: Specifies a default timeout for requests (Default: None).
         :param extra_args: additional arguments to send to the requests post method
-        :param upload_files: Set to True if you want to put files in the variable values
         :return: A list of results of execution.
             For every result `data` is the result of executing the query,
             `errors` is null if no errors occurred, and is a non-empty array
