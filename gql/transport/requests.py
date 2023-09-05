@@ -10,10 +10,10 @@ from requests.auth import AuthBase
 from requests.cookies import RequestsCookieJar
 from requests_toolbelt.multipart.encoder import MultipartEncoder
 
+from gql.graphql_request import GraphQLRequest
 from gql.transport import Transport
 
 from ..utils import extract_files
-from .data_structures import GraphQLRequest
 from .exceptions import (
     TransportAlreadyConnected,
     TransportClosed,
@@ -122,7 +122,7 @@ class RequestsHTTPTransport(Transport):
         variable_values: Optional[Dict[str, Any]] = None,
         operation_name: Optional[str] = None,
         timeout: Optional[int] = None,
-        extra_args: Dict[str, Any] = None,
+        extra_args: Optional[Dict[str, Any]] = None,
         upload_files: bool = False,
     ) -> ExecutionResult:
         """Execute GraphQL query.
@@ -278,14 +278,14 @@ class RequestsHTTPTransport(Transport):
         self,
         reqs: List[GraphQLRequest],
         timeout: Optional[int] = None,
-        extra_args: Dict[str, Any] = None,
+        extra_args: Optional[Dict[str, Any]] = None,
     ) -> List[ExecutionResult]:
         """Execute GraphQL query.
 
-        Execute the provided document ASTs against the configured remote server. This
+        Execute the provided requests against the configured remote server. This
         uses the requests library to perform a HTTP POST request to the remote server.
 
-        :param reqs: GraphQL requests as an iterable of GraphQLRequest objects.
+        :param reqs: GraphQL requests as a list of GraphQLRequest objects.
         :param timeout: Specifies a default timeout for requests (Default: None).
         :param extra_args: additional arguments to send to the requests post method
         :param upload_files: Set to True if you want to put files in the variable values
@@ -302,7 +302,7 @@ class RequestsHTTPTransport(Transport):
         response = self.session.request(
             self.method,
             self.url,
-            **self._build_batch_post_args(reqs, timeout, extra_args),  # type: ignore
+            **self._build_batch_post_args(reqs, timeout, extra_args),
         )
         self.response_headers = response.headers
 
@@ -382,7 +382,7 @@ class RequestsHTTPTransport(Transport):
         self,
         reqs: List[GraphQLRequest],
         timeout: Optional[int] = None,
-        extra_args: Dict[str, Any] = None,
+        extra_args: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         post_args: Dict[str, Any] = {
             "headers": self.headers,

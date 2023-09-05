@@ -28,7 +28,7 @@ from graphql import (
     validate,
 )
 
-from gql.transport.data_structures.graphql_request import GraphQLRequest
+from gql.graphql_request import GraphQLRequest
 
 from .transport.async_transport import AsyncTransport
 from .transport.exceptions import TransportClosed, TransportQueryError
@@ -446,7 +446,7 @@ class Client:
         get_execution_result: bool = False,
         **kwargs,
     ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]:
-        """Execute the provided document AST against the remote server using
+        """Execute the provided requests against the remote server using
         the transport provided during init.
 
         This function **WILL BLOCK** until the result is received from the server.
@@ -458,11 +458,11 @@ class Client:
         This method will:
 
          - connect using the transport to get a session
-         - execute the GraphQL request on the transport session
+         - execute the GraphQL requests on the transport session
          - close the session and close the connection to the server
 
-         If you have multiple requests to send, it is better to get your own session
-         and execute the requests in your session.
+         If you want to perform multiple executions, it is better to use 
+         the context manager to keep a session active.
 
          The extra arguments passed in the method will be passed to the transport
          execute method.
@@ -944,12 +944,10 @@ class SyncClientSession:
         parse_result: Optional[bool] = None,
         **kwargs,
     ) -> List[ExecutionResult]:
-        """Execute the provided document AST synchronously using
-        the sync transport, returning an ExecutionResult object.
+        """Execute the provided requests synchronously using
+        the sync transport, returning a list of ExecutionResult objects.
 
-        :param document: GraphQL query as AST Node object.
-        :param variable_values: Dictionary of input parameters.
-        :param operation_name: Name of the operation that shall be executed.
+        :param reqs: List of requests that will be executed.
         :param serialize_variables: whether the variable values should be
             serialized. Used for custom scalars and/or enums.
             By default use the serialize_variables argument of the client.
@@ -997,15 +995,13 @@ class SyncClientSession:
         get_execution_result: bool = False,
         **kwargs,
     ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]:
-        """Execute the provided document AST synchronously using
-        the sync transport.
+        """Execute the provided requests synchronously using
+        the sync transport. This method sends the requests to the server all at once.
 
-        Raises a TransportQueryError if an error has been returned in
-            the ExecutionResult.
+        Raises a TransportQueryError if an error has been returned in any
+          ExecutionResult.
 
-        :param document: GraphQL query as AST Node object.
-        :param variable_values: Dictionary of input parameters.
-        :param operation_name: Name of the operation that shall be executed.
+        :param reqs: List of requests that will be executed.
         :param serialize_variables: whether the variable values should be
             serialized. Used for custom scalars and/or enums.
             By default use the serialize_variables argument of the client.
@@ -1041,7 +1037,7 @@ class SyncClientSession:
         if get_execution_result:
             return results
 
-        return [result.data for result in results]  # type: ignore
+        return cast(List[Dict[str, Any]], [result.data for result in results])
 
     def fetch_schema(self) -> None:
         """Fetch the GraphQL schema explicitly using introspection.

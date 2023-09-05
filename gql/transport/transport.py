@@ -3,7 +3,7 @@ from typing import List
 
 from graphql import DocumentNode, ExecutionResult
 
-from .data_structures import GraphQLRequest
+from gql.graphql_request import GraphQLRequest
 
 
 class Transport(abc.ABC):
@@ -20,7 +20,6 @@ class Transport(abc.ABC):
             "Any Transport subclass must implement execute method"
         )  # pragma: no cover
 
-    @abc.abstractmethod
     def execute_batch(
         self,
         reqs: List[GraphQLRequest],
@@ -31,11 +30,11 @@ class Transport(abc.ABC):
 
         Execute the provided requests for either a remote or local GraphQL Schema.
 
-        :param reqs: GraphQL requests as an iterable of GraphQLRequest objects.
-        :return: iterable of ExecutionResult
+        :param reqs: GraphQL requests as a list of GraphQLRequest objects.
+        :return: a list of ExecutionResult objects
         """
         raise NotImplementedError(
-            "Any Transport subclass must implement execute_batch method"
+            "This Transport has not implemented the execute_batch method"
         )  # pragma: no cover
 
     def connect(self):
