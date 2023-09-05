@@ -3,7 +3,7 @@ import os
 import pytest
 
 from gql import Client, gql
-from gql.transport.data_structures.graphql_request import GraphQLRequest
+from gql.graphql_request import GraphQLRequest
 
 # We serve https://github.com/graphql-python/swapi-graphene locally:
 URL = "http://127.0.0.1:8000/graphql"

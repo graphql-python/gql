@@ -461,7 +461,7 @@ class Client:
          - execute the GraphQL requests on the transport session
          - close the session and close the connection to the server
 
-         If you want to perform multiple executions, it is better to use 
+         If you want to perform multiple executions, it is better to use
          the context manager to keep a session active.
 
          The extra arguments passed in the method will be passed to the transport

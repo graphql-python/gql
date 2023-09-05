@@ -3,7 +3,6 @@ from typing import Mapping
 import pytest
 
 from gql import Client, gql
-from gql.transport.data_structures import GraphQLRequest
 from gql.transport.exceptions import (
     TransportAlreadyConnected,
     TransportClosed,
@@ -32,21 +31,6 @@ query1_server_answer = (
     '{"code":"NA","name":"North America"},{"code":"OC","name":"Oceania"},'
     '{"code":"SA","name":"South America"}]}}'
 )
-
-
-@pytest.mark.aiohttp
-@pytest.mark.asyncio
-def test_httpx_execute_batch_is_not_implemented():
-    from gql.transport.httpx import HTTPXTransport
-
-    with Client(transport=HTTPXTransport(url="/")) as session:
-        reqs = [GraphQLRequest(document=gql(query1_str))]
-
-        with pytest.raises(NotImplementedError) as exc_info:
-            session.execute_batch(reqs)
-        assert "Any Transport subclass must implement execute_batch method" == str(
-            exc_info.value
-        )
 
 
 @pytest.mark.aiohttp

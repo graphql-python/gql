@@ -5,9 +5,8 @@ import mock
 import pytest
 from graphql import build_ast_schema, parse
 
-from gql import Client, gql
+from gql import Client, GraphQLRequest, gql
 from gql.transport import Transport
-from gql.transport.data_structures.graphql_request import GraphQLRequest
 from gql.transport.exceptions import TransportQueryError
 
 with suppress(ModuleNotFoundError):
@@ -44,7 +43,7 @@ def test_request_transport_not_implemented(http_transport_query):
 
     with pytest.raises(NotImplementedError) as exc_info:
         RandomTransport().execute_batch()
-    assert "Any Transport subclass must implement execute_batch method" == str(
+    assert "This Transport has not implemented the execute_batch method" == str(
         exc_info.value
     )
 

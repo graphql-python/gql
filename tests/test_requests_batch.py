@@ -2,8 +2,7 @@ from typing import Mapping
 
 import pytest
 
-from gql import Client, gql
-from gql.transport.data_structures.graphql_request import GraphQLRequest
+from gql import Client, GraphQLRequest, gql
 from gql.transport.exceptions import (
     TransportClosed,
     TransportProtocolError,
