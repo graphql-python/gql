@@ -19,9 +19,9 @@ from graphql.type import (
 from graphql.utilities import value_from_ast_untyped
 
 from gql import gql
-from gql.transport.data_structures.graphql_request import GraphQLRequest
+from gql.graphql_request import GraphQLRequest
 
-from ..conftest import MS
+from .conftest import MS
 
 # Marking all tests in this file with the aiohttp marker
 pytestmark = pytest.mark.aiohttp
