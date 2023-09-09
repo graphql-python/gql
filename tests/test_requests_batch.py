@@ -424,3 +424,17 @@ def test_requests_sync_batch_auto():
                 ),
             )
             thread.start()
+
+    # Doing it twice to check that everything is closing correctly
+    with client as session:
+
+        for continent_code in continent_codes:
+
+            thread = Thread(
+                target=get_continent_name,
+                args=(
+                    session,
+                    continent_code,
+                ),
+            )
+            thread.start()

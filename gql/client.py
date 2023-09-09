@@ -755,10 +755,10 @@ class Client:
             " Use 'async with Client(...) as session:' instead"
         )
 
-        self.transport.connect()
-
         if not hasattr(self, "session"):
             self.session = SyncClientSession(client=self)
+
+        self.session.connect()
 
         # Get schema from transport if needed
         try:
@@ -768,7 +768,7 @@ class Client:
             # we don't know what type of exception is thrown here because it
             # depends on the underlying transport; we just make sure that the
             # transport is closed and re-raise the exception
-            self.transport.close()
+            self.session.close()
             raise
 
         return self.session
@@ -779,8 +779,7 @@ class Client:
         If batching is enabled, this will block until the remaining queries in the
         batching queue have been processed.
         """
-        self.session.wait_stop()
-        self.transport.close()
+        self.session.close()
 
     def __enter__(self):
         return self.connect_sync()
@@ -799,13 +798,6 @@ class SyncClientSession:
     def __init__(self, client: Client):
         """:param client: the :class:`client <gql.client.Client>` used"""
         self.client = client
-
-        if self.client.batching_enabled:
-            self.batch_queue: Queue = Queue()
-            self._batch_thread_stop_requested = False
-            self._batch_thread_stopped_event = Event()
-            self._batch_thread = Thread(target=self._batch_loop, daemon=True)
-            self._batch_thread.start()
 
     def _execute(
         self,
@@ -1139,8 +1131,21 @@ class SyncClientSession:
 
         return future
 
-    def wait_stop(self):
-        """Cleanup the batching thread if batching is enabled.
+    def connect(self):
+        """Connect the transport and initialize the batch threading loop if batching
+        is enabled."""
+
+        if self.client.batching_enabled:
+            self.batch_queue: Queue = Queue()
+            self._batch_thread_stop_requested = False
+            self._batch_thread_stopped_event = Event()
+            self._batch_thread = Thread(target=self._batch_loop, daemon=True)
+            self._batch_thread.start()
+
+        self.transport.connect()
+
+    def close(self):
+        """Close the transport and cleanup the batching thread if batching is enabled.
 
         Will wait until all the remaining requests in the batch processing queue
         have been executed.
@@ -1153,6 +1158,8 @@ class SyncClientSession:
 
             # Wait for the Thread to stop
             self._batch_thread_stopped_event.wait()
+
+        self.transport.close()
 
     def fetch_schema(self) -> None:
         """Fetch the GraphQL schema explicitly using introspection.
