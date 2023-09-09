@@ -375,3 +375,52 @@ async def test_requests_query_with_extensions(
             assert execution_results[0].extensions["key1"] == "val1"
 
     await run_sync_test(event_loop, server, test_code)
+
+
+@pytest.mark.online
+@pytest.mark.requests
+def test_requests_sync_batch_auto():
+
+    from threading import Thread
+    from gql.transport.requests import RequestsHTTPTransport
+
+    client = Client(
+        transport=RequestsHTTPTransport(url="https://countries.trevorblades.com/"),
+        batch_interval=0.01,
+        batch_max=3,
+    )
+
+    query = gql(
+        """
+        query getContinentName($continent_code: ID!) {
+          continent(code: $continent_code) {
+            name
+          }
+        }
+        """
+    )
+
+    def get_continent_name(session, continent_code):
+        variables = {
+            "continent_code": continent_code,
+        }
+
+        result = session.execute(query, variable_values=variables)
+
+        name = result["continent"]["name"]
+        print(f"The continent with the code {continent_code} has the name: '{name}'")
+
+    continent_codes = ["EU", "AF", "NA", "OC", "SA", "AS", "AN"]
+
+    with client as session:
+
+        for continent_code in continent_codes:
+
+            thread = Thread(
+                target=get_continent_name,
+                args=(
+                    session,
+                    continent_code,
+                ),
+            )
+            thread.start()

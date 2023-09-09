@@ -1,7 +1,11 @@
 import asyncio
 import logging
 import sys
+import time
 import warnings
+from concurrent.futures import Future
+from queue import Queue
+from threading import Event, Thread
 from typing import (
     Any,
     AsyncGenerator,
@@ -10,6 +14,7 @@ from typing import (
     Generator,
     List,
     Optional,
+    Tuple,
     TypeVar,
     Union,
     cast,
@@ -82,6 +87,8 @@ class Client:
         execute_timeout: Optional[Union[int, float]] = 10,
         serialize_variables: bool = False,
         parse_results: bool = False,
+        batch_interval: float = 0,
+        batch_max: int = 10,
     ):
         """Initialize the client with the given parameters.
 
@@ -99,6 +106,9 @@ class Client:
             serialized. Used for custom scalars and/or enums. Default: False.
         :param parse_results: Whether gql will try to parse the serialized output
                 sent by the backend. Can be used to unserialize custom scalars or enums.
+        :param batch_interval: Time to wait in seconds for batching requests together.
+                Batching is disabled (by default) if 0.
+        :param batch_max: Maximum number of requests in a single batch.
         """
 
         if introspection:
@@ -146,6 +156,12 @@ class Client:
 
         self.serialize_variables = serialize_variables
         self.parse_results = parse_results
+        self.batch_interval = batch_interval
+        self.batch_max = batch_max
+
+    @property
+    def batching_enabled(self):
+        return self.batch_interval != 0
 
     def validate(self, document: DocumentNode):
         """:meta private:"""
@@ -758,7 +774,12 @@ class Client:
         return self.session
 
     def close_sync(self):
-        """Close the sync transport."""
+        """Close the sync session and the sync transport.
+
+        If batching is enabled, this will block until the remaining queries in the
+        batching queue have been processed.
+        """
+        self.session.wait_stop()
         self.transport.close()
 
     def __enter__(self):
@@ -778,6 +799,13 @@ class SyncClientSession:
     def __init__(self, client: Client):
         """:param client: the :class:`client <gql.client.Client>` used"""
         self.client = client
+
+        if self.client.batching_enabled:
+            self.batch_queue: Queue = Queue()
+            self._batch_thread_stop_requested = False
+            self._batch_thread_stopped_event = Event()
+            self._batch_thread = Thread(target=self._batch_loop, daemon=True)
+            self._batch_thread.start()
 
     def _execute(
         self,
@@ -818,12 +846,22 @@ class SyncClientSession:
                         operation_name=operation_name,
                     )
 
-        result = self.transport.execute(
-            document,
-            variable_values=variable_values,
-            operation_name=operation_name,
-            **kwargs,
-        )
+        if self.client.batching_enabled:
+            request = GraphQLRequest(
+                document,
+                variable_values=variable_values,
+                operation_name=operation_name,
+            )
+            future_result = self._execute_future(request)
+            result = future_result.result()
+
+        else:
+            result = self.transport.execute(
+                document,
+                variable_values=variable_values,
+                operation_name=operation_name,
+                **kwargs,
+            )
 
         # Unserialize the result if requested
         if self.client.schema:
@@ -1037,6 +1075,84 @@ class SyncClientSession:
             return results
 
         return cast(List[Dict[str, Any]], [result.data for result in results])
+
+    def _batch_loop(self) -> None:
+        """main loop of the thread used to wait for requests
+        to execute them in a batch"""
+
+        stop_loop = False
+
+        while not stop_loop:
+
+            # First wait for a first request in from the batch queue
+            requests_and_futures: List[Tuple[GraphQLRequest, Future]] = []
+            request_and_future: Tuple[GraphQLRequest, Future] = self.batch_queue.get()
+            if request_and_future is None:
+                break
+            requests_and_futures.append(request_and_future)
+
+            # Then wait the requested batch interval except if we already
+            # have the maximum number of requests in the queue
+            if self.batch_queue.qsize() < self.client.batch_max - 1:
+                time.sleep(self.client.batch_interval)
+
+            # Then get the requests which had been made during that wait interval
+            for _ in range(self.client.batch_max - 1):
+                if self.batch_queue.empty():
+                    break
+                request_and_future = self.batch_queue.get()
+                if request_and_future is None:
+                    stop_loop = True
+                    break
+                requests_and_futures.append(request_and_future)
+
+            requests = [request for request, _ in requests_and_futures]
+            futures = [future for _, future in requests_and_futures]
+
+            # Manually execute the requests in a batch
+            try:
+                results: List[ExecutionResult] = self._execute_batch(requests)
+            except Exception as exc:
+                for future in futures:
+                    future.set_exception(exc)
+
+            # Fill in the future results
+            for result, future in zip(results, futures):
+                future.set_result(result)
+
+        # Indicate that the Thread has stopped
+        self._batch_thread_stopped_event.set()
+
+    def _execute_future(
+        self,
+        request: GraphQLRequest,
+    ) -> Future:
+        """If batching is enabled, this method will put a request in the batching queue
+        instead of executing it directly so that the requests could be put in a batch.
+        """
+
+        assert hasattr(self, "batch_queue"), "Batching is not enabled"
+        assert not self._batch_thread_stop_requested, "Batching thread has been stopped"
+
+        future: Future = Future()
+        self.batch_queue.put((request, future))
+
+        return future
+
+    def wait_stop(self):
+        """Cleanup the batching thread if batching is enabled.
+
+        Will wait until all the remaining requests in the batch processing queue
+        have been executed.
+        """
+        if hasattr(self, "_batch_thread_stopped_event"):
+            # Send a None in the queue to indicate that the batching Thread must stop
+            # after having processed the remaining requests in the queue
+            self._batch_thread_stop_requested = True
+            self.batch_queue.put(None)
+
+            # Wait for the Thread to stop
+            self._batch_thread_stopped_event.wait()
 
     def fetch_schema(self) -> None:
         """Fetch the GraphQL schema explicitly using introspection.
