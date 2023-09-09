@@ -1,5 +1,5 @@
 import pytest
-from graphql import GraphQLError
+from graphql import GraphQLError, Source
 
 from gql import Client, gql
 from tests.starwars.schema import StarWarsSchema
@@ -323,3 +323,17 @@ def test_mutation_result(client):
     expected = {"createReview": {"stars": 5, "commentary": "This is a great movie!"}}
     result = client.execute(query, variable_values=params)
     assert result == expected
+
+
+def test_query_from_source(client):
+    source = Source("{ hero { name } }")
+    query = gql(source)
+    expected = {"hero": {"name": "R2-D2"}}
+    result = client.execute(query)
+    assert result == expected
+
+
+def test_already_parsed_query(client):
+    query = gql("{ hero { name } }")
+    with pytest.raises(TypeError, match="must be passed as a string"):
+        gql(query)
