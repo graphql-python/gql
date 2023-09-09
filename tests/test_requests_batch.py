@@ -30,6 +30,21 @@ query1_server_answer_list = (
     '{"code":"SA","name":"South America"}]}}]'
 )
 
+query1_server_answer_twice_list = (
+    "["
+    '{"data":{"continents":['
+    '{"code":"AF","name":"Africa"},{"code":"AN","name":"Antarctica"},'
+    '{"code":"AS","name":"Asia"},{"code":"EU","name":"Europe"},'
+    '{"code":"NA","name":"North America"},{"code":"OC","name":"Oceania"},'
+    '{"code":"SA","name":"South America"}]}},'
+    '{"data":{"continents":['
+    '{"code":"AF","name":"Africa"},{"code":"AN","name":"Antarctica"},'
+    '{"code":"AS","name":"Asia"},{"code":"EU","name":"Europe"},'
+    '{"code":"NA","name":"North America"},{"code":"OC","name":"Oceania"},'
+    '{"code":"SA","name":"South America"}]}}'
+    "]"
+)
+
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
@@ -70,6 +85,108 @@ async def test_requests_query(event_loop, aiohttp_server, run_sync_test):
             assert hasattr(transport, "response_headers")
             assert isinstance(transport.response_headers, Mapping)
             assert transport.response_headers["dummy"] == "test1234"
+
+    await run_sync_test(event_loop, server, test_code)
+
+
+@pytest.mark.aiohttp
+@pytest.mark.asyncio
+async def test_requests_query_auto_batch_enabled(
+    event_loop, aiohttp_server, run_sync_test
+):
+    from aiohttp import web
+    from gql.transport.requests import RequestsHTTPTransport
+
+    async def handler(request):
+        return web.Response(
+            text=query1_server_answer_list,
+            content_type="application/json",
+            headers={"dummy": "test1234"},
+        )
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    def test_code():
+        transport = RequestsHTTPTransport(url=url)
+
+        with Client(
+            transport=transport,
+            batch_interval=0.01,
+        ) as session:
+
+            query = gql(query1_str)
+
+            # Execute query synchronously
+            result = session.execute(query)
+
+            continents = result["continents"]
+
+            africa = continents[0]
+
+            assert africa["code"] == "AF"
+
+            # Checking response headers are saved in the transport
+            assert hasattr(transport, "response_headers")
+            assert isinstance(transport.response_headers, Mapping)
+            assert transport.response_headers["dummy"] == "test1234"
+
+    await run_sync_test(event_loop, server, test_code)
+
+
+@pytest.mark.aiohttp
+@pytest.mark.asyncio
+async def test_requests_query_auto_batch_enabled_two_requests(
+    event_loop, aiohttp_server, run_sync_test
+):
+    from aiohttp import web
+    from gql.transport.requests import RequestsHTTPTransport
+    from threading import Thread
+
+    async def handler(request):
+        return web.Response(
+            text=query1_server_answer_twice_list,
+            content_type="application/json",
+            headers={"dummy": "test1234"},
+        )
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    def test_code():
+        transport = RequestsHTTPTransport(url=url)
+
+        with Client(
+            transport=transport,
+            batch_interval=0.01,
+        ) as session:
+
+            def test_thread():
+                query = gql(query1_str)
+
+                # Execute query synchronously
+                result = session.execute(query)
+
+                continents = result["continents"]
+
+                africa = continents[0]
+
+                assert africa["code"] == "AF"
+
+                # Checking response headers are saved in the transport
+                assert hasattr(transport, "response_headers")
+                assert isinstance(transport.response_headers, Mapping)
+                assert transport.response_headers["dummy"] == "test1234"
+
+            for _ in range(2):
+                thread = Thread(target=test_thread)
+                thread.start()
 
     await run_sync_test(event_loop, server, test_code)
 
@@ -142,6 +259,46 @@ async def test_requests_error_code_401(event_loop, aiohttp_server, run_sync_test
 
             with pytest.raises(TransportServerError) as exc_info:
                 session.execute_batch(query)
+
+            assert "401 Client Error: Unauthorized" in str(exc_info.value)
+
+    await run_sync_test(event_loop, server, test_code)
+
+
+@pytest.mark.aiohttp
+@pytest.mark.asyncio
+async def test_requests_error_code_401_auto_batch_enabled(
+    event_loop, aiohttp_server, run_sync_test
+):
+    from aiohttp import web
+    from gql.transport.requests import RequestsHTTPTransport
+
+    async def handler(request):
+        # Will generate http error code 401
+        return web.Response(
+            text='{"error":"Unauthorized","message":"401 Client Error: Unauthorized"}',
+            content_type="application/json",
+            status=401,
+        )
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    def test_code():
+        transport = RequestsHTTPTransport(url=url)
+
+        with Client(
+            transport=transport,
+            batch_interval=0.01,
+        ) as session:
+
+            query = gql(query1_str)
+
+            with pytest.raises(TransportServerError) as exc_info:
+                session.execute(query)
 
             assert "401 Client Error: Unauthorized" in str(exc_info.value)
 
@@ -425,7 +582,7 @@ def test_requests_sync_batch_auto():
             )
             thread.start()
 
-    # Doing it twice to check that everything is closing correctly
+    # Doing it twice to check that everything is closing and reconnecting correctly
     with client as session:
 
         for continent_code in continent_codes:
