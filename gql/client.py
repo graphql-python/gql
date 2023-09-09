@@ -1107,6 +1107,7 @@ class SyncClientSession:
             except Exception as exc:
                 for future in futures:
                     future.set_exception(exc)
+                continue
 
             # Fill in the future results
             for result, future in zip(results, futures):
