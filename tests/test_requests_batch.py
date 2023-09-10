@@ -595,3 +595,71 @@ def test_requests_sync_batch_auto():
                 ),
             )
             thread.start()
+
+
+@pytest.mark.online
+@pytest.mark.requests
+def test_requests_sync_batch_auto_execute_future():
+
+    from gql.transport.requests import RequestsHTTPTransport
+
+    client = Client(
+        transport=RequestsHTTPTransport(url="https://countries.trevorblades.com/"),
+        batch_interval=0.01,
+        batch_max=3,
+    )
+
+    query = gql(
+        """
+        query getContinentName($continent_code: ID!) {
+          continent(code: $continent_code) {
+            name
+          }
+        }
+        """
+    )
+
+    with client as session:
+
+        request_eu = GraphQLRequest(query, variable_values={"continent_code": "EU"})
+        future_result_eu = session._execute_future(request_eu)
+
+        request_af = GraphQLRequest(query, variable_values={"continent_code": "AF"})
+        future_result_af = session._execute_future(request_af)
+
+        result_eu = future_result_eu.result().data
+        result_af = future_result_af.result().data
+
+        assert result_eu["continent"]["name"] == "Europe"
+        assert result_af["continent"]["name"] == "Africa"
+
+
+@pytest.mark.online
+@pytest.mark.requests
+def test_requests_sync_batch_manual():
+
+    from gql.transport.requests import RequestsHTTPTransport
+
+    client = Client(
+        transport=RequestsHTTPTransport(url="https://countries.trevorblades.com/"),
+    )
+
+    query = gql(
+        """
+        query getContinentName($continent_code: ID!) {
+          continent(code: $continent_code) {
+            name
+          }
+        }
+        """
+    )
+
+    with client as session:
+
+        request_eu = GraphQLRequest(query, variable_values={"continent_code": "EU"})
+        request_af = GraphQLRequest(query, variable_values={"continent_code": "AF"})
+
+        result_eu, result_af = session.execute_batch([request_eu, request_af])
+
+        assert result_eu["continent"]["name"] == "Europe"
+        assert result_af["continent"]["name"] == "Africa"
