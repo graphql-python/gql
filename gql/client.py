@@ -257,6 +257,7 @@ class Client:
     def execute_batch_sync(
         self,
         reqs: List[GraphQLRequest],
+        *,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
@@ -456,6 +457,7 @@ class Client:
     def execute_batch(
         self,
         reqs: List[GraphQLRequest],
+        *,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
@@ -969,6 +971,7 @@ class SyncClientSession:
     def _execute_batch(
         self,
         reqs: List[GraphQLRequest],
+        *,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         **kwargs,
@@ -1019,6 +1022,7 @@ class SyncClientSession:
     def execute_batch(
         self,
         reqs: List[GraphQLRequest],
+        *,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
