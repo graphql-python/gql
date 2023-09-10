@@ -256,7 +256,7 @@ class Client:
 
     def execute_batch_sync(
         self,
-        reqs: List[GraphQLRequest],
+        requests: List[GraphQLRequest],
         *,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
@@ -266,7 +266,7 @@ class Client:
         """:meta private:"""
         with self as session:
             return session.execute_batch(
-                reqs,
+                requests,
                 serialize_variables=serialize_variables,
                 parse_result=parse_result,
                 get_execution_result=get_execution_result,
@@ -456,7 +456,7 @@ class Client:
 
     def execute_batch(
         self,
-        reqs: List[GraphQLRequest],
+        requests: List[GraphQLRequest],
         *,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
@@ -490,7 +490,7 @@ class Client:
 
         else:  # Sync transports
             return self.execute_batch_sync(
-                reqs,
+                requests,
                 serialize_variables=serialize_variables,
                 parse_result=parse_result,
                 get_execution_result=get_execution_result,
@@ -970,7 +970,7 @@ class SyncClientSession:
 
     def _execute_batch(
         self,
-        reqs: List[GraphQLRequest],
+        requests: List[GraphQLRequest],
         *,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
@@ -979,7 +979,7 @@ class SyncClientSession:
         """Execute multiple GraphQL requests in a batch, using
         the sync transport, returning a list of ExecutionResult objects.
 
-        :param reqs: List of requests that will be executed.
+        :param requests: List of requests that will be executed.
         :param serialize_variables: whether the variable values should be
             serialized. Used for custom scalars and/or enums.
             By default use the serialize_variables argument of the client.
@@ -990,21 +990,21 @@ class SyncClientSession:
 
         # Validate document
         if self.client.schema:
-            for req in reqs:
+            for req in requests:
                 self.client.validate(req.document)
 
             # Parse variable values for custom scalars if requested
             if serialize_variables or (
                 serialize_variables is None and self.client.serialize_variables
             ):
-                reqs = [
+                requests = [
                     req.serialize_variable_values(self.client.schema)
                     if req.variable_values is not None
                     else req
-                    for req in reqs
+                    for req in requests
                 ]
 
-        results = self.transport.execute_batch(reqs, **kwargs)
+        results = self.transport.execute_batch(requests, **kwargs)
 
         # Unserialize the result if requested
         if self.client.schema:
@@ -1021,7 +1021,7 @@ class SyncClientSession:
 
     def execute_batch(
         self,
-        reqs: List[GraphQLRequest],
+        requests: List[GraphQLRequest],
         *,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
@@ -1034,7 +1034,7 @@ class SyncClientSession:
         Raises a TransportQueryError if an error has been returned in any
           ExecutionResult.
 
-        :param reqs: List of requests that will be executed.
+        :param requests: List of requests that will be executed.
         :param serialize_variables: whether the variable values should be
             serialized. Used for custom scalars and/or enums.
             By default use the serialize_variables argument of the client.
@@ -1047,7 +1047,7 @@ class SyncClientSession:
 
         # Validate and execute on the transport
         results = self._execute_batch(
-            reqs,
+            requests,
             serialize_variables=serialize_variables,
             parse_result=parse_result,
             **kwargs,
