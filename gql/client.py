@@ -254,6 +254,42 @@ class Client:
                 **kwargs,
             )
 
+    @overload
+    def execute_batch_sync(
+        self,
+        requests: List[GraphQLRequest],
+        *,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        get_execution_result: Literal[False],
+        **kwargs,
+    ) -> List[Dict[str, Any]]:
+        ...  # pragma: no cover
+
+    @overload
+    def execute_batch_sync(
+        self,
+        requests: List[GraphQLRequest],
+        *,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        get_execution_result: Literal[True],
+        **kwargs,
+    ) -> List[ExecutionResult]:
+        ...  # pragma: no cover
+
+    @overload
+    def execute_batch_sync(
+        self,
+        requests: List[GraphQLRequest],
+        *,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        get_execution_result: bool,
+        **kwargs,
+    ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]:
+        ...  # pragma: no cover
+
     def execute_batch_sync(
         self,
         requests: List[GraphQLRequest],
@@ -453,6 +489,42 @@ class Client:
                 get_execution_result=get_execution_result,
                 **kwargs,
             )
+
+    @overload
+    def execute_batch(
+        self,
+        requests: List[GraphQLRequest],
+        *,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        get_execution_result: Literal[False],
+        **kwargs,
+    ) -> List[Dict[str, Any]]:
+        ...  # pragma: no cover
+
+    @overload
+    def execute_batch(
+        self,
+        requests: List[GraphQLRequest],
+        *,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        get_execution_result: Literal[True],
+        **kwargs,
+    ) -> List[ExecutionResult]:
+        ...  # pragma: no cover
+
+    @overload
+    def execute_batch(
+        self,
+        requests: List[GraphQLRequest],
+        *,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        get_execution_result: bool,
+        **kwargs,
+    ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]:
+        ...  # pragma: no cover
 
     def execute_batch(
         self,
@@ -1018,6 +1090,42 @@ class SyncClientSession:
                     )
 
         return results
+
+    @overload
+    def execute_batch(
+        self,
+        requests: List[GraphQLRequest],
+        *,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        get_execution_result: Literal[False],
+        **kwargs,
+    ) -> List[Dict[str, Any]]:
+        ...  # pragma: no cover
+
+    @overload
+    def execute_batch(
+        self,
+        requests: List[GraphQLRequest],
+        *,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        get_execution_result: Literal[True],
+        **kwargs,
+    ) -> List[ExecutionResult]:
+        ...  # pragma: no cover
+
+    @overload
+    def execute_batch(
+        self,
+        requests: List[GraphQLRequest],
+        *,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        get_execution_result: bool,
+        **kwargs,
+    ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]:
+        ...  # pragma: no cover
 
     def execute_batch(
         self,
