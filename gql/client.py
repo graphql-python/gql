@@ -1046,6 +1046,7 @@ class SyncClientSession:
         *,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
+        validate_document: Optional[bool] = True,
         **kwargs,
     ) -> List[ExecutionResult]:
         """Execute multiple GraphQL requests in a batch, using
@@ -1057,13 +1058,16 @@ class SyncClientSession:
             By default use the serialize_variables argument of the client.
         :param parse_result: Whether gql will unserialize the result.
             By default use the parse_results argument of the client.
+        :param validate_document: Whether we still need to validate the document.
 
         The extra arguments are passed to the transport execute method."""
 
         # Validate document
         if self.client.schema:
-            for req in requests:
-                self.client.validate(req.document)
+
+            if validate_document:
+                for req in requests:
+                    self.client.validate(req.document)
 
             # Parse variable values for custom scalars if requested
             if serialize_variables or (
@@ -1215,7 +1219,12 @@ class SyncClientSession:
 
             # Manually execute the requests in a batch
             try:
-                results: List[ExecutionResult] = self._execute_batch(requests)
+                results: List[ExecutionResult] = self._execute_batch(
+                    requests,
+                    serialize_variables=False,  # already done
+                    parse_result=False,
+                    validate_document=False,
+                )
             except Exception as exc:
                 for future in futures:
                     future.set_exception(exc)
