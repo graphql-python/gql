@@ -162,6 +162,8 @@ async def test_requests_query_auto_batch_enabled_two_requests(
     def test_code():
         transport = RequestsHTTPTransport(url=url)
 
+        threads = []
+
         with Client(
             transport=transport,
             batch_interval=0.01,
@@ -187,6 +189,10 @@ async def test_requests_query_auto_batch_enabled_two_requests(
             for _ in range(2):
                 thread = Thread(target=test_thread)
                 thread.start()
+                threads.append(thread)
+
+        for thread in threads:
+            thread.join()
 
     await run_sync_test(event_loop, server, test_code)
 
@@ -581,6 +587,7 @@ def test_requests_sync_batch_auto():
                 ),
             )
             thread.start()
+            thread.join()
 
     # Doing it twice to check that everything is closing and reconnecting correctly
     with client as session:
@@ -595,6 +602,7 @@ def test_requests_sync_batch_auto():
                 ),
             )
             thread.start()
+            thread.join()
 
 
 @pytest.mark.online
