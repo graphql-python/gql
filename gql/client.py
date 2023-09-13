@@ -1,7 +1,11 @@
 import asyncio
 import logging
 import sys
+import time
 import warnings
+from concurrent.futures import Future
+from queue import Queue
+from threading import Event, Thread
 from typing import (
     Any,
     AsyncGenerator,
@@ -10,6 +14,7 @@ from typing import (
     Generator,
     List,
     Optional,
+    Tuple,
     TypeVar,
     Union,
     cast,
@@ -82,6 +87,8 @@ class Client:
         execute_timeout: Optional[Union[int, float]] = 10,
         serialize_variables: bool = False,
         parse_results: bool = False,
+        batch_interval: float = 0,
+        batch_max: int = 10,
     ):
         """Initialize the client with the given parameters.
 
@@ -99,6 +106,9 @@ class Client:
             serialized. Used for custom scalars and/or enums. Default: False.
         :param parse_results: Whether gql will try to parse the serialized output
                 sent by the backend. Can be used to unserialize custom scalars or enums.
+        :param batch_interval: Time to wait in seconds for batching requests together.
+                Batching is disabled (by default) if 0.
+        :param batch_max: Maximum number of requests in a single batch.
         """
 
         if introspection:
@@ -146,6 +156,12 @@ class Client:
 
         self.serialize_variables = serialize_variables
         self.parse_results = parse_results
+        self.batch_interval = batch_interval
+        self.batch_max = batch_max
+
+    @property
+    def batching_enabled(self):
+        return self.batch_interval != 0
 
     def validate(self, document: DocumentNode):
         """:meta private:"""
@@ -238,9 +254,46 @@ class Client:
                 **kwargs,
             )
 
+    @overload
     def execute_batch_sync(
         self,
-        reqs: List[GraphQLRequest],
+        requests: List[GraphQLRequest],
+        *,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        get_execution_result: Literal[False],
+        **kwargs,
+    ) -> List[Dict[str, Any]]:
+        ...  # pragma: no cover
+
+    @overload
+    def execute_batch_sync(
+        self,
+        requests: List[GraphQLRequest],
+        *,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        get_execution_result: Literal[True],
+        **kwargs,
+    ) -> List[ExecutionResult]:
+        ...  # pragma: no cover
+
+    @overload
+    def execute_batch_sync(
+        self,
+        requests: List[GraphQLRequest],
+        *,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        get_execution_result: bool,
+        **kwargs,
+    ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]:
+        ...  # pragma: no cover
+
+    def execute_batch_sync(
+        self,
+        requests: List[GraphQLRequest],
+        *,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
@@ -249,7 +302,7 @@ class Client:
         """:meta private:"""
         with self as session:
             return session.execute_batch(
-                reqs,
+                requests,
                 serialize_variables=serialize_variables,
                 parse_result=parse_result,
                 get_execution_result=get_execution_result,
@@ -437,9 +490,46 @@ class Client:
                 **kwargs,
             )
 
+    @overload
     def execute_batch(
         self,
-        reqs: List[GraphQLRequest],
+        requests: List[GraphQLRequest],
+        *,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        get_execution_result: Literal[False],
+        **kwargs,
+    ) -> List[Dict[str, Any]]:
+        ...  # pragma: no cover
+
+    @overload
+    def execute_batch(
+        self,
+        requests: List[GraphQLRequest],
+        *,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        get_execution_result: Literal[True],
+        **kwargs,
+    ) -> List[ExecutionResult]:
+        ...  # pragma: no cover
+
+    @overload
+    def execute_batch(
+        self,
+        requests: List[GraphQLRequest],
+        *,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        get_execution_result: bool,
+        **kwargs,
+    ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]:
+        ...  # pragma: no cover
+
+    def execute_batch(
+        self,
+        requests: List[GraphQLRequest],
+        *,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
@@ -472,7 +562,7 @@ class Client:
 
         else:  # Sync transports
             return self.execute_batch_sync(
-                reqs,
+                requests,
                 serialize_variables=serialize_variables,
                 parse_result=parse_result,
                 get_execution_result=get_execution_result,
@@ -739,10 +829,10 @@ class Client:
             " Use 'async with Client(...) as session:' instead"
         )
 
-        self.transport.connect()
-
         if not hasattr(self, "session"):
             self.session = SyncClientSession(client=self)
+
+        self.session.connect()
 
         # Get schema from transport if needed
         try:
@@ -752,14 +842,18 @@ class Client:
             # we don't know what type of exception is thrown here because it
             # depends on the underlying transport; we just make sure that the
             # transport is closed and re-raise the exception
-            self.transport.close()
+            self.session.close()
             raise
 
         return self.session
 
     def close_sync(self):
-        """Close the sync transport."""
-        self.transport.close()
+        """Close the sync session and the sync transport.
+
+        If batching is enabled, this will block until the remaining queries in the
+        batching queue have been processed.
+        """
+        self.session.close()
 
     def __enter__(self):
         return self.connect_sync()
@@ -818,12 +912,22 @@ class SyncClientSession:
                         operation_name=operation_name,
                     )
 
-        result = self.transport.execute(
-            document,
-            variable_values=variable_values,
-            operation_name=operation_name,
-            **kwargs,
-        )
+        if self.client.batching_enabled:
+            request = GraphQLRequest(
+                document,
+                variable_values=variable_values,
+                operation_name=operation_name,
+            )
+            future_result = self._execute_future(request)
+            result = future_result.result()
+
+        else:
+            result = self.transport.execute(
+                document,
+                variable_values=variable_values,
+                operation_name=operation_name,
+                **kwargs,
+            )
 
         # Unserialize the result if requested
         if self.client.schema:
@@ -938,40 +1042,45 @@ class SyncClientSession:
 
     def _execute_batch(
         self,
-        reqs: List[GraphQLRequest],
+        requests: List[GraphQLRequest],
+        *,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
+        validate_document: Optional[bool] = True,
         **kwargs,
     ) -> List[ExecutionResult]:
         """Execute multiple GraphQL requests in a batch, using
         the sync transport, returning a list of ExecutionResult objects.
 
-        :param reqs: List of requests that will be executed.
+        :param requests: List of requests that will be executed.
         :param serialize_variables: whether the variable values should be
             serialized. Used for custom scalars and/or enums.
             By default use the serialize_variables argument of the client.
         :param parse_result: Whether gql will unserialize the result.
             By default use the parse_results argument of the client.
+        :param validate_document: Whether we still need to validate the document.
 
         The extra arguments are passed to the transport execute method."""
 
         # Validate document
         if self.client.schema:
-            for req in reqs:
-                self.client.validate(req.document)
+
+            if validate_document:
+                for req in requests:
+                    self.client.validate(req.document)
 
             # Parse variable values for custom scalars if requested
             if serialize_variables or (
                 serialize_variables is None and self.client.serialize_variables
             ):
-                reqs = [
+                requests = [
                     req.serialize_variable_values(self.client.schema)
                     if req.variable_values is not None
                     else req
-                    for req in reqs
+                    for req in requests
                 ]
 
-        results = self.transport.execute_batch(reqs, **kwargs)
+        results = self.transport.execute_batch(requests, **kwargs)
 
         # Unserialize the result if requested
         if self.client.schema:
@@ -986,9 +1095,46 @@ class SyncClientSession:
 
         return results
 
+    @overload
     def execute_batch(
         self,
-        reqs: List[GraphQLRequest],
+        requests: List[GraphQLRequest],
+        *,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        get_execution_result: Literal[False],
+        **kwargs,
+    ) -> List[Dict[str, Any]]:
+        ...  # pragma: no cover
+
+    @overload
+    def execute_batch(
+        self,
+        requests: List[GraphQLRequest],
+        *,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        get_execution_result: Literal[True],
+        **kwargs,
+    ) -> List[ExecutionResult]:
+        ...  # pragma: no cover
+
+    @overload
+    def execute_batch(
+        self,
+        requests: List[GraphQLRequest],
+        *,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        get_execution_result: bool,
+        **kwargs,
+    ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]:
+        ...  # pragma: no cover
+
+    def execute_batch(
+        self,
+        requests: List[GraphQLRequest],
+        *,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
@@ -1000,7 +1146,7 @@ class SyncClientSession:
         Raises a TransportQueryError if an error has been returned in any
           ExecutionResult.
 
-        :param reqs: List of requests that will be executed.
+        :param requests: List of requests that will be executed.
         :param serialize_variables: whether the variable values should be
             serialized. Used for custom scalars and/or enums.
             By default use the serialize_variables argument of the client.
@@ -1013,7 +1159,7 @@ class SyncClientSession:
 
         # Validate and execute on the transport
         results = self._execute_batch(
-            reqs,
+            requests,
             serialize_variables=serialize_variables,
             parse_result=parse_result,
             **kwargs,
@@ -1037,6 +1183,105 @@ class SyncClientSession:
             return results
 
         return cast(List[Dict[str, Any]], [result.data for result in results])
+
+    def _batch_loop(self) -> None:
+        """main loop of the thread used to wait for requests
+        to execute them in a batch"""
+
+        stop_loop = False
+
+        while not stop_loop:
+
+            # First wait for a first request in from the batch queue
+            requests_and_futures: List[Tuple[GraphQLRequest, Future]] = []
+            request_and_future: Tuple[GraphQLRequest, Future] = self.batch_queue.get()
+            if request_and_future is None:
+                break
+            requests_and_futures.append(request_and_future)
+
+            # Then wait the requested batch interval except if we already
+            # have the maximum number of requests in the queue
+            if self.batch_queue.qsize() < self.client.batch_max - 1:
+                time.sleep(self.client.batch_interval)
+
+            # Then get the requests which had been made during that wait interval
+            for _ in range(self.client.batch_max - 1):
+                if self.batch_queue.empty():
+                    break
+                request_and_future = self.batch_queue.get()
+                if request_and_future is None:
+                    stop_loop = True
+                    break
+                requests_and_futures.append(request_and_future)
+
+            requests = [request for request, _ in requests_and_futures]
+            futures = [future for _, future in requests_and_futures]
+
+            # Manually execute the requests in a batch
+            try:
+                results: List[ExecutionResult] = self._execute_batch(
+                    requests,
+                    serialize_variables=False,  # already done
+                    parse_result=False,
+                    validate_document=False,
+                )
+            except Exception as exc:
+                for future in futures:
+                    future.set_exception(exc)
+                continue
+
+            # Fill in the future results
+            for result, future in zip(results, futures):
+                future.set_result(result)
+
+        # Indicate that the Thread has stopped
+        self._batch_thread_stopped_event.set()
+
+    def _execute_future(
+        self,
+        request: GraphQLRequest,
+    ) -> Future:
+        """If batching is enabled, this method will put a request in the batching queue
+        instead of executing it directly so that the requests could be put in a batch.
+        """
+
+        assert hasattr(self, "batch_queue"), "Batching is not enabled"
+        assert not self._batch_thread_stop_requested, "Batching thread has been stopped"
+
+        future: Future = Future()
+        self.batch_queue.put((request, future))
+
+        return future
+
+    def connect(self):
+        """Connect the transport and initialize the batch threading loop if batching
+        is enabled."""
+
+        if self.client.batching_enabled:
+            self.batch_queue: Queue = Queue()
+            self._batch_thread_stop_requested = False
+            self._batch_thread_stopped_event = Event()
+            self._batch_thread = Thread(target=self._batch_loop, daemon=True)
+            self._batch_thread.start()
+
+        self.transport.connect()
+
+    def close(self):
+        """Close the transport and cleanup the batching thread if batching is enabled.
+
+        Will wait until all the remaining requests in the batch processing queue
+        have been executed.
+        """
+        if hasattr(self, "_batch_thread_stopped_event"):
+            # Send a None in the queue to indicate that the batching Thread must stop
+            # after having processed the remaining requests in the queue
+            self._batch_thread_stop_requested = True
+            self.batch_queue.put(None)
+
+            # Wait for the Thread to stop
+            self._batch_thread_stopped_event.wait()
+
+        self.transport.close()
 
     def fetch_schema(self) -> None:
         """Fetch the GraphQL schema explicitly using introspection.
