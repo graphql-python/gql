@@ -19,7 +19,7 @@ tests_requires = [
     "pytest-console-scripts==1.3.1",
     "pytest-cov==3.0.0",
     "mock==4.0.2",
-    "vcrpy==4.0.2",
+    "vcrpy==4.4.0",
     "aiofiles",
 ]
 
@@ -43,8 +43,7 @@ install_aiohttp_requires = [
 
 install_requests_requires = [
     "requests>=2.26,<3",
-    "requests_toolbelt>=0.9.1,<1",
-    "urllib3>=1.26,<2",
+    "requests_toolbelt>=1.0.0,<2",
 ]
 
 install_httpx_requires = [
