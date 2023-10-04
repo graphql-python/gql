@@ -43,7 +43,7 @@ install_aiohttp_requires = [
 
 install_requests_requires = [
     "requests>=2.26,<3",
-    "requests_toolbelt>=0.9.1,<1",
+    "requests_toolbelt>=1.0.0,<2",
 ]
 
 install_httpx_requires = [
