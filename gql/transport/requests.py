@@ -13,13 +13,13 @@ from requests_toolbelt.multipart.encoder import MultipartEncoder
 from gql.transport import Transport
 
 from ..graphql_request import GraphQLRequest
-from ..utils import extract_files
 from .exceptions import (
     TransportAlreadyConnected,
     TransportClosed,
     TransportProtocolError,
     TransportServerError,
 )
+from .file_upload import FileVar, extract_files
 
 log = logging.getLogger(__name__)
 
@@ -184,8 +184,8 @@ class RequestsHTTPTransport(Transport):
             file_map = {str(i): [path] for i, path in enumerate(files)}
 
             # Enumerate the file streams
-            # Will generate something like {'0': <_io.BufferedReader ...>}
-            file_streams = {str(i): files[path] for i, path in enumerate(files)}
+            # Will generate something like {'0': FileVar object}
+            file_vars = {str(i): files[path] for i, path in enumerate(files)}
 
             # Add the file map field
             file_map_str = json.dumps(file_map)
@@ -194,14 +194,14 @@ class RequestsHTTPTransport(Transport):
             fields = {"operations": operations_str, "map": file_map_str}
 
             # Add the extracted files as remaining fields
-            for k, f in file_streams.items():
-                name = getattr(f, "name", k)
-                content_type = getattr(f, "content_type", None)
+            for k, file_var in file_vars.items():
+                assert isinstance(file_var, FileVar)
+                name = k if file_var.filename is None else file_var.filename
 
-                if content_type is None:
-                    fields[k] = (name, f)
+                if file_var.content_type is None:
+                    fields[k] = (name, file_var.f)
                 else:
-                    fields[k] = (name, f, content_type)
+                    fields[k] = (name, file_var.f, file_var.content_type)
 
             # Prepare requests http to send multipart-encoded data
             data = MultipartEncoder(fields=fields)

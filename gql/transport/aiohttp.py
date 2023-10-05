@@ -14,7 +14,6 @@ from aiohttp.typedefs import LooseCookies, LooseHeaders
 from graphql import DocumentNode, ExecutionResult, print_ast
 from multidict import CIMultiDictProxy
 
-from ..utils import extract_files
 from .appsync_auth import AppSyncAuthentication
 from .async_transport import AsyncTransport
 from .exceptions import (
@@ -23,6 +22,7 @@ from .exceptions import (
     TransportProtocolError,
     TransportServerError,
 )
+from .file_upload import FileVar, extract_files
 
 log = logging.getLogger(__name__)
 
@@ -258,8 +258,8 @@ class AIOHTTPTransport(AsyncTransport):
             file_map = {str(i): [path] for i, path in enumerate(files)}
 
             # Enumerate the file streams
-            # Will generate something like {'0': <_io.BufferedReader ...>}
-            file_streams = {str(i): files[path] for i, path in enumerate(files)}
+            # Will generate something like {'0': FileVar object}
+            file_vars = {str(i): files[path] for i, path in enumerate(files)}
 
             # Add the payload to the operations field
             operations_str = self.json_serialize(payload)
@@ -273,12 +273,15 @@ class AIOHTTPTransport(AsyncTransport):
             log.debug("file_map %s", file_map_str)
             data.add_field("map", file_map_str, content_type="application/json")
 
-            # Add the extracted files as remaining fields
-            for k, f in file_streams.items():
-                name = getattr(f, "name", k)
-                content_type = getattr(f, "content_type", None)
+            for k, file_var in file_vars.items():
+                assert isinstance(file_var, FileVar)
 
-                data.add_field(k, f, filename=name, content_type=content_type)
+                data.add_field(
+                    k,
+                    file_var.f,
+                    filename=file_var.filename,
+                    content_type=file_var.content_type,
+                )
 
             post_args: Dict[str, Any] = {"data": data}
 
