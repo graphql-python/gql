@@ -14,8 +14,8 @@ console_scripts = [
 
 tests_requires = [
     "parse==1.15.0",
-    "pytest==6.2.5",
-    "pytest-asyncio==0.16.0",
+    "pytest==7.4.2",
+    "pytest-asyncio==0.21.1",
     "pytest-console-scripts==1.3.1",
     "pytest-cov==3.0.0",
     "mock==4.0.2",

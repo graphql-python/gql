@@ -11,6 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Union
 
 import pytest
+import pytest_asyncio
 
 from gql import Client
 
@@ -101,13 +102,13 @@ async def aiohttp_server_base(with_ssl=False):
         await servers.pop().close()
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def aiohttp_server():
     async for server in aiohttp_server_base():
         yield server
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def ssl_aiohttp_server():
     async for server in aiohttp_server_base(with_ssl=True):
         yield server
@@ -349,7 +350,7 @@ def get_server_handler(request):
     return server_handler
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def ws_ssl_server(request):
     """Websockets server fixture using SSL.
 
@@ -372,7 +373,7 @@ async def ws_ssl_server(request):
         await test_server.stop()
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def server(request):
     """Fixture used to start a dummy server to test the client behaviour.
 
@@ -395,7 +396,7 @@ async def server(request):
         await test_server.stop()
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def graphqlws_server(request):
     """Fixture used to start a dummy server with the graphql-ws protocol.
 
@@ -443,7 +444,7 @@ async def graphqlws_server(request):
         await test_server.stop()
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def client_and_server(server):
     """Helper fixture to start a server and a client connected to its port."""
 
@@ -460,7 +461,7 @@ async def client_and_server(server):
         yield session, server
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def client_and_graphqlws_server(graphqlws_server):
     """Helper fixture to start a server with the graphql-ws prototocol
     and a client connected to its port."""
@@ -481,7 +482,7 @@ async def client_and_graphqlws_server(graphqlws_server):
         yield session, graphqlws_server
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def run_sync_test():
     async def run_sync_test_inner(event_loop, server, test_function):
         """This function will run the test in a different Thread.
