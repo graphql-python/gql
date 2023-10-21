@@ -382,7 +382,7 @@ async def server_with_authentication_in_connection_init_payload(ws, path):
             '{"type":"connection_error", "payload": "No Authorization token"}'
         )
 
-    await ws.wait_closed()
+    await ws.close()
 
 
 @pytest.mark.asyncio
