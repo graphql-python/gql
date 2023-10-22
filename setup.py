@@ -14,8 +14,8 @@ console_scripts = [
 
 tests_requires = [
     "parse==1.15.0",
-    "pytest==6.2.5",
-    "pytest-asyncio==0.16.0",
+    "pytest==7.4.2",
+    "pytest-asyncio==0.21.1",
     "pytest-console-scripts==1.3.1",
     "pytest-cov==3.0.0",
     "mock==4.0.2",
@@ -38,7 +38,8 @@ dev_requires = [
 ] + tests_requires
 
 install_aiohttp_requires = [
-    "aiohttp>=3.8.0,<4",
+    "aiohttp>=3.8.0,<4;python_version<='3.11'",
+    "aiohttp>=3.9.0b0,<4;python_version>'3.11'",
 ]
 
 install_requests_requires = [
@@ -89,6 +90,7 @@ setup(
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
         "Programming Language :: Python :: Implementation :: PyPy",
     ],
     keywords="api graphql protocol rest relay gql client",
