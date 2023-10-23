@@ -12,7 +12,11 @@ Installation
 
 You can install GQL 3 and all the extra dependencies using pip_::
 
-    pip install gql[all]
+    pip install "gql[all]"
+
+To have the latest pre-releases versions of gql, you can use::
+
+    pip install --pre "gql[all]"
 
 After installation, you can start using GQL by importing from the top-level
 :mod:`gql` package.
@@ -69,6 +73,11 @@ To install gql with all extra dependencies::
 To install gql with less dependencies, you might want to instead install a combinaison of the
 following packages: :code:`gql-with-aiohttp`, :code:`gql-with-websockets`, :code:`gql-with-requests`,
 :code:`gql-with-botocore`
+
+If you want to have the latest pre-releases version of gql and graphql-core, you can install
+them with conda using::
+
+    conda install -c conda-forge -c conda-forge/label/graphql_core_alpha -c conda-forge/label/gql_beta gql-with-all
 
 Reporting Issues and Contributing
 ---------------------------------
