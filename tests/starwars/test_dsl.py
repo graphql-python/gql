@@ -138,7 +138,8 @@ def test_use_variable_definition_multiple_times(ds):
 
     assert (
         print_ast(query)
-        == """mutation ($badReview: ReviewInput, $episode: Episode, $goodReview: ReviewInput) {
+        == """mutation \
+($badReview: ReviewInput, $episode: Episode, $goodReview: ReviewInput) {
   badReview: createReview(review: $badReview, episode: $episode) {
     stars
     commentary

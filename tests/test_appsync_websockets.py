@@ -333,7 +333,16 @@ def realtime_appsync_server_factory(
             print(f"\n            Server: Exception received: {e!s}\n")
         finally:
             print("            Server: waiting for websocket connection to close")
-            await ws.wait_closed()
+            try:
+                await asyncio.wait_for(ws.wait_closed(), 1000 * MS)
+            except asyncio.TimeoutError:
+                pass
+
+            try:
+                await asyncio.wait_for(ws.close(), 1000 * MS)
+            except asyncio.TimeoutError:
+                pass
+
             print("            Server: connection closed")
 
     return realtime_appsync_server_template
