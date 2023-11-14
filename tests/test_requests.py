@@ -518,6 +518,16 @@ async def test_requests_file_upload(event_loop, aiohttp_server, run_sync_test):
 
                     assert execution_result.data["success"]
 
+                # Using an filename string inside a FileVar object
+                from gql import FileVar
+
+                params = {"file": FileVar(file_path), "other_var": 42}
+                execution_result = session._execute(
+                    query, variable_values=params, upload_files=True
+                )
+
+                assert execution_result.data["success"]
+
     await run_sync_test(event_loop, server, test_code)
 
 

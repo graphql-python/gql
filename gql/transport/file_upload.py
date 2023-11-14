@@ -1,5 +1,7 @@
+import io
+
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, Tuple, Type
+from typing import Any, Dict, Optional, Tuple, Type, List
 
 
 @dataclass
@@ -53,3 +55,22 @@ def extract_files(
     nulled_variables = recurse_extract("variables", variables)
 
     return nulled_variables, files
+
+def open_files(
+    filevars: List[FileVar]
+):
+
+    for filevar in filevars:
+        assert isinstance(filevar, FileVar)
+
+        if isinstance(filevar.f, str):
+            filevar.f = open(filevar.f, "rb")
+
+def close_files(
+    filevars: List[FileVar]
+):
+    for filevar in filevars:
+        assert isinstance(filevar, FileVar)
+
+        if isinstance(filevar.f, io.IOBase):
+            filevar.f.close()

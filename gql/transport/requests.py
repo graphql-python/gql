@@ -19,7 +19,7 @@ from .exceptions import (
     TransportProtocolError,
     TransportServerError,
 )
-from .file_upload import FileVar, extract_files
+from .file_upload import FileVar, extract_files, open_files, close_files
 
 log = logging.getLogger(__name__)
 
@@ -170,6 +170,10 @@ class RequestsHTTPTransport(Transport):
                 file_classes=self.file_classes,
             )
 
+            # Opening the files using the FileVar parameters
+            open_files(files.values())
+            self.files = files
+
             # Save the nulled variable values in the payload
             payload["variables"] = nulled_variable_values
 
@@ -234,9 +238,14 @@ class RequestsHTTPTransport(Transport):
             post_args.update(extra_args)
 
         # Using the created session to perform requests
-        response = self.session.request(
-            self.method, self.url, **post_args  # type: ignore
-        )
+        try:
+            response = self.session.request(
+                self.method, self.url, **post_args  # type: ignore
+            )
+        finally:
+            if upload_files:
+                close_files(self.files.values())
+
         self.response_headers = response.headers
 
         def raise_response_error(resp: requests.Response, reason: str):
