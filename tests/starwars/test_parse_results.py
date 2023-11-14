@@ -37,6 +37,42 @@ def test_hero_name_and_friends_query():
     assert result == parsed_result
 
 
+def test_hero_name_and_friends_query_with_fragment():
+    """Testing for issue #445"""
+
+    query = gql(
+        """
+        query HeroNameAndFriendsQuery {
+          hero {
+            ...HeroSummary
+            friends {
+              name
+            }
+          }
+        }
+        fragment HeroSummary on Character {
+          id
+          name
+        }
+        """
+    )
+    result = {
+        "hero": {
+            "id": "2001",
+            "friends": [
+                {"name": "Luke Skywalker"},
+                {"name": "Han Solo"},
+                {"name": "Leia Organa"},
+            ],
+            "name": "R2-D2",
+        }
+    }
+
+    parsed_result = parse_result(StarWarsSchema, query, result)
+
+    assert result == parsed_result
+
+
 def test_key_not_found_in_result():
 
     query = gql(

@@ -193,7 +193,7 @@ class ParseResultVisitor(Visitor):
                 # Key not found in result.
                 # Should never happen in theory with a correct GraphQL backend
                 # Silently ignoring this field
-                log.debug(f"Key {name} not found in result --> REMOVE")
+                log.debug(f"  Key {name} not found in result --> REMOVE")
                 return REMOVE
 
             log.debug(f"  result_value={result_value}")
@@ -232,8 +232,11 @@ class ParseResultVisitor(Visitor):
                 )
 
                 # Get parent SelectionSet node
-                new_node = ancestors[-1]
-                assert isinstance(new_node, SelectionSetNode)
+                selection_set_node = ancestors[-1]
+                assert isinstance(selection_set_node, SelectionSetNode)
+
+                # Keep only the current node in a new selection set node
+                new_node = SelectionSetNode(selections=[node])
 
                 for item in result_value:
 
