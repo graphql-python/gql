@@ -1068,10 +1068,22 @@ class DSLFragment(DSLSelectable, DSLFragmentSelector, DSLExecutable):
                 "Missing type condition. Please use .on(type_condition) method"
             )
 
+        fragment_variable_definitions = self.variable_definitions.get_ast_definitions()
+
+        if len(fragment_variable_definitions) == 0:
+            """Fragment variable definitions are obsolete and only supported on
+            graphql-core if the Parser is initialized with:
+            allow_legacy_fragment_variables=True.
+
+            We will set variable_definitions to None instead of an empty tuple to be
+            coherent with how it works by default on graphql-core.
+            """
+            fragment_variable_definitions = None
+
         return FragmentDefinitionNode(
             type_condition=NamedTypeNode(name=NameNode(value=self._type.name)),
             selection_set=self.selection_set,
-            variable_definitions=self.variable_definitions.get_ast_definitions(),
+            variable_definitions=fragment_variable_definitions,
             name=NameNode(value=self.name),
             directives=(),
         )
