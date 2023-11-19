@@ -1075,15 +1075,19 @@ class DSLFragment(DSLSelectable, DSLFragmentSelector, DSLExecutable):
             graphql-core if the Parser is initialized with:
             allow_legacy_fragment_variables=True.
 
-            We will set variable_definitions to None instead of an empty tuple to be
-            coherent with how it works by default on graphql-core.
+            We will not provide variable_definitions instead of providing an empty
+            tuple to be coherent with how it works by default on graphql-core.
             """
-            fragment_variable_definitions = None
+            variable_definition_kwargs = {}
+        else:
+            variable_definition_kwargs = {
+                "variable_definitions": fragment_variable_definitions
+            }
 
         return FragmentDefinitionNode(
             type_condition=NamedTypeNode(name=NameNode(value=self._type.name)),
             selection_set=self.selection_set,
-            variable_definitions=fragment_variable_definitions,
+            **variable_definition_kwargs,
             name=NameNode(value=self.name),
             directives=(),
         )
