@@ -35,7 +35,7 @@ from gql.dsl import (
     ast_from_value,
     dsl_gql,
 )
-from gql.utilities import get_introspection_query_ast
+from gql.utilities import get_introspection_query_ast, node_tree
 
 from .schema import StarWarsSchema
 
@@ -151,6 +151,8 @@ def test_use_variable_definition_multiple_times(ds):
 }"""
     )
 
+    assert node_tree(query) == node_tree(gql(print_ast(query)))
+
 
 def test_add_variable_definitions(ds):
     var = DSLVariableDefinitions()
@@ -171,6 +173,8 @@ def test_add_variable_definitions(ds):
   }
 }"""
     )
+
+    assert node_tree(query) == node_tree(gql(print_ast(query)))
 
 
 def test_add_variable_definitions_with_default_value_enum(ds):
@@ -216,6 +220,8 @@ mutation ($review: ReviewInput = { stars: 5, commentary: "Wow!" }, $episode: Epi
 }""".strip()
     )
 
+    assert node_tree(query) == node_tree(gql(print_ast(query)))
+
 
 def test_add_variable_definitions_in_input_object(ds):
     var = DSLVariableDefinitions()
@@ -240,6 +246,8 @@ def test_add_variable_definitions_in_input_object(ds):
   }
 }"""
     )
+
+    assert node_tree(query) == node_tree(gql(print_ast(query)))
 
 
 def test_invalid_field_on_type_query(ds):
@@ -402,6 +410,7 @@ def test_hero_name_query_result(ds, client):
     result = client.execute(query)
     expected = {"hero": {"name": "R2-D2"}}
     assert result == expected
+    assert node_tree(query) == node_tree(gql(print_ast(query)))
 
 
 def test_arg_serializer_list(ds, client):
@@ -421,6 +430,7 @@ def test_arg_serializer_list(ds, client):
         ]
     }
     assert result == expected
+    assert node_tree(query) == node_tree(gql(print_ast(query)))
 
 
 def test_arg_serializer_enum(ds, client):
@@ -428,6 +438,7 @@ def test_arg_serializer_enum(ds, client):
     result = client.execute(query)
     expected = {"hero": {"name": "Luke Skywalker"}}
     assert result == expected
+    assert node_tree(query) == node_tree(gql(print_ast(query)))
 
 
 def test_create_review_mutation_result(ds, client):
@@ -442,6 +453,7 @@ def test_create_review_mutation_result(ds, client):
     result = client.execute(query)
     expected = {"createReview": {"stars": 5, "commentary": "This is a great movie!"}}
     assert result == expected
+    assert node_tree(query) == node_tree(gql(print_ast(query)))
 
 
 def test_subscription(ds):
@@ -462,6 +474,8 @@ def test_subscription(ds):
   }
 }"""
     )
+
+    assert node_tree(query) == node_tree(gql(print_ast(query)))
 
 
 def test_field_does_not_exit_in_type(ds):
@@ -502,6 +516,7 @@ def test_multiple_root_fields(ds, client):
         "hero_of_episode_5": {"name": "Luke Skywalker"},
     }
     assert result == expected
+    assert node_tree(query) == node_tree(gql(print_ast(query)))
 
 
 def test_root_fields_aliased(ds, client):
@@ -517,6 +532,7 @@ def test_root_fields_aliased(ds, client):
         "hero_of_episode_5": {"name": "Luke Skywalker"},
     }
     assert result == expected
+    assert node_tree(query) == node_tree(gql(print_ast(query)))
 
 
 def test_operation_name(ds):
@@ -534,6 +550,8 @@ def test_operation_name(ds):
   }
 }"""
     )
+
+    assert node_tree(query) == node_tree(gql(print_ast(query)))
 
 
 def test_multiple_operations(ds):
@@ -564,6 +582,8 @@ mutation CreateReviewMutation {
   }
 }"""
     )
+
+    assert node_tree(query) == node_tree(gql(print_ast(query)))
 
 
 def test_inline_fragments(ds):
@@ -635,6 +655,7 @@ def test_fragments(ds):
     print(print_ast(document))
 
     assert query == print_ast(document)
+    assert node_tree(document) == node_tree(gql(print_ast(document)))
 
 
 def test_fragment_without_type_condition_error(ds):
@@ -731,6 +752,7 @@ query NestedQueryWithFragment {
     print(print_ast(document))
 
     assert query == print_ast(document)
+    assert node_tree(document) == node_tree(gql(print_ast(document)))
 
     # Same thing, but incrementaly
 
@@ -756,6 +778,7 @@ query NestedQueryWithFragment {
     print(print_ast(document))
 
     assert query == print_ast(document)
+    assert node_tree(document) == node_tree(gql(print_ast(document)))
 
 
 def test_dsl_query_all_fields_should_be_instances_of_DSLField():
@@ -807,6 +830,8 @@ type QueryNotDefault {
     assert (
         "Invalid field for <DSLSubscription>: <DSLField QueryNotDefault::version>"
     ) in str(excinfo.value)
+
+    assert node_tree(query) == node_tree(gql(print_ast(query)))
 
 
 def test_dsl_gql_all_arguments_should_be_operations_or_fragments():
@@ -967,6 +992,9 @@ def test_get_introspection_query_ast(option):
     )
 
     assert print_ast(gql(introspection_query)) == print_ast(dsl_introspection_query)
+    assert node_tree(dsl_introspection_query) == node_tree(
+        gql(print_ast(dsl_introspection_query))
+    )
 
 
 def test_typename_aliased(ds):
