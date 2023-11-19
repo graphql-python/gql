@@ -1,5 +1,6 @@
-from gql import Client
-from gql.dsl import DSLFragment, DSLQuery, DSLSchema, dsl_gql
+from gql import Client, gql
+from gql.dsl import DSLFragment, DSLQuery, DSLSchema, dsl_gql, print_ast
+from gql.utilities import node_tree
 
 schema_str = """
 type MonsterForm {
@@ -57,3 +58,17 @@ def test_issue_447():
     q = dsl_gql(sprite, copy_of, DSLQuery(query))
 
     client.validate(q)
+
+    # Creating a tree from the DocumentNode created by dsl_gql
+    dsl_tree = node_tree(q)
+
+    # Creating a tree from the DocumentNode created by dsl_gql
+    gql_tree = node_tree(gql(print_ast(q)))
+
+    print("=======")
+    print(dsl_tree)
+    print("+++++++")
+    print(gql_tree)
+    print("=======")
+
+    assert dsl_tree == gql_tree

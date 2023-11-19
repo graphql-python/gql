@@ -61,7 +61,11 @@ def _node_tree_recursive(
 
 
 def node_tree(
-    obj: Node, *, ignore_loc: bool = True, ignored_keys: Optional[List] = None
+    obj: Node,
+    *,
+    ignore_loc: bool = True,
+    ignore_block: bool = True,
+    ignored_keys: Optional[List] = None,
 ):
     """Method which returns a tree of Node elements as a String.
 
@@ -76,5 +80,9 @@ def node_tree(
     if ignore_loc:
         # We are ignoring loc attributes by default
         ignored_keys.append("loc")
+
+    if ignore_block:
+        # We are ignoring block attributes by default (in StringValueNode)
+        ignored_keys.append("block")
 
     return _node_tree_recursive(obj, ignored_keys=ignored_keys)
