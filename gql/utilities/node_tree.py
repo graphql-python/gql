@@ -6,12 +6,11 @@ from graphql import Node
 def _node_tree_recursive(
     obj: Any,
     *,
-    indent=0,
-    ignored_keys=None,
+    indent: int = 0,
+    ignored_keys: List,
 ):
 
-    if ignored_keys is None:
-        ignored_keys = []
+    assert ignored_keys is not None
 
     results = []
 
@@ -73,6 +72,8 @@ def node_tree(
 
     WARNING: the output of this method is not guaranteed and may change without notice.
     """
+
+    assert isinstance(obj, Node)
 
     if ignored_keys is None:
         ignored_keys = []
