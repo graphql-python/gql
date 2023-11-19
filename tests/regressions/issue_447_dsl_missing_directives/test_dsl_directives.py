@@ -62,7 +62,7 @@ def test_issue_447():
     # Creating a tree from the DocumentNode created by dsl_gql
     dsl_tree = node_tree(q)
 
-    # Creating a tree from the DocumentNode created by dsl_gql
+    # Creating a tree from the DocumentNode created by gql
     gql_tree = node_tree(gql(print_ast(q)))
 
     print("=======")
