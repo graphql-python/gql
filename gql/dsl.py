@@ -503,6 +503,7 @@ class DSLOperation(DSLExecutable, DSLRootFieldSelector):
             selection_set=self.selection_set,
             variable_definitions=self.variable_definitions.get_ast_definitions(),
             **({"name": NameNode(value=self.name)} if self.name else {}),
+            directives=(),
         )
 
     def __repr__(self) -> str:
@@ -597,6 +598,7 @@ class DSLVariableDefinitions:
                 default_value=None
                 if var.default_value is None
                 else ast_from_value(var.default_value, var.type),
+                directives=(),
             )
             for var in self.variables.values()
             if var.type is not None  # only variables used
@@ -818,7 +820,11 @@ class DSLField(DSLSelectableWithAlias, DSLFieldSelector):
         """
         self.parent_type = parent_type
         self.field = field
-        self.ast_field = FieldNode(name=NameNode(value=name), arguments=())
+        self.ast_field = FieldNode(
+            name=NameNode(value=name),
+            arguments=(),
+            directives=(),
+        )
         self.dsl_type = dsl_type
 
         log.debug(f"Creating {self!r}")
@@ -950,7 +956,7 @@ class DSLInlineFragment(DSLSelectable, DSLFragmentSelector):
 
         log.debug(f"Creating {self!r}")
 
-        self.ast_field = InlineFragmentNode()
+        self.ast_field = InlineFragmentNode(directives=())
 
         DSLSelector.__init__(self, *fields, **fields_with_alias)
 
@@ -1018,7 +1024,7 @@ class DSLFragment(DSLSelectable, DSLFragmentSelector, DSLExecutable):
         `issue #4125 of mypy <https://github.com/python/mypy/issues/4125>`_.
         """
 
-        spread_node = FragmentSpreadNode()
+        spread_node = FragmentSpreadNode(directives=())
         spread_node.name = NameNode(value=self.name)
 
         return spread_node
@@ -1067,6 +1073,7 @@ class DSLFragment(DSLSelectable, DSLFragmentSelector, DSLExecutable):
             selection_set=self.selection_set,
             variable_definitions=self.variable_definitions.get_ast_definitions(),
             name=NameNode(value=self.name),
+            directives=(),
         )
 
     def __repr__(self) -> str:
