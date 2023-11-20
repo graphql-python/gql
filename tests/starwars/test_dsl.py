@@ -1103,3 +1103,30 @@ DocumentNode
 """.strip()
 
     assert node_tree(document, ignore_loc=False) == node_tree_result
+
+
+def test_legacy_fragment_with_variables(ds):
+    var = DSLVariableDefinitions()
+
+    hero_fragment = (
+        DSLFragment("heroFragment")
+        .on(ds.Query)
+        .select(
+            ds.Query.hero.args(episode=var.episode).select(ds.Character.name),
+        )
+    )
+
+    print(hero_fragment)
+
+    hero_fragment.variable_definitions = var
+
+    query = dsl_gql(hero_fragment)
+
+    expected = """
+fragment heroFragment($episode: Episode) on Query {
+  hero(episode: $episode) {
+    name
+  }
+}
+""".strip()
+    assert print_ast(query) == expected
