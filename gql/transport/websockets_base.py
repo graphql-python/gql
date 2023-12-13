@@ -215,7 +215,7 @@ class WebsocketsTransportBase(AsyncTransport):
 
         try:
             await self.websocket.send(message)
-            log.info(">>> %s", message)
+            log.debug(">>> %s", message)
         except ConnectionClosed as e:
             await self._fail(e, clean_close=False)
             raise e
@@ -237,7 +237,7 @@ class WebsocketsTransportBase(AsyncTransport):
 
         answer: str = data
 
-        log.info("<<< %s", answer)
+        log.debug("<<< %s", answer)
 
         return answer
 
