@@ -6,6 +6,7 @@ install_requires = [
     "graphql-core>=3.3.0a3,<3.4",
     "yarl>=1.6,<2.0",
     "backoff>=1.11.1,<3.0",
+    "anyio>=4.0,<5",
 ]
 
 console_scripts = [
