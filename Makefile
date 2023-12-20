@@ -1,5 +1,5 @@
 .PHONY: clean tests docs
-
+ 
 SRC_PYTHON := gql tests docs/code_examples
 
 dev-setup:
