@@ -22,6 +22,7 @@ from typing import (
 )
 
 import backoff
+from anyio import fail_after
 from graphql import (
     DocumentNode,
     ExecutionResult,
@@ -1532,15 +1533,13 @@ class AsyncClientSession:
                     )
 
         # Execute the query with the transport with a timeout
-        result = await asyncio.wait_for(
-            self.transport.execute(
+        with fail_after(self.client.execute_timeout):
+            result = await self.transport.execute(
                 document,
                 variable_values=variable_values,
                 operation_name=operation_name,
                 **kwargs,
-            ),
-            self.client.execute_timeout,
-        )
+            )
 
         # Unserialize the result if requested
         if self.client.schema:
