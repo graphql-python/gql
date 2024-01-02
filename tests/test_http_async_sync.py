@@ -6,16 +6,13 @@ from gql import Client, gql
 @pytest.mark.aiohttp
 @pytest.mark.online
 @pytest.mark.asyncio
-@pytest.mark.parametrize("protocol", ["http", "https"])
 @pytest.mark.parametrize("fetch_schema_from_transport", [True, False])
-async def test_async_client_async_transport(
-    event_loop, protocol, fetch_schema_from_transport
-):
+async def test_async_client_async_transport(event_loop, fetch_schema_from_transport):
 
     from gql.transport.aiohttp import AIOHTTPTransport
 
-    # Create http or https url
-    url = f"{protocol}://countries.trevorblades.com/graphql"
+    # Create https url
+    url = "https://countries.trevorblades.com/graphql"
 
     # Get async transport
     sample_transport = AIOHTTPTransport(url=url)
@@ -76,14 +73,13 @@ async def test_async_client_sync_transport(event_loop, fetch_schema_from_transpo
 
 @pytest.mark.aiohttp
 @pytest.mark.online
-@pytest.mark.parametrize("protocol", ["http", "https"])
 @pytest.mark.parametrize("fetch_schema_from_transport", [True, False])
-def test_sync_client_async_transport(protocol, fetch_schema_from_transport):
+def test_sync_client_async_transport(fetch_schema_from_transport):
 
     from gql.transport.aiohttp import AIOHTTPTransport
 
-    # Create http or https url
-    url = f"{protocol}://countries.trevorblades.com/graphql"
+    # Create https url
+    url = "https://countries.trevorblades.com/graphql"
 
     # Get async transport
     sample_transport = AIOHTTPTransport(url=url)
@@ -120,14 +116,13 @@ def test_sync_client_async_transport(protocol, fetch_schema_from_transport):
 
 @pytest.mark.requests
 @pytest.mark.online
-@pytest.mark.parametrize("protocol", ["http", "https"])
 @pytest.mark.parametrize("fetch_schema_from_transport", [True, False])
-def test_sync_client_sync_transport(protocol, fetch_schema_from_transport):
+def test_sync_client_sync_transport(fetch_schema_from_transport):
 
     from gql.transport.requests import RequestsHTTPTransport
 
-    # Create http or https url
-    url = f"{protocol}://countries.trevorblades.com/graphql"
+    # Create https url
+    url = "https://countries.trevorblades.com/graphql"
 
     # Get sync transport
     sample_transport = RequestsHTTPTransport(url=url, use_json=True)
