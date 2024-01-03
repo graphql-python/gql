@@ -46,7 +46,6 @@ def test_request_transport_not_implemented(http_transport_query):
 
 
 @pytest.mark.aiohttp
-@pytest.mark.asyncio
 def test_request_async_execute_batch_not_implemented_yet():
     from gql.transport.aiohttp import AIOHTTPTransport
 
@@ -145,32 +144,13 @@ def test_execute_result_error():
         client.execute(failing_query)
     assert 'Cannot query field "id" on type "Continent".' in str(exc_info.value)
 
+    """
+    Batching is not supported anymore on countries backend
+
     with pytest.raises(TransportQueryError) as exc_info:
         client.execute_batch([GraphQLRequest(document=failing_query)])
     assert 'Cannot query field "id" on type "Continent".' in str(exc_info.value)
-
-
-@pytest.mark.online
-@pytest.mark.requests
-def test_http_transport_raise_for_status_error(http_transport_query):
-    from gql.transport.requests import RequestsHTTPTransport
-
-    with Client(
-        transport=RequestsHTTPTransport(
-            url="https://countries.trevorblades.com/",
-            use_json=False,
-            headers={"Content-type": "application/json"},
-        )
-    ) as client:
-        with pytest.raises(Exception) as exc_info:
-            client.execute(http_transport_query)
-
-        assert "400 Client Error: Bad Request for url" in str(exc_info.value)
-
-        with pytest.raises(Exception) as exc_info:
-            client.execute_batch([GraphQLRequest(document=http_transport_query)])
-
-        assert "400 Client Error: Bad Request for url" in str(exc_info.value)
+    """
 
 
 @pytest.mark.online
@@ -192,6 +172,9 @@ def test_http_transport_verify_error(http_transport_query):
             record[0].message
         )
 
+        """
+        Batching is not supported anymore on countries backend
+
         with pytest.warns(Warning) as record:
             client.execute_batch([GraphQLRequest(document=http_transport_query)])
 
@@ -199,6 +182,7 @@ def test_http_transport_verify_error(http_transport_query):
         assert "Unverified HTTPS request is being made to host" in str(
             record[0].message
         )
+        """
 
 
 @pytest.mark.online
@@ -215,28 +199,12 @@ def test_http_transport_specify_method_valid(http_transport_query):
         result = client.execute(http_transport_query)
         assert result is not None
 
+        """
+        Batching is not supported anymore on countries backend
+
         result = client.execute_batch([GraphQLRequest(document=http_transport_query)])
         assert result is not None
-
-
-@pytest.mark.online
-@pytest.mark.requests
-def test_http_transport_specify_method_invalid(http_transport_query):
-    from gql.transport.requests import RequestsHTTPTransport
-
-    with Client(
-        transport=RequestsHTTPTransport(
-            url="https://countries.trevorblades.com/",
-            method="GET",
-        )
-    ) as client:
-        with pytest.raises(Exception) as exc_info:
-            client.execute(http_transport_query)
-        assert "400 Client Error: Bad Request for url" in str(exc_info.value)
-
-        with pytest.raises(Exception) as exc_info:
-            client.execute_batch([GraphQLRequest(document=http_transport_query)])
-        assert "400 Client Error: Bad Request for url" in str(exc_info.value)
+        """
 
 
 def test_gql():

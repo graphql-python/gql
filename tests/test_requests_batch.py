@@ -540,15 +540,21 @@ async def test_requests_query_with_extensions(
     await run_sync_test(event_loop, server, test_code)
 
 
+ONLINE_URL = "https://countries.trevorblades.com/"
+
+skip_reason = "backend does not support batching anymore..."
+
+
 @pytest.mark.online
 @pytest.mark.requests
+@pytest.mark.skip(reason=skip_reason)
 def test_requests_sync_batch_auto():
 
     from threading import Thread
     from gql.transport.requests import RequestsHTTPTransport
 
     client = Client(
-        transport=RequestsHTTPTransport(url="https://countries.trevorblades.com/"),
+        transport=RequestsHTTPTransport(url=ONLINE_URL),
         batch_interval=0.01,
         batch_max=3,
     )
@@ -607,12 +613,13 @@ def test_requests_sync_batch_auto():
 
 @pytest.mark.online
 @pytest.mark.requests
+@pytest.mark.skip(reason=skip_reason)
 def test_requests_sync_batch_auto_execute_future():
 
     from gql.transport.requests import RequestsHTTPTransport
 
     client = Client(
-        transport=RequestsHTTPTransport(url="https://countries.trevorblades.com/"),
+        transport=RequestsHTTPTransport(url=ONLINE_URL),
         batch_interval=0.01,
         batch_max=3,
     )
@@ -644,12 +651,13 @@ def test_requests_sync_batch_auto_execute_future():
 
 @pytest.mark.online
 @pytest.mark.requests
+@pytest.mark.skip(reason=skip_reason)
 def test_requests_sync_batch_manual():
 
     from gql.transport.requests import RequestsHTTPTransport
 
     client = Client(
-        transport=RequestsHTTPTransport(url="https://countries.trevorblades.com/"),
+        transport=RequestsHTTPTransport(url=ONLINE_URL),
     )
 
     query = gql(

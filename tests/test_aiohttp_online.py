@@ -11,13 +11,12 @@ from gql.transport.exceptions import TransportQueryError
 @pytest.mark.aiohttp
 @pytest.mark.online
 @pytest.mark.asyncio
-@pytest.mark.parametrize("protocol", ["http", "https"])
-async def test_aiohttp_simple_query(event_loop, protocol):
+async def test_aiohttp_simple_query(event_loop):
 
     from gql.transport.aiohttp import AIOHTTPTransport
 
-    # Create http or https url
-    url = f"{protocol}://countries.trevorblades.com/graphql"
+    # Create https url
+    url = "https://countries.trevorblades.com/graphql"
 
     # Get transport
     sample_transport = AIOHTTPTransport(url=url)

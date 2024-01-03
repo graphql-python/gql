@@ -15,8 +15,14 @@ pytestmark = pytest.mark.websockets
 
 logging.basicConfig(level=logging.INFO)
 
+skip_reason = (
+    "backend does not support websockets anymore: "
+    "https://github.com/trevorblades/countries/issues/42"
+)
+
 
 @pytest.mark.online
+@pytest.mark.skip(reason=skip_reason)
 @pytest.mark.asyncio
 async def test_websocket_simple_query():
     from gql.transport.websockets import WebsocketsTransport
@@ -57,6 +63,7 @@ async def test_websocket_simple_query():
 
 
 @pytest.mark.online
+@pytest.mark.skip(reason=skip_reason)
 @pytest.mark.asyncio
 async def test_websocket_invalid_query():
     from gql.transport.websockets import WebsocketsTransport
@@ -86,6 +93,7 @@ async def test_websocket_invalid_query():
 
 
 @pytest.mark.online
+@pytest.mark.skip(reason=skip_reason)
 @pytest.mark.asyncio
 async def test_websocket_sending_invalid_data():
     from gql.transport.websockets import WebsocketsTransport
@@ -121,6 +129,7 @@ async def test_websocket_sending_invalid_data():
 
 
 @pytest.mark.online
+@pytest.mark.skip(reason=skip_reason)
 @pytest.mark.asyncio
 async def test_websocket_sending_invalid_payload():
     from gql.transport.websockets import WebsocketsTransport
@@ -143,6 +152,7 @@ async def test_websocket_sending_invalid_payload():
 
 @pytest.mark.online
 @pytest.mark.skipif(sys.version_info < (3, 8), reason="requires python3.8 or higher")
+@pytest.mark.skip(reason=skip_reason)
 @pytest.mark.asyncio
 async def test_websocket_sending_invalid_data_while_other_query_is_running():
     from gql.transport.websockets import WebsocketsTransport
@@ -194,6 +204,7 @@ async def test_websocket_sending_invalid_data_while_other_query_is_running():
 
 @pytest.mark.online
 @pytest.mark.skipif(sys.version_info < (3, 8), reason="requires python3.8 or higher")
+@pytest.mark.skip(reason=skip_reason)
 @pytest.mark.asyncio
 async def test_websocket_two_queries_in_parallel_using_two_tasks():
     from gql.transport.websockets import WebsocketsTransport
