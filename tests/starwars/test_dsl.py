@@ -37,6 +37,7 @@ from gql.dsl import (
 )
 from gql.utilities import get_introspection_query_ast, node_tree
 
+from ..conftest import strip_braces_spaces
 from .schema import StarWarsSchema
 
 
@@ -210,9 +211,9 @@ def test_add_variable_definitions_with_default_value_input_object(ds):
     query = dsl_gql(op)
 
     assert (
-        print_ast(query)
+        strip_braces_spaces(print_ast(query))
         == """
-mutation ($review: ReviewInput = { stars: 5, commentary: "Wow!" }, $episode: Episode) {
+mutation ($review: ReviewInput = {stars: 5, commentary: "Wow!"}, $episode: Episode) {
   createReview(review: $review, episode: $episode) {
     stars
     commentary
@@ -235,10 +236,10 @@ def test_add_variable_definitions_in_input_object(ds):
     query = dsl_gql(op)
 
     assert (
-        print_ast(query)
+        strip_braces_spaces(print_ast(query))
         == """mutation ($stars: Int, $commentary: String, $episode: Episode) {
   createReview(
-    review: { stars: $stars, commentary: $commentary }
+    review: {stars: $stars, commentary: $commentary}
     episode: $episode
   ) {
     stars
@@ -565,7 +566,7 @@ def test_multiple_operations(ds):
     )
 
     assert (
-        print_ast(query)
+        strip_braces_spaces(print_ast(query))
         == """query GetHeroName {
   hero {
     name
@@ -575,7 +576,7 @@ def test_multiple_operations(ds):
 mutation CreateReviewMutation {
   createReview(
     episode: JEDI
-    review: { stars: 5, commentary: "This is a great movie!" }
+    review: {stars: 5, commentary: "This is a great movie!"}
   ) {
     stars
     commentary
@@ -1102,7 +1103,84 @@ DocumentNode
         <OperationType.QUERY: 'query'>
 """.strip()
 
-    assert node_tree(document, ignore_loc=False) == node_tree_result
+    node_tree_result_stable = """
+DocumentNode
+  loc:
+    Location
+      <Location 0:43>
+  definitions:
+    OperationDefinitionNode
+      loc:
+        Location
+          <Location 0:43>
+      name:
+        NameNode
+          loc:
+            Location
+              <Location 6:17>
+          value:
+            'GetHeroName'
+      directives:
+        empty tuple
+      variable_definitions:
+        empty tuple
+      selection_set:
+        SelectionSetNode
+          loc:
+            Location
+              <Location 18:43>
+          selections:
+            FieldNode
+              loc:
+                Location
+                  <Location 22:41>
+              directives:
+                empty tuple
+              alias:
+                None
+              name:
+                NameNode
+                  loc:
+                    Location
+                      <Location 22:26>
+                  value:
+                    'hero'
+              arguments:
+                empty tuple
+              selection_set:
+                SelectionSetNode
+                  loc:
+                    Location
+                      <Location 27:41>
+                  selections:
+                    FieldNode
+                      loc:
+                        Location
+                          <Location 33:37>
+                      directives:
+                        empty tuple
+                      alias:
+                        None
+                      name:
+                        NameNode
+                          loc:
+                            Location
+                              <Location 33:37>
+                          value:
+                            'name'
+                      arguments:
+                        empty tuple
+                      selection_set:
+                        None
+      operation:
+        <OperationType.QUERY: 'query'>
+""".strip()
+
+    try:
+        assert node_tree(document, ignore_loc=False) == node_tree_result
+    except AssertionError:
+        # graphql-core version 3.2.3
+        assert node_tree(document, ignore_loc=False) == node_tree_result_stable
 
 
 def test_legacy_fragment_with_variables(ds):
