@@ -10,7 +10,8 @@ from gql.transport.exceptions import (
     TransportQueryError,
     TransportServerError,
 )
-from tests.conftest import TemporaryFile
+
+from .conftest import TemporaryFile, strip_braces_spaces
 
 # Marking all tests in this file with the httpx marker
 pytestmark = pytest.mark.httpx
@@ -397,15 +398,15 @@ file_upload_server_answer = '{"data":{"success":true}}'
 
 file_upload_mutation_1 = """
     mutation($file: Upload!) {
-      uploadFile(input:{ other_var:$other_var, file:$file }) {
+      uploadFile(input:{other_var:$other_var, file:$file}) {
         success
       }
     }
 """
 
 file_upload_mutation_1_operations = (
-    '{"query": "mutation ($file: Upload!) {\\n  uploadFile(input: { other_var: '
-    '$other_var, file: $file }) {\\n    success\\n  }\\n}", "variables": '
+    '{"query": "mutation ($file: Upload!) {\\n  uploadFile(input: {other_var: '
+    '$other_var, file: $file}) {\\n    success\\n  }\\n}", "variables": '
     '{"file": null, "other_var": 42}}'
 )
 
@@ -431,7 +432,7 @@ async def test_httpx_file_upload(event_loop, aiohttp_server, run_sync_test):
         field_0 = await reader.next()
         assert field_0.name == "operations"
         field_0_text = await field_0.text()
-        assert field_0_text == file_upload_mutation_1_operations
+        assert strip_braces_spaces(field_0_text) == file_upload_mutation_1_operations
 
         field_1 = await reader.next()
         assert field_1.name == "map"
@@ -493,7 +494,7 @@ async def test_httpx_file_upload_with_content_type(
         field_0 = await reader.next()
         assert field_0.name == "operations"
         field_0_text = await field_0.text()
-        assert field_0_text == file_upload_mutation_1_operations
+        assert strip_braces_spaces(field_0_text) == file_upload_mutation_1_operations
 
         field_1 = await reader.next()
         assert field_1.name == "map"
@@ -563,7 +564,7 @@ async def test_httpx_file_upload_additional_headers(
         field_0 = await reader.next()
         assert field_0.name == "operations"
         field_0_text = await field_0.text()
-        assert field_0_text == file_upload_mutation_1_operations
+        assert strip_braces_spaces(field_0_text) == file_upload_mutation_1_operations
 
         field_1 = await reader.next()
         assert field_1.name == "map"
@@ -627,7 +628,7 @@ async def test_httpx_binary_file_upload(event_loop, aiohttp_server, run_sync_tes
         field_0 = await reader.next()
         assert field_0.name == "operations"
         field_0_text = await field_0.text()
-        assert field_0_text == file_upload_mutation_1_operations
+        assert strip_braces_spaces(field_0_text) == file_upload_mutation_1_operations
 
         field_1 = await reader.next()
         assert field_1.name == "map"
@@ -677,7 +678,7 @@ async def test_httpx_binary_file_upload(event_loop, aiohttp_server, run_sync_tes
 
 file_upload_mutation_2_operations = (
     '{"query": "mutation ($file1: Upload!, $file2: Upload!) {\\n  '
-    'uploadFile(input: { file1: $file, file2: $file }) {\\n    success\\n  }\\n}", '
+    'uploadFile(input: {file1: $file, file2: $file}) {\\n    success\\n  }\\n}", '
     '"variables": {"file1": null, "file2": null}}'
 )
 
@@ -710,7 +711,7 @@ async def test_httpx_file_upload_two_files(event_loop, aiohttp_server, run_sync_
         field_0 = await reader.next()
         assert field_0.name == "operations"
         field_0_text = await field_0.text()
-        assert field_0_text == file_upload_mutation_2_operations
+        assert strip_braces_spaces(field_0_text) == file_upload_mutation_2_operations
 
         field_1 = await reader.next()
         assert field_1.name == "map"
@@ -775,7 +776,7 @@ async def test_httpx_file_upload_two_files(event_loop, aiohttp_server, run_sync_
 
 file_upload_mutation_3_operations = (
     '{"query": "mutation ($files: [Upload!]!) {\\n  uploadFiles'
-    "(input: { files: $files })"
+    "(input: {files: $files})"
     ' {\\n    success\\n  }\\n}", "variables": {"files": [null, null]}}'
 )
 
@@ -812,7 +813,7 @@ async def test_httpx_file_upload_list_of_two_files(
         field_0 = await reader.next()
         assert field_0.name == "operations"
         field_0_text = await field_0.text()
-        assert field_0_text == file_upload_mutation_3_operations
+        assert strip_braces_spaces(field_0_text) == file_upload_mutation_3_operations
 
         field_1 = await reader.next()
         assert field_1.name == "map"

@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import pathlib
+import re
 import ssl
 import sys
 import tempfile
@@ -506,3 +507,15 @@ pytest_plugins = [
     "tests.fixtures.aws.fake_session",
     "tests.fixtures.aws.fake_signer",
 ]
+
+
+def strip_braces_spaces(s):
+    """Allow to ignore differences in graphql-core syntax between versions"""
+
+    # Strip spaces after starting braces
+    strip_front = s.replace("{ ", "{")
+
+    # Strip spaces before closing braces only if one space is present
+    strip_back = re.sub(r"([^\s]) }", r"\1}", strip_front)
+
+    return strip_back
