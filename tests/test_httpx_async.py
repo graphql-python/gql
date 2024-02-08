@@ -1402,6 +1402,7 @@ query_float_server_answer_data = '{"pi": 3.1415926535897932384626433832795028841
 query_float_server_answer = f'{{"data":{query_float_server_answer_data}}}'
 
 
+@pytest.mark.aiohttp
 @pytest.mark.asyncio
 async def test_httpx_json_unserializer(event_loop, aiohttp_server):
     from aiohttp import web
