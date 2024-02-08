@@ -1389,3 +1389,53 @@ async def test_httpx_json_serializer(event_loop, aiohttp_server, caplog):
     # Checking that there is no space after the colon in the log
     expected_log = '"query":"query getContinents'
     assert expected_log in caplog.text
+
+
+query_float_str = """
+    query getPi {
+      pi
+    }
+"""
+
+query_float_server_answer_data = '{"pi": 3.141592653589793238462643383279502884197}'
+
+query_float_server_answer = f'{{"data":{query_float_server_answer_data}}}'
+
+
+@pytest.mark.asyncio
+async def test_httpx_json_unserializer(event_loop, aiohttp_server):
+    from aiohttp import web
+    from decimal import Decimal
+    from functools import partial
+    from gql.transport.httpx import HTTPXAsyncTransport
+
+    async def handler(request):
+        return web.Response(
+            text=query_float_server_answer,
+            content_type="application/json",
+        )
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = str(server.make_url("/"))
+
+    json_loads = partial(json.loads, parse_float=Decimal)
+
+    transport = HTTPXAsyncTransport(
+        url=url,
+        timeout=10,
+        json_unserialize=json_loads,
+    )
+
+    async with Client(transport=transport) as session:
+
+        query = gql(query_float_str)
+
+        # Execute query asynchronously
+        result = await session.execute(query)
+
+        pi = result["pi"]
+
+        assert pi == Decimal("3.141592653589793238462643383279502884197")
