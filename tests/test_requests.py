@@ -927,7 +927,7 @@ async def test_requests_error_fetching_schema(
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_aiohttp_json_serializer(
+async def test_requests_json_serializer(
     event_loop, aiohttp_server, run_sync_test, caplog
 ):
     import json
@@ -989,7 +989,7 @@ query_float_server_answer = f'{{"data":{query_float_server_answer_data}}}'
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_aiohttp_json_deserializer(event_loop, aiohttp_server, run_sync_test):
+async def test_requests_json_deserializer(event_loop, aiohttp_server, run_sync_test):
     import json
     from aiohttp import web
     from decimal import Decimal
