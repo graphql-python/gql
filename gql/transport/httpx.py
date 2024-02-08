@@ -38,6 +38,7 @@ class _HTTPXTransport:
         self,
         url: Union[str, httpx.URL],
         json_serialize: Callable = json.dumps,
+        json_deserialize: Callable = json.loads,
         **kwargs,
     ):
         """Initialize the transport with the given httpx parameters.
@@ -45,10 +46,13 @@ class _HTTPXTransport:
         :param url: The GraphQL server URL. Example: 'https://server.com:PORT/path'.
         :param json_serialize: Json serializer callable.
                 By default json.dumps() function.
+        :param json_deserialize: Json deserializer callable.
+                By default json.loads() function.
         :param kwargs: Extra args passed to the `httpx` client.
         """
         self.url = url
         self.json_serialize = json_serialize
+        self.json_deserialize = json_deserialize
         self.kwargs = kwargs
 
     def _prepare_request(
@@ -145,7 +149,7 @@ class _HTTPXTransport:
             log.debug("<<< %s", response.text)
 
         try:
-            result: Dict[str, Any] = response.json()
+            result: Dict[str, Any] = self.json_deserialize(response.content)
 
         except Exception:
             self._raise_response_error(response, "Not a JSON answer")
