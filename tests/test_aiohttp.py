@@ -1511,6 +1511,56 @@ async def test_aiohttp_json_serializer(event_loop, aiohttp_server, caplog):
     assert expected_log in caplog.text
 
 
+query_float_str = """
+    query getPi {
+      pi
+    }
+"""
+
+query_float_server_answer_data = '{"pi": 3.141592653589793238462643383279502884197}'
+
+query_float_server_answer = f'{{"data":{query_float_server_answer_data}}}'
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_json_unserializer(event_loop, aiohttp_server):
+    from aiohttp import web
+    from decimal import Decimal
+    from functools import partial
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    async def handler(request):
+        return web.Response(
+            text=query_float_server_answer,
+            content_type="application/json",
+        )
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    json_loads = partial(json.loads, parse_float=Decimal)
+
+    transport = AIOHTTPTransport(
+        url=url,
+        timeout=10,
+        json_unserialize=json_loads,
+    )
+
+    async with Client(transport=transport) as session:
+
+        query = gql(query_float_str)
+
+        # Execute query asynchronously
+        result = await session.execute(query)
+
+        pi = result["pi"]
+
+        assert pi == Decimal("3.141592653589793238462643383279502884197")
+
+
 @pytest.mark.asyncio
 async def test_aiohttp_connector_owner_false(event_loop, aiohttp_server):
     from aiohttp import web, TCPConnector
