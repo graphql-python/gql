@@ -923,3 +923,109 @@ async def test_requests_error_fetching_schema(
         assert transport.session is None
 
     await run_sync_test(event_loop, server, test_code)
+
+
+@pytest.mark.aiohttp
+@pytest.mark.asyncio
+async def test_requests_json_serializer(
+    event_loop, aiohttp_server, run_sync_test, caplog
+):
+    import json
+    from aiohttp import web
+    from gql.transport.requests import RequestsHTTPTransport
+
+    async def handler(request):
+
+        request_text = await request.text()
+        print("Received on backend: " + request_text)
+
+        return web.Response(
+            text=query1_server_answer,
+            content_type="application/json",
+        )
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    def test_code():
+        transport = RequestsHTTPTransport(
+            url=url,
+            json_serialize=lambda e: json.dumps(e, separators=(",", ":")),
+        )
+
+        with Client(transport=transport) as session:
+
+            query = gql(query1_str)
+
+            # Execute query asynchronously
+            result = session.execute(query)
+
+            continents = result["continents"]
+
+            africa = continents[0]
+
+            assert africa["code"] == "AF"
+
+        # Checking that there is no space after the colon in the log
+        expected_log = '"query":"query getContinents'
+        assert expected_log in caplog.text
+
+    await run_sync_test(event_loop, server, test_code)
+
+
+query_float_str = """
+    query getPi {
+      pi
+    }
+"""
+
+query_float_server_answer_data = '{"pi": 3.141592653589793238462643383279502884197}'
+
+query_float_server_answer = f'{{"data":{query_float_server_answer_data}}}'
+
+
+@pytest.mark.aiohttp
+@pytest.mark.asyncio
+async def test_requests_json_deserializer(event_loop, aiohttp_server, run_sync_test):
+    import json
+    from aiohttp import web
+    from decimal import Decimal
+    from functools import partial
+    from gql.transport.requests import RequestsHTTPTransport
+
+    async def handler(request):
+        return web.Response(
+            text=query_float_server_answer,
+            content_type="application/json",
+        )
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    def test_code():
+
+        json_loads = partial(json.loads, parse_float=Decimal)
+
+        transport = RequestsHTTPTransport(
+            url=url,
+            json_deserialize=json_loads,
+        )
+
+        with Client(transport=transport) as session:
+
+            query = gql(query_float_str)
+
+            # Execute query asynchronously
+            result = session.execute(query)
+
+            pi = result["pi"]
+
+            assert pi == Decimal("3.141592653589793238462643383279502884197")
+
+    await run_sync_test(event_loop, server, test_code)

@@ -1,7 +1,7 @@
 import io
 import json
 import logging
-from typing import Any, Collection, Dict, List, Optional, Tuple, Type, Union
+from typing import Any, Callable, Collection, Dict, List, Optional, Tuple, Type, Union
 
 import requests
 from graphql import DocumentNode, ExecutionResult, print_ast
@@ -47,6 +47,8 @@ class RequestsHTTPTransport(Transport):
         method: str = "POST",
         retry_backoff_factor: float = 0.1,
         retry_status_forcelist: Collection[int] = _default_retry_codes,
+        json_serialize: Callable = json.dumps,
+        json_deserialize: Callable = json.loads,
         **kwargs: Any,
     ):
         """Initialize the transport with the given request parameters.
@@ -73,6 +75,10 @@ class RequestsHTTPTransport(Transport):
             should force a retry on. A retry is initiated if the request method is
             in allowed_methods and the response status code is in status_forcelist.
             (Default: [429, 500, 502, 503, 504])
+        :param json_serialize: Json serializer callable.
+                By default json.dumps() function
+        :param json_deserialize: Json deserializer callable.
+                By default json.loads() function
         :param kwargs: Optional arguments that ``request`` takes.
             These can be seen at the `requests`_ source code or the official `docs`_
 
@@ -90,6 +96,8 @@ class RequestsHTTPTransport(Transport):
         self.method = method
         self.retry_backoff_factor = retry_backoff_factor
         self.retry_status_forcelist = retry_status_forcelist
+        self.json_serialize: Callable = json_serialize
+        self.json_deserialize: Callable = json_deserialize
         self.kwargs = kwargs
 
         self.session = None
@@ -174,7 +182,7 @@ class RequestsHTTPTransport(Transport):
             payload["variables"] = nulled_variable_values
 
             # Add the payload to the operations field
-            operations_str = json.dumps(payload)
+            operations_str = self.json_serialize(payload)
             log.debug("operations %s", operations_str)
 
             # Generate the file map
@@ -188,7 +196,7 @@ class RequestsHTTPTransport(Transport):
             file_streams = {str(i): files[path] for i, path in enumerate(files)}
 
             # Add the file map field
-            file_map_str = json.dumps(file_map)
+            file_map_str = self.json_serialize(file_map)
             log.debug("file_map %s", file_map_str)
 
             fields = {"operations": operations_str, "map": file_map_str}
@@ -224,7 +232,7 @@ class RequestsHTTPTransport(Transport):
 
         # Log the payload
         if log.isEnabledFor(logging.INFO):
-            log.info(">>> %s", json.dumps(payload))
+            log.info(">>> %s", self.json_serialize(payload))
 
         # Pass kwargs to requests post method
         post_args.update(self.kwargs)
@@ -257,7 +265,10 @@ class RequestsHTTPTransport(Transport):
             )
 
         try:
-            result = response.json()
+            if self.json_deserialize == json.loads:
+                result = response.json()
+            else:
+                result = self.json_deserialize(response.text)
 
             if log.isEnabledFor(logging.INFO):
                 log.info("<<< %s", response.text)
@@ -396,7 +407,7 @@ class RequestsHTTPTransport(Transport):
 
         # Log the payload
         if log.isEnabledFor(logging.INFO):
-            log.info(">>> %s", json.dumps(post_args[data_key]))
+            log.info(">>> %s", self.json_serialize(post_args[data_key]))
 
         # Pass kwargs to requests post method
         post_args.update(self.kwargs)
