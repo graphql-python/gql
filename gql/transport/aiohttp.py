@@ -50,7 +50,7 @@ class AIOHTTPTransport(AsyncTransport):
         timeout: Optional[int] = None,
         ssl_close_timeout: Optional[Union[int, float]] = 10,
         json_serialize: Callable = json.dumps,
-        json_unserialize: Callable = json.loads,
+        json_deserialize: Callable = json.loads,
         client_session_args: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Initialize the transport with the given aiohttp parameters.
@@ -65,7 +65,7 @@ class AIOHTTPTransport(AsyncTransport):
                                   to close properly
         :param json_serialize: Json serializer callable.
                 By default json.dumps() function
-        :param json_unserialize: Json unserializer callable.
+        :param json_deserialize: Json deserializer callable.
                 By default json.loads() function
         :param client_session_args: Dict of extra args passed to
                 `aiohttp.ClientSession`_
@@ -84,7 +84,7 @@ class AIOHTTPTransport(AsyncTransport):
         self.session: Optional[aiohttp.ClientSession] = None
         self.response_headers: Optional[CIMultiDictProxy[str]]
         self.json_serialize: Callable = json_serialize
-        self.json_unserialize: Callable = json_unserialize
+        self.json_deserialize: Callable = json_deserialize
 
     async def connect(self) -> None:
         """Coroutine which will create an aiohttp ClientSession() as self.session.
@@ -332,7 +332,7 @@ class AIOHTTPTransport(AsyncTransport):
                 )
 
             try:
-                result = await resp.json(loads=self.json_unserialize, content_type=None)
+                result = await resp.json(loads=self.json_deserialize, content_type=None)
 
                 if log.isEnabledFor(logging.INFO):
                     result_text = await resp.text()

@@ -1523,7 +1523,7 @@ query_float_server_answer = f'{{"data":{query_float_server_answer_data}}}'
 
 
 @pytest.mark.asyncio
-async def test_aiohttp_json_unserializer(event_loop, aiohttp_server):
+async def test_aiohttp_json_deserializer(event_loop, aiohttp_server):
     from aiohttp import web
     from decimal import Decimal
     from functools import partial
@@ -1546,7 +1546,7 @@ async def test_aiohttp_json_unserializer(event_loop, aiohttp_server):
     transport = AIOHTTPTransport(
         url=url,
         timeout=10,
-        json_unserialize=json_loads,
+        json_deserialize=json_loads,
     )
 
     async with Client(transport=transport) as session:
