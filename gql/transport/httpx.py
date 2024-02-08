@@ -149,11 +149,7 @@ class _HTTPXTransport:
             log.debug("<<< %s", response.text)
 
         try:
-            result: Dict[str, Any]
-            if self.json_deserialize == json.loads:
-                result = response.json()
-            else:
-                result = self.json_deserialize(response.content)
+            result: Dict[str, Any] = self.json_deserialize(response.content)
 
         except Exception:
             self._raise_response_error(response, "Not a JSON answer")
