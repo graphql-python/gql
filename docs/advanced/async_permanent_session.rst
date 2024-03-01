@@ -75,7 +75,6 @@ backoff decorator to the :code:`retry_execute` argument.
         backoff.expo,
         Exception,
         max_tries=3,
-        giveup=lambda e: isinstance(e, TransportQueryError),
     )
     session = await client.connect_async(
         reconnecting=True,
@@ -83,6 +82,18 @@ backoff decorator to the :code:`retry_execute` argument.
     )
 
 If you don't want any retry on the execute calls, you can disable the retries with :code:`retry_execute=False`
+
+.. note::
+    If you want to retry even with :code:`TransportQueryError` exceptions,
+    then you need to make your own backoff decorator on your own method:
+
+    .. code-block:: python
+
+        @backoff.on_exception(backoff.expo,
+                              Exception,
+                              max_tries=3)
+        async def execute_with_retry(session, query):
+            return await session.execute(query)
 
 Subscription retries
 ^^^^^^^^^^^^^^^^^^^^
