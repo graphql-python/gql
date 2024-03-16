@@ -176,7 +176,7 @@ query_type = GraphQLObjectType(
                     "provided, returns the hero of that particular episode.",
                 )
             },
-            resolve=lambda _souce, _info, episode=None: get_hero_async(episode),
+            resolve=lambda _source, _info, episode=None: get_hero_async(episode),
         ),
         "human": GraphQLField(
             human_type,
@@ -186,7 +186,7 @@ query_type = GraphQLObjectType(
                     type_=GraphQLNonNull(GraphQLString),
                 )
             },
-            resolve=lambda _souce, _info, id: get_human(id),
+            resolve=lambda _source, _info, id: get_human(id),
         ),
         "droid": GraphQLField(
             droid_type,
