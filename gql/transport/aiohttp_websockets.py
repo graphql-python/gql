@@ -1,3 +1,4 @@
+import json
 import logging
 import re
 import time
@@ -6,8 +7,12 @@ from gql.transport.async_transport import AsyncTransport
 from typing import Any, AsyncGenerator, Dict, Optional, Union, Collection
 from aiohttp.typedefs import LooseHeaders, Mapping, StrOrURL
 from aiohttp.helpers import hdrs, BasicAuth, _SENTINEL
-from gql.transport.exceptions import TransportClosed, TransportProtocolError, TransportQueryError
-from graphql import DocumentNode, ExecutionResult
+from gql.transport.exceptions import (
+    TransportClosed,
+    TransportProtocolError,
+    TransportQueryError,
+)
+from graphql import DocumentNode, ExecutionResult, print_ast
 from h11 import Data
 from websockets import ConnectionClosed
 from gql.transport.websockets_base import ListenerQueue
@@ -36,6 +41,7 @@ from aiohttp.typedefs import LooseHeaders, StrOrURL
 from ssl import SSLContext
 
 log = logging.getLogger("gql.transport.aiohttp_websockets")
+
 
 class AIOHTTPWebsocketsTransport(AsyncTransport):
 
@@ -84,13 +90,13 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         self.receive_timeout: Optional[float] = receive_timeout
         self.ssl: Union[SSLContext, bool] = ssl
         self.ssl_context: Optional[SSLContext] = ssl_context
-        self.timeout: Union[float, _SENTINEL, None] = timeout        
+        self.timeout: Union[float, _SENTINEL, None] = timeout
         self.verify_ssl: Optional[bool] = verify_ssl
-
 
         self.session: Optional[aiohttp.ClientSession] = None
         self.websocket: Optional[aiohttp.ClientWebSocketResponse] = None
-
+        self.next_query_id: int = 1
+        self.listeners: Dict[int, ListenerQueue] = {}
 
     async def _initialize(self):
         """Hook to send the initialization messages after the connection
@@ -126,6 +132,41 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         """
         pass  # pragma: no cover
 
+    async def _send_query(
+        self,
+        document: DocumentNode,
+        variable_values: Optional[Dict[str, Any]] = None,
+        operation_name: Optional[str] = None,
+    ) -> int:
+        """Send a query to the provided websocket connection.
+
+        We use an incremented id to reference the query.
+
+        Returns the used id for this query.
+        """
+
+        query_id = self.next_query_id
+        self.next_query_id += 1
+
+        payload: Dict[str, Any] = {"query": print_ast(document)}
+        if variable_values:
+            payload["variables"] = variable_values
+        if operation_name:
+            payload["operationName"] = operation_name
+
+        query_type = "start"
+
+        if self.subprotocol == self.GRAPHQLWS_SUBPROTOCOL:
+            query_type = "subscribe"
+
+        query_str = json.dumps(
+            {"id": str(query_id), "type": query_type, "payload": payload}
+        )
+
+        await self._send(query_str)
+
+        return query_id
+
     async def _send(self, message: str) -> None:
         if self.websocket is None:
             raise TransportClosed("WebSocket connection is closed")
@@ -136,19 +177,19 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         except ConnectionClosed as e:
             await self._fail(e, clean_close=False)
             raise e
-    
+
     async def _receive(self) -> str:
 
         if self.websocket is None:
             raise TransportClosed("WebSocket connection is closed")
 
-        data: Data  = await self.websocket.receive()
+        data: Data = await self.websocket.receive()
 
         if not isinstance(data, str):
             raise TransportProtocolError("Binary data received in the websocket")
-        
+
         answer: str = data
-        
+
         log.info("<<< %s", answer)
 
         return answer
