@@ -1,11 +1,16 @@
-from enum import verify
+import logging
 import re
 import time
 import aiohttp
 from gql.transport.async_transport import AsyncTransport
-from typing import Optional, Union, Collection
+from typing import Any, AsyncGenerator, Dict, Optional, Union, Collection
 from aiohttp.typedefs import LooseHeaders, Mapping, StrOrURL
 from aiohttp.helpers import hdrs, BasicAuth, _SENTINEL
+from gql.transport.exceptions import TransportClosed, TransportProtocolError, TransportQueryError
+from graphql import DocumentNode, ExecutionResult
+from h11 import Data
+from websockets import ConnectionClosed
+from gql.transport.websockets_base import ListenerQueue
 
 """HTTP Client for asyncio."""
 
@@ -30,6 +35,7 @@ from aiohttp.typedefs import LooseHeaders, StrOrURL
 
 from ssl import SSLContext
 
+log = logging.getLogger("gql.transport.aiohttp_websockets")
 
 class AIOHTTPWebsocketsTransport(AsyncTransport):
 
@@ -57,7 +63,9 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         proxy_headers: Optional[LooseHeaders] = None,
         compress: int = 0,
         max_msg_size: int = 4 * 1024 * 1024,
+        **kwargs,
     ) -> None:
+        super().__init__(**kwargs)
         self.url: str = url
         self.headers: Optional[LooseHeaders] = headers
         self.auth: Optional[BasicAuth] = auth
@@ -83,7 +91,67 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         self.session: Optional[aiohttp.ClientSession] = None
         self.websocket: Optional[aiohttp.ClientWebSocketResponse] = None
 
-        super().__init__()
+
+    async def _initialize(self):
+        """Hook to send the initialization messages after the connection
+        and potentially wait for the backend ack.
+        """
+        pass  # pragma: no cover
+
+    async def _stop_listener(self, query_id: int):
+        """Hook to stop to listen to a specific query.
+        Will send a stop message in some subclasses.
+        """
+        pass  # pragma: no cover
+
+    async def _after_connect(self):
+        """Hook to add custom code for subclasses after the connection
+        has been established.
+        """
+        pass  # pragma: no cover
+
+    async def _after_initialize(self):
+        """Hook to add custom code for subclasses after the initialization
+        has been done.
+        """
+        pass  # pragma: no cover
+
+    async def _close_hook(self):
+        """Hook to add custom code for subclasses for the connection close"""
+        pass  # pragma: no cover
+
+    async def _connection_terminate(self):
+        """Hook to add custom code for subclasses after the initialization
+        has been done.
+        """
+        pass  # pragma: no cover
+
+    async def _send(self, message: str) -> None:
+        if self.websocket is None:
+            raise TransportClosed("WebSocket connection is closed")
+
+        try:
+            await self.websocket.send_str(message)
+            log.info(">>> %s", message)
+        except ConnectionClosed as e:
+            await self._fail(e, clean_close=False)
+            raise e
+    
+    async def _receive(self) -> str:
+
+        if self.websocket is None:
+            raise TransportClosed("WebSocket connection is closed")
+
+        data: Data  = await self.websocket.receive()
+
+        if not isinstance(data, str):
+            raise TransportProtocolError("Binary data received in the websocket")
+        
+        answer: str = data
+        
+        log.info("<<< %s", answer)
+
+        return answer
 
     async def connect(self) -> None:
         if self.session is None:
@@ -110,7 +178,6 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
                     receive_timeout=self.receive_timeout,
                     ssl=self.ssl,
                     ssl_context=None,
-                    receive_timeout=self.receive_timeout,
                     timeout=self.timeout,
                     verify_ssl=self.verify_ssl,
                 )
@@ -119,8 +186,47 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
             finally:
                 ...
 
-    async def close(self): ...
+    async def close(self) -> None: ...
 
-    async def execute(self, document, variable_values=None, operation_name=None): ...
+    async def execute(
+        self,
+        document: DocumentNode,
+        variable_values: Optional[Dict[str, Any]] = None,
+        operation_name: Optional[str] = None,
+    ) -> ExecutionResult:
+        """Execute the provided document AST against the configured remote server
+        using the current session.
 
-    def subscribe(self, document, variable_values=None, operation_name=None): ...
+        Send a query but close the async generator as soon as we have the first answer.
+
+        The result is sent as an ExecutionResult object.
+        """
+        first_result = None
+
+        generator = self.subscribe(
+            document, variable_values, operation_name, send_stop=False
+        )
+
+        async for result in generator:
+            first_result = result
+
+            # Note: we need to run generator.aclose() here or the finally block in
+            # the subscribe will not be reached in pypy3 (python version 3.6.1)
+            await generator.aclose()
+
+            break
+
+        if first_result is None:
+            raise TransportQueryError(
+                "Query completed without any answer received from the server"
+            )
+
+        return first_result
+
+    async def subscribe(
+        self,
+        document: DocumentNode,
+        variable_values: Optional[Dict[str, Any]] = None,
+        operation_name: Optional[str] = None,
+        send_stop: Optional[bool] = True,
+    ) -> AsyncGenerator[ExecutionResult, None]: ...
