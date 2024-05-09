@@ -1,47 +1,37 @@
+"""Websockets Client for asyncio."""
+
+from ssl import SSLContext
+
+import aiohttp
 import asyncio
-from contextlib import suppress
 import json
 import logging
-import re
-import time
-from tkinter import W
-import aiohttp
-from gql.transport.async_transport import AsyncTransport
-from typing import Any, AsyncGenerator, Dict, Optional, Union, Collection
+from aiohttp import WSMessage, WSMsgType
+from aiohttp.client_reqrep import Fingerprint
+from aiohttp.helpers import BasicAuth, hdrs
 from aiohttp.typedefs import LooseHeaders, Mapping, StrOrURL
-from aiohttp.helpers import hdrs, BasicAuth, _SENTINEL
-from gql.transport.exceptions import (
-    TransportClosed,
-    TransportProtocolError,
-    TransportQueryError,
-)
+from contextlib import suppress
 from graphql import DocumentNode, ExecutionResult, print_ast
-from h11 import Data
-from websockets import ConnectionClosed
-from gql.transport.websockets_base import ListenerQueue
-
-"""HTTP Client for asyncio."""
-
 from typing import (
+    Any,
+    AsyncGenerator,
     Collection,
+    Dict,
     Mapping,
     Optional,
+    Tuple,
     Union,
 )
 
-
-from aiohttp import hdrs
-from aiohttp.client_reqrep import (
-    Fingerprint,
+from gql.transport.async_transport import AsyncTransport
+from gql.transport.exceptions import (
+    TransportAlreadyConnected,
+    TransportClosed,
+    TransportProtocolError,
+    TransportQueryError,
+    TransportServerError,
 )
-from aiohttp.helpers import (
-    _SENTINEL,
-    BasicAuth,
-    sentinel,
-)
-from aiohttp.typedefs import LooseHeaders, StrOrURL
-
-from ssl import SSLContext
+from gql.transport.websockets_base import ListenerQueue
 
 log = logging.getLogger("gql.transport.aiohttp_websockets")
 
@@ -59,7 +49,7 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         *,
         method: str = hdrs.METH_GET,
         protocols: Collection[str] = (),
-        timeout: Union[float, _SENTINEL, None] = sentinel,
+        timeout: float = 10.0,
         receive_timeout: Optional[float] = None,
         autoclose: bool = True,
         autoping: bool = True,
@@ -73,7 +63,6 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         ssl: Union[SSLContext, bool, Fingerprint] = True,
         ssl_context: Optional[SSLContext] = None,
         verify_ssl: Optional[bool] = True,
-        server_hostname: Optional[str] = None,
         proxy_headers: Optional[LooseHeaders] = None,
         compress: int = 0,
         max_msg_size: int = 4 * 1024 * 1024,
@@ -81,10 +70,14 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         close_timeout: Optional[Union[int, float]] = 10,
         ack_timeout: Optional[Union[int, float]] = 10,
         keep_alive_timeout: Optional[Union[int, float]] = None,
+        init_payload: Dict[str, Any] = {},
+        ping_interval: Optional[Union[int, float]] = None,
+        pong_timeout: Optional[Union[int, float]] = None,
+        answer_pings: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.url: str = url
+        self.url: StrOrURL = url
         self.headers: Optional[LooseHeaders] = headers
         self.auth: Optional[BasicAuth] = auth
         self.autoclose: bool = autoclose
@@ -95,25 +88,29 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         self.method: str = method
         self.origin: Optional[str] = origin
         self.params: Optional[Mapping[str, str]] = params
-        self.protocols: Optional[list[str]] = protocols
+        self.protocols: Collection[str] = protocols
         self.proxy: Optional[StrOrURL] = proxy
         self.proxy_auth: Optional[BasicAuth] = proxy_auth
         self.proxy_headers: Optional[LooseHeaders] = proxy_headers
         self.receive_timeout: Optional[float] = receive_timeout
-        self.ssl: Union[SSLContext, bool] = ssl
+        self.ssl: Union[SSLContext, bool, Fingerprint] = ssl
         self.ssl_context: Optional[SSLContext] = ssl_context
-        self.timeout: Union[float, _SENTINEL, None] = timeout
+        self.timeout: float = timeout
         self.verify_ssl: Optional[bool] = verify_ssl
+        self.init_payload: Dict[str, Any] = init_payload
 
         self.connect_timeout: Optional[Union[int, float]] = connect_timeout
         self.close_timeout: Optional[Union[int, float]] = close_timeout
         self.ack_timeout: Optional[Union[int, float]] = ack_timeout
         self.keep_alive_timeout: Optional[Union[int, float]] = keep_alive_timeout
+        self._next_keep_alive_message: asyncio.Event = asyncio.Event()
+        self._next_keep_alive_message.set()
 
         self.session: Optional[aiohttp.ClientSession] = None
         self.websocket: Optional[aiohttp.ClientWebSocketResponse] = None
         self.next_query_id: int = 1
         self.listeners: Dict[int, ListenerQueue] = {}
+        self._connecting: bool = False
 
         self.receive_data_task: Optional[asyncio.Future] = None
         self.check_keep_alive_task: Optional[asyncio.Future] = None
@@ -125,11 +122,235 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         self._no_more_listeners: asyncio.Event = asyncio.Event()
         self._no_more_listeners.set()
 
-    async def _initialize(self):
-        """Hook to send the initialization messages after the connection
-        and potentially wait for the backend ack.
+        self.payloads: Dict[str, Any] = {}
+
+        self.ping_interval: Optional[Union[int, float]] = ping_interval
+        self.pong_timeout: Optional[Union[int, float]]
+        self.answer_pings: bool = answer_pings
+
+        if ping_interval is not None:
+            if pong_timeout is None:
+                self.pong_timeout = ping_interval / 2
+            else:
+                self.pong_timeout = pong_timeout
+
+        self.send_ping_task: Optional[asyncio.Future] = None
+
+        self.ping_received: asyncio.Event = asyncio.Event()
+        """ping_received is an asyncio Event which will fire  each time
+        a ping is received with the graphql-ws protocol"""
+
+        self.pong_received: asyncio.Event = asyncio.Event()
+        """pong_received is an asyncio Event which will fire  each time
+        a pong is received with the graphql-ws protocol"""
+
+        if protocols is None:
+            self.supported_subprotocols = [
+                self.APOLLO_SUBPROTOCOL,
+                self.GRAPHQLWS_SUBPROTOCOL,
+            ]
+        else:
+            self.supported_subprotocols = protocols
+
+    def _parse_answer_graphqlws(
+        self, json_answer: Dict[str, Any]
+    ) -> Tuple[str, Optional[int], Optional[ExecutionResult]]:
+        """Parse the answer received from the server if the server supports the
+        graphql-ws protocol.
+
+        Returns a list consisting of:
+            - the answer_type (between:
+              'connection_ack', 'ping', 'pong', 'data', 'error', 'complete')
+            - the answer id (Integer) if received or None
+            - an execution Result if the answer_type is 'data' or None
+
+        Differences with the apollo websockets protocol (superclass):
+            - the "data" message is now called "next"
+            - the "stop" message is now called "complete"
+            - there is no connection_terminate or connection_error messages
+            - instead of a unidirectional keep-alive (ka) message from server to client,
+              there is now the possibility to send bidirectional ping/pong messages
+            - connection_ack has an optional payload
+            - the 'error' answer type returns a list of errors instead of a single error
         """
-        pass  # pragma: no cover
+
+        answer_type: str = ""
+        answer_id: Optional[int] = None
+        execution_result: Optional[ExecutionResult] = None
+
+        try:
+            answer_type = str(json_answer.get("type"))
+
+            if answer_type in ["next", "error", "complete"]:
+                answer_id = int(str(json_answer.get("id")))
+
+                if answer_type == "next" or answer_type == "error":
+
+                    payload = json_answer.get("payload")
+
+                    if answer_type == "next":
+
+                        if not isinstance(payload, dict):
+                            raise ValueError("payload is not a dict")
+
+                        if "errors" not in payload and "data" not in payload:
+                            raise ValueError(
+                                "payload does not contain 'data' or 'errors' fields"
+                            )
+
+                        execution_result = ExecutionResult(
+                            errors=payload.get("errors"),
+                            data=payload.get("data"),
+                            extensions=payload.get("extensions"),
+                        )
+
+                        # Saving answer_type as 'data' to be understood with superclass
+                        answer_type = "data"
+
+                    elif answer_type == "error":
+
+                        if not isinstance(payload, list):
+                            raise ValueError("payload is not a list")
+
+                        raise TransportQueryError(
+                            str(payload[0]), query_id=answer_id, errors=payload
+                        )
+
+            elif answer_type in ["ping", "pong", "connection_ack"]:
+                self.payloads[answer_type] = json_answer.get("payload", None)
+
+            else:
+                raise ValueError
+
+            if self.check_keep_alive_task is not None:
+                self._next_keep_alive_message.set()
+
+        except ValueError as e:
+            raise TransportProtocolError(
+                f"Server did not return a GraphQL result: {json_answer}"
+            ) from e
+
+        return answer_type, answer_id, execution_result
+
+    def _parse_answer_apollo(
+        self, json_answer: Dict[str, Any]
+    ) -> Tuple[str, Optional[int], Optional[ExecutionResult]]:
+        """Parse the answer received from the server if the server supports the
+        apollo websockets protocol.
+
+        Returns a list consisting of:
+            - the answer_type (between:
+              'connection_ack', 'ka', 'connection_error', 'data', 'error', 'complete')
+            - the answer id (Integer) if received or None
+            - an execution Result if the answer_type is 'data' or None
+        """
+
+        answer_type: str = ""
+        answer_id: Optional[int] = None
+        execution_result: Optional[ExecutionResult] = None
+
+        try:
+            answer_type = str(json_answer.get("type"))
+
+            if answer_type in ["data", "error", "complete"]:
+                answer_id = int(str(json_answer.get("id")))
+
+                if answer_type == "data" or answer_type == "error":
+
+                    payload = json_answer.get("payload")
+
+                    if not isinstance(payload, dict):
+                        raise ValueError("payload is not a dict")
+
+                    if answer_type == "data":
+
+                        if "errors" not in payload and "data" not in payload:
+                            raise ValueError(
+                                "payload does not contain 'data' or 'errors' fields"
+                            )
+
+                        execution_result = ExecutionResult(
+                            errors=payload.get("errors"),
+                            data=payload.get("data"),
+                            extensions=payload.get("extensions"),
+                        )
+
+                    elif answer_type == "error":
+
+                        raise TransportQueryError(
+                            str(payload), query_id=answer_id, errors=[payload]
+                        )
+
+            elif answer_type == "ka":
+                # Keep-alive message
+                if self.check_keep_alive_task is not None:
+                    self._next_keep_alive_message.set()
+            elif answer_type == "connection_ack":
+                pass
+            elif answer_type == "connection_error":
+                error_payload = json_answer.get("payload")
+                raise TransportServerError(f"Server error: '{repr(error_payload)}'")
+            else:
+                raise ValueError
+
+        except ValueError as e:
+            raise TransportProtocolError(
+                f"Server did not return a GraphQL result: {json_answer}"
+            ) from e
+
+        return answer_type, answer_id, execution_result
+
+    def _parse_answer(
+        self, answer: str
+    ) -> Tuple[str, Optional[int], Optional[ExecutionResult]]:
+        """Parse the answer received from the server depending on
+        the detected subprotocol.
+        """
+        try:
+            json_answer = json.loads(answer)
+        except ValueError:
+            raise TransportProtocolError(
+                f"Server did not return a GraphQL result: {answer}"
+            )
+
+        if self.subprotocol == self.GRAPHQLWS_SUBPROTOCOL:
+            return self._parse_answer_graphqlws(json_answer)
+
+        return self._parse_answer_apollo(json_answer)
+
+    async def _wait_ack(self) -> None:
+        """Wait for the connection_ack message. Keep alive messages are ignored"""
+
+        while True:
+            init_answer = await self._receive()
+
+            answer_type, _, _ = self._parse_answer(init_answer)
+
+            if answer_type == "connection_ack":
+                return
+
+            if answer_type != "ka":
+                raise TransportProtocolError(
+                    "Websocket server did not return a connection ack"
+                )
+
+    async def _send_init_message_and_wait_ack(self) -> None:
+        """Send init message to the provided websocket and wait for the connection ACK.
+
+        If the answer is not a connection_ack message, we will return an Exception.
+        """
+
+        init_message = json.dumps(
+            {"type": "connection_init", "payload": self.init_payload}
+        )
+
+        await self._send(init_message)
+
+        # Wait for the connection_ack message or raise a TimeoutError
+        await asyncio.wait_for(self._wait_ack(), self.ack_timeout)
+
+    async def _initialize(self):
+        await self._send_init_message_and_wait_ack()
 
     async def _stop_listener(self, query_id: int):
         """Hook to stop to listen to a specific query.
@@ -138,6 +359,8 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         pass  # pragma: no cover
 
     async def _after_connect(self):
+        if self.websocket is None:
+            raise TransportClosed("WebSocket connection is closed")
 
         # Find the backend subprotocol returned in the response headers
         # TODO: find the equivalent of response_headers in aiohttp websocket response
@@ -151,11 +374,58 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
 
         log.debug(f"backend subprotocol returned: {self.subprotocol!r}")
 
-    async def _after_initialize(self):
-        """Hook to add custom code for subclasses after the initialization
-        has been done.
+    async def send_ping(self, payload: Optional[Any] = None) -> None:
+        """Send a ping message for the graphql-ws protocol"""
+
+        ping_message = {"type": "ping"}
+
+        if payload is not None:
+            ping_message["payload"] = payload
+
+        await self._send(json.dumps(ping_message))
+
+    async def _send_ping_coro(self) -> None:
+        """Coroutine to periodically send a ping from the client to the backend.
+
+        Only used for the graphql-ws protocol.
+
+        Send a ping every ping_interval seconds.
+        Close the connection if a pong is not received within pong_timeout seconds.
         """
-        pass  # pragma: no cover
+
+        assert self.ping_interval is not None
+
+        try:
+            while True:
+                await asyncio.sleep(self.ping_interval)
+
+                await self.send_ping()
+
+                await asyncio.wait_for(self.pong_received.wait(), self.pong_timeout)
+
+                # Reset for the next iteration
+                self.pong_received.clear()
+
+        except asyncio.TimeoutError:
+            # No pong received in the appriopriate time, close with error
+            # If the timeout happens during a close already in progress, do nothing
+            if self.close_task is None:
+                await self._fail(
+                    TransportServerError(
+                        f"No pong received after {self.pong_timeout!r} seconds"
+                    ),
+                    clean_close=False,
+                )
+
+    async def _after_initialize(self):
+
+        # If requested, create a task to send periodic pings to the backend
+        if (
+            self.subprotocol == self.GRAPHQLWS_SUBPROTOCOL
+            and self.ping_interval is not None
+        ):
+
+            self.send_ping_task = asyncio.ensure_future(self._send_ping_coro())
 
     async def _close_hook(self):
         """Hook to add custom code for subclasses for the connection close"""
@@ -211,7 +481,7 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         try:
             await self.websocket.send_str(message)
             log.info(">>> %s", message)
-        except ConnectionClosed as e:
+        except ConnectionResetError as e:
             await self._fail(e, clean_close=False)
             raise e
 
@@ -220,12 +490,12 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         if self.websocket is None:
             raise TransportClosed("WebSocket connection is closed")
 
-        data: Data = await self.websocket.receive()
+        data: WSMessage = await self.websocket.receive()
 
-        if not isinstance(data, str):
+        if data.type != WSMsgType.TEXT:
             raise TransportProtocolError("Binary data received in the websocket")
 
-        answer: str = data
+        answer: str = data.data
 
         log.info("<<< %s", answer)
 
@@ -244,11 +514,112 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         if remaining == 0:
             self._no_more_listeners.set()
 
+    async def _check_ws_liveness(self) -> None:
+        """Coroutine which will periodically check the liveness of the connection
+        through keep-alive messages
+        """
+
+        try:
+            while True:
+                await asyncio.wait_for(
+                    self._next_keep_alive_message.wait(), self.keep_alive_timeout
+                )
+
+                # Reset for the next iteration
+                self._next_keep_alive_message.clear()
+
+        except asyncio.TimeoutError:
+            # No keep-alive message in the appriopriate interval, close with error
+            # while trying to notify the server of a proper close (in case
+            # the keep-alive interval of the client or server was not aligned
+            # the connection still remains)
+
+            # If the timeout happens during a close already in progress, do nothing
+            if self.close_task is None:
+                await self._fail(
+                    TransportServerError(
+                        "No keep-alive message has been received within "
+                        "the expected interval ('keep_alive_timeout' parameter)"
+                    ),
+                    clean_close=False,
+                )
+
+        except asyncio.CancelledError:
+            # The client is probably closing, handle it properly
+            pass
+
+    async def _handle_answer(
+        self,
+        answer_type: str,
+        answer_id: Optional[int],
+        execution_result: Optional[ExecutionResult],
+    ) -> None:
+
+        try:
+            # Put the answer in the queue
+            if answer_id is not None:
+                await self.listeners[answer_id].put((answer_type, execution_result))
+        except KeyError:
+            # Do nothing if no one is listening to this query_id.
+            pass
+
+    async def _receive_data_loop(self) -> None:
+        """Main asyncio task which will listen to the incoming messages and will
+        call the parse_answer and handle_answer methods of the subclass."""
+        try:
+            while True:
+
+                # Wait the next answer from the websocket server
+                try:
+                    answer = await self._receive()
+                except (ConnectionResetError, TransportProtocolError) as e:
+                    await self._fail(e, clean_close=False)
+                    break
+                except TransportClosed:
+                    break
+
+                # Parse the answer
+                try:
+                    answer_type, answer_id, execution_result = self._parse_answer(
+                        answer
+                    )
+                except TransportQueryError as e:
+                    # Received an exception for a specific query
+                    # ==> Add an exception to this query queue
+                    # The exception is raised for this specific query,
+                    # but the transport is not closed.
+                    assert isinstance(
+                        e.query_id, int
+                    ), "TransportQueryError should have a query_id defined here"
+                    try:
+                        await self.listeners[e.query_id].set_exception(e)
+                    except KeyError:
+                        # Do nothing if no one is listening to this query_id
+                        pass
+
+                    continue
+
+                except (TransportServerError, TransportProtocolError) as e:
+                    # Received a global exception for this transport
+                    # ==> close the transport
+                    # The exception will be raised for all current queries.
+                    await self._fail(e, clean_close=False)
+                    break
+
+                await self._handle_answer(answer_type, answer_id, execution_result)
+
+        finally:
+            log.debug("Exiting _receive_data_loop()")
+
     async def connect(self) -> None:
+        log.debug("connect: starting")
+
         if self.session is None:
             self.session = aiohttp.ClientSession()
 
-        if self.session is not None:
+        if self.websocket is None and not self._connecting:
+            self._connecting = True
+
             try:
                 self.websocket = await self.session.ws_connect(
                     method=self.method,
@@ -274,9 +645,40 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
                 )
             except Exception as e:
                 raise e
-            finally:
-                ...
+
+            self._connecting = False
+
             await self._after_connect()
+
+            self.next_query_id = 1
+            self.close_exception = None
+            self._wait_closed.clear()
+
+            # Send the init message and wait for the ack from the server
+            # Note: This should generate a TimeoutError
+            # if no ACKs are received within the ack_timeout
+            try:
+                await self._initialize()
+            except ConnectionResetError as e:
+                raise e
+            except (TransportProtocolError, asyncio.TimeoutError) as e:
+                await self._fail(e, clean_close=False)
+                raise e
+
+            # Run the after_init hook of the subclass
+            await self._after_initialize()
+
+            # If specified, create a task to check liveness of the connection
+            # through keep-alive messages
+            if self.keep_alive_timeout is not None:
+                self.check_keep_alive_task = asyncio.ensure_future(
+                    self._check_ws_liveness()
+                )
+
+            # Create a task to listen to the incoming websocket messages
+            self.receive_data_task = asyncio.ensure_future(self._receive_data_loop())
+
+        log.debug("connect: done")
 
     async def _clean_close(self, e: Exception) -> None:
         """Coroutine which will:
@@ -364,6 +766,7 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
             self._wait_closed.set()
 
         log.debug("_close_coro: exiting")
+
     async def _fail(self, e: Exception, clean_close: bool = True) -> None:
         log.debug("_fail: starting with exception: " + repr(e))
 
@@ -397,7 +800,6 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         await self._wait_closed.wait()
 
         log.debug("wait_close: done")
-
 
     async def execute(
         self,
@@ -490,5 +892,3 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         finally:
             log.debug(f"In subscribe finally for query_id {query_id}")
             self._remove_listener(query_id)
-
-
