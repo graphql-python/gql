@@ -4,14 +4,13 @@ from ssl import SSLContext
 
 import aiohttp
 import asyncio
-import json
 import logging
-from aiohttp import WSMessage, WSMsgType
 from aiohttp.client_reqrep import Fingerprint
 from aiohttp.helpers import BasicAuth, hdrs
-from aiohttp.typedefs import LooseHeaders, Mapping, StrOrURL
+from aiohttp.typedefs import LooseHeaders, StrOrURL
 from contextlib import suppress
 from graphql import DocumentNode, ExecutionResult, print_ast
+from multidict import CIMultiDict, CIMultiDictProxy
 from typing import (
     Any,
     AsyncGenerator,
@@ -111,6 +110,7 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         self.next_query_id: int = 1
         self.listeners: Dict[int, ListenerQueue] = {}
         self._connecting: bool = False
+        self.response_headers: Optional[CIMultiDictProxy[str]] = None
 
         self.receive_data_task: Optional[asyncio.Future] = None
         self.check_keep_alive_task: Optional[asyncio.Future] = None
@@ -144,13 +144,11 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         """pong_received is an asyncio Event which will fire  each time
         a pong is received with the graphql-ws protocol"""
 
-        if protocols is None:
-            self.supported_subprotocols = [
-                self.APOLLO_SUBPROTOCOL,
-                self.GRAPHQLWS_SUBPROTOCOL,
-            ]
-        else:
-            self.supported_subprotocols = protocols
+        self.supported_subprotocols: Collection[str] = protocols or (
+            self.APOLLO_SUBPROTOCOL,
+            self.GRAPHQLWS_SUBPROTOCOL,
+        )
+        self.close_exception: Optional[Exception] = None
 
     def _parse_answer_graphqlws(
         self, json_answer: Dict[str, Any]
@@ -233,7 +231,7 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         return answer_type, answer_id, execution_result
 
     def _parse_answer_apollo(
-        self, json_answer: Dict[str, Any]
+        self, answer: Dict[str, Any]
     ) -> Tuple[str, Optional[int], Optional[ExecutionResult]]:
         """Parse the answer received from the server if the server supports the
         apollo websockets protocol.
@@ -250,14 +248,14 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         execution_result: Optional[ExecutionResult] = None
 
         try:
-            answer_type = str(json_answer.get("type"))
+            answer_type = str(answer.get("type"))
 
             if answer_type in ["data", "error", "complete"]:
-                answer_id = int(str(json_answer.get("id")))
+                answer_id = int(str(answer.get("id")))
 
                 if answer_type == "data" or answer_type == "error":
 
-                    payload = json_answer.get("payload")
+                    payload = answer.get("payload")
 
                     if not isinstance(payload, dict):
                         raise ValueError("payload is not a dict")
@@ -288,35 +286,28 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
             elif answer_type == "connection_ack":
                 pass
             elif answer_type == "connection_error":
-                error_payload = json_answer.get("payload")
+                error_payload = answer.get("payload")
                 raise TransportServerError(f"Server error: '{repr(error_payload)}'")
             else:
                 raise ValueError
 
         except ValueError as e:
             raise TransportProtocolError(
-                f"Server did not return a GraphQL result: {json_answer}"
+                f"Server did not return a GraphQL result: {answer}"
             ) from e
 
         return answer_type, answer_id, execution_result
 
     def _parse_answer(
-        self, answer: str
+        self, answer: Dict[str, Any]
     ) -> Tuple[str, Optional[int], Optional[ExecutionResult]]:
         """Parse the answer received from the server depending on
         the detected subprotocol.
         """
-        try:
-            json_answer = json.loads(answer)
-        except ValueError:
-            raise TransportProtocolError(
-                f"Server did not return a GraphQL result: {answer}"
-            )
-
         if self.subprotocol == self.GRAPHQLWS_SUBPROTOCOL:
-            return self._parse_answer_graphqlws(json_answer)
+            return self._parse_answer_graphqlws(answer)
 
-        return self._parse_answer_apollo(json_answer)
+        return self._parse_answer_apollo(answer)
 
     async def _wait_ack(self) -> None:
         """Wait for the connection_ack message. Keep alive messages are ignored"""
@@ -340,9 +331,7 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         If the answer is not a connection_ack message, we will return an Exception.
         """
 
-        init_message = json.dumps(
-            {"type": "connection_init", "payload": self.init_payload}
-        )
+        init_message = {"type": "connection_init", "payload": self.init_payload}
 
         await self._send(init_message)
 
@@ -382,7 +371,7 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         if payload is not None:
             ping_message["payload"] = payload
 
-        await self._send(json.dumps(ping_message))
+        await self._send(ping_message)
 
     async def _send_ping_coro(self) -> None:
         """Coroutine to periodically send a ping from the client to the backend.
@@ -464,38 +453,31 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         if self.subprotocol == self.GRAPHQLWS_SUBPROTOCOL:
             query_type = "subscribe"
 
-        query_str = json.dumps(
-            {"id": str(query_id), "type": query_type, "payload": payload}
-        )
+        query = {"id": str(query_id), "type": query_type, "payload": payload}
 
-        await self._send(query_str)
+        await self._send(query)
 
         return query_id
 
-    async def _send(self, message: str) -> None:
+    async def _send(self, message: Dict[str, Any]) -> None:
         """Send the provided message to the websocket connection and log the message"""
 
         if self.websocket is None:
             raise TransportClosed("WebSocket connection is closed")
 
         try:
-            await self.websocket.send_str(message)
+            await self.websocket.send_json(message)
             log.info(">>> %s", message)
         except ConnectionResetError as e:
             await self._fail(e, clean_close=False)
             raise e
 
-    async def _receive(self) -> str:
+    async def _receive(self) -> Dict[str, Any]:
 
         if self.websocket is None:
             raise TransportClosed("WebSocket connection is closed")
 
-        data: WSMessage = await self.websocket.receive()
-
-        if data.type != WSMsgType.TEXT:
-            raise TransportProtocolError("Binary data received in the websocket")
-
-        answer: str = data.data
+        answer = await self.websocket.receive_json()
 
         log.info("<<< %s", answer)
 
@@ -643,10 +625,13 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
                     timeout=self.timeout,
                     verify_ssl=self.verify_ssl,
                 )
-            except Exception as e:
-                raise e
+            finally:
+                self._connecting = False
 
-            self._connecting = False
+            try:
+                self.response_headers = self.websocket._response.headers
+            except AttributeError:
+                self.response_headers = CIMultiDictProxy(CIMultiDict())
 
             await self._after_connect()
 
@@ -678,9 +663,12 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
             # Create a task to listen to the incoming websocket messages
             self.receive_data_task = asyncio.ensure_future(self._receive_data_loop())
 
+        else:
+            raise TransportAlreadyConnected("Transport is already connected")
+
         log.debug("connect: done")
 
-    async def _clean_close(self, e: Exception) -> None:
+    async def _clean_close(self) -> None:
         """Coroutine which will:
 
         - send stop messages for each active subscription to the server
@@ -737,7 +725,7 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
             if clean_close:
                 log.debug("_close_coro: starting clean_close")
                 try:
-                    await self._clean_close(e)
+                    await self._clean_close()
                 except Exception as exc:  # pragma: no cover
                     log.warning("Ignoring exception in _clean_close: " + repr(exc))
 
