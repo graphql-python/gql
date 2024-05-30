@@ -1,7 +1,6 @@
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
-
 from graphql import DocumentNode, GraphQLSchema
+from typing import Any, Dict, Optional
 
 from .utilities import serialize_variable_values
 

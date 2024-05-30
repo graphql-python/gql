@@ -1,11 +1,10 @@
 import asyncio
 import json
+import pytest
 import sys
 import warnings
-from typing import List
-
-import pytest
 from parse import search
+from typing import List
 
 from gql import Client, gql
 from gql.transport.exceptions import TransportServerError
@@ -816,8 +815,9 @@ async def test_graphqlws_subscription_reconnecting_session(
 ):
 
     import websockets
-    from gql.transport.websockets import WebsocketsTransport
+
     from gql.transport.exceptions import TransportClosed
+    from gql.transport.websockets import WebsocketsTransport
 
     path = "/graphql"
     url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}{path}"

@@ -1,10 +1,10 @@
+from ssl import SSLContext
+
 import json
 import logging
-from ssl import SSLContext
+from graphql import DocumentNode, ExecutionResult, print_ast
 from typing import Any, Dict, Optional, Tuple, Union, cast
 from urllib.parse import urlparse
-
-from graphql import DocumentNode, ExecutionResult, print_ast
 
 from .appsync_auth import AppSyncAuthentication, AppSyncIAMAuthentication
 from .exceptions import TransportProtocolError, TransportServerError

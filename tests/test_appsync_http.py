@@ -1,5 +1,4 @@
 import json
-
 import pytest
 
 from gql import Client, gql
@@ -12,9 +11,10 @@ async def test_appsync_iam_mutation(
     event_loop, aiohttp_server, fake_credentials_factory
 ):
     from aiohttp import web
+    from urllib.parse import urlparse
+
     from gql.transport.aiohttp import AIOHTTPTransport
     from gql.transport.appsync_auth import AppSyncIAMAuthentication
-    from urllib.parse import urlparse
 
     async def handler(request):
         data = {

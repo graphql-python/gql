@@ -17,7 +17,6 @@ from typing import (
     AsyncGenerator,
     Collection,
     Dict,
-    Mapping,
     Optional,
     Tuple,
     Union,

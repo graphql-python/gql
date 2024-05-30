@@ -1,5 +1,4 @@
 import asyncio
-
 import pytest
 from graphql import ExecutionResult, GraphQLError, subscribe
 

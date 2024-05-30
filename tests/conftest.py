@@ -1,18 +1,19 @@
+from random import sample
+import ssl
+
 import asyncio
 import json
 import logging
 import os
 import pathlib
+import pytest
+import pytest_asyncio
 import re
-import ssl
 import sys
 import tempfile
 import types
 from concurrent.futures import ThreadPoolExecutor
 from typing import Union
-
-import pytest
-import pytest_asyncio
 
 from gql import Client
 
@@ -119,6 +120,7 @@ async def ssl_aiohttp_server():
 for name in [
     "websockets.legacy.server",
     "gql.transport.aiohttp",
+    "gql.transport.aiohttp_websockets",
     "gql.transport.appsync",
     "gql.transport.phoenix_channel_websockets",
     "gql.transport.requests",
@@ -481,6 +483,22 @@ async def client_and_graphqlws_server(graphqlws_server):
 
         # Yield both client session and server
         yield session, graphqlws_server
+
+@pytest_asyncio.fixture
+async def aiohttp_client_and_server(aiohttp_server):
+    """Helper fixture to start an aiohttp server and a client connected to its port."""
+
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
+
+    # Generate transport to connect to the server fixture
+    path = "/graphql"
+    url = f"ws://{aiohttp_server.hostname}:{aiohttp_server.port}{path}"
+    sample_transport = AIOHTTPWebsocketsTransport(url=url)
+
+    async with Client(transport=sample_transport) as session:
+            
+            # Yield both client session and server
+            yield session, aiohttp_server
 
 
 @pytest_asyncio.fixture

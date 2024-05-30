@@ -1,6 +1,5 @@
-from typing import Mapping
-
 import pytest
+from typing import Mapping
 
 from gql import Client, gql
 from gql.transport.exceptions import (
@@ -38,6 +37,7 @@ query1_server_answer = (
 @pytest.mark.asyncio
 async def test_httpx_query(event_loop, aiohttp_server, run_sync_test):
     from aiohttp import web
+
     from gql.transport.httpx import HTTPXTransport
 
     async def handler(request):
@@ -81,6 +81,7 @@ async def test_httpx_query(event_loop, aiohttp_server, run_sync_test):
 @pytest.mark.asyncio
 async def test_httpx_cookies(event_loop, aiohttp_server, run_sync_test):
     from aiohttp import web
+
     from gql.transport.httpx import HTTPXTransport
 
     async def handler(request):
@@ -118,6 +119,7 @@ async def test_httpx_cookies(event_loop, aiohttp_server, run_sync_test):
 @pytest.mark.asyncio
 async def test_httpx_error_code_401(event_loop, aiohttp_server, run_sync_test):
     from aiohttp import web
+
     from gql.transport.httpx import HTTPXTransport
 
     async def handler(request):
@@ -153,6 +155,7 @@ async def test_httpx_error_code_401(event_loop, aiohttp_server, run_sync_test):
 @pytest.mark.asyncio
 async def test_httpx_error_code_429(event_loop, aiohttp_server, run_sync_test):
     from aiohttp import web
+
     from gql.transport.httpx import HTTPXTransport
 
     async def handler(request):
@@ -202,6 +205,7 @@ async def test_httpx_error_code_429(event_loop, aiohttp_server, run_sync_test):
 @pytest.mark.asyncio
 async def test_httpx_error_code_500(event_loop, aiohttp_server, run_sync_test):
     from aiohttp import web
+
     from gql.transport.httpx import HTTPXTransport
 
     async def handler(request):
@@ -234,6 +238,7 @@ query1_server_error_answer = '{"errors": ["Error 1", "Error 2"]}'
 @pytest.mark.asyncio
 async def test_httpx_error_code(event_loop, aiohttp_server, run_sync_test):
     from aiohttp import web
+
     from gql.transport.httpx import HTTPXTransport
 
     async def handler(request):
@@ -274,6 +279,7 @@ async def test_httpx_invalid_protocol(
     event_loop, aiohttp_server, response, run_sync_test
 ):
     from aiohttp import web
+
     from gql.transport.httpx import HTTPXTransport
 
     async def handler(request):
@@ -302,6 +308,7 @@ async def test_httpx_invalid_protocol(
 @pytest.mark.asyncio
 async def test_httpx_cannot_connect_twice(event_loop, aiohttp_server, run_sync_test):
     from aiohttp import web
+
     from gql.transport.httpx import HTTPXTransport
 
     async def handler(request):
@@ -330,6 +337,7 @@ async def test_httpx_cannot_execute_if_not_connected(
     event_loop, aiohttp_server, run_sync_test
 ):
     from aiohttp import web
+
     from gql.transport.httpx import HTTPXTransport
 
     async def handler(request):
@@ -367,6 +375,7 @@ query1_server_answer_with_extensions = (
 @pytest.mark.asyncio
 async def test_httpx_query_with_extensions(event_loop, aiohttp_server, run_sync_test):
     from aiohttp import web
+
     from gql.transport.httpx import HTTPXTransport
 
     async def handler(request):
@@ -422,6 +431,7 @@ This file will be sent in the GraphQL mutation
 @pytest.mark.asyncio
 async def test_httpx_file_upload(event_loop, aiohttp_server, run_sync_test):
     from aiohttp import web
+
     from gql.transport.httpx import HTTPXTransport
 
     async def single_upload_handler(request):
@@ -484,6 +494,7 @@ async def test_httpx_file_upload_with_content_type(
     event_loop, aiohttp_server, run_sync_test
 ):
     from aiohttp import web
+
     from gql.transport.httpx import HTTPXTransport
 
     async def single_upload_handler(request):
@@ -552,6 +563,7 @@ async def test_httpx_file_upload_additional_headers(
     event_loop, aiohttp_server, run_sync_test
 ):
     from aiohttp import web
+
     from gql.transport.httpx import HTTPXTransport
 
     async def single_upload_handler(request):
@@ -614,6 +626,7 @@ async def test_httpx_file_upload_additional_headers(
 @pytest.mark.asyncio
 async def test_httpx_binary_file_upload(event_loop, aiohttp_server, run_sync_test):
     from aiohttp import web
+
     from gql.transport.httpx import HTTPXTransport
 
     # This is a sample binary file content containing all possible byte values
@@ -687,6 +700,7 @@ file_upload_mutation_2_operations = (
 @pytest.mark.asyncio
 async def test_httpx_file_upload_two_files(event_loop, aiohttp_server, run_sync_test):
     from aiohttp import web
+
     from gql.transport.httpx import HTTPXTransport
 
     file_upload_mutation_2 = """
@@ -787,6 +801,7 @@ async def test_httpx_file_upload_list_of_two_files(
     event_loop, aiohttp_server, run_sync_test
 ):
     from aiohttp import web
+
     from gql.transport.httpx import HTTPXTransport
 
     file_upload_mutation_3 = """
@@ -876,6 +891,7 @@ async def test_httpx_file_upload_list_of_two_files(
 @pytest.mark.asyncio
 async def test_httpx_error_fetching_schema(event_loop, aiohttp_server, run_sync_test):
     from aiohttp import web
+
     from gql.transport.httpx import HTTPXTransport
 
     error_answer = """

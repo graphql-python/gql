@@ -1,6 +1,5 @@
-from itertools import repeat
-
 from graphql import DocumentNode, GraphQLSchema
+from itertools import repeat
 
 from gql.dsl import DSLFragment, DSLMetaField, DSLQuery, DSLSchema, dsl_gql
 

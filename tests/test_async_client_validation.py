@@ -1,7 +1,6 @@
 import asyncio
-import json
-
 import graphql
+import json
 import pytest
 
 from gql import Client, gql

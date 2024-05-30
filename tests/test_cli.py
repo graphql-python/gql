@@ -1,5 +1,4 @@
 import logging
-
 import pytest
 
 from gql import __version__
@@ -270,8 +269,8 @@ async def test_cli_main_appsync_websockets_iam(parser, url):
 )
 def test_cli_get_transport_appsync_websockets_api_key(parser, url):
 
-    from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
     from gql.transport.appsync_auth import AppSyncApiKeyAuthentication
+    from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
 
     args = parser.parse_args(
         [url, "--transport", "appsync_websockets", "--api-key", "test-api-key"]
@@ -291,8 +290,8 @@ def test_cli_get_transport_appsync_websockets_api_key(parser, url):
 )
 def test_cli_get_transport_appsync_websockets_jwt(parser, url):
 
-    from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
     from gql.transport.appsync_auth import AppSyncJWTAuthentication
+    from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
 
     args = parser.parse_args(
         [url, "--transport", "appsync_websockets", "--jwt", "test-jwt"]

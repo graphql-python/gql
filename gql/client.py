@@ -1,9 +1,21 @@
 import asyncio
+import backoff
 import logging
 import sys
 import time
 import warnings
+from anyio import fail_after
 from concurrent.futures import Future
+from graphql import (
+    DocumentNode,
+    ExecutionResult,
+    GraphQLSchema,
+    IntrospectionQuery,
+    build_ast_schema,
+    get_introspection_query,
+    parse,
+    validate,
+)
 from queue import Queue
 from threading import Event, Thread
 from typing import (
@@ -19,19 +31,6 @@ from typing import (
     Union,
     cast,
     overload,
-)
-
-import backoff
-from anyio import fail_after
-from graphql import (
-    DocumentNode,
-    ExecutionResult,
-    GraphQLSchema,
-    IntrospectionQuery,
-    build_ast_schema,
-    get_introspection_query,
-    parse,
-    validate,
 )
 
 from .graphql_request import GraphQLRequest
@@ -202,8 +201,7 @@ class Client:
         *,  # https://github.com/python/mypy/issues/7333#issuecomment-788255229
         get_execution_result: Literal[False] = ...,
         **kwargs,
-    ) -> Dict[str, Any]:
-        ...  # pragma: no cover
+    ) -> Dict[str, Any]: ...  # pragma: no cover
 
     @overload
     def execute_sync(
@@ -216,8 +214,7 @@ class Client:
         *,
         get_execution_result: Literal[True],
         **kwargs,
-    ) -> ExecutionResult:
-        ...  # pragma: no cover
+    ) -> ExecutionResult: ...  # pragma: no cover
 
     @overload
     def execute_sync(
@@ -230,8 +227,7 @@ class Client:
         *,
         get_execution_result: bool,
         **kwargs,
-    ) -> Union[Dict[str, Any], ExecutionResult]:
-        ...  # pragma: no cover
+    ) -> Union[Dict[str, Any], ExecutionResult]: ...  # pragma: no cover
 
     def execute_sync(
         self,
@@ -264,8 +260,7 @@ class Client:
         parse_result: Optional[bool] = None,
         get_execution_result: Literal[False],
         **kwargs,
-    ) -> List[Dict[str, Any]]:
-        ...  # pragma: no cover
+    ) -> List[Dict[str, Any]]: ...  # pragma: no cover
 
     @overload
     def execute_batch_sync(
@@ -276,8 +271,7 @@ class Client:
         parse_result: Optional[bool] = None,
         get_execution_result: Literal[True],
         **kwargs,
-    ) -> List[ExecutionResult]:
-        ...  # pragma: no cover
+    ) -> List[ExecutionResult]: ...  # pragma: no cover
 
     @overload
     def execute_batch_sync(
@@ -288,8 +282,7 @@ class Client:
         parse_result: Optional[bool] = None,
         get_execution_result: bool,
         **kwargs,
-    ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]:
-        ...  # pragma: no cover
+    ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]: ...  # pragma: no cover
 
     def execute_batch_sync(
         self,
@@ -321,8 +314,7 @@ class Client:
         *,  # https://github.com/python/mypy/issues/7333#issuecomment-788255229
         get_execution_result: Literal[False] = ...,
         **kwargs,
-    ) -> Dict[str, Any]:
-        ...  # pragma: no cover
+    ) -> Dict[str, Any]: ...  # pragma: no cover
 
     @overload
     async def execute_async(
@@ -335,8 +327,7 @@ class Client:
         *,
         get_execution_result: Literal[True],
         **kwargs,
-    ) -> ExecutionResult:
-        ...  # pragma: no cover
+    ) -> ExecutionResult: ...  # pragma: no cover
 
     @overload
     async def execute_async(
@@ -349,8 +340,7 @@ class Client:
         *,
         get_execution_result: bool,
         **kwargs,
-    ) -> Union[Dict[str, Any], ExecutionResult]:
-        ...  # pragma: no cover
+    ) -> Union[Dict[str, Any], ExecutionResult]: ...  # pragma: no cover
 
     async def execute_async(
         self,
@@ -385,8 +375,7 @@ class Client:
         *,  # https://github.com/python/mypy/issues/7333#issuecomment-788255229
         get_execution_result: Literal[False] = ...,
         **kwargs,
-    ) -> Dict[str, Any]:
-        ...  # pragma: no cover
+    ) -> Dict[str, Any]: ...  # pragma: no cover
 
     @overload
     def execute(
@@ -399,8 +388,7 @@ class Client:
         *,
         get_execution_result: Literal[True],
         **kwargs,
-    ) -> ExecutionResult:
-        ...  # pragma: no cover
+    ) -> ExecutionResult: ...  # pragma: no cover
 
     @overload
     def execute(
@@ -413,8 +401,7 @@ class Client:
         *,
         get_execution_result: bool,
         **kwargs,
-    ) -> Union[Dict[str, Any], ExecutionResult]:
-        ...  # pragma: no cover
+    ) -> Union[Dict[str, Any], ExecutionResult]: ...  # pragma: no cover
 
     def execute(
         self,
@@ -500,8 +487,7 @@ class Client:
         parse_result: Optional[bool] = None,
         get_execution_result: Literal[False],
         **kwargs,
-    ) -> List[Dict[str, Any]]:
-        ...  # pragma: no cover
+    ) -> List[Dict[str, Any]]: ...  # pragma: no cover
 
     @overload
     def execute_batch(
@@ -512,8 +498,7 @@ class Client:
         parse_result: Optional[bool] = None,
         get_execution_result: Literal[True],
         **kwargs,
-    ) -> List[ExecutionResult]:
-        ...  # pragma: no cover
+    ) -> List[ExecutionResult]: ...  # pragma: no cover
 
     @overload
     def execute_batch(
@@ -524,8 +509,7 @@ class Client:
         parse_result: Optional[bool] = None,
         get_execution_result: bool,
         **kwargs,
-    ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]:
-        ...  # pragma: no cover
+    ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]: ...  # pragma: no cover
 
     def execute_batch(
         self,
@@ -581,8 +565,7 @@ class Client:
         *,
         get_execution_result: Literal[False] = ...,
         **kwargs,
-    ) -> AsyncGenerator[Dict[str, Any], None]:
-        ...  # pragma: no cover
+    ) -> AsyncGenerator[Dict[str, Any], None]: ...  # pragma: no cover
 
     @overload
     def subscribe_async(
@@ -595,8 +578,7 @@ class Client:
         *,
         get_execution_result: Literal[True],
         **kwargs,
-    ) -> AsyncGenerator[ExecutionResult, None]:
-        ...  # pragma: no cover
+    ) -> AsyncGenerator[ExecutionResult, None]: ...  # pragma: no cover
 
     @overload
     def subscribe_async(
@@ -611,8 +593,7 @@ class Client:
         **kwargs,
     ) -> Union[
         AsyncGenerator[Dict[str, Any], None], AsyncGenerator[ExecutionResult, None]
-    ]:
-        ...  # pragma: no cover
+    ]: ...  # pragma: no cover
 
     async def subscribe_async(
         self,
@@ -652,8 +633,7 @@ class Client:
         *,
         get_execution_result: Literal[False] = ...,
         **kwargs,
-    ) -> Generator[Dict[str, Any], None, None]:
-        ...  # pragma: no cover
+    ) -> Generator[Dict[str, Any], None, None]: ...  # pragma: no cover
 
     @overload
     def subscribe(
@@ -666,8 +646,7 @@ class Client:
         *,
         get_execution_result: Literal[True],
         **kwargs,
-    ) -> Generator[ExecutionResult, None, None]:
-        ...  # pragma: no cover
+    ) -> Generator[ExecutionResult, None, None]: ...  # pragma: no cover
 
     @overload
     def subscribe(
@@ -682,8 +661,7 @@ class Client:
         **kwargs,
     ) -> Union[
         Generator[Dict[str, Any], None, None], Generator[ExecutionResult, None, None]
-    ]:
-        ...  # pragma: no cover
+    ]: ...  # pragma: no cover
 
     def subscribe(
         self,
@@ -953,8 +931,7 @@ class SyncClientSession:
         *,
         get_execution_result: Literal[False] = ...,
         **kwargs,
-    ) -> Dict[str, Any]:
-        ...  # pragma: no cover
+    ) -> Dict[str, Any]: ...  # pragma: no cover
 
     @overload
     def execute(
@@ -967,8 +944,7 @@ class SyncClientSession:
         *,
         get_execution_result: Literal[True],
         **kwargs,
-    ) -> ExecutionResult:
-        ...  # pragma: no cover
+    ) -> ExecutionResult: ...  # pragma: no cover
 
     @overload
     def execute(
@@ -981,8 +957,7 @@ class SyncClientSession:
         *,
         get_execution_result: bool,
         **kwargs,
-    ) -> Union[Dict[str, Any], ExecutionResult]:
-        ...  # pragma: no cover
+    ) -> Union[Dict[str, Any], ExecutionResult]: ...  # pragma: no cover
 
     def execute(
         self,
@@ -1075,9 +1050,11 @@ class SyncClientSession:
                 serialize_variables is None and self.client.serialize_variables
             ):
                 requests = [
-                    req.serialize_variable_values(self.client.schema)
-                    if req.variable_values is not None
-                    else req
+                    (
+                        req.serialize_variable_values(self.client.schema)
+                        if req.variable_values is not None
+                        else req
+                    )
                     for req in requests
                 ]
 
@@ -1105,8 +1082,7 @@ class SyncClientSession:
         parse_result: Optional[bool] = None,
         get_execution_result: Literal[False],
         **kwargs,
-    ) -> List[Dict[str, Any]]:
-        ...  # pragma: no cover
+    ) -> List[Dict[str, Any]]: ...  # pragma: no cover
 
     @overload
     def execute_batch(
@@ -1117,8 +1093,7 @@ class SyncClientSession:
         parse_result: Optional[bool] = None,
         get_execution_result: Literal[True],
         **kwargs,
-    ) -> List[ExecutionResult]:
-        ...  # pragma: no cover
+    ) -> List[ExecutionResult]: ...  # pragma: no cover
 
     @overload
     def execute_batch(
@@ -1129,8 +1104,7 @@ class SyncClientSession:
         parse_result: Optional[bool] = None,
         get_execution_result: bool,
         **kwargs,
-    ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]:
-        ...  # pragma: no cover
+    ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]: ...  # pragma: no cover
 
     def execute_batch(
         self,
@@ -1355,13 +1329,13 @@ class AsyncClientSession:
                     )
 
         # Subscribe to the transport
-        inner_generator: AsyncGenerator[
-            ExecutionResult, None
-        ] = self.transport.subscribe(
-            document,
-            variable_values=variable_values,
-            operation_name=operation_name,
-            **kwargs,
+        inner_generator: AsyncGenerator[ExecutionResult, None] = (
+            self.transport.subscribe(
+                document,
+                variable_values=variable_values,
+                operation_name=operation_name,
+                **kwargs,
+            )
         )
 
         # Keep a reference to the inner generator to allow the user to call aclose()
@@ -1397,8 +1371,7 @@ class AsyncClientSession:
         *,
         get_execution_result: Literal[False] = ...,
         **kwargs,
-    ) -> AsyncGenerator[Dict[str, Any], None]:
-        ...  # pragma: no cover
+    ) -> AsyncGenerator[Dict[str, Any], None]: ...  # pragma: no cover
 
     @overload
     def subscribe(
@@ -1411,8 +1384,7 @@ class AsyncClientSession:
         *,
         get_execution_result: Literal[True],
         **kwargs,
-    ) -> AsyncGenerator[ExecutionResult, None]:
-        ...  # pragma: no cover
+    ) -> AsyncGenerator[ExecutionResult, None]: ...  # pragma: no cover
 
     @overload
     def subscribe(
@@ -1427,8 +1399,7 @@ class AsyncClientSession:
         **kwargs,
     ) -> Union[
         AsyncGenerator[Dict[str, Any], None], AsyncGenerator[ExecutionResult, None]
-    ]:
-        ...  # pragma: no cover
+    ]: ...  # pragma: no cover
 
     async def subscribe(
         self,
@@ -1564,8 +1535,7 @@ class AsyncClientSession:
         *,
         get_execution_result: Literal[False] = ...,
         **kwargs,
-    ) -> Dict[str, Any]:
-        ...  # pragma: no cover
+    ) -> Dict[str, Any]: ...  # pragma: no cover
 
     @overload
     async def execute(
@@ -1578,8 +1548,7 @@ class AsyncClientSession:
         *,
         get_execution_result: Literal[True],
         **kwargs,
-    ) -> ExecutionResult:
-        ...  # pragma: no cover
+    ) -> ExecutionResult: ...  # pragma: no cover
 
     @overload
     async def execute(
@@ -1592,8 +1561,7 @@ class AsyncClientSession:
         *,
         get_execution_result: bool,
         **kwargs,
-    ) -> Union[Dict[str, Any], ExecutionResult]:
-        ...  # pragma: no cover
+    ) -> Union[Dict[str, Any], ExecutionResult]: ...  # pragma: no cover
 
     async def execute(
         self,

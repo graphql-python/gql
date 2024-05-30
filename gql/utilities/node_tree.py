@@ -1,6 +1,5 @@
-from typing import Any, Iterable, List, Optional, Sized
-
 from graphql import Node
+from typing import Any, Iterable, List, Optional, Sized
 
 
 def _node_tree_recursive(

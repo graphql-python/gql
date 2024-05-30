@@ -1,5 +1,3 @@
-from typing import Any, Dict, Optional
-
 import pytest
 from graphql import (
     GraphQLArgument,
@@ -14,6 +12,7 @@ from graphql import (
 )
 from graphql.language import ValueNode
 from graphql.utilities import value_from_ast_untyped
+from typing import Any, Dict, Optional
 
 from gql import Client, gql
 from gql.dsl import DSLSchema

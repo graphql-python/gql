@@ -5,9 +5,8 @@ import signal as signal_module
 import sys
 import textwrap
 from argparse import ArgumentParser, Namespace, RawTextHelpFormatter
-from typing import Any, Dict, Optional
-
 from graphql import GraphQLError, print_schema
+from typing import Any, Dict, Optional
 from yarl import URL
 
 from gql import Client, __version__, gql
@@ -358,8 +357,9 @@ def get_transport(args: Namespace) -> Optional[AsyncTransport]:
             auth = AppSyncJWTAuthentication(host=url.host, jwt=args.jwt)
 
         else:
-            from gql.transport.appsync_auth import AppSyncIAMAuthentication
             from botocore.exceptions import NoRegionError
+
+            from gql.transport.appsync_auth import AppSyncIAMAuthentication
 
             try:
                 auth = AppSyncIAMAuthentication(host=url.host)

@@ -1,5 +1,3 @@
-from typing import Any, Dict, Optional
-
 from graphql import (
     DocumentNode,
     GraphQLEnumType,
@@ -15,6 +13,7 @@ from graphql import (
     type_from_ast,
 )
 from graphql.pyutils import inspect
+from typing import Any, Dict, Optional
 
 
 def _get_document_operation(

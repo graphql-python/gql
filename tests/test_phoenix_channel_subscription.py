@@ -1,8 +1,7 @@
 import asyncio
 import json
-import sys
-
 import pytest
+import sys
 from parse import search
 
 from gql import Client, gql
