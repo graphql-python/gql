@@ -1,16 +1,9 @@
 """Websockets Client for asyncio."""
 
-from ssl import SSLContext
-
-import aiohttp
 import asyncio
 import logging
-from aiohttp.client_reqrep import Fingerprint
-from aiohttp.helpers import BasicAuth, hdrs
-from aiohttp.typedefs import LooseHeaders, StrOrURL
 from contextlib import suppress
-from graphql import DocumentNode, ExecutionResult, print_ast
-from multidict import CIMultiDict, CIMultiDictProxy
+from ssl import SSLContext
 from typing import (
     Any,
     AsyncGenerator,
@@ -21,6 +14,13 @@ from typing import (
     Tuple,
     Union,
 )
+
+import aiohttp
+from aiohttp.client_reqrep import Fingerprint
+from aiohttp.helpers import BasicAuth, hdrs
+from aiohttp.typedefs import LooseHeaders, StrOrURL
+from graphql import DocumentNode, ExecutionResult, print_ast
+from multidict import CIMultiDict, CIMultiDictProxy
 
 from gql.transport.async_transport import AsyncTransport
 from gql.transport.exceptions import (
@@ -73,9 +73,7 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         ping_interval: Optional[Union[int, float]] = None,
         pong_timeout: Optional[Union[int, float]] = None,
         answer_pings: bool = True,
-        **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
         self.url: StrOrURL = url
         self.headers: Optional[LooseHeaders] = headers
         self.auth: Optional[BasicAuth] = auth
