@@ -1,4 +1,3 @@
-from random import sample
 import ssl
 
 import asyncio

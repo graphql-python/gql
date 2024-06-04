@@ -12,6 +12,7 @@ from typing import (
     Optional,
     Tuple,
     Union,
+    Mapping,
 )
 
 import aiohttp
