@@ -149,7 +149,7 @@ async def test_aiohttp_websocket_sending_invalid_data(
 
     invalid_data = "QSDF"
     print(f">>> {invalid_data}")
-    await session.transport.websocket.send(invalid_data)
+    await session.transport.websocket.send_str(invalid_data)
 
     await asyncio.sleep(2 * MS)
 
@@ -313,7 +313,7 @@ async def test_aiohttp_websocket_server_closing_after_ack(
 
     query = gql("query { hello }")
 
-    with pytest.raises(websockets.exceptions.ConnectionClosed):
+    with pytest.raises(ConnectionResetError):
         await session.execute(query)
 
     await session.transport.wait_closed()

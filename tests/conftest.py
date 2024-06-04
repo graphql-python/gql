@@ -460,7 +460,7 @@ async def client_and_server(server):
     async with Client(transport=sample_transport) as session:
 
         # Yield both client session and server
-        yield session, server@pytest_asyncio.fixture
+        yield session, server
 
 @pytest_asyncio.fixture
 async def aiohttp_client_and_server(server):
