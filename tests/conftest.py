@@ -460,6 +460,22 @@ async def client_and_server(server):
     async with Client(transport=sample_transport) as session:
 
         # Yield both client session and server
+        yield session, server@pytest_asyncio.fixture
+
+@pytest_asyncio.fixture
+async def aiohttp_client_and_server(server):
+    """Helper fixture to start a server and a client connected to its port with an aiohttp websockets transport."""
+
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
+
+    # Generate transport to connect to the server fixture
+    path = "/graphql"
+    url = f"ws://{server.hostname}:{server.port}{path}"
+    sample_transport = AIOHTTPWebsocketsTransport(url=url)
+
+    async with Client(transport=sample_transport) as session:
+
+        # Yield both client session and server
         yield session, server
 
 
@@ -482,23 +498,6 @@ async def client_and_graphqlws_server(graphqlws_server):
 
         # Yield both client session and server
         yield session, graphqlws_server
-
-@pytest_asyncio.fixture
-async def aiohttp_client_and_server(aiohttp_server):
-    """Helper fixture to start an aiohttp server and a client connected to its port."""
-
-    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
-
-    # Generate transport to connect to the server fixture
-    path = "/graphql"
-    url = f"ws://{aiohttp_server.hostname}:{aiohttp_server.port}{path}"
-    sample_transport = AIOHTTPWebsocketsTransport(url=url)
-
-    async with Client(transport=sample_transport) as session:
-            
-            # Yield both client session and server
-            yield session, aiohttp_server
-
 
 @pytest_asyncio.fixture
 async def run_sync_test():
