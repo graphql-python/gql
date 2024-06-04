@@ -245,7 +245,7 @@ async def test_aiohttp_websocket_server_closing_after_first_query(
 
     # Now the server is closed but we don't know it yet, we have to send a query
     # to notice it and to receive the exception
-    with pytest.raises(TransportClosed):
+    with pytest.raises(ConnectionResetError):
         await session.execute(query)
 
 
@@ -491,7 +491,10 @@ async def test_aiohttp_websocket_add_extra_parameters_to_connect(event_loop, ser
     url = f"ws://{server.hostname}:{server.port}/graphql"
 
     # Increase max payload size to avoid websockets.exceptions.PayloadTooBig exceptions
-    transport = AIOHTTPWebsocketsTransport(url=url, connect_args={"max_size": 2**21})
+    transport = AIOHTTPWebsocketsTransport(
+        url=url,
+        max_msg_size=(2**21),
+    )
 
     query = gql(query1_str)
 

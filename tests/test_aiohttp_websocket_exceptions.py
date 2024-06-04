@@ -16,7 +16,7 @@ from gql.transport.exceptions import (
 from .conftest import MS, WebSocketServerHelper
 
 # Marking all tests in this file with the websockets marker
-pytestmark = pytest.mark.websockets
+pytestmark = pytest.mark.aiohttp_websockets
 
 invalid_query_str = """
     query getContinents {

@@ -73,6 +73,7 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         ping_interval: Optional[Union[int, float]] = None,
         pong_timeout: Optional[Union[int, float]] = None,
         answer_pings: bool = True,
+        
     ) -> None:
         self.url: StrOrURL = url
         self.headers: Optional[LooseHeaders] = headers
