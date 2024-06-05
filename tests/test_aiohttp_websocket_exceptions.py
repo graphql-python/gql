@@ -282,7 +282,6 @@ async def server_closing_directly(ws, path):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_closing_directly], indirect=True)
 async def test_aiohttp_websocket_server_closing_directly(event_loop, server):
-    import websockets
 
     from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
@@ -291,7 +290,7 @@ async def test_aiohttp_websocket_server_closing_directly(event_loop, server):
 
     sample_transport = AIOHTTPWebsocketsTransport(url=url)
 
-    with pytest.raises(websockets.exceptions.ConnectionClosed):
+    with pytest.raises(ConnectionResetError):
         async with Client(transport=sample_transport):
             pass
 
@@ -306,8 +305,6 @@ async def server_closing_after_ack(ws, path):
 async def test_aiohttp_websocket_server_closing_after_ack(
     event_loop, aiohttp_client_and_server
 ):
-
-    import websockets
 
     session, server = aiohttp_client_and_server
 
