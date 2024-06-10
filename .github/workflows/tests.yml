@@ -44,7 +44,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        dependency: ["aiohttp", "requests", "httpx", "websockets"]
+        dependency: ["aiohttp", "requests", "httpx", "websockets", "aiohttp_websockets"]
 
     steps:
       - uses: actions/checkout@v3
