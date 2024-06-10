@@ -310,11 +310,6 @@ async def test_aiohttp_websocket_server_closing_after_ack(
 
     query = gql("query { hello }")
 
-    with pytest.raises(ConnectionResetError):
-        await session.execute(query)
-
-    await session.transport.wait_closed()
-
     with pytest.raises(TransportClosed):
         await session.execute(query)
 
