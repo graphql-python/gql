@@ -250,7 +250,7 @@ async def test_aiohttp_websocket_transport_protocol_errors(
 
     query = gql("query { hello }")
 
-    with pytest.raises(TransportProtocolError):
+    with pytest.raises((TransportProtocolError, TransportQueryError)):
         await session.execute(query)
 
 

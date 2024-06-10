@@ -16,8 +16,7 @@ from typing import (
 )
 
 import aiohttp
-from aiohttp.client_reqrep import Fingerprint
-from aiohttp.helpers import BasicAuth, hdrs
+from aiohttp import hdrs, BasicAuth, Fingerprint, WSMsgType
 from aiohttp.typedefs import LooseHeaders, StrOrURL
 from graphql import DocumentNode, ExecutionResult, print_ast
 from multidict import CIMultiDict, CIMultiDictProxy
@@ -31,6 +30,11 @@ from gql.transport.exceptions import (
     TransportServerError,
 )
 from gql.transport.websockets_base import ListenerQueue
+
+try:
+    from json.decoder import JSONDecodeError
+except ImportError:
+    from simplejson import JSONDecodeError
 
 log = logging.getLogger("gql.transport.aiohttp_websockets")
 
@@ -149,7 +153,7 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         self.close_exception: Optional[Exception] = None
 
     def _parse_answer_graphqlws(
-        self, json_answer: Dict[str, Any]
+        self, answer: Dict[str, Any]
     ) -> Tuple[str, Optional[int], Optional[ExecutionResult]]:
         """Parse the answer received from the server if the server supports the
         graphql-ws protocol.
@@ -175,14 +179,14 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         execution_result: Optional[ExecutionResult] = None
 
         try:
-            answer_type = str(json_answer.get("type"))
+            answer_type = str(answer.get("type"))
 
             if answer_type in ["next", "error", "complete"]:
-                answer_id = int(str(json_answer.get("id")))
+                answer_id = int(str(answer.get("id")))
 
                 if answer_type == "next" or answer_type == "error":
 
-                    payload = json_answer.get("payload")
+                    payload = answer.get("payload")
 
                     if answer_type == "next":
 
@@ -213,7 +217,7 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
                         )
 
             elif answer_type in ["ping", "pong", "connection_ack"]:
-                self.payloads[answer_type] = json_answer.get("payload", None)
+                self.payloads[answer_type] = answer.get("payload", None)
 
             else:
                 raise ValueError
@@ -223,7 +227,7 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
 
         except ValueError as e:
             raise TransportProtocolError(
-                f"Server did not return a GraphQL result: {json_answer}"
+                f"Server did not return a GraphQL result: {answer}"
             ) from e
 
         return answer_type, answer_id, execution_result
@@ -471,13 +475,26 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
             raise e
 
     async def _receive(self) -> Dict[str, Any]:
+        log.debug("Entering _receive()")
 
         if self.websocket is None:
             raise TransportClosed("WebSocket connection is closed")
 
-        answer = await self.websocket.receive_json()
+        try:
+            answer = await self.websocket.receive_json()
+        except TypeError as e:
+            answer = await self.websocket.receive()
+            if answer.type in (WSMsgType.CLOSE, WSMsgType.CLOSED, WSMsgType.CLOSING):
+                self._fail(e, clean_close=True)
+                raise ConnectionResetError
+            else:
+                self._fail(e, clean_close=False)
+        except JSONDecodeError as e:
+            self._fail(e)
 
         log.info("<<< %s", answer)
+
+        log.debug("Exiting _receive()")
 
         return answer
 
@@ -546,6 +563,8 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
     async def _receive_data_loop(self) -> None:
         """Main asyncio task which will listen to the incoming messages and will
         call the parse_answer and handle_answer methods of the subclass."""
+        log.debug("Entering _receive_data_loop()")
+
         try:
             while True:
 
