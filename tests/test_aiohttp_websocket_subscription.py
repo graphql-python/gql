@@ -311,14 +311,13 @@ async def server_countdown_close_connection_in_middle(ws, path):
 async def test_aiohttp_websocket_subscription_server_connection_closed(
     event_loop, aiohttp_client_and_server, subscription_str
 ):
-    import websockets
 
     session, server = aiohttp_client_and_server
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
 
-    with pytest.raises(websockets.exceptions.ConnectionClosedOK):
+    with pytest.raises(ConnectionResetError):
 
         async for result in session.subscribe(subscription):
 
@@ -416,11 +415,11 @@ async def test_aiohttp_websocket_subscription_with_keepalive_with_timeout_ok(
     event_loop, server, subscription_str
 ):
 
-    from gql.transport.websockets import WebsocketsTransport
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
     path = "/graphql"
     url = f"ws://{server.hostname}:{server.port}{path}"
-    sample_transport = WebsocketsTransport(url=url, keep_alive_timeout=(20 * MS))
+    sample_transport = AIOHTTPWebsocketsTransport(url=url, keep_alive_timeout=(20 * MS))
 
     client = Client(transport=sample_transport)
 
@@ -446,11 +445,11 @@ async def test_aiohttp_websocket_subscription_with_keepalive_with_timeout_nok(
     event_loop, server, subscription_str
 ):
 
-    from gql.transport.websockets import WebsocketsTransport
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
     path = "/graphql"
     url = f"ws://{server.hostname}:{server.port}{path}"
-    sample_transport = WebsocketsTransport(url=url, keep_alive_timeout=(1 * MS))
+    sample_transport = AIOHTTPWebsocketsTransport(url=url, keep_alive_timeout=(1 * MS))
 
     client = Client(transport=sample_transport)
 
