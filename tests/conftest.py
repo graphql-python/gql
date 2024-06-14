@@ -1,18 +1,18 @@
-import ssl
-
 import asyncio
 import json
 import logging
 import os
 import pathlib
-import pytest
-import pytest_asyncio
 import re
+import ssl
 import sys
 import tempfile
 import types
 from concurrent.futures import ThreadPoolExecutor
 from typing import Union
+
+import pytest
+import pytest_asyncio
 
 from gql import Client
 
@@ -462,9 +462,13 @@ async def client_and_server(server):
         # Yield both client session and server
         yield session, server
 
+
 @pytest_asyncio.fixture
 async def aiohttp_client_and_server(server):
-    """Helper fixture to start a server and a client connected to its port with an aiohttp websockets transport."""
+    """
+    Helper fixture to start a server and a client connected to its port
+    with an aiohttp websockets transport.
+    """
 
     from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
@@ -492,6 +496,26 @@ async def client_and_graphqlws_server(graphqlws_server):
     sample_transport = WebsocketsTransport(
         url=url,
         subprotocols=[WebsocketsTransport.GRAPHQLWS_SUBPROTOCOL],
+    )
+
+    async with Client(transport=sample_transport) as session:
+
+        # Yield both client session and server
+        yield session, graphqlws_server
+
+@pytest_asyncio.fixture
+async def client_and_aiohttp_websocket_graphql_server(graphqlws_server):
+    """Helper fixture to start a server with the graphql-ws prototocol
+    and a client connected to its port."""
+
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
+
+    # Generate transport to connect to the server fixture
+    path = "/graphql"
+    url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}{path}"
+    sample_transport = AIOHTTPWebsocketsTransport(
+        url=url,
+        protocols=[AIOHTTPWebsocketsTransport.GRAPHQLWS_SUBPROTOCOL],
     )
 
     async with Client(transport=sample_transport) as session:
