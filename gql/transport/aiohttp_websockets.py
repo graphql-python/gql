@@ -3,20 +3,21 @@
 import asyncio
 import logging
 from contextlib import suppress
+from json.decoder import JSONDecodeError
 from ssl import SSLContext
 from typing import (
     Any,
     AsyncGenerator,
     Collection,
     Dict,
+    Mapping,
     Optional,
     Tuple,
     Union,
-    Mapping,
 )
 
 import aiohttp
-from aiohttp import hdrs, BasicAuth, Fingerprint, WSMsgType
+from aiohttp import BasicAuth, Fingerprint, WSMsgType, hdrs
 from aiohttp.typedefs import LooseHeaders, StrOrURL
 from graphql import DocumentNode, ExecutionResult, print_ast
 from multidict import CIMultiDict, CIMultiDictProxy
@@ -30,11 +31,6 @@ from gql.transport.exceptions import (
     TransportServerError,
 )
 from gql.transport.websockets_base import ListenerQueue
-
-try:
-    from json.decoder import JSONDecodeError
-except ImportError:
-    from simplejson import JSONDecodeError
 
 log = logging.getLogger("gql.transport.aiohttp_websockets")
 
