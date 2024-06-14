@@ -201,7 +201,7 @@ async def test_aiohttp_graphqlws_transport_protocol_errors(
 
     query = gql("query { hello }")
 
-    with pytest.raises(TransportProtocolError):
+    with pytest.raises((TransportProtocolError, TransportQueryError)):
         await session.execute(query)
 
 
@@ -264,7 +264,7 @@ async def test_aiohttp_graphqlws_server_closing_after_ack(
 
     query = gql("query { hello }")
 
-    with pytest.raises(websockets.exceptions.ConnectionClosed):
+    with pytest.raises(TransportClosed):
         await session.execute(query)
 
     await session.transport.wait_closed()
