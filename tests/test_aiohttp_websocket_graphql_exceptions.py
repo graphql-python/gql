@@ -141,7 +141,9 @@ async def server_invalid_query(ws, path):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("graphqlws_server", [server_invalid_query], indirect=True)
-async def test_aiohttp_graphqlws_sending_invalid_query(event_loop, client_and_aiohttp_websocket_graphql_server):
+async def test_aiohttp_graphqlws_sending_invalid_query(
+    event_loop, client_and_aiohttp_websocket_graphql_server
+):
 
     session, server = client_and_aiohttp_websocket_graphql_server
 
@@ -258,9 +260,7 @@ async def test_aiohttp_graphqlws_server_closing_after_ack(
     event_loop, client_and_aiohttp_websocket_graphql_server
 ):
 
-    import websockets
-
-    session, server = client_and_aiohttp_websocket_graphql_server
+    session, _ = client_and_aiohttp_websocket_graphql_server
 
     query = gql("query { hello }")
 

@@ -388,17 +388,13 @@ async def server_countdown_close_connection_in_middle(ws, path):
 async def test_aiohttp_graphqlws_subscription_server_connection_closed(
     event_loop, client_and_aiohttp_websocket_graphql_server, subscription_str
 ):
-    import websockets
-
-    session, server = client_and_aiohttp_websocket_graphql_server
+    session, _ = client_and_aiohttp_websocket_graphql_server
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
 
     with pytest.raises(ConnectionResetError):
-
         async for result in session.subscribe(subscription):
-
             number = result["number"]
             print(f"Number received: {number}")
 
@@ -478,7 +474,9 @@ async def test_aiohttp_graphqlws_subscription_with_keepalive_with_timeout_ok(
 
     path = "/graphql"
     url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}{path}"
-    transport = AIOHTTPWebsocketsTransport(url=url, keep_alive_timeout=(5 * COUNTING_DELAY))
+    transport = AIOHTTPWebsocketsTransport(
+        url=url, keep_alive_timeout=(5 * COUNTING_DELAY)
+    )
 
     client = Client(transport=transport)
 
@@ -510,7 +508,9 @@ async def test_aiohttp_graphqlws_subscription_with_keepalive_with_timeout_nok(
 
     path = "/graphql"
     url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}{path}"
-    transport = AIOHTTPWebsocketsTransport(url=url, keep_alive_timeout=(COUNTING_DELAY / 2))
+    transport = AIOHTTPWebsocketsTransport(
+        url=url, keep_alive_timeout=(COUNTING_DELAY / 2)
+    )
 
     client = Client(transport=transport)
 
@@ -545,8 +545,8 @@ async def test_aiohttp_graphqlws_subscription_with_ping_interval_ok(
     url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}{path}"
     transport = AIOHTTPWebsocketsTransport(
         url=url,
-        ping_interval=(5 * COUNTING_DELAY),
-        pong_timeout=(4 * COUNTING_DELAY),
+        ping_interval=(10 * COUNTING_DELAY),
+        pong_timeout=(8 * COUNTING_DELAY),
     )
 
     client = Client(transport=transport)
@@ -815,8 +815,6 @@ async def test_aiohttp_graphqlws_subscription_reconnecting_session(
     event_loop, graphqlws_server, subscription_str, execute_instead_of_subscribe
 ):
 
-    import websockets
-
     from gql.transport.exceptions import TransportClosed
     from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
@@ -842,7 +840,7 @@ async def test_aiohttp_graphqlws_subscription_reconnecting_session(
         print("\nSUBSCRIPTION_1_WITH_DISCONNECT\n")
         async for result in session.subscribe(subscription_with_disconnect):
             pass
-    except websockets.exceptions.ConnectionClosedOK:
+    except ConnectionResetError:
         pass
 
     await asyncio.sleep(50 * MS)

@@ -247,7 +247,7 @@ async def test_aiohttp_websocket_subscription_close_transport(
     event_loop, aiohttp_client_and_server, subscription_str
 ):
 
-    session, server = aiohttp_client_and_server
+    session, _ = aiohttp_client_and_server
 
     count = 10
     subscription = gql(subscription_str.format(count=count))

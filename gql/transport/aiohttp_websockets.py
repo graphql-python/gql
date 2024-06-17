@@ -343,7 +343,13 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         """Hook to stop to listen to a specific query.
         Will send a stop message in some subclasses.
         """
-        pass  # pragma: no cover
+        log.debug(f"stop listener {query_id}")
+
+        if self.subprotocol == self.GRAPHQLWS_SUBPROTOCOL:
+            await self._send_complete_message(query_id)
+            await self.listeners[query_id].put(("complete", None))
+        else:
+            await self._send_stop_message(query_id)
 
     async def _after_connect(self):
         if self.websocket is None:
@@ -351,13 +357,8 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
 
         # Find the backend subprotocol returned in the response headers
         # TODO: find the equivalent of response_headers in aiohttp websocket response
-        subprotocol = self.websocket.protocol
-        try:
-            self.subprotocol = subprotocol
-        except KeyError:
-            # If the server does not send the subprotocol header, using
-            # the apollo subprotocol by default
-            self.subprotocol = self.APOLLO_SUBPROTOCOL
+        subprotocol = self.websocket.protocol or self.GRAPHQLWS_SUBPROTOCOL
+        self.subprotocol = subprotocol
 
         log.debug(f"backend subprotocol returned: {self.subprotocol!r}")
 
@@ -370,6 +371,36 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
             ping_message["payload"] = payload
 
         await self._send(ping_message)
+
+    async def send_pong(self, payload: Optional[Any] = None) -> None:
+        """Send a pong message for the graphql-ws protocol"""
+
+        pong_message = {"type": "pong"}
+
+        if payload is not None:
+            pong_message["payload"] = payload
+
+        await self._send(pong_message)
+
+    async def _send_stop_message(self, query_id: int) -> None:
+        """Send stop message to the provided websocket connection and query_id.
+
+        The server should afterwards return a 'complete' message.
+        """
+
+        stop_message = {"id": str(query_id), "type": "stop"}
+
+        await self._send(stop_message)
+
+    async def _send_complete_message(self, query_id: int) -> None:
+        """Send a complete message for the provided query_id.
+
+        This is only for the graphql-ws protocol.
+        """
+
+        complete_message = {"id": str(query_id), "type": "complete"}
+
+        await self._send(complete_message)
 
     async def _send_ping_coro(self) -> None:
         """Coroutine to periodically send a ping from the client to the backend.
@@ -687,9 +718,11 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         - send stop messages for each active subscription to the server
         - send the connection terminate message
         """
+        log.debug(f"Listeners: {self.listeners}")
 
         # Send 'stop' message for all current queries
         for query_id, listener in self.listeners.items():
+            print(f"Listener {query_id} send_stop: {listener.send_stop}")
 
             if listener.send_stop:
                 await self._stop_listener(query_id)
