@@ -357,8 +357,11 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
 
         # Find the backend subprotocol returned in the response headers
         # TODO: find the equivalent of response_headers in aiohttp websocket response
-        subprotocol = self.websocket.protocol or self.GRAPHQLWS_SUBPROTOCOL
-        self.subprotocol = subprotocol
+        response_headers = self.websocket._response.headers
+        try:
+            self.subprotocol = response_headers["Sec-WebSocket-Protocol"]
+        except KeyError:
+            self.subprotocol = self.APOLLO_SUBPROTOCOL
 
         log.debug(f"backend subprotocol returned: {self.subprotocol!r}")
 
