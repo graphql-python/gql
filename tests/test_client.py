@@ -1,8 +1,7 @@
-import os
-from contextlib import suppress
-
 import mock
+import os
 import pytest
+from contextlib import suppress
 from graphql import build_ast_schema, parse
 
 from gql import Client, GraphQLRequest, gql

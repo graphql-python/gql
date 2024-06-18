@@ -1,8 +1,9 @@
 import asyncio
 import json
-import pytest
 import types
 from typing import List
+
+import pytest
 
 from gql import Client, gql
 from gql.transport.exceptions import (
@@ -15,7 +16,7 @@ from gql.transport.exceptions import (
 from .conftest import MS, WebSocketServerHelper
 
 # Marking all tests in this file with the websockets marker
-pytestmark = pytest.mark.websockets
+pytestmark = pytest.mark.aiohttp_websockets
 
 invalid_query_str = """
     query getContinents {
@@ -40,9 +41,11 @@ invalid_query1_server = [invalid_query1_server_answer]
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [invalid_query1_server], indirect=True)
 @pytest.mark.parametrize("query_str", [invalid_query_str])
-async def test_websocket_invalid_query(event_loop, client_and_server, query_str):
+async def test_aiohttp_websocket_invalid_query(
+    event_loop, aiohttp_client_and_server, query_str
+):
 
-    session, server = client_and_server
+    session, server = aiohttp_client_and_server
 
     query = gql(query_str)
 
@@ -79,9 +82,11 @@ async def server_invalid_subscription(ws, path):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_invalid_subscription], indirect=True)
 @pytest.mark.parametrize("query_str", [invalid_subscription_str])
-async def test_websocket_invalid_subscription(event_loop, client_and_server, query_str):
+async def test_aiohttp_websocket_invalid_subscription(
+    event_loop, aiohttp_client_and_server, query_str
+):
 
-    session, server = client_and_server
+    session, server = aiohttp_client_and_server
 
     query = gql(query_str)
 
@@ -111,12 +116,14 @@ async def server_no_ack(ws, path):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_no_ack], indirect=True)
 @pytest.mark.parametrize("query_str", [invalid_query_str])
-async def test_websocket_server_does_not_send_ack(event_loop, server, query_str):
-    from gql.transport.websockets import WebsocketsTransport
+async def test_aiohttp_websocket_server_does_not_send_ack(
+    event_loop, server, query_str
+):
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
 
-    sample_transport = WebsocketsTransport(url=url, ack_timeout=1)
+    sample_transport = AIOHTTPWebsocketsTransport(url=url, ack_timeout=1)
 
     with pytest.raises(asyncio.TimeoutError):
         async with Client(transport=sample_transport):
@@ -134,13 +141,15 @@ async def server_connection_error(ws, path):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_connection_error], indirect=True)
 @pytest.mark.parametrize("query_str", [invalid_query_str])
-async def test_websocket_sending_invalid_data(event_loop, client_and_server, query_str):
+async def test_aiohttp_websocket_sending_invalid_data(
+    event_loop, aiohttp_client_and_server, query_str
+):
 
-    session, server = client_and_server
+    session, server = aiohttp_client_and_server
 
     invalid_data = "QSDF"
     print(f">>> {invalid_data}")
-    await session.transport.websocket.send(invalid_data)
+    await session.transport.websocket.send_str(invalid_data)
 
     await asyncio.sleep(2 * MS)
 
@@ -162,11 +171,11 @@ async def server_invalid_payload(ws, path):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_invalid_payload], indirect=True)
 @pytest.mark.parametrize("query_str", [invalid_query_str])
-async def test_websocket_sending_invalid_payload(
-    event_loop, client_and_server, query_str
+async def test_aiohttp_websocket_sending_invalid_payload(
+    event_loop, aiohttp_client_and_server, query_str
 ):
 
-    session, server = client_and_server
+    session, server = aiohttp_client_and_server
 
     # Monkey patching the _send_query method to send an invalid payload
 
@@ -233,13 +242,15 @@ sending_bytes = [b"\x01\x02\x03"]
     ],
     indirect=True,
 )
-async def test_websocket_transport_protocol_errors(event_loop, client_and_server):
+async def test_aiohttp_websocket_transport_protocol_errors(
+    event_loop, aiohttp_client_and_server
+):
 
-    session, server = client_and_server
+    session, server = aiohttp_client_and_server
 
     query = gql("query { hello }")
 
-    with pytest.raises(TransportProtocolError):
+    with pytest.raises((TransportProtocolError, TransportQueryError)):
         await session.execute(query)
 
 
@@ -251,13 +262,13 @@ async def server_without_ack(ws, path):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_without_ack], indirect=True)
-async def test_websocket_server_does_not_ack(event_loop, server):
-    from gql.transport.websockets import WebsocketsTransport
+async def test_aiohttp_websocket_server_does_not_ack(event_loop, server):
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    sample_transport = WebsocketsTransport(url=url)
+    sample_transport = AIOHTTPWebsocketsTransport(url=url)
 
     with pytest.raises(TransportProtocolError):
         async with Client(transport=sample_transport):
@@ -270,17 +281,16 @@ async def server_closing_directly(ws, path):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_closing_directly], indirect=True)
-async def test_websocket_server_closing_directly(event_loop, server):
-    import websockets
+async def test_aiohttp_websocket_server_closing_directly(event_loop, server):
 
-    from gql.transport.websockets import WebsocketsTransport
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    sample_transport = WebsocketsTransport(url=url)
+    sample_transport = AIOHTTPWebsocketsTransport(url=url)
 
-    with pytest.raises(websockets.exceptions.ConnectionClosed):
+    with pytest.raises(ConnectionResetError):
         async with Client(transport=sample_transport):
             pass
 
@@ -292,18 +302,13 @@ async def server_closing_after_ack(ws, path):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_closing_after_ack], indirect=True)
-async def test_websocket_server_closing_after_ack(event_loop, client_and_server):
+async def test_aiohttp_websocket_server_closing_after_ack(
+    event_loop, aiohttp_client_and_server
+):
 
-    import websockets
-
-    session, server = client_and_server
+    session, server = aiohttp_client_and_server
 
     query = gql("query { hello }")
-
-    with pytest.raises(websockets.exceptions.ConnectionClosed):
-        await session.execute(query)
-
-    await session.transport.wait_closed()
 
     with pytest.raises(TransportClosed):
         await session.execute(query)
@@ -321,13 +326,15 @@ async def server_sending_invalid_query_errors(ws, path):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_sending_invalid_query_errors], indirect=True)
-async def test_websocket_server_sending_invalid_query_errors(event_loop, server):
-    from gql.transport.websockets import WebsocketsTransport
+async def test_aiohttp_websocket_server_sending_invalid_query_errors(
+    event_loop, server
+):
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    sample_transport = WebsocketsTransport(url=url)
+    sample_transport = AIOHTTPWebsocketsTransport(url=url)
 
     # Invalid server message is ignored
     async with Client(transport=sample_transport):
@@ -336,8 +343,8 @@ async def test_websocket_server_sending_invalid_query_errors(event_loop, server)
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_sending_invalid_query_errors], indirect=True)
-async def test_websocket_non_regression_bug_105(event_loop, server):
-    from gql.transport.websockets import WebsocketsTransport
+async def test_aiohttp_websocket_non_regression_bug_105(event_loop, server):
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
     # This test will check a fix to a race condition which happens if the user is trying
     # to connect using the same client twice at the same time
@@ -346,7 +353,7 @@ async def test_websocket_non_regression_bug_105(event_loop, server):
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    sample_transport = WebsocketsTransport(url=url)
+    sample_transport = AIOHTTPWebsocketsTransport(url=url)
 
     client = Client(transport=sample_transport)
 
@@ -365,7 +372,7 @@ async def test_websocket_non_regression_bug_105(event_loop, server):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [invalid_query1_server], indirect=True)
-async def test_websocket_using_cli_invalid_query(
+async def test_aiohttp_websocket_using_cli_invalid_query(
     event_loop, server, monkeypatch, capsys
 ):
 

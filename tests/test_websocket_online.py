@@ -1,9 +1,8 @@
 import asyncio
 import logging
+import pytest
 import sys
 from typing import Dict
-
-import pytest
 
 from gql import Client, gql
 from gql.transport.exceptions import TransportError, TransportQueryError

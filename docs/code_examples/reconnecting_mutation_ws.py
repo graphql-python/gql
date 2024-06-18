@@ -1,7 +1,6 @@
 import asyncio
-import logging
-
 import backoff
+import logging
 
 from gql import Client, gql
 from gql.transport.websockets import WebsocketsTransport

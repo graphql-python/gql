@@ -148,8 +148,9 @@ def create_review(episode, review):
 
 async def make_starwars_backend(aiohttp_server):
     from aiohttp import web
-    from .schema import StarWarsSchema
     from graphql import graphql_sync
+
+    from .schema import StarWarsSchema
 
     async def handler(request):
         data = await request.json()

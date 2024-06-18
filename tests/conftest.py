@@ -119,6 +119,7 @@ async def ssl_aiohttp_server():
 for name in [
     "websockets.legacy.server",
     "gql.transport.aiohttp",
+    "gql.transport.aiohttp_websockets",
     "gql.transport.appsync",
     "gql.transport.phoenix_channel_websockets",
     "gql.transport.requests",
@@ -463,6 +464,26 @@ async def client_and_server(server):
 
 
 @pytest_asyncio.fixture
+async def aiohttp_client_and_server(server):
+    """
+    Helper fixture to start a server and a client connected to its port
+    with an aiohttp websockets transport.
+    """
+
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
+
+    # Generate transport to connect to the server fixture
+    path = "/graphql"
+    url = f"ws://{server.hostname}:{server.port}{path}"
+    sample_transport = AIOHTTPWebsocketsTransport(url=url)
+
+    async with Client(transport=sample_transport) as session:
+
+        # Yield both client session and server
+        yield session, server
+
+
+@pytest_asyncio.fixture
 async def client_and_graphqlws_server(graphqlws_server):
     """Helper fixture to start a server with the graphql-ws prototocol
     and a client connected to its port."""
@@ -482,6 +503,25 @@ async def client_and_graphqlws_server(graphqlws_server):
         # Yield both client session and server
         yield session, graphqlws_server
 
+@pytest_asyncio.fixture
+async def client_and_aiohttp_websocket_graphql_server(graphqlws_server):
+    """Helper fixture to start a server with the graphql-ws prototocol
+    and a client connected to its port."""
+
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
+
+    # Generate transport to connect to the server fixture
+    path = "/graphql"
+    url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}{path}"
+    sample_transport = AIOHTTPWebsocketsTransport(
+        url=url,
+        protocols=[AIOHTTPWebsocketsTransport.GRAPHQLWS_SUBPROTOCOL],
+    )
+
+    async with Client(transport=sample_transport) as session:
+
+        # Yield both client session and server
+        yield session, graphqlws_server
 
 @pytest_asyncio.fixture
 async def run_sync_test():

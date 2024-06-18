@@ -1,6 +1,4 @@
 import logging
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple, Union, cast
-
 from graphql import (
     IDLE,
     REMOVE,
@@ -29,6 +27,7 @@ from graphql import (
 )
 from graphql.language.visitor import VisitorActionEnum
 from graphql.pyutils import inspect
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple, Union, cast
 
 log = logging.getLogger(__name__)
 

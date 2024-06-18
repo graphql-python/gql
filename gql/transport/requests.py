@@ -1,14 +1,13 @@
 import io
 import json
 import logging
-from typing import Any, Callable, Collection, Dict, List, Optional, Tuple, Type, Union
-
 import requests
 from graphql import DocumentNode, ExecutionResult, print_ast
 from requests.adapters import HTTPAdapter, Retry
 from requests.auth import AuthBase
 from requests.cookies import RequestsCookieJar
 from requests_toolbelt.multipart.encoder import MultipartEncoder
+from typing import Any, Callable, Collection, Dict, List, Optional, Tuple, Type, Union
 
 from gql.transport import Transport
 

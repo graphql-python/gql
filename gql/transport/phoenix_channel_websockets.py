@@ -1,9 +1,8 @@
 import asyncio
 import json
 import logging
-from typing import Any, Dict, Optional, Tuple
-
 from graphql import DocumentNode, ExecutionResult, print_ast
+from typing import Any, Dict, Optional, Tuple
 from websockets.exceptions import ConnectionClosed
 
 from .exceptions import (

@@ -1,6 +1,5 @@
-from typing import Iterable, List
-
 from graphql import GraphQLScalarType, GraphQLSchema
+from typing import Iterable, List
 
 
 def update_schema_scalar(schema: GraphQLSchema, name: str, scalar: GraphQLScalarType):

@@ -1,7 +1,5 @@
-from datetime import datetime, timedelta
-from typing import Any, Dict, Optional
-
 import pytest
+from datetime import datetime, timedelta
 from graphql.error import GraphQLError
 from graphql.language import ValueNode
 from graphql.pyutils import inspect
@@ -17,6 +15,7 @@ from graphql.type import (
     GraphQLSchema,
 )
 from graphql.utilities import value_from_ast_untyped
+from typing import Any, Dict, Optional
 
 from gql import Client, gql
 

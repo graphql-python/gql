@@ -1,5 +1,4 @@
 import asyncio
-
 from graphql import (
     GraphQLArgument,
     GraphQLEnumType,

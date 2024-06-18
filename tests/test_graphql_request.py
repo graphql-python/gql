@@ -1,7 +1,4 @@
 import asyncio
-from math import isfinite
-from typing import Any, Dict, NamedTuple, Optional
-
 import pytest
 from graphql.error import GraphQLError
 from graphql.language import ValueNode
@@ -17,6 +14,8 @@ from graphql.type import (
     GraphQLSchema,
 )
 from graphql.utilities import value_from_ast_untyped
+from math import isfinite
+from typing import Any, Dict, NamedTuple, Optional
 
 from gql import GraphQLRequest, gql
 

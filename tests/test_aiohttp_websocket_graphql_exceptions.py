@@ -1,6 +1,7 @@
 import asyncio
-import pytest
 from typing import List
+
+import pytest
 
 from gql import Client, gql
 from gql.transport.exceptions import (
@@ -12,7 +13,7 @@ from gql.transport.exceptions import (
 from .conftest import WebSocketServerHelper
 
 # Marking all tests in this file with the websockets marker
-pytestmark = pytest.mark.websockets
+pytestmark = pytest.mark.aiohttp_websockets
 
 invalid_query_str = """
     query getContinents {
@@ -37,11 +38,11 @@ invalid_query1_server = [invalid_query1_server_answer]
 @pytest.mark.asyncio
 @pytest.mark.parametrize("graphqlws_server", [invalid_query1_server], indirect=True)
 @pytest.mark.parametrize("query_str", [invalid_query_str])
-async def test_graphqlws_invalid_query(
-    event_loop, client_and_graphqlws_server, query_str
+async def test_aiohttp_graphqlws_invalid_query(
+    event_loop, client_and_aiohttp_websocket_graphql_server, query_str
 ):
 
-    session, server = client_and_graphqlws_server
+    session, server = client_and_aiohttp_websocket_graphql_server
 
     query = gql(query_str)
 
@@ -80,11 +81,11 @@ async def server_invalid_subscription(ws, path):
     "graphqlws_server", [server_invalid_subscription], indirect=True
 )
 @pytest.mark.parametrize("query_str", [invalid_subscription_str])
-async def test_graphqlws_invalid_subscription(
-    event_loop, client_and_graphqlws_server, query_str
+async def test_aiohttp_graphqlws_invalid_subscription(
+    event_loop, client_and_aiohttp_websocket_graphql_server, query_str
 ):
 
-    session, server = client_and_graphqlws_server
+    session, server = client_and_aiohttp_websocket_graphql_server
 
     query = gql(query_str)
 
@@ -108,7 +109,7 @@ async def server_no_ack(ws, path):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("graphqlws_server", [server_no_ack], indirect=True)
 @pytest.mark.parametrize("query_str", [invalid_query_str])
-async def test_graphqlws_server_does_not_send_ack(
+async def test_aiohttp_graphqlws_server_does_not_send_ack(
     event_loop, graphqlws_server, query_str
 ):
     from gql.transport.websockets import WebsocketsTransport
@@ -140,9 +141,11 @@ async def server_invalid_query(ws, path):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("graphqlws_server", [server_invalid_query], indirect=True)
-async def test_graphqlws_sending_invalid_query(event_loop, client_and_graphqlws_server):
+async def test_aiohttp_graphqlws_sending_invalid_query(
+    event_loop, client_and_aiohttp_websocket_graphql_server
+):
 
-    session, server = client_and_graphqlws_server
+    session, server = client_and_aiohttp_websocket_graphql_server
 
     query = gql("{helo}")
 
@@ -192,15 +195,15 @@ sending_bytes = [b"\x01\x02\x03"]
     ],
     indirect=True,
 )
-async def test_graphqlws_transport_protocol_errors(
-    event_loop, client_and_graphqlws_server
+async def test_aiohttp_graphqlws_transport_protocol_errors(
+    event_loop, client_and_aiohttp_websocket_graphql_server
 ):
 
-    session, server = client_and_graphqlws_server
+    session, server = client_and_aiohttp_websocket_graphql_server
 
     query = gql("query { hello }")
 
-    with pytest.raises(TransportProtocolError):
+    with pytest.raises((TransportProtocolError, TransportQueryError)):
         await session.execute(query)
 
 
@@ -212,7 +215,7 @@ async def server_without_ack(ws, path):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("graphqlws_server", [server_without_ack], indirect=True)
-async def test_graphqlws_server_does_not_ack(event_loop, graphqlws_server):
+async def test_aiohttp_graphqlws_server_does_not_ack(event_loop, graphqlws_server):
     from gql.transport.websockets import WebsocketsTransport
 
     url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}/graphql"
@@ -231,7 +234,7 @@ async def server_closing_directly(ws, path):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("graphqlws_server", [server_closing_directly], indirect=True)
-async def test_graphqlws_server_closing_directly(event_loop, graphqlws_server):
+async def test_aiohttp_graphqlws_server_closing_directly(event_loop, graphqlws_server):
     import websockets
 
     from gql.transport.websockets import WebsocketsTransport
@@ -253,17 +256,15 @@ async def server_closing_after_ack(ws, path):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("graphqlws_server", [server_closing_after_ack], indirect=True)
-async def test_graphqlws_server_closing_after_ack(
-    event_loop, client_and_graphqlws_server
+async def test_aiohttp_graphqlws_server_closing_after_ack(
+    event_loop, client_and_aiohttp_websocket_graphql_server
 ):
 
-    import websockets
-
-    session, server = client_and_graphqlws_server
+    session, _ = client_and_aiohttp_websocket_graphql_server
 
     query = gql("query { hello }")
 
-    with pytest.raises(websockets.exceptions.ConnectionClosed):
+    with pytest.raises(TransportClosed):
         await session.execute(query)
 
     await session.transport.wait_closed()

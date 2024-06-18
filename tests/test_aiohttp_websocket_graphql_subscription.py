@@ -1,10 +1,11 @@
 import asyncio
 import json
-import pytest
 import sys
 import warnings
-from parse import search
 from typing import List
+
+import pytest
+from parse import search
 
 from gql import Client, gql
 from gql.transport.exceptions import TransportServerError
@@ -12,7 +13,7 @@ from gql.transport.exceptions import TransportServerError
 from .conftest import MS, WebSocketServerHelper
 
 # Marking all tests in this file with the websockets marker
-pytestmark = pytest.mark.websockets
+pytestmark = pytest.mark.aiohttp_websockets
 
 countdown_server_answer = (
     '{{"type":"next","id":"{query_id}","payload":{{"data":{{"number":{number}}}}}}}'
@@ -227,11 +228,11 @@ countdown_subscription_str = """
 @pytest.mark.asyncio
 @pytest.mark.parametrize("graphqlws_server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
-async def test_graphqlws_subscription(
-    event_loop, client_and_graphqlws_server, subscription_str
+async def test_aiohttp_graphqlws_subscription(
+    event_loop, client_and_aiohttp_websocket_graphql_server, subscription_str
 ):
 
-    session, server = client_and_graphqlws_server
+    session, server = client_and_aiohttp_websocket_graphql_server
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
@@ -250,11 +251,11 @@ async def test_graphqlws_subscription(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("graphqlws_server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
-async def test_graphqlws_subscription_break(
-    event_loop, client_and_graphqlws_server, subscription_str
+async def test_aiohttp_graphqlws_subscription_break(
+    event_loop, client_and_aiohttp_websocket_graphql_server, subscription_str
 ):
 
-    session, server = client_and_graphqlws_server
+    session, server = client_and_aiohttp_websocket_graphql_server
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
@@ -280,11 +281,11 @@ async def test_graphqlws_subscription_break(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("graphqlws_server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
-async def test_graphqlws_subscription_task_cancel(
-    event_loop, client_and_graphqlws_server, subscription_str
+async def test_aiohttp_graphqlws_subscription_task_cancel(
+    event_loop, client_and_aiohttp_websocket_graphql_server, subscription_str
 ):
 
-    session, server = client_and_graphqlws_server
+    session, server = client_and_aiohttp_websocket_graphql_server
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
@@ -319,11 +320,11 @@ async def test_graphqlws_subscription_task_cancel(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("graphqlws_server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
-async def test_graphqlws_subscription_close_transport(
-    event_loop, client_and_graphqlws_server, subscription_str
+async def test_aiohttp_graphqlws_subscription_close_transport(
+    event_loop, client_and_aiohttp_websocket_graphql_server, subscription_str
 ):
 
-    session, server = client_and_graphqlws_server
+    session, server = client_and_aiohttp_websocket_graphql_server
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
@@ -384,20 +385,16 @@ async def server_countdown_close_connection_in_middle(ws, path):
     "graphqlws_server", [server_countdown_close_connection_in_middle], indirect=True
 )
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
-async def test_graphqlws_subscription_server_connection_closed(
-    event_loop, client_and_graphqlws_server, subscription_str
+async def test_aiohttp_graphqlws_subscription_server_connection_closed(
+    event_loop, client_and_aiohttp_websocket_graphql_server, subscription_str
 ):
-    import websockets
-
-    session, server = client_and_graphqlws_server
+    session, _ = client_and_aiohttp_websocket_graphql_server
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
 
-    with pytest.raises(websockets.exceptions.ConnectionClosedOK):
-
+    with pytest.raises(ConnectionResetError):
         async for result in session.subscribe(subscription):
-
             number = result["number"]
             print(f"Number received: {number}")
 
@@ -409,11 +406,11 @@ async def test_graphqlws_subscription_server_connection_closed(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("graphqlws_server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
-async def test_graphqlws_subscription_with_operation_name(
-    event_loop, client_and_graphqlws_server, subscription_str
+async def test_aiohttp_graphqlws_subscription_with_operation_name(
+    event_loop, client_and_aiohttp_websocket_graphql_server, subscription_str
 ):
 
-    session, server = client_and_graphqlws_server
+    session, server = client_and_aiohttp_websocket_graphql_server
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
@@ -439,11 +436,11 @@ async def test_graphqlws_subscription_with_operation_name(
     "graphqlws_server", [server_countdown_keepalive], indirect=True
 )
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
-async def test_graphqlws_subscription_with_keepalive(
-    event_loop, client_and_graphqlws_server, subscription_str
+async def test_aiohttp_graphqlws_subscription_with_keepalive(
+    event_loop, client_and_aiohttp_websocket_graphql_server, subscription_str
 ):
 
-    session, server = client_and_graphqlws_server
+    session, server = client_and_aiohttp_websocket_graphql_server
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
@@ -469,15 +466,17 @@ async def test_graphqlws_subscription_with_keepalive(
     "graphqlws_server", [server_countdown_keepalive], indirect=True
 )
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
-async def test_graphqlws_subscription_with_keepalive_with_timeout_ok(
+async def test_aiohttp_graphqlws_subscription_with_keepalive_with_timeout_ok(
     event_loop, graphqlws_server, subscription_str
 ):
 
-    from gql.transport.websockets import WebsocketsTransport
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
     path = "/graphql"
     url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}{path}"
-    transport = WebsocketsTransport(url=url, keep_alive_timeout=(5 * COUNTING_DELAY))
+    transport = AIOHTTPWebsocketsTransport(
+        url=url, keep_alive_timeout=(5 * COUNTING_DELAY)
+    )
 
     client = Client(transport=transport)
 
@@ -501,15 +500,17 @@ async def test_graphqlws_subscription_with_keepalive_with_timeout_ok(
     "graphqlws_server", [server_countdown_keepalive], indirect=True
 )
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
-async def test_graphqlws_subscription_with_keepalive_with_timeout_nok(
+async def test_aiohttp_graphqlws_subscription_with_keepalive_with_timeout_nok(
     event_loop, graphqlws_server, subscription_str
 ):
 
-    from gql.transport.websockets import WebsocketsTransport
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
     path = "/graphql"
     url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}{path}"
-    transport = WebsocketsTransport(url=url, keep_alive_timeout=(COUNTING_DELAY / 2))
+    transport = AIOHTTPWebsocketsTransport(
+        url=url, keep_alive_timeout=(COUNTING_DELAY / 2)
+    )
 
     client = Client(transport=transport)
 
@@ -534,18 +535,18 @@ async def test_graphqlws_subscription_with_keepalive_with_timeout_nok(
     "graphqlws_server", [server_countdown_keepalive], indirect=True
 )
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
-async def test_graphqlws_subscription_with_ping_interval_ok(
+async def test_aiohttp_graphqlws_subscription_with_ping_interval_ok(
     event_loop, graphqlws_server, subscription_str
 ):
 
-    from gql.transport.websockets import WebsocketsTransport
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
     path = "/graphql"
     url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}{path}"
-    transport = WebsocketsTransport(
+    transport = AIOHTTPWebsocketsTransport(
         url=url,
-        ping_interval=(5 * COUNTING_DELAY),
-        pong_timeout=(4 * COUNTING_DELAY),
+        ping_interval=(10 * COUNTING_DELAY),
+        pong_timeout=(8 * COUNTING_DELAY),
     )
 
     client = Client(transport=transport)
@@ -570,15 +571,15 @@ async def test_graphqlws_subscription_with_ping_interval_ok(
     "graphqlws_server", [server_countdown_dont_answer_pings], indirect=True
 )
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
-async def test_graphqlws_subscription_with_ping_interval_nok(
+async def test_aiohttp_graphqlws_subscription_with_ping_interval_nok(
     event_loop, graphqlws_server, subscription_str
 ):
 
-    from gql.transport.websockets import WebsocketsTransport
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
     path = "/graphql"
     url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}{path}"
-    transport = WebsocketsTransport(url=url, ping_interval=(5 * COUNTING_DELAY))
+    transport = AIOHTTPWebsocketsTransport(url=url, ping_interval=(5 * COUNTING_DELAY))
 
     client = Client(transport=transport)
 
@@ -603,15 +604,15 @@ async def test_graphqlws_subscription_with_ping_interval_nok(
     "graphqlws_server", [server_countdown_keepalive], indirect=True
 )
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
-async def test_graphqlws_subscription_manual_pings_with_payload(
+async def test_aiohttp_graphqlws_subscription_manual_pings_with_payload(
     event_loop, graphqlws_server, subscription_str
 ):
 
-    from gql.transport.websockets import WebsocketsTransport
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
     path = "/graphql"
     url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}{path}"
-    transport = WebsocketsTransport(url=url)
+    transport = AIOHTTPWebsocketsTransport(url=url)
 
     client = Client(transport=transport)
 
@@ -645,15 +646,15 @@ async def test_graphqlws_subscription_manual_pings_with_payload(
     "graphqlws_server", [server_countdown_keepalive], indirect=True
 )
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
-async def test_graphqlws_subscription_manual_pong_answers_with_payload(
+async def test_aiohttp_graphqlws_subscription_manual_pong_answers_with_payload(
     event_loop, graphqlws_server, subscription_str
 ):
 
-    from gql.transport.websockets import WebsocketsTransport
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
     path = "/graphql"
     url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}{path}"
-    transport = WebsocketsTransport(url=url, answer_pings=False)
+    transport = AIOHTTPWebsocketsTransport(url=url, answer_pings=False)
 
     client = Client(transport=transport)
 
@@ -689,13 +690,13 @@ async def test_graphqlws_subscription_manual_pong_answers_with_payload(
     "graphqlws_server", [server_countdown_keepalive], indirect=True
 )
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
-def test_graphqlws_subscription_sync(graphqlws_server, subscription_str):
-    from gql.transport.websockets import WebsocketsTransport
+def test_aiohttp_graphqlws_subscription_sync(graphqlws_server, subscription_str):
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
     url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}/graphql"
     print(f"url = {url}")
 
-    transport = WebsocketsTransport(url=url)
+    transport = AIOHTTPWebsocketsTransport(url=url)
 
     client = Client(transport=transport)
 
@@ -718,7 +719,7 @@ def test_graphqlws_subscription_sync(graphqlws_server, subscription_str):
     "graphqlws_server", [server_countdown_keepalive], indirect=True
 )
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
-def test_graphqlws_subscription_sync_graceful_shutdown(
+def test_aiohttp_graphqlws_subscription_sync_graceful_shutdown(
     graphqlws_server, subscription_str
 ):
     """Note: this test will simulate a control-C happening while a sync subscription
@@ -732,12 +733,12 @@ def test_graphqlws_subscription_sync_graceful_shutdown(
 
     This test does not work on Windows but the behaviour with Windows is correct.
     """
-    from gql.transport.websockets import WebsocketsTransport
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
     url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}/graphql"
     print(f"url = {url}")
 
-    transport = WebsocketsTransport(url=url)
+    transport = AIOHTTPWebsocketsTransport(url=url)
 
     client = Client(transport=transport)
 
@@ -776,15 +777,15 @@ def test_graphqlws_subscription_sync_graceful_shutdown(
     "graphqlws_server", [server_countdown_keepalive], indirect=True
 )
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
-async def test_graphqlws_subscription_running_in_thread(
+async def test_aiohttp_graphqlws_subscription_running_in_thread(
     event_loop, graphqlws_server, subscription_str, run_sync_test
 ):
-    from gql.transport.websockets import WebsocketsTransport
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
     def test_code():
         path = "/graphql"
         url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}{path}"
-        transport = WebsocketsTransport(url=url)
+        transport = AIOHTTPWebsocketsTransport(url=url)
 
         client = Client(transport=transport)
 
@@ -810,18 +811,16 @@ async def test_graphqlws_subscription_running_in_thread(
 )
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 @pytest.mark.parametrize("execute_instead_of_subscribe", [False, True])
-async def test_graphqlws_subscription_reconnecting_session(
+async def test_aiohttp_graphqlws_subscription_reconnecting_session(
     event_loop, graphqlws_server, subscription_str, execute_instead_of_subscribe
 ):
 
-    import websockets
-
     from gql.transport.exceptions import TransportClosed
-    from gql.transport.websockets import WebsocketsTransport
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
     path = "/graphql"
     url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}{path}"
-    transport = WebsocketsTransport(url=url)
+    transport = AIOHTTPWebsocketsTransport(url=url)
 
     client = Client(transport=transport)
 
@@ -841,7 +840,7 @@ async def test_graphqlws_subscription_reconnecting_session(
         print("\nSUBSCRIPTION_1_WITH_DISCONNECT\n")
         async for result in session.subscribe(subscription_with_disconnect):
             pass
-    except websockets.exceptions.ConnectionClosedOK:
+    except ConnectionResetError:
         pass
 
     await asyncio.sleep(50 * MS)
