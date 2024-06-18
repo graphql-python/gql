@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import warnings
 from contextlib import suppress
 from json.decoder import JSONDecodeError
 from ssl import SSLContext
@@ -95,6 +96,18 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         self.timeout: float = timeout
         self.verify_ssl: Optional[bool] = verify_ssl
         self.init_payload: Dict[str, Any] = init_payload
+
+        # We need to set an event loop here if there is none
+        # Or else we will not be able to create an asyncio.Event()
+        try:
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore", message="There is no current event loop"
+                )
+                self._loop = asyncio.get_event_loop()
+        except RuntimeError:
+            self._loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(self._loop)
 
         self.connect_timeout: Optional[Union[int, float]] = connect_timeout
         self.close_timeout: Optional[Union[int, float]] = close_timeout
@@ -337,6 +350,9 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         await asyncio.wait_for(self._wait_ack(), self.ack_timeout)
 
     async def _initialize(self):
+        """Hook to send the initialization messages after the connection
+        and potentially wait for the backend ack.
+        """
         await self._send_init_message_and_wait_ack()
 
     async def _stop_listener(self, query_id: int):
@@ -352,12 +368,13 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
             await self._send_stop_message(query_id)
 
     async def _after_connect(self):
-        if self.websocket is None:
-            raise TransportClosed("WebSocket connection is closed")
-
+        """Hook to add custom code for subclasses after the connection
+        has been established.
+        """
         # Find the backend subprotocol returned in the response headers
         # TODO: find the equivalent of response_headers in aiohttp websocket response
         response_headers = self.websocket._response.headers
+        log.debug(f"Response headers: {response_headers!r}")
         try:
             self.subprotocol = response_headers["Sec-WebSocket-Protocol"]
         except KeyError:
@@ -439,6 +456,9 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
                 )
 
     async def _after_initialize(self):
+        """Hook to add custom code for subclasses after the initialization
+        has been done.
+        """
 
         # If requested, create a task to send periodic pings to the backend
         if (
@@ -450,13 +470,29 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
 
     async def _close_hook(self):
         """Hook to add custom code for subclasses for the connection close"""
-        pass  # pragma: no cover
+        # Properly shut down the send ping task if enabled
+        if self.send_ping_task is not None:
+            self.send_ping_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await self.send_ping_task
+            self.send_ping_task = None
 
     async def _connection_terminate(self):
         """Hook to add custom code for subclasses after the initialization
         has been done.
         """
-        pass  # pragma: no cover
+        if self.subprotocol == self.APOLLO_SUBPROTOCOL:
+            await self._send_connection_terminate_message()
+
+    async def _send_connection_terminate_message(self) -> None:
+        """Send a connection_terminate message to the provided websocket connection.
+
+        This message indicates that the connection will disconnect.
+        """
+
+        connection_terminate_message = {"type": "connection_terminate"}
+
+        await self._send(connection_terminate_message)
 
     async def _send_query(
         self,
@@ -590,6 +626,15 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
             # Do nothing if no one is listening to this query_id.
             pass
 
+        # Answer pong to ping for graphql-ws protocol
+        if answer_type == "ping":
+            self.ping_received.set()
+            if self.answer_pings:
+                await self.send_pong()
+
+        elif answer_type == "pong":
+            self.pong_received.set()
+
     async def _receive_data_loop(self) -> None:
         """Main asyncio task which will listen to the incoming messages and will
         call the parse_answer and handle_answer methods of the subclass."""
@@ -662,7 +707,7 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
                     max_msg_size=self.max_msg_size,
                     origin=self.origin,
                     params=self.params,
-                    protocols=self.protocols,
+                    protocols=self.supported_subprotocols,
                     proxy=self.proxy,
                     proxy_auth=self.proxy_auth,
                     proxy_headers=self.proxy_headers,
