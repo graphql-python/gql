@@ -1,18 +1,18 @@
-from ssl import SSLContext
-
-import aiohttp
 import asyncio
 import functools
 import io
 import json
 import logging
+from ssl import SSLContext
+from typing import Any, AsyncGenerator, Callable, Dict, Optional, Tuple, Type, Union
+
+import aiohttp
 from aiohttp.client_exceptions import ClientResponseError
 from aiohttp.client_reqrep import Fingerprint
 from aiohttp.helpers import BasicAuth
 from aiohttp.typedefs import LooseCookies, LooseHeaders
 from graphql import DocumentNode, ExecutionResult, print_ast
 from multidict import CIMultiDictProxy
-from typing import Any, AsyncGenerator, Callable, Dict, Optional, Tuple, Type, Union
 
 from ..utils import extract_files
 from .appsync_auth import AppSyncAuthentication

@@ -6,6 +6,9 @@
 import logging
 import re
 from abc import ABC, abstractmethod
+from math import isfinite
+from typing import Any, Dict, Iterable, Mapping, Optional, Tuple, Union, cast
+
 from graphql import (
     ArgumentNode,
     BooleanValueNode,
@@ -60,8 +63,6 @@ from graphql import (
     print_ast,
 )
 from graphql.pyutils import inspect
-from math import isfinite
-from typing import Any, Dict, Iterable, Mapping, Optional, Tuple, Union, cast
 
 from .utils import to_camel_case
 

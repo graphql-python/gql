@@ -1,6 +1,7 @@
 import abc
-from graphql import DocumentNode, ExecutionResult
 from typing import List
+
+from graphql import DocumentNode, ExecutionResult
 
 from ..graphql_request import GraphQLRequest
 

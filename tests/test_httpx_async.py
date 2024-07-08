@@ -1,7 +1,8 @@
 import io
 import json
-import pytest
 from typing import Mapping
+
+import pytest
 
 from gql import Client, gql
 from gql.cli import get_parser, main

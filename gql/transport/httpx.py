@@ -1,8 +1,6 @@
-import httpx
 import io
 import json
 import logging
-from graphql import DocumentNode, ExecutionResult, print_ast
 from typing import (
     Any,
     AsyncGenerator,
@@ -15,6 +13,9 @@ from typing import (
     Union,
     cast,
 )
+
+import httpx
+from graphql import DocumentNode, ExecutionResult, print_ast
 
 from ..utils import extract_files
 from . import AsyncTransport, Transport

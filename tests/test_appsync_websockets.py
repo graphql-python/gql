@@ -1,9 +1,10 @@
 import asyncio
 import json
-import pytest
 from base64 import b64decode
 from typing import List
 from urllib import parse
+
+import pytest
 
 from gql import Client, gql
 

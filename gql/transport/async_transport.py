@@ -1,6 +1,7 @@
 import abc
-from graphql import DocumentNode, ExecutionResult
 from typing import Any, AsyncGenerator, Dict, Optional
+
+from graphql import DocumentNode, ExecutionResult
 
 
 class AsyncTransport(abc.ABC):

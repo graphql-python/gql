@@ -1,6 +1,7 @@
 import asyncio
-import backoff
 import logging
+
+import backoff
 
 from gql import Client, gql
 from gql.transport.aiohttp import AIOHTTPTransport

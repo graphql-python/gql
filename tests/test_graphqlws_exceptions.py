@@ -1,6 +1,7 @@
 import asyncio
-import pytest
 from typing import List
+
+import pytest
 
 from gql import Client, gql
 from gql.transport.exceptions import (

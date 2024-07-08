@@ -5,8 +5,9 @@ import signal as signal_module
 import sys
 import textwrap
 from argparse import ArgumentParser, Namespace, RawTextHelpFormatter
-from graphql import GraphQLError, print_schema
 from typing import Any, Dict, Optional
+
+from graphql import GraphQLError, print_schema
 from yarl import URL
 
 from gql import Client, __version__, gql

@@ -1,6 +1,7 @@
 from enum import Enum
-from graphql import GraphQLEnumType, GraphQLSchema
 from typing import Any, Dict, Mapping, Type, Union, cast
+
+from graphql import GraphQLEnumType, GraphQLSchema
 
 
 def update_schema_enum(

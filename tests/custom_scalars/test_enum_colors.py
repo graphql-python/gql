@@ -1,5 +1,6 @@
-import pytest
 from enum import Enum
+
+import pytest
 from graphql import (
     GraphQLArgument,
     GraphQLEnumType,

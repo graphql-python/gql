@@ -1,5 +1,6 @@
-import pytest
 from typing import Mapping
+
+import pytest
 
 from gql import Client, gql
 from gql.transport.exceptions import (

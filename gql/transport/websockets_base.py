@@ -1,13 +1,13 @@
-from ssl import SSLContext
-
 import asyncio
 import logging
 import warnings
-import websockets
 from abc import abstractmethod
 from contextlib import suppress
-from graphql import DocumentNode, ExecutionResult
+from ssl import SSLContext
 from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple, Union, cast
+
+import websockets
+from graphql import DocumentNode, ExecutionResult
 from websockets.client import WebSocketClientProtocol
 from websockets.datastructures import Headers, HeadersLike
 from websockets.exceptions import ConnectionClosed

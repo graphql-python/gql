@@ -1,4 +1,5 @@
 import json
+
 from graphql import (
     GraphQLArgument,
     GraphQLField,

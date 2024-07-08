@@ -1,7 +1,8 @@
 import asyncio
-from graphql import DocumentNode, ExecutionResult, GraphQLSchema, execute, subscribe
 from inspect import isawaitable
 from typing import AsyncGenerator, Awaitable, cast
+
+from graphql import DocumentNode, ExecutionResult, GraphQLSchema, execute, subscribe
 
 from gql.transport import AsyncTransport
 

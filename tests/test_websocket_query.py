@@ -1,10 +1,10 @@
-import ssl
-
 import asyncio
 import json
-import pytest
+import ssl
 import sys
 from typing import Dict, Mapping
+
+import pytest
 
 from gql import Client, gql
 from gql.transport.exceptions import (

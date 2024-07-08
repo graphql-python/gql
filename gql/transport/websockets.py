@@ -1,11 +1,11 @@
-from ssl import SSLContext
-
 import asyncio
 import json
 import logging
 from contextlib import suppress
-from graphql import DocumentNode, ExecutionResult, print_ast
+from ssl import SSLContext
 from typing import Any, Dict, List, Optional, Tuple, Union, cast
+
+from graphql import DocumentNode, ExecutionResult, print_ast
 from websockets.datastructures import HeadersLike
 from websockets.typing import Subprotocol
 

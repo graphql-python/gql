@@ -710,6 +710,7 @@ async def test_aiohttp_websocket_subscription_running_in_thread(
 
     await run_sync_test(event_loop, server, test_code)
 
+
 @pytest.mark.aiohttp_websockets
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_starwars], indirect=True)
@@ -759,9 +760,7 @@ async def test_async_aiohttp_client_validation(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
-async def test_subscribe_on_closing_transport(
-    event_loop, server, subscription_str
-):
+async def test_subscribe_on_closing_transport(event_loop, server, subscription_str):
 
     from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
@@ -775,19 +774,18 @@ async def test_subscribe_on_closing_transport(
 
     async with client as session:
         session.transport.websocket._writer._closing = True
-        
+
         with pytest.raises(ConnectionResetError) as e:
             async for _ in session.subscribe(subscription):
                 pass
-        
+
         assert e.value.args[0] == "Cannot write to closing transport"
+
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
-async def test_subscribe_on_null_transport(
-    event_loop, server, subscription_str
-):
+async def test_subscribe_on_null_transport(event_loop, server, subscription_str):
 
     from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
@@ -806,6 +804,5 @@ async def test_subscribe_on_null_transport(
         with pytest.raises(TransportClosed) as e:
             async for _ in session.subscribe(subscription):
                 pass
-        
-        assert e.value.args[0] == "WebSocket connection is closed"
 
+        assert e.value.args[0] == "WebSocket connection is closed"

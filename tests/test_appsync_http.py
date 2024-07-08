@@ -1,4 +1,5 @@
 import json
+
 import pytest
 
 from gql import Client, gql

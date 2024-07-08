@@ -1,11 +1,12 @@
 import asyncio
 import json
-import pytest
 import sys
 import warnings
+from typing import List
+
+import pytest
 from graphql import ExecutionResult
 from parse import search
-from typing import List
 
 from gql import Client, gql
 from gql.transport.exceptions import TransportServerError

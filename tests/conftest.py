@@ -503,6 +503,7 @@ async def client_and_graphqlws_server(graphqlws_server):
         # Yield both client session and server
         yield session, graphqlws_server
 
+
 @pytest_asyncio.fixture
 async def client_and_aiohttp_websocket_graphql_server(graphqlws_server):
     """Helper fixture to start a server with the graphql-ws prototocol
@@ -522,6 +523,7 @@ async def client_and_aiohttp_websocket_graphql_server(graphqlws_server):
 
         # Yield both client session and server
         yield session, graphqlws_server
+
 
 @pytest_asyncio.fixture
 async def run_sync_test():

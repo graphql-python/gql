@@ -1,4 +1,7 @@
 import asyncio
+from math import isfinite
+from typing import Any, Dict, NamedTuple, Optional
+
 import pytest
 from graphql import ExecutionResult, graphql_sync
 from graphql.error import GraphQLError
@@ -16,8 +19,6 @@ from graphql.type import (
     GraphQLSchema,
 )
 from graphql.utilities import value_from_ast_untyped
-from math import isfinite
-from typing import Any, Dict, NamedTuple, Optional
 
 from gql import Client, GraphQLRequest, gql
 from gql.transport.exceptions import TransportQueryError

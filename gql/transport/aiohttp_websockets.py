@@ -649,8 +649,9 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
                 except (ConnectionResetError, TransportProtocolError) as e:
                     await self._fail(e, clean_close=False)
                     break
-                except TransportClosed:
-                    break
+                except TransportClosed as e:
+                    await self._fail(e, clean_close=False)
+                    raise e
 
                 # Parse the answer
                 try:
@@ -720,10 +721,7 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
             finally:
                 self._connecting = False
 
-            try:
-                self.response_headers = self.websocket._response.headers
-            except AttributeError:
-                self.response_headers = CIMultiDictProxy(CIMultiDict())
+            self.response_headers = self.websocket._response.headers
 
             await self._after_connect()
 
