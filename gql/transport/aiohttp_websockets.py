@@ -21,7 +21,7 @@ import aiohttp
 from aiohttp import BasicAuth, Fingerprint, WSMsgType, hdrs
 from aiohttp.typedefs import LooseHeaders, StrOrURL
 from graphql import DocumentNode, ExecutionResult, print_ast
-from multidict import CIMultiDict, CIMultiDictProxy
+from multidict import CIMultiDictProxy
 
 from gql.transport.async_transport import AsyncTransport
 from gql.transport.exceptions import (
