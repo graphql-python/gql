@@ -9,9 +9,73 @@ from graphql import ExecutionResult
 from parse import search
 
 from gql import Client, gql
-from gql.transport.exceptions import TransportServerError
+from gql.transport.exceptions import TransportClosed, TransportServerError
 
 from .conftest import MS, WebSocketServerHelper
+from .starwars.schema import StarWarsIntrospection, StarWarsSchema, StarWarsTypeDef
+
+starwars_expected_one = {
+    "stars": 3,
+    "commentary": "Was expecting more stuff",
+    "episode": "JEDI",
+}
+
+starwars_expected_two = {
+    "stars": 5,
+    "commentary": "This is a great movie!",
+    "episode": "JEDI",
+}
+
+
+async def server_starwars(ws, path):
+    import websockets
+
+    await WebSocketServerHelper.send_connection_ack(ws)
+
+    try:
+        await ws.recv()
+
+        reviews = [starwars_expected_one, starwars_expected_two]
+
+        for review in reviews:
+
+            data = (
+                '{"type":"data","id":"1","payload":{"data":{"reviewAdded": '
+                + json.dumps(review)
+                + "}}}"
+            )
+            await ws.send(data)
+            await asyncio.sleep(2 * MS)
+
+        await WebSocketServerHelper.send_complete(ws, 1)
+        await WebSocketServerHelper.wait_connection_terminate(ws)
+
+    except websockets.exceptions.ConnectionClosedOK:
+        pass
+
+    print("Server is now closed")
+
+
+starwars_subscription_str = """
+    subscription ListenEpisodeReviews($ep: Episode!) {
+      reviewAdded(episode: $ep) {
+        stars,
+        commentary,
+        episode
+      }
+    }
+"""
+
+starwars_invalid_subscription_str = """
+    subscription ListenEpisodeReviews($ep: Episode!) {
+      reviewAdded(episode: $ep) {
+        not_valid_field,
+        stars,
+        commentary,
+        episode
+      }
+    }
+"""
 
 # Marking all tests in this file with the websockets marker
 pytestmark = pytest.mark.aiohttp_websockets
@@ -645,3 +709,103 @@ async def test_aiohttp_websocket_subscription_running_in_thread(
         assert count == -1
 
     await run_sync_test(event_loop, server, test_code)
+
+@pytest.mark.aiohttp_websockets
+@pytest.mark.asyncio
+@pytest.mark.parametrize("server", [server_starwars], indirect=True)
+@pytest.mark.parametrize("subscription_str", [starwars_subscription_str])
+@pytest.mark.parametrize(
+    "client_params",
+    [
+        {"schema": StarWarsSchema},
+        {"introspection": StarWarsIntrospection},
+        {"schema": StarWarsTypeDef},
+    ],
+)
+async def test_async_aiohttp_client_validation(
+    event_loop, server, subscription_str, client_params
+):
+
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
+
+    url = f"ws://{server.hostname}:{server.port}/graphql"
+
+    sample_transport = AIOHTTPWebsocketsTransport(url=url)
+
+    client = Client(transport=sample_transport, **client_params)
+
+    async with client as session:
+
+        variable_values = {"ep": "JEDI"}
+
+        subscription = gql(subscription_str)
+
+        expected = []
+
+        async for result in session.subscribe(
+            subscription, variable_values=variable_values, parse_result=False
+        ):
+
+            review = result["reviewAdded"]
+            expected.append(review)
+
+            assert "stars" in review
+            assert "commentary" in review
+            assert "episode" in review
+
+        assert expected[0] == starwars_expected_one
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("server", [server_countdown], indirect=True)
+@pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
+async def test_subscribe_on_closing_transport(
+    event_loop, server, subscription_str
+):
+
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
+
+    url = f"ws://{server.hostname}:{server.port}/graphql"
+
+    transport = AIOHTTPWebsocketsTransport(url=url)
+
+    client = Client(transport=transport)
+    count = 1
+    subscription = gql(subscription_str.format(count=count))
+
+    async with client as session:
+        session.transport.websocket._writer._closing = True
+        
+        with pytest.raises(ConnectionResetError) as e:
+            async for _ in session.subscribe(subscription):
+                pass
+        
+        assert e.value.args[0] == "Cannot write to closing transport"
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("server", [server_countdown], indirect=True)
+@pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
+async def test_subscribe_on_null_transport(
+    event_loop, server, subscription_str
+):
+
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
+
+    url = f"ws://{server.hostname}:{server.port}/graphql"
+
+    transport = AIOHTTPWebsocketsTransport(url=url, receive_timeout=0.1)
+
+    client = Client(transport=transport)
+    count = 1
+    subscription = gql(subscription_str.format(count=count))
+
+    async with client as session:
+
+        session.transport.websocket = None
+
+        with pytest.raises(TransportClosed) as e:
+            async for _ in session.subscribe(subscription):
+                pass
+        
+        assert e.value.args[0] == "WebSocket connection is closed"
+
