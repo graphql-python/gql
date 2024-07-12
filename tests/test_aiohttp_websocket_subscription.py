@@ -780,29 +780,3 @@ async def test_subscribe_on_closing_transport(event_loop, server, subscription_s
                 pass
 
         assert e.value.args[0] == "Cannot write to closing transport"
-
-
-@pytest.mark.asyncio
-@pytest.mark.skip
-@pytest.mark.parametrize("server", [server_countdown], indirect=True)
-@pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
-async def test_subscribe_on_null_transport(event_loop, server, subscription_str):
-
-    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
-
-    url = f"ws://{server.hostname}:{server.port}/graphql"
-
-    transport = AIOHTTPWebsocketsTransport(url=url)
-
-    client = Client(transport=transport)
-    count = 1
-    subscription = gql(subscription_str.format(count=count))
-
-    async with client as session:
-
-        session.transport.websocket = None
-        with pytest.raises(TransportClosed) as e:
-            async for _ in session.subscribe(subscription):
-                pass
-
-        assert e.value.args[0] == "WebSocket connection is closed"
