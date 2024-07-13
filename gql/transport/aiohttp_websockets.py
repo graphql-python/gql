@@ -1,10 +1,10 @@
 """Websockets Client for asyncio."""
 
 import asyncio
+import json
 import logging
 import warnings
 from contextlib import suppress
-from json.decoder import JSONDecodeError
 from ssl import SSLContext
 from typing import (
     Any,
@@ -310,15 +310,22 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         return answer_type, answer_id, execution_result
 
     def _parse_answer(
-        self, answer: Dict[str, Any]
+        self, answer: str
     ) -> Tuple[str, Optional[int], Optional[ExecutionResult]]:
         """Parse the answer received from the server depending on
         the detected subprotocol.
         """
-        if self.subprotocol == self.GRAPHQLWS_SUBPROTOCOL:
-            return self._parse_answer_graphqlws(answer)
+        try:
+            json_answer = json.loads(answer)
+        except ValueError:
+            raise TransportProtocolError(
+                f"Server did not return a GraphQL result: {answer}"
+            )
 
-        return self._parse_answer_apollo(answer)
+        if self.subprotocol == self.GRAPHQLWS_SUBPROTOCOL:
+            return self._parse_answer_graphqlws(json_answer)
+
+        return self._parse_answer_apollo(json_answer)
 
     async def _wait_ack(self) -> None:
         """Wait for the connection_ack message. Keep alive messages are ignored"""
@@ -540,27 +547,27 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
             await self._fail(e, clean_close=False)
             raise e
 
-    async def _receive(self) -> Dict[str, Any]:
-        log.debug("Entering _receive()")
+    async def _receive(self) -> str:
+        """Wait the next message from the websocket connection and log the answer"""
 
+        # It is possible that the websocket has been already closed in another task
         if self.websocket is None:
-            raise TransportClosed("WebSocket connection is closed")
+            raise TransportClosed("Transport is already closed")
 
-        try:
-            answer = await self.websocket.receive_json()
-        except TypeError as e:
-            answer = await self.websocket.receive()
-            if answer.type in (WSMsgType.CLOSE, WSMsgType.CLOSED, WSMsgType.CLOSING):
-                self._fail(e, clean_close=True)
-                raise ConnectionResetError
-            else:
-                self._fail(e, clean_close=False)
-        except JSONDecodeError as e:
-            self._fail(e)
+        ws_message = await self.websocket.receive()
+
+        if ws_message.type in (WSMsgType.CLOSE, WSMsgType.CLOSED, WSMsgType.CLOSING):
+            raise ConnectionResetError
+        elif ws_message.type is WSMsgType.BINARY:
+            raise TransportProtocolError("Binary data received in the websocket")
+
+        # Note: ws_message could also be a low level PING or PONG type here
+        # but we don't enable those
+        assert ws_message.type is WSMsgType.TEXT
+
+        answer: str = ws_message.data
 
         log.info("<<< %s", answer)
-
-        log.debug("Exiting _receive()")
 
         return answer
 
