@@ -381,7 +381,9 @@ class RequestsHTTPTransport(Transport):
                 log.info("<<< %s", response.text)
 
         except requests.HTTPError as e:
-            raise TransportServerError(str(e), e.response.status_code) from e
+            raise TransportServerError(
+                str(e), e.response.status_code if e.response is not None else None
+            ) from e
 
         except Exception:
             self._raise_invalid_result(str(response.text), "Not a JSON answer")
