@@ -53,7 +53,6 @@ server1_answers = [
 @pytest.mark.parametrize("server", [server1_answers], indirect=True)
 async def test_websocket_starting_client_in_context_manager(event_loop, server):
     import websockets
-
     from gql.transport.websockets import WebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
@@ -94,7 +93,6 @@ async def test_websocket_starting_client_in_context_manager(event_loop, server):
 @pytest.mark.parametrize("ws_ssl_server", [server1_answers], indirect=True)
 async def test_websocket_using_ssl_connection(event_loop, ws_ssl_server):
     import websockets
-
     from gql.transport.websockets import WebsocketsTransport
 
     server = ws_ssl_server
@@ -549,10 +547,9 @@ async def test_websocket_using_cli(event_loop, server, monkeypatch, capsys):
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
+    from gql.cli import main, get_parser
     import io
     import json
-
-    from gql.cli import get_parser, main
 
     parser = get_parser(with_examples=True)
     args = parser.parse_args([url])

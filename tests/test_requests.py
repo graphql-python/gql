@@ -38,7 +38,6 @@ query1_server_answer = (
 @pytest.mark.asyncio
 async def test_requests_query(event_loop, aiohttp_server, run_sync_test):
     from aiohttp import web
-
     from gql.transport.requests import RequestsHTTPTransport
 
     async def handler(request):
@@ -82,7 +81,6 @@ async def test_requests_query(event_loop, aiohttp_server, run_sync_test):
 @pytest.mark.asyncio
 async def test_requests_cookies(event_loop, aiohttp_server, run_sync_test):
     from aiohttp import web
-
     from gql.transport.requests import RequestsHTTPTransport
 
     async def handler(request):
@@ -120,7 +118,6 @@ async def test_requests_cookies(event_loop, aiohttp_server, run_sync_test):
 @pytest.mark.asyncio
 async def test_requests_error_code_401(event_loop, aiohttp_server, run_sync_test):
     from aiohttp import web
-
     from gql.transport.requests import RequestsHTTPTransport
 
     async def handler(request):
@@ -156,7 +153,6 @@ async def test_requests_error_code_401(event_loop, aiohttp_server, run_sync_test
 @pytest.mark.asyncio
 async def test_requests_error_code_429(event_loop, aiohttp_server, run_sync_test):
     from aiohttp import web
-
     from gql.transport.requests import RequestsHTTPTransport
 
     async def handler(request):
@@ -206,7 +202,6 @@ async def test_requests_error_code_429(event_loop, aiohttp_server, run_sync_test
 @pytest.mark.asyncio
 async def test_requests_error_code_500(event_loop, aiohttp_server, run_sync_test):
     from aiohttp import web
-
     from gql.transport.requests import RequestsHTTPTransport
 
     async def handler(request):
@@ -239,7 +234,6 @@ query1_server_error_answer = '{"errors": ["Error 1", "Error 2"]}'
 @pytest.mark.asyncio
 async def test_requests_error_code(event_loop, aiohttp_server, run_sync_test):
     from aiohttp import web
-
     from gql.transport.requests import RequestsHTTPTransport
 
     async def handler(request):
@@ -280,7 +274,6 @@ async def test_requests_invalid_protocol(
     event_loop, aiohttp_server, response, run_sync_test
 ):
     from aiohttp import web
-
     from gql.transport.requests import RequestsHTTPTransport
 
     async def handler(request):
@@ -309,7 +302,6 @@ async def test_requests_invalid_protocol(
 @pytest.mark.asyncio
 async def test_requests_cannot_connect_twice(event_loop, aiohttp_server, run_sync_test):
     from aiohttp import web
-
     from gql.transport.requests import RequestsHTTPTransport
 
     async def handler(request):
@@ -338,7 +330,6 @@ async def test_requests_cannot_execute_if_not_connected(
     event_loop, aiohttp_server, run_sync_test
 ):
     from aiohttp import web
-
     from gql.transport.requests import RequestsHTTPTransport
 
     async def handler(request):
@@ -378,7 +369,6 @@ async def test_requests_query_with_extensions(
     event_loop, aiohttp_server, run_sync_test
 ):
     from aiohttp import web
-
     from gql.transport.requests import RequestsHTTPTransport
 
     async def handler(request):
@@ -434,7 +424,6 @@ This file will be sent in the GraphQL mutation
 @pytest.mark.asyncio
 async def test_requests_file_upload(event_loop, aiohttp_server, run_sync_test):
     from aiohttp import web
-
     from gql.transport.requests import RequestsHTTPTransport
 
     async def single_upload_handler(request):
@@ -497,7 +486,6 @@ async def test_requests_file_upload_with_content_type(
     event_loop, aiohttp_server, run_sync_test
 ):
     from aiohttp import web
-
     from gql.transport.requests import RequestsHTTPTransport
 
     async def single_upload_handler(request):
@@ -566,7 +554,6 @@ async def test_requests_file_upload_additional_headers(
     event_loop, aiohttp_server, run_sync_test
 ):
     from aiohttp import web
-
     from gql.transport.requests import RequestsHTTPTransport
 
     async def single_upload_handler(request):
@@ -629,7 +616,6 @@ async def test_requests_file_upload_additional_headers(
 @pytest.mark.asyncio
 async def test_requests_binary_file_upload(event_loop, aiohttp_server, run_sync_test):
     from aiohttp import web
-
     from gql.transport.requests import RequestsHTTPTransport
 
     # This is a sample binary file content containing all possible byte values
@@ -705,7 +691,6 @@ async def test_requests_file_upload_two_files(
     event_loop, aiohttp_server, run_sync_test
 ):
     from aiohttp import web
-
     from gql.transport.requests import RequestsHTTPTransport
 
     file_upload_mutation_2 = """
@@ -806,7 +791,6 @@ async def test_requests_file_upload_list_of_two_files(
     event_loop, aiohttp_server, run_sync_test
 ):
     from aiohttp import web
-
     from gql.transport.requests import RequestsHTTPTransport
 
     file_upload_mutation_3 = """
@@ -898,7 +882,6 @@ async def test_requests_error_fetching_schema(
     event_loop, aiohttp_server, run_sync_test
 ):
     from aiohttp import web
-
     from gql.transport.requests import RequestsHTTPTransport
 
     error_answer = """
@@ -949,7 +932,6 @@ async def test_requests_json_serializer(
 ):
     import json
     from aiohttp import web
-
     from gql.transport.requests import RequestsHTTPTransport
 
     async def handler(request):
@@ -1012,7 +994,6 @@ async def test_requests_json_deserializer(event_loop, aiohttp_server, run_sync_t
     from aiohttp import web
     from decimal import Decimal
     from functools import partial
-
     from gql.transport.requests import RequestsHTTPTransport
 
     async def handler(request):

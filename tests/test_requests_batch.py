@@ -50,7 +50,6 @@ query1_server_answer_twice_list = (
 @pytest.mark.asyncio
 async def test_requests_query(event_loop, aiohttp_server, run_sync_test):
     from aiohttp import web
-
     from gql.transport.requests import RequestsHTTPTransport
 
     async def handler(request):
@@ -96,7 +95,6 @@ async def test_requests_query_auto_batch_enabled(
     event_loop, aiohttp_server, run_sync_test
 ):
     from aiohttp import web
-
     from gql.transport.requests import RequestsHTTPTransport
 
     async def handler(request):
@@ -145,9 +143,8 @@ async def test_requests_query_auto_batch_enabled_two_requests(
     event_loop, aiohttp_server, run_sync_test
 ):
     from aiohttp import web
-    from threading import Thread
-
     from gql.transport.requests import RequestsHTTPTransport
+    from threading import Thread
 
     async def handler(request):
         return web.Response(
@@ -204,7 +201,6 @@ async def test_requests_query_auto_batch_enabled_two_requests(
 @pytest.mark.asyncio
 async def test_requests_cookies(event_loop, aiohttp_server, run_sync_test):
     from aiohttp import web
-
     from gql.transport.requests import RequestsHTTPTransport
 
     async def handler(request):
@@ -244,7 +240,6 @@ async def test_requests_cookies(event_loop, aiohttp_server, run_sync_test):
 @pytest.mark.asyncio
 async def test_requests_error_code_401(event_loop, aiohttp_server, run_sync_test):
     from aiohttp import web
-
     from gql.transport.requests import RequestsHTTPTransport
 
     async def handler(request):
@@ -282,7 +277,6 @@ async def test_requests_error_code_401_auto_batch_enabled(
     event_loop, aiohttp_server, run_sync_test
 ):
     from aiohttp import web
-
     from gql.transport.requests import RequestsHTTPTransport
 
     async def handler(request):
@@ -321,7 +315,6 @@ async def test_requests_error_code_401_auto_batch_enabled(
 @pytest.mark.asyncio
 async def test_requests_error_code_429(event_loop, aiohttp_server, run_sync_test):
     from aiohttp import web
-
     from gql.transport.requests import RequestsHTTPTransport
 
     async def handler(request):
@@ -371,7 +364,6 @@ async def test_requests_error_code_429(event_loop, aiohttp_server, run_sync_test
 @pytest.mark.asyncio
 async def test_requests_error_code_500(event_loop, aiohttp_server, run_sync_test):
     from aiohttp import web
-
     from gql.transport.requests import RequestsHTTPTransport
 
     async def handler(request):
@@ -404,7 +396,6 @@ query1_server_error_answer_list = '[{"errors": ["Error 1", "Error 2"]}]'
 @pytest.mark.asyncio
 async def test_requests_error_code(event_loop, aiohttp_server, run_sync_test):
     from aiohttp import web
-
     from gql.transport.requests import RequestsHTTPTransport
 
     async def handler(request):
@@ -450,7 +441,6 @@ async def test_requests_invalid_protocol(
     event_loop, aiohttp_server, response, run_sync_test
 ):
     from aiohttp import web
-
     from gql.transport.requests import RequestsHTTPTransport
 
     async def handler(request):
@@ -481,7 +471,6 @@ async def test_requests_cannot_execute_if_not_connected(
     event_loop, aiohttp_server, run_sync_test
 ):
     from aiohttp import web
-
     from gql.transport.requests import RequestsHTTPTransport
 
     async def handler(request):
@@ -523,7 +512,6 @@ async def test_requests_query_with_extensions(
     event_loop, aiohttp_server, run_sync_test
 ):
     from aiohttp import web
-
     from gql.transport.requests import RequestsHTTPTransport
 
     async def handler(request):
@@ -563,7 +551,6 @@ skip_reason = "backend does not support batching anymore..."
 def test_requests_sync_batch_auto():
 
     from threading import Thread
-
     from gql.transport.requests import RequestsHTTPTransport
 
     client = Client(

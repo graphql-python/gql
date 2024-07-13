@@ -1075,11 +1075,9 @@ class SyncClientSession:
                 serialize_variables is None and self.client.serialize_variables
             ):
                 requests = [
-                    (
-                        req.serialize_variable_values(self.client.schema)
-                        if req.variable_values is not None
-                        else req
-                    )
+                    req.serialize_variable_values(self.client.schema)
+                    if req.variable_values is not None
+                    else req
                     for req in requests
                 ]
 

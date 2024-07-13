@@ -358,9 +358,8 @@ def get_transport(args: Namespace) -> Optional[AsyncTransport]:
             auth = AppSyncJWTAuthentication(host=url.host, jwt=args.jwt)
 
         else:
-            from botocore.exceptions import NoRegionError
-
             from gql.transport.appsync_auth import AppSyncIAMAuthentication
+            from botocore.exceptions import NoRegionError
 
             try:
                 auth = AppSyncIAMAuthentication(host=url.host)

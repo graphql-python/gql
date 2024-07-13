@@ -273,7 +273,6 @@ async def server_closing_directly(ws, path):
 @pytest.mark.parametrize("server", [server_closing_directly], indirect=True)
 async def test_websocket_server_closing_directly(event_loop, server):
     import websockets
-
     from gql.transport.websockets import WebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
@@ -373,9 +372,8 @@ async def test_websocket_using_cli_invalid_query(
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
+    from gql.cli import main, get_parser
     import io
-
-    from gql.cli import get_parser, main
 
     parser = get_parser(with_examples=True)
     args = parser.parse_args([url])

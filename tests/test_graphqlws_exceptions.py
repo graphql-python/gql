@@ -234,7 +234,6 @@ async def server_closing_directly(ws, path):
 @pytest.mark.parametrize("graphqlws_server", [server_closing_directly], indirect=True)
 async def test_graphqlws_server_closing_directly(event_loop, graphqlws_server):
     import websockets
-
     from gql.transport.websockets import WebsocketsTransport
 
     url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}/graphql"
