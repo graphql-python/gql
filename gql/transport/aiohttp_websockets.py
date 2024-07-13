@@ -22,6 +22,7 @@ from aiohttp.typedefs import LooseHeaders, StrOrURL
 from graphql import DocumentNode, ExecutionResult, print_ast
 from multidict import CIMultiDictProxy
 
+from gql.transport.aiohttp import AIOHTTPTransport
 from gql.transport.async_transport import AsyncTransport
 from gql.transport.exceptions import (
     TransportAlreadyConnected,
@@ -113,6 +114,7 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         protocols: Collection[str] = (),
         timeout: float = 10.0,
         receive_timeout: Optional[float] = None,
+        ssl_close_timeout: Optional[Union[int, float]] = 10,
         autoclose: bool = True,
         autoping: bool = True,
         heartbeat: Optional[float] = None,
@@ -136,6 +138,7 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         ping_interval: Optional[Union[int, float]] = None,
         pong_timeout: Optional[Union[int, float]] = None,
         answer_pings: bool = True,
+        client_session_args: Optional[Dict[str, Any]] = None,
     ) -> None:
         self.url: StrOrURL = url
         self.headers: Optional[LooseHeaders] = headers
@@ -153,6 +156,7 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         self.proxy_auth: Optional[BasicAuth] = proxy_auth
         self.proxy_headers: Optional[LooseHeaders] = proxy_headers
         self.receive_timeout: Optional[float] = receive_timeout
+        self.ssl_close_timeout: Optional[Union[int, float]] = ssl_close_timeout
         self.ssl: Optional[Union[SSLContext, Literal[False], Fingerprint]] = ssl
         self.ssl_context: Optional[SSLContext] = ssl_context
         self.timeout: float = timeout
@@ -222,6 +226,7 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
             self.GRAPHQLWS_SUBPROTOCOL,
         )
         self.close_exception: Optional[Exception] = None
+        self.client_session_args = client_session_args
 
     def _parse_answer_graphqlws(
         self, answer: Dict[str, Any]
@@ -753,7 +758,13 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         log.debug("connect: starting")
 
         if self.session is None:
-            self.session = aiohttp.ClientSession()
+            client_session_args: Dict[str, Any] = {}
+
+            # Adding custom parameters passed from init
+            if self.client_session_args:
+                client_session_args.update(self.client_session_args)  # type: ignore
+
+            self.session = aiohttp.ClientSession(**client_session_args)
 
         if self.websocket is None and not self._connecting:
             self._connecting = True
@@ -893,8 +904,32 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
             log.debug("_close_coro: close websocket connection")
 
             await self.websocket.close()
+            self.websocket = None
 
-            log.debug("_close_coro: websocket connection closed")
+            log.debug("_close_coro: close aiohttp session")
+
+            if (
+                self.client_session_args
+                and self.client_session_args.get("connector_owner") is False
+            ):
+
+                log.debug("connector_owner is False -> not closing connector")
+
+            else:
+                assert self.session is not None
+
+                closed_event = AIOHTTPTransport.create_aiohttp_closed_event(
+                    self.session
+                )
+                await self.session.close()
+                try:
+                    await asyncio.wait_for(closed_event.wait(), self.ssl_close_timeout)
+                except asyncio.TimeoutError:
+                    pass
+
+            self.session = None
+
+            log.debug("_close_coro: aiohttp session closed")
 
         except Exception as exc:  # pragma: no cover
             log.warning("Exception catched in _close_coro: " + repr(exc))
