@@ -3,6 +3,7 @@
 import asyncio
 import json
 import logging
+import sys
 import warnings
 from contextlib import suppress
 from ssl import SSLContext
@@ -11,7 +12,6 @@ from typing import (
     AsyncGenerator,
     Collection,
     Dict,
-    Literal,
     Mapping,
     Optional,
     Tuple,
@@ -32,6 +32,16 @@ from gql.transport.exceptions import (
     TransportQueryError,
     TransportServerError,
 )
+
+"""
+Load the appropriate instance of the Literal type
+Note: we cannot use try: except ImportError because of the following mypy issue:
+https://github.com/python/mypy/issues/8520
+"""
+if sys.version_info[:2] >= (3, 8):
+    from typing import Literal
+else:
+    from typing_extensions import Literal  # pragma: no cover
 
 log = logging.getLogger("gql.transport.aiohttp_websockets")
 
