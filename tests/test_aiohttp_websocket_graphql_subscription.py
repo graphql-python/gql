@@ -12,8 +12,8 @@ from gql.transport.exceptions import TransportServerError
 
 from .conftest import MS, WebSocketServerHelper
 
-# Marking all tests in this file with the websockets marker
-pytestmark = pytest.mark.aiohttp_websockets
+# Marking all tests in this file with the aiohttp AND websockets marker
+pytestmark = [pytest.mark.aiohttp, pytest.mark.websockets]
 
 countdown_server_answer = (
     '{{"type":"next","id":"{query_id}","payload":{{"data":{{"number":{number}}}}}}}'

@@ -14,6 +14,9 @@ from gql.transport.exceptions import TransportClosed, TransportServerError
 from .conftest import MS, WebSocketServerHelper
 from .starwars.schema import StarWarsIntrospection, StarWarsSchema, StarWarsTypeDef
 
+# Marking all tests in this file with the aiohttp AND websockets marker
+pytestmark = [pytest.mark.aiohttp, pytest.mark.websockets]
+
 starwars_expected_one = {
     "stars": 3,
     "commentary": "Was expecting more stuff",
@@ -76,9 +79,6 @@ starwars_invalid_subscription_str = """
       }
     }
 """
-
-# Marking all tests in this file with the websockets marker
-pytestmark = pytest.mark.aiohttp_websockets
 
 countdown_server_answer = (
     '{{"type":"data","id":"{query_id}","payload":{{"data":{{"number":{number}}}}}}}'
@@ -711,7 +711,6 @@ async def test_aiohttp_websocket_subscription_running_in_thread(
     await run_sync_test(event_loop, server, test_code)
 
 
-@pytest.mark.aiohttp_websockets
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_starwars], indirect=True)
 @pytest.mark.parametrize("subscription_str", [starwars_subscription_str])
