@@ -11,6 +11,7 @@ from typing import (
     AsyncGenerator,
     Collection,
     Dict,
+    Literal,
     Mapping,
     Optional,
     Tuple,
@@ -60,7 +61,7 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         headers: Optional[LooseHeaders] = None,
         proxy: Optional[StrOrURL] = None,
         proxy_auth: Optional[BasicAuth] = None,
-        ssl: Union[SSLContext, bool, Fingerprint] = True,
+        ssl: Optional[Union[SSLContext, Literal[False], Fingerprint]] = None,
         ssl_context: Optional[SSLContext] = None,
         verify_ssl: Optional[bool] = True,
         proxy_headers: Optional[LooseHeaders] = None,
@@ -91,7 +92,7 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         self.proxy_auth: Optional[BasicAuth] = proxy_auth
         self.proxy_headers: Optional[LooseHeaders] = proxy_headers
         self.receive_timeout: Optional[float] = receive_timeout
-        self.ssl: Union[SSLContext, bool, Fingerprint] = ssl
+        self.ssl: Optional[Union[SSLContext, Literal[False], Fingerprint]] = ssl
         self.ssl_context: Optional[SSLContext] = ssl_context
         self.timeout: float = timeout
         self.verify_ssl: Optional[bool] = verify_ssl
