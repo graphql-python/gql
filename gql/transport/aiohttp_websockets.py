@@ -1,5 +1,3 @@
-"""Websockets Client for asyncio."""
-
 import asyncio
 import json
 import logging
@@ -443,7 +441,6 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         has been established.
         """
         # Find the backend subprotocol returned in the response headers
-        # TODO: find the equivalent of response_headers in aiohttp websocket response
         response_headers = self.websocket._response.headers
         log.debug(f"Response headers: {response_headers!r}")
         try:
