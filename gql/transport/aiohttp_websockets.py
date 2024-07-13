@@ -614,9 +614,7 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
     async def _receive(self) -> str:
         """Wait the next message from the websocket connection and log the answer"""
 
-        # It is possible that the websocket has been already closed in another task
-        if self.websocket is None:
-            raise TransportClosed("Transport is already closed")
+        assert self.websocket is not None
 
         ws_message = await self.websocket.receive()
 
@@ -720,9 +718,6 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
                 except (ConnectionResetError, TransportProtocolError) as e:
                     await self._fail(e, clean_close=False)
                     break
-                except TransportClosed as e:
-                    await self._fail(e, clean_close=False)
-                    raise e
 
                 # Parse the answer
                 try:
