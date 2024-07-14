@@ -441,7 +441,6 @@ async def test_websocket_connect_failed_with_authentication_in_connection_init(
 
             await session.execute(query1)
 
-    await asyncio.sleep(1)
     assert transport.websocket is None
 
 
