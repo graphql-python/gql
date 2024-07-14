@@ -441,6 +441,8 @@ async def test_websocket_connect_failed_with_authentication_in_connection_init(
 
             await session.execute(query1)
 
+    assert transport.websocket is None
+
 
 @pytest.mark.parametrize("server", [server1_answers], indirect=True)
 def test_websocket_execute_sync(server):
