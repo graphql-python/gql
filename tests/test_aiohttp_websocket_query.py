@@ -87,7 +87,10 @@ async def test_aiohttp_websocket_starting_client_in_context_manager(event_loop, 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("ws_ssl_server", [server1_answers], indirect=True)
-async def test_aiohttp_websocket_using_ssl_connection(event_loop, ws_ssl_server):
+@pytest.mark.parametrize("ssl_close_timeout", [0, 10])
+async def test_aiohttp_websocket_using_ssl_connection(
+    event_loop, ws_ssl_server, ssl_close_timeout
+):
 
     from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
@@ -99,7 +102,9 @@ async def test_aiohttp_websocket_using_ssl_connection(event_loop, ws_ssl_server)
     ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
     ssl_context.load_verify_locations(ws_ssl_server.testcert)
 
-    transport = AIOHTTPWebsocketsTransport(url=url, ssl=ssl_context)
+    transport = AIOHTTPWebsocketsTransport(
+        url=url, ssl=ssl_context, ssl_close_timeout=ssl_close_timeout
+    )
 
     async with Client(transport=transport) as session:
 
