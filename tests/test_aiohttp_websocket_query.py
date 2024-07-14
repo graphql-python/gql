@@ -612,3 +612,44 @@ async def test_aiohttp_websocket_simple_query_with_extensions(
     execution_result = await session.execute(query, get_execution_result=True)
 
     assert execution_result.extensions["key1"] == "val1"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("server", [server1_answers], indirect=True)
+async def test_aiohttp_websocket_connector_owner_false(event_loop, server):
+    from aiohttp import TCPConnector
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
+
+    url = f"ws://{server.hostname}:{server.port}/graphql"
+    print(f"url = {url}")
+
+    connector = TCPConnector()
+    transport = AIOHTTPWebsocketsTransport(
+        url=url,
+        timeout=10,
+        client_session_args={
+            "connector": connector,
+            "connector_owner": False,
+        },
+    )
+
+    for _ in range(2):
+        async with Client(transport=transport) as session:
+
+            query1 = gql(query1_str)
+
+            result = await session.execute(query1)
+
+            print("Client received:", result)
+
+            assert isinstance(result, Dict)
+
+            continents = result["continents"]
+            africa = continents[0]
+
+            assert africa["code"] == "AF"
+
+    # Check client is disconnect here
+    assert transport.websocket is None
+
+    await connector.close()
