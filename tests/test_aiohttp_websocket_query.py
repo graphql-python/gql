@@ -438,11 +438,15 @@ async def test_aiohttp_websocket_connect_failed_with_authentication_in_connectio
 
     transport = AIOHTTPWebsocketsTransport(url=url, init_payload=init_payload)
 
-    with pytest.raises(TransportServerError):
-        async with Client(transport=transport) as session:
-            query1 = gql(query_str)
+    for _ in range(2):
+        with pytest.raises(TransportServerError):
+            async with Client(transport=transport) as session:
+                query1 = gql(query_str)
 
-            await session.execute(query1)
+                await session.execute(query1)
+
+        assert transport.session is None
+        assert transport.websocket is None
 
 
 @pytest.mark.parametrize("server", [server1_answers], indirect=True)

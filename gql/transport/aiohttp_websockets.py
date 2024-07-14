@@ -810,7 +810,11 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
                 await self._initialize()
             except ConnectionResetError as e:
                 raise e
-            except (TransportProtocolError, asyncio.TimeoutError) as e:
+            except (
+                TransportProtocolError,
+                TransportServerError,
+                asyncio.TimeoutError,
+            ) as e:
                 await self._fail(e, clean_close=False)
                 raise e
 
