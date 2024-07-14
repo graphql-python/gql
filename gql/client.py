@@ -786,7 +786,11 @@ class Client:
             self.session = ReconnectingAsyncClientSession(client=self, **kwargs)
             await self.session.start_connecting_task()
         else:
-            await self.transport.connect()
+            try:
+                await self.transport.connect()
+            except Exception as e:
+                await self.transport.close()
+                raise e
             self.session = AsyncClientSession(client=self)
 
         # Get schema from transport if needed
