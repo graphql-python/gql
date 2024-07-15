@@ -7,7 +7,6 @@ import pytest
 
 from gql import Client, gql
 from gql.transport.exceptions import (
-    TransportAlreadyConnected,
     TransportClosed,
     TransportProtocolError,
     TransportQueryError,
@@ -366,8 +365,10 @@ async def test_aiohttp_websocket_non_regression_bug_105(event_loop, server):
     connect_task1 = asyncio.ensure_future(client_connect(client))
     connect_task2 = asyncio.ensure_future(client_connect(client))
 
-    with pytest.raises(TransportAlreadyConnected):
-        await asyncio.gather(connect_task1, connect_task2)
+    result = await asyncio.gather(connect_task1, connect_task2, return_exceptions=True)
+
+    assert result[0] is None
+    assert type(result[1]).__name__ == "TransportAlreadyConnected"
 
 
 @pytest.mark.asyncio
