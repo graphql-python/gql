@@ -785,22 +785,28 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
                 connect_args.update(self.connect_args)
 
             try:
-                self.websocket = await self.session.ws_connect(
-                    url=self.url,
-                    headers=self.headers,
-                    auth=self.auth,
-                    heartbeat=self.heartbeat,
-                    origin=self.origin,
-                    params=self.params,
-                    protocols=self.supported_subprotocols,
-                    proxy=self.proxy,
-                    proxy_auth=self.proxy_auth,
-                    proxy_headers=self.proxy_headers,
-                    timeout=self.websocket_close_timeout,
-                    receive_timeout=self.receive_timeout,
-                    ssl=self.ssl,
-                    ssl_context=None,
-                    **connect_args,
+                # Connection to the specified url
+                # Generate a TimeoutError if taking more than connect_timeout seconds
+                # Set the _connecting flag to False after in all cases
+                self.websocket = await asyncio.wait_for(
+                    self.session.ws_connect(
+                        url=self.url,
+                        headers=self.headers,
+                        auth=self.auth,
+                        heartbeat=self.heartbeat,
+                        origin=self.origin,
+                        params=self.params,
+                        protocols=self.supported_subprotocols,
+                        proxy=self.proxy,
+                        proxy_auth=self.proxy_auth,
+                        proxy_headers=self.proxy_headers,
+                        timeout=self.websocket_close_timeout,
+                        receive_timeout=self.receive_timeout,
+                        ssl=self.ssl,
+                        ssl_context=None,
+                        **connect_args,
+                    ),
+                    self.connect_timeout,
                 )
             finally:
                 self._connecting = False
