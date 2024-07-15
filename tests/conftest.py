@@ -516,7 +516,7 @@ async def client_and_aiohttp_websocket_graphql_server(graphqlws_server):
     url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}{path}"
     sample_transport = AIOHTTPWebsocketsTransport(
         url=url,
-        protocols=[AIOHTTPWebsocketsTransport.GRAPHQLWS_SUBPROTOCOL],
+        subprotocols=[AIOHTTPWebsocketsTransport.GRAPHQLWS_SUBPROTOCOL],
     )
 
     async with Client(transport=sample_transport) as session:
