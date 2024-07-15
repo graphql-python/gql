@@ -959,8 +959,8 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
 
         if self.close_task is None:
 
-            if self.websocket is None:
-                log.debug("_fail started with self.websocket == None -> already closed")
+            if self._wait_closed.is_set():
+                log.debug("_fail started but transport is already closed")
             else:
                 self.close_task = asyncio.shield(
                     asyncio.ensure_future(self._close_coro(e, clean_close=clean_close))
@@ -984,7 +984,8 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
     async def wait_closed(self) -> None:
         log.debug("wait_close: starting")
 
-        await self._wait_closed.wait()
+        if not self._wait_closed.is_set():
+            await self._wait_closed.wait()
 
         log.debug("wait_close: done")
 

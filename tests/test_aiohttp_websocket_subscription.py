@@ -782,9 +782,6 @@ async def test_subscribe_on_closing_transport(event_loop, server, subscription_s
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(
-    reason="This test hangs with WebsocketsTransport or AIOHTTPWebsocketsTransport"
-)
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_subscribe_on_null_transport(event_loop, server, subscription_str):
