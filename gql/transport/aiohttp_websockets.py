@@ -620,15 +620,23 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         if self.websocket is None:
             raise TransportClosed("Transport is already closed")
 
-        ws_message = await self.websocket.receive()
+        while True:
+            ws_message = await self.websocket.receive()
 
-        if ws_message.type in (WSMsgType.CLOSE, WSMsgType.CLOSED, WSMsgType.CLOSING):
+            # Ignore low-level ping and pong received
+            if ws_message.type not in (WSMsgType.PING, WSMsgType.PONG):
+                break
+
+        if ws_message.type in (
+            WSMsgType.CLOSE,
+            WSMsgType.CLOSED,
+            WSMsgType.CLOSING,
+            WSMsgType.ERROR,
+        ):
             raise ConnectionResetError
         elif ws_message.type is WSMsgType.BINARY:
             raise TransportProtocolError("Binary data received in the websocket")
 
-        # Note: ws_message could also be a low level PING or PONG type here
-        # but we don't enable those
         assert ws_message.type is WSMsgType.TEXT
 
         answer: str = ws_message.data
