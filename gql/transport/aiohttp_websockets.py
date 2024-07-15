@@ -112,9 +112,6 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         *,
         method: str = hdrs.METH_GET,
         protocols: Collection[str] = (),
-        timeout: float = 10.0,
-        receive_timeout: Optional[float] = None,
-        ssl_close_timeout: Optional[Union[int, float]] = 10,
         autoclose: bool = True,
         autoping: bool = True,
         heartbeat: Optional[float] = None,
@@ -130,6 +127,9 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         proxy_headers: Optional[LooseHeaders] = None,
         compress: int = 0,
         max_msg_size: int = 4 * 1024 * 1024,
+        websocket_close_timeout: float = 10.0,
+        receive_timeout: Optional[float] = None,
+        ssl_close_timeout: Optional[Union[int, float]] = 10,
         connect_timeout: Optional[Union[int, float]] = 10,
         close_timeout: Optional[Union[int, float]] = 10,
         ack_timeout: Optional[Union[int, float]] = 10,
@@ -155,11 +155,15 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         self.proxy: Optional[StrOrURL] = proxy
         self.proxy_auth: Optional[BasicAuth] = proxy_auth
         self.proxy_headers: Optional[LooseHeaders] = proxy_headers
-        self.receive_timeout: Optional[float] = receive_timeout
         self.ssl_close_timeout: Optional[Union[int, float]] = ssl_close_timeout
         self.ssl: Optional[Union[SSLContext, Literal[False], Fingerprint]] = ssl
         self.ssl_context: Optional[SSLContext] = ssl_context
-        self.timeout: float = timeout
+        self.websocket_close_timeout: float = websocket_close_timeout
+        self.receive_timeout: Optional[float] = receive_timeout
+        self.connect_timeout: Optional[Union[int, float]] = connect_timeout
+        self.close_timeout: Optional[Union[int, float]] = close_timeout
+        self.ack_timeout: Optional[Union[int, float]] = ack_timeout
+        self.keep_alive_timeout: Optional[Union[int, float]] = keep_alive_timeout
         self.verify_ssl: Optional[bool] = verify_ssl
         self.init_payload: Dict[str, Any] = init_payload
 
@@ -175,10 +179,6 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
             self._loop = asyncio.new_event_loop()
             asyncio.set_event_loop(self._loop)
 
-        self.connect_timeout: Optional[Union[int, float]] = connect_timeout
-        self.close_timeout: Optional[Union[int, float]] = close_timeout
-        self.ack_timeout: Optional[Union[int, float]] = ack_timeout
-        self.keep_alive_timeout: Optional[Union[int, float]] = keep_alive_timeout
         self._next_keep_alive_message: asyncio.Event = asyncio.Event()
         self._next_keep_alive_message.set()
 
@@ -802,7 +802,7 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
                     receive_timeout=self.receive_timeout,
                     ssl=self.ssl,
                     ssl_context=None,
-                    timeout=self.timeout,
+                    timeout=self.websocket_close_timeout,
                     verify_ssl=self.verify_ssl,
                 )
             finally:

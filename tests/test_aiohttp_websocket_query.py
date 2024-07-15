@@ -58,7 +58,7 @@ async def test_aiohttp_websocket_starting_client_in_context_manager(event_loop, 
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    transport = AIOHTTPWebsocketsTransport(url=url, timeout=10)
+    transport = AIOHTTPWebsocketsTransport(url=url, websocket_close_timeout=10)
 
     async with Client(transport=transport) as session:
 
@@ -630,7 +630,6 @@ async def test_aiohttp_websocket_connector_owner_false(event_loop, server):
     connector = TCPConnector()
     transport = AIOHTTPWebsocketsTransport(
         url=url,
-        timeout=10,
         client_session_args={
             "connector": connector,
             "connector_owner": False,
