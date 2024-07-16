@@ -235,7 +235,7 @@ class AIOHTTPWebsocketServer:
 
             try:
                 # Init and ack
-                msg = await anext(ws)
+                msg = await ws.__anext__()
                 assert msg.type == WSMsgType.TEXT
                 result = msg.data
                 json_result = json.loads(result)
@@ -245,7 +245,7 @@ class AIOHTTPWebsocketServer:
 
                 # Wait for queries and send answers
                 for answer in answers:
-                    msg = await anext(ws)
+                    msg = await ws.__anext__()
                     if msg.type == WSMsgType.TEXT:
                         result = msg.data
 
@@ -273,13 +273,13 @@ class AIOHTTPWebsocketServer:
                         raise ConnectionResetError
 
                 # Wait for connection_terminate
-                msg = await anext(ws)
+                msg = await ws.__anext__()
                 result = msg.data
                 json_result = json.loads(result)
                 assert json_result["type"] == "connection_terminate"
 
                 # Wait for connection close
-                msg = await anext(ws)
+                msg = await ws.__anext__()
 
             except ConnectionResetError:
                 pass
