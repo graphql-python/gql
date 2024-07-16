@@ -281,6 +281,9 @@ class AIOHTTPWebsocketServer:
                 # Wait for connection close
                 msg = await anext(ws)
 
+            except ConnectionResetError:
+                pass
+
             except Exception as e:
                 print(f"Server exception {e!s}", file=sys.stderr)
 
