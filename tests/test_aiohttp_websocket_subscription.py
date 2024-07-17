@@ -149,12 +149,15 @@ async def server_countdown(ws, path):
                     break
 
         stopping_task = asyncio.ensure_future(stopping_coro())
-        keepalive_task = asyncio.ensure_future(keepalive_coro())
+        if WITH_KEEPALIVE:
+            keepalive_task = asyncio.ensure_future(keepalive_coro())
 
         try:
             await counting_task
         except asyncio.CancelledError:
             print("Now counting task is cancelled")
+        except Exception as exc:
+            print(f"Exception in counting task: {exc!s}")
 
         stopping_task.cancel()
 
