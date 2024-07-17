@@ -483,9 +483,9 @@ async def test_aiohttp_websocket_subscription_with_keepalive_with_timeout_ok(
 
     path = "/graphql"
     url = f"ws://{server.hostname}:{server.port}{path}"
-    sample_transport = AIOHTTPWebsocketsTransport(url=url, keep_alive_timeout=(20 * MS))
+    transport = AIOHTTPWebsocketsTransport(url=url, keep_alive_timeout=(20 * MS))
 
-    client = Client(transport=sample_transport)
+    client = Client(transport=transport)
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
@@ -513,9 +513,9 @@ async def test_aiohttp_websocket_subscription_with_keepalive_with_timeout_nok(
 
     path = "/graphql"
     url = f"ws://{server.hostname}:{server.port}{path}"
-    sample_transport = AIOHTTPWebsocketsTransport(url=url, keep_alive_timeout=(1 * MS))
+    transport = AIOHTTPWebsocketsTransport(url=url, keep_alive_timeout=(1 * MS))
 
-    client = Client(transport=sample_transport)
+    client = Client(transport=transport)
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
@@ -536,14 +536,14 @@ async def test_aiohttp_websocket_subscription_with_keepalive_with_timeout_nok(
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 def test_aiohttp_websocket_subscription_sync(server, subscription_str):
-    from gql.transport.websockets import WebsocketsTransport
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    sample_transport = WebsocketsTransport(url=url)
+    transport = AIOHTTPWebsocketsTransport(url=url)
 
-    client = Client(transport=sample_transport)
+    client = Client(transport=transport)
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
@@ -562,14 +562,14 @@ def test_aiohttp_websocket_subscription_sync(server, subscription_str):
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 def test_aiohttp_websocket_subscription_sync_user_exception(server, subscription_str):
-    from gql.transport.websockets import WebsocketsTransport
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    sample_transport = WebsocketsTransport(url=url)
+    transport = AIOHTTPWebsocketsTransport(url=url)
 
-    client = Client(transport=sample_transport)
+    client = Client(transport=transport)
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
@@ -593,14 +593,14 @@ def test_aiohttp_websocket_subscription_sync_user_exception(server, subscription
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 def test_aiohttp_websocket_subscription_sync_break(server, subscription_str):
-    from gql.transport.websockets import WebsocketsTransport
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    sample_transport = WebsocketsTransport(url=url)
+    transport = AIOHTTPWebsocketsTransport(url=url)
 
-    client = Client(transport=sample_transport)
+    client = Client(transport=transport)
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
@@ -636,14 +636,14 @@ def test_aiohttp_websocket_subscription_sync_graceful_shutdown(
 
     This test does not work on Windows but the behaviour with Windows is correct.
     """
-    from gql.transport.websockets import WebsocketsTransport
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    sample_transport = WebsocketsTransport(url=url)
+    transport = AIOHTTPWebsocketsTransport(url=url)
 
-    client = Client(transport=sample_transport)
+    client = Client(transport=transport)
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
@@ -686,14 +686,14 @@ def test_aiohttp_websocket_subscription_sync_graceful_shutdown(
 async def test_aiohttp_websocket_subscription_running_in_thread(
     event_loop, server, subscription_str, run_sync_test
 ):
-    from gql.transport.websockets import WebsocketsTransport
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
     def test_code():
         path = "/graphql"
         url = f"ws://{server.hostname}:{server.port}{path}"
-        sample_transport = WebsocketsTransport(url=url)
+        transport = AIOHTTPWebsocketsTransport(url=url)
 
-        client = Client(transport=sample_transport)
+        client = Client(transport=transport)
 
         count = 10
         subscription = gql(subscription_str.format(count=count))
@@ -730,9 +730,9 @@ async def test_async_aiohttp_client_validation(
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
 
-    sample_transport = AIOHTTPWebsocketsTransport(url=url)
+    transport = AIOHTTPWebsocketsTransport(url=url)
 
-    client = Client(transport=sample_transport, **client_params)
+    client = Client(transport=transport, **client_params)
 
     async with client as session:
 
