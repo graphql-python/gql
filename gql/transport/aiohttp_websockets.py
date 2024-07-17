@@ -967,18 +967,23 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
 
         try:
 
-            # We should always have an active websocket connection here
-            assert self.websocket is not None
+            try:
+                # Properly shut down liveness checker if enabled
+                if self.check_keep_alive_task is not None:
+                    # More info: https://stackoverflow.com/a/43810272/1113207
+                    self.check_keep_alive_task.cancel()
+                    with suppress(asyncio.CancelledError):
+                        await self.check_keep_alive_task
+            except Exception as exc:  # pragma: no cover
+                log.warning(
+                    "_close_coro cancel keep alive task exception: " + repr(exc)
+                )
 
-            # Properly shut down liveness checker if enabled
-            if self.check_keep_alive_task is not None:
-                # More info: https://stackoverflow.com/a/43810272/1113207
-                self.check_keep_alive_task.cancel()
-                with suppress(asyncio.CancelledError):
-                    await self.check_keep_alive_task
-
-            # Calling the subclass close hook
-            await self._close_hook()
+            try:
+                # Calling the subclass close hook
+                await self._close_hook()
+            except Exception as exc:  # pragma: no cover
+                log.warning("_close_coro close_hook exception: " + repr(exc))
 
             # Saving exception to raise it later if trying to use the transport
             # after it has already closed.
@@ -999,8 +1004,13 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
 
             log.debug("_close_coro: close websocket connection")
 
-            await self.websocket.close()
-            self.websocket = None
+            try:
+                assert self.websocket is not None
+
+                await self.websocket.close()
+                self.websocket = None
+            except Exception as exc:
+                log.warning("_close_coro websocket close exception: " + repr(exc))
 
             log.debug("_close_coro: close aiohttp session")
 
@@ -1012,31 +1022,48 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
                 log.debug("connector_owner is False -> not closing connector")
 
             else:
-                assert self.session is not None
-
-                closed_event = AIOHTTPTransport.create_aiohttp_closed_event(
-                    self.session
-                )
-                await self.session.close()
                 try:
-                    await asyncio.wait_for(closed_event.wait(), self.ssl_close_timeout)
-                except asyncio.TimeoutError:
-                    pass
+                    assert self.session is not None
+
+                    closed_event = AIOHTTPTransport.create_aiohttp_closed_event(
+                        self.session
+                    )
+                    await self.session.close()
+                    try:
+                        await asyncio.wait_for(
+                            closed_event.wait(), self.ssl_close_timeout
+                        )
+                    except asyncio.TimeoutError:
+                        pass
+                except Exception as exc:  # pragma: no cover
+                    log.warning("_close_coro session close exception: " + repr(exc))
 
             self.session = None
 
             log.debug("_close_coro: aiohttp session closed")
+
+            try:
+                assert self.receive_data_task is not None
+
+                self.receive_data_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await self.receive_data_task
+            except Exception as exc:  # pragma: no cover
+                log.warning(
+                    "_close_coro cancel receive data task exception: " + repr(exc)
+                )
 
         except Exception as exc:  # pragma: no cover
             log.warning("Exception catched in _close_coro: " + repr(exc))
 
         finally:
 
-            log.debug("_close_coro: start cleanup")
+            log.debug("_close_coro: final cleanup")
 
             self.websocket = None
             self.close_task = None
             self.check_keep_alive_task = None
+            self.receive_data_task = None
             self._wait_closed.set()
 
         log.debug("_close_coro: exiting")
