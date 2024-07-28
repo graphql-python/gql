@@ -3,7 +3,7 @@
 gql-cli
 =======
 
-GQL provides a python 3.7+ script, called `gql-cli` which allows you to execute
+GQL provides a python script, called `gql-cli` which allows you to execute
 GraphQL queries directly from the terminal.
 
 This script supports http(s) or websockets protocols.
