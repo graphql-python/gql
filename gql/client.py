@@ -1357,8 +1357,8 @@ class AsyncClientSession:
             **kwargs,
         )
 
-        # Keep a reference to the inner generator to allow the user to call aclose()
-        # before a break if python version is too old (pypy3 py 3.6.1)
+        # Keep a reference to the inner generator
+        # This is only used for the tests to simulate a KeyboardInterrupt event
         self._generator = inner_generator
 
         try:
