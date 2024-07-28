@@ -189,9 +189,6 @@ async def test_websocket_subscription_break(
         assert number == count
 
         if count <= 5:
-            # Note: the following line is only necessary for pypy3 v3.6.1
-            if sys.version_info < (3, 7):
-                await session._generator.aclose()
             break
 
         count -= 1
