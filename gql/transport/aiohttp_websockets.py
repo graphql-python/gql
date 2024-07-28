@@ -1114,11 +1114,6 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
 
         async for result in generator:
             first_result = result
-
-            # Note: we need to run generator.aclose() here or the finally block in
-            # the subscribe will not be reached in pypy3 (python version 3.6.1)
-            await generator.aclose()
-
             break
 
         if first_result is None:
