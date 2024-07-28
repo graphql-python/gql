@@ -1,7 +1,6 @@
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 
-import pytest
 from graphql.error import GraphQLError
 from graphql.language import ValueNode
 from graphql.pyutils import inspect
@@ -110,9 +109,6 @@ queryType = GraphQLObjectType(
 schema = GraphQLSchema(query=queryType)
 
 
-@pytest.mark.skipif(
-    not hasattr(datetime, "fromisoformat"), reason="fromisoformat is new in Python 3.7+"
-)
 def test_shift_days():
 
     client = Client(schema=schema, parse_results=True, serialize_variables=True)
@@ -132,9 +128,6 @@ def test_shift_days():
     assert result["shiftDays"] == datetime.fromisoformat("2021-11-17T11:58:13.461161")
 
 
-@pytest.mark.skipif(
-    not hasattr(datetime, "fromisoformat"), reason="fromisoformat is new in Python 3.7+"
-)
 def test_shift_days_serialized_manually_in_query():
 
     client = Client(schema=schema)
@@ -152,9 +145,6 @@ def test_shift_days_serialized_manually_in_query():
     assert result["shiftDays"] == datetime.fromisoformat("2021-11-17T11:58:13.461161")
 
 
-@pytest.mark.skipif(
-    not hasattr(datetime, "fromisoformat"), reason="fromisoformat is new in Python 3.7+"
-)
 def test_shift_days_serialized_manually_in_variables():
 
     client = Client(schema=schema, parse_results=True)
@@ -172,9 +162,6 @@ def test_shift_days_serialized_manually_in_variables():
     assert result["shiftDays"] == datetime.fromisoformat("2021-11-17T11:58:13.461161")
 
 
-@pytest.mark.skipif(
-    not hasattr(datetime, "fromisoformat"), reason="fromisoformat is new in Python 3.7+"
-)
 def test_latest():
 
     client = Client(schema=schema, parse_results=True)
@@ -197,9 +184,6 @@ def test_latest():
     assert result["latest"] == in_five_days
 
 
-@pytest.mark.skipif(
-    not hasattr(datetime, "fromisoformat"), reason="fromisoformat is new in Python 3.7+"
-)
 def test_seconds():
     client = Client(schema=schema)
 
@@ -221,9 +205,6 @@ def test_seconds():
     assert result["seconds"] == 432000
 
 
-@pytest.mark.skipif(
-    not hasattr(datetime, "fromisoformat"), reason="fromisoformat is new in Python 3.7+"
-)
 def test_seconds_omit_optional_start_argument():
     client = Client(schema=schema)
 
