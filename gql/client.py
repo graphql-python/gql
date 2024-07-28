@@ -262,7 +262,7 @@ class Client:
         *,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
-        get_execution_result: Literal[False],
+        get_execution_result: Literal[False] = ...,
         **kwargs,
     ) -> List[Dict[str, Any]]:
         ...  # pragma: no cover
@@ -498,7 +498,7 @@ class Client:
         *,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
-        get_execution_result: Literal[False] = False,
+        get_execution_result: Literal[False] = ...,
         **kwargs,
     ) -> List[Dict[str, Any]]:
         ...  # pragma: no cover
@@ -510,7 +510,7 @@ class Client:
         *,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
-        get_execution_result: Literal[True] = True,
+        get_execution_result: Literal[True],
         **kwargs,
     ) -> List[ExecutionResult]:
         ...  # pragma: no cover
@@ -1103,7 +1103,7 @@ class SyncClientSession:
         *,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
-        get_execution_result: Literal[False],
+        get_execution_result: Literal[False] = ...,
         **kwargs,
     ) -> List[Dict[str, Any]]:
         ...  # pragma: no cover
