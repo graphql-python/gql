@@ -21,6 +21,7 @@ Sub-Packages
    client
    transport
    transport_aiohttp
+   transport_aiohttp_websockets
    transport_appsync_auth
    transport_appsync_websockets
    transport_exceptions

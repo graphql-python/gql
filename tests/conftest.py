@@ -119,6 +119,7 @@ async def ssl_aiohttp_server():
 for name in [
     "websockets.legacy.server",
     "gql.transport.aiohttp",
+    "gql.transport.aiohttp_websockets",
     "gql.transport.appsync",
     "gql.transport.phoenix_channel_websockets",
     "gql.transport.requests",
@@ -208,6 +209,145 @@ class WebSocketServer:
             pass
 
         print("Server stopped\n\n\n")
+
+
+class AIOHTTPWebsocketServer:
+    def __init__(self, with_ssl=False):
+        self.runner = None
+        self.site = None
+        self.port = None
+        self.hostname = "127.0.0.1"
+        self.with_ssl = with_ssl
+        self.ssl_context = None
+        if with_ssl:
+            _, self.ssl_context = get_localhost_ssl_context()
+
+    def get_default_server_handler(answers):
+        async def default_server_handler(request):
+
+            import aiohttp
+            import aiohttp.web
+            from aiohttp import WSMsgType
+
+            ws = aiohttp.web.WebSocketResponse()
+            ws.headers.update({"dummy": "test1234"})
+            await ws.prepare(request)
+
+            try:
+                # Init and ack
+                msg = await ws.__anext__()
+                assert msg.type == WSMsgType.TEXT
+                result = msg.data
+                json_result = json.loads(result)
+                assert json_result["type"] == "connection_init"
+                await ws.send_str('{"type":"connection_ack"}')
+                query_id = 1
+
+                # Wait for queries and send answers
+                for answer in answers:
+                    msg = await ws.__anext__()
+                    if msg.type == WSMsgType.TEXT:
+                        result = msg.data
+
+                        print(f"Server received: {result}", file=sys.stderr)
+                        if isinstance(answer, str) and "{query_id}" in answer:
+                            answer_format_params = {"query_id": query_id}
+                            formatted_answer = answer.format(**answer_format_params)
+                        else:
+                            formatted_answer = answer
+                        await ws.send_str(formatted_answer)
+                        await ws.send_str(
+                            f'{{"type":"complete","id":"{query_id}","payload":null}}'
+                        )
+                        query_id += 1
+
+                    elif msg.type == WSMsgType.ERROR:
+                        print(f"WebSocket connection closed with: {ws.exception()}")
+                        raise ws.exception()
+                    elif msg.type in (
+                        WSMsgType.CLOSE,
+                        WSMsgType.CLOSED,
+                        WSMsgType.CLOSING,
+                    ):
+                        print("WebSocket connection closed")
+                        raise ConnectionResetError
+
+                # Wait for connection_terminate
+                msg = await ws.__anext__()
+                result = msg.data
+                json_result = json.loads(result)
+                assert json_result["type"] == "connection_terminate"
+
+                # Wait for connection close
+                msg = await ws.__anext__()
+
+            except ConnectionResetError:
+                pass
+
+            except Exception as e:
+                print(f"Server exception {e!s}", file=sys.stderr)
+
+            await ws.close()
+            return ws
+
+        return default_server_handler
+
+    async def shutdown_server(self, app):
+        print("Shutting down server...")
+        await app.shutdown()
+        await app.cleanup()
+
+    async def start(self, handler):
+        import aiohttp
+        import aiohttp.web
+
+        app = aiohttp.web.Application()
+        app.router.add_get("/graphql", handler)
+        self.runner = aiohttp.web.AppRunner(app)
+        await self.runner.setup()
+
+        # Use port 0 to bind to an available port
+        self.site = aiohttp.web.TCPSite(
+            self.runner, self.hostname, 0, ssl_context=self.ssl_context
+        )
+        await self.site.start()
+
+        # Retrieve the actual port the server is listening on
+        sockets = self.site._server.sockets
+        if sockets:
+            self.port = sockets[0].getsockname()[1]
+            protocol = "https" if self.with_ssl else "http"
+            print(f"Server started at {protocol}://{self.hostname}:{self.port}")
+
+    async def stop(self):
+        if self.site:
+            await self.site.stop()
+        if self.runner:
+            await self.runner.cleanup()
+
+
+@pytest_asyncio.fixture
+async def aiohttp_ws_server(request):
+    """Fixture used to start a dummy server to test the client behaviour
+    using the aiohttp dependency.
+
+    It can take as argument either a handler function for the websocket server for
+    complete control OR an array of answers to be sent by the default server handler.
+    """
+
+    server_handler = get_aiohttp_ws_server_handler(request)
+
+    try:
+        test_server = AIOHTTPWebsocketServer()
+
+        # Starting the server with the fixture param as the handler function
+        await test_server.start(server_handler)
+
+        yield test_server
+    except Exception as e:
+        print("Exception received in server fixture:", e)
+    finally:
+        await test_server.stop()
 
 
 class WebSocketServerHelper:
@@ -304,6 +444,23 @@ class TemporaryFile:
 
     def __exit__(self, type, value, traceback):
         os.unlink(self.filename)
+
+
+def get_aiohttp_ws_server_handler(request):
+    """Get the server handler for the aiohttp websocket server.
+
+    Either get it from test or use the default server handler
+    if the test provides only an array of answers.
+    """
+
+    if isinstance(request.param, types.FunctionType):
+        server_handler = request.param
+
+    else:
+        answers = request.param
+        server_handler = AIOHTTPWebsocketServer.get_default_server_handler(answers)
+
+    return server_handler
 
 
 def get_server_handler(request):
@@ -463,6 +620,48 @@ async def client_and_server(server):
 
 
 @pytest_asyncio.fixture
+async def aiohttp_client_and_server(server):
+    """
+    Helper fixture to start a server and a client connected to its port
+    with an aiohttp websockets transport.
+    """
+
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
+
+    # Generate transport to connect to the server fixture
+    path = "/graphql"
+    url = f"ws://{server.hostname}:{server.port}{path}"
+    sample_transport = AIOHTTPWebsocketsTransport(url=url)
+
+    async with Client(transport=sample_transport) as session:
+
+        # Yield both client session and server
+        yield session, server
+
+
+@pytest_asyncio.fixture
+async def aiohttp_client_and_aiohttp_ws_server(aiohttp_ws_server):
+    """
+    Helper fixture to start an aiohttp websocket server and
+    a client connected to its port with an aiohttp websockets transport.
+    """
+
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
+
+    server = aiohttp_ws_server
+
+    # Generate transport to connect to the server fixture
+    path = "/graphql"
+    url = f"ws://{server.hostname}:{server.port}{path}"
+    sample_transport = AIOHTTPWebsocketsTransport(url=url)
+
+    async with Client(transport=sample_transport) as session:
+
+        # Yield both client session and server
+        yield session, server
+
+
+@pytest_asyncio.fixture
 async def client_and_graphqlws_server(graphqlws_server):
     """Helper fixture to start a server with the graphql-ws prototocol
     and a client connected to its port."""
@@ -475,6 +674,27 @@ async def client_and_graphqlws_server(graphqlws_server):
     sample_transport = WebsocketsTransport(
         url=url,
         subprotocols=[WebsocketsTransport.GRAPHQLWS_SUBPROTOCOL],
+    )
+
+    async with Client(transport=sample_transport) as session:
+
+        # Yield both client session and server
+        yield session, graphqlws_server
+
+
+@pytest_asyncio.fixture
+async def client_and_aiohttp_websocket_graphql_server(graphqlws_server):
+    """Helper fixture to start a server with the graphql-ws prototocol
+    and a client connected to its port."""
+
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
+
+    # Generate transport to connect to the server fixture
+    path = "/graphql"
+    url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}{path}"
+    sample_transport = AIOHTTPWebsocketsTransport(
+        url=url,
+        subprotocols=[AIOHTTPWebsocketsTransport.GRAPHQLWS_SUBPROTOCOL],
     )
 
     async with Client(transport=sample_transport) as session:

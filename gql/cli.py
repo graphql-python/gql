@@ -159,6 +159,7 @@ def get_parser(with_examples: bool = False) -> ArgumentParser:
             "aiohttp",
             "phoenix",
             "websockets",
+            "aiohttp_websockets",
             "appsync_http",
             "appsync_websockets",
         ],
@@ -286,7 +287,12 @@ def autodetect_transport(url: URL) -> str:
     """Detects which transport should be used depending on url."""
 
     if url.scheme in ["ws", "wss"]:
-        transport_name = "websockets"
+        try:
+            import websockets  # noqa: F401
+
+            transport_name = "websockets"
+        except ImportError:  # pragma: no cover
+            transport_name = "aiohttp_websockets"
 
     else:
         assert url.scheme in ["http", "https"]
@@ -337,6 +343,11 @@ def get_transport(args: Namespace) -> Optional[AsyncTransport]:
         transport_args["ssl"] = url.scheme == "wss"
 
         return WebsocketsTransport(url=args.server, **transport_args)
+
+    elif transport_name == "aiohttp_websockets":
+        from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
+
+        return AIOHTTPWebsocketsTransport(url=args.server, **transport_args)
 
     else:
 

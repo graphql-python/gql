@@ -16,8 +16,8 @@ from gql.transport.exceptions import (
 
 from .conftest import MS, WebSocketServerHelper
 
-# Marking all tests in this file with the websockets marker
-pytestmark = pytest.mark.websockets
+# Marking all tests in this file with the aiohttp AND websockets marker
+pytestmark = pytest.mark.aiohttp
 
 query1_str = """
     query getContinents {
@@ -50,21 +50,20 @@ server1_answers = [
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("server", [server1_answers], indirect=True)
-async def test_websocket_starting_client_in_context_manager(event_loop, server):
-    import websockets
-    from gql.transport.websockets import WebsocketsTransport
+@pytest.mark.parametrize("aiohttp_ws_server", [server1_answers], indirect=True)
+async def test_aiohttp_websocket_starting_client_in_context_manager(
+    event_loop, aiohttp_ws_server
+):
+
+    server = aiohttp_ws_server
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    transport = WebsocketsTransport(url=url)
+    transport = AIOHTTPWebsocketsTransport(url=url, websocket_close_timeout=10)
 
     async with Client(transport=transport) as session:
-
-        assert isinstance(
-            transport.websocket, websockets.client.WebSocketClientProtocol
-        )
 
         query1 = gql(query1_str)
 
@@ -90,10 +89,14 @@ async def test_websocket_starting_client_in_context_manager(event_loop, server):
 
 
 @pytest.mark.asyncio
+@pytest.mark.websockets
 @pytest.mark.parametrize("ws_ssl_server", [server1_answers], indirect=True)
-async def test_websocket_using_ssl_connection(event_loop, ws_ssl_server):
-    import websockets
-    from gql.transport.websockets import WebsocketsTransport
+@pytest.mark.parametrize("ssl_close_timeout", [0, 10])
+async def test_aiohttp_websocket_using_ssl_connection(
+    event_loop, ws_ssl_server, ssl_close_timeout
+):
+
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
     server = ws_ssl_server
 
@@ -103,13 +106,11 @@ async def test_websocket_using_ssl_connection(event_loop, ws_ssl_server):
     ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
     ssl_context.load_verify_locations(ws_ssl_server.testcert)
 
-    transport = WebsocketsTransport(url=url, ssl=ssl_context)
+    transport = AIOHTTPWebsocketsTransport(
+        url=url, ssl=ssl_context, ssl_close_timeout=ssl_close_timeout
+    )
 
     async with Client(transport=transport) as session:
-
-        assert isinstance(
-            transport.websocket, websockets.client.WebSocketClientProtocol
-        )
 
         query1 = gql(query1_str)
 
@@ -130,11 +131,14 @@ async def test_websocket_using_ssl_connection(event_loop, ws_ssl_server):
 
 
 @pytest.mark.asyncio
+@pytest.mark.websockets
 @pytest.mark.parametrize("server", [server1_answers], indirect=True)
 @pytest.mark.parametrize("query_str", [query1_str])
-async def test_websocket_simple_query(event_loop, client_and_server, query_str):
+async def test_aiohttp_websocket_simple_query(
+    event_loop, aiohttp_client_and_server, query_str
+):
 
-    session, server = client_and_server
+    session, server = aiohttp_client_and_server
 
     query = gql(query_str)
 
@@ -150,13 +154,15 @@ server1_two_answers_in_series = [
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("server", [server1_two_answers_in_series], indirect=True)
+@pytest.mark.parametrize(
+    "aiohttp_ws_server", [server1_two_answers_in_series], indirect=True
+)
 @pytest.mark.parametrize("query_str", [query1_str])
-async def test_websocket_two_queries_in_series(
-    event_loop, client_and_server, query_str
+async def test_aiohttp_websocket_two_queries_in_series(
+    event_loop, aiohttp_client_and_aiohttp_ws_server, query_str
 ):
 
-    session, server = client_and_server
+    session, server = aiohttp_client_and_aiohttp_ws_server
 
     query = gql(query_str)
 
@@ -186,13 +192,14 @@ async def server1_two_queries_in_parallel(ws, path):
 
 
 @pytest.mark.asyncio
+@pytest.mark.websockets
 @pytest.mark.parametrize("server", [server1_two_queries_in_parallel], indirect=True)
 @pytest.mark.parametrize("query_str", [query1_str])
-async def test_websocket_two_queries_in_parallel(
-    event_loop, client_and_server, query_str
+async def test_aiohttp_websocket_two_queries_in_parallel(
+    event_loop, aiohttp_client_and_server, query_str
 ):
 
-    session, server = client_and_server
+    session, server = aiohttp_client_and_server
 
     query = gql(query_str)
 
@@ -231,15 +238,16 @@ async def server_closing_while_we_are_doing_something_else(ws, path):
 
 
 @pytest.mark.asyncio
+@pytest.mark.websockets
 @pytest.mark.parametrize(
     "server", [server_closing_while_we_are_doing_something_else], indirect=True
 )
 @pytest.mark.parametrize("query_str", [query1_str])
-async def test_websocket_server_closing_after_first_query(
-    event_loop, client_and_server, query_str
+async def test_aiohttp_websocket_server_closing_after_first_query(
+    event_loop, aiohttp_client_and_server, query_str
 ):
 
-    session, server = client_and_server
+    session, server = aiohttp_client_and_server
 
     query = gql(query_str)
 
@@ -247,7 +255,7 @@ async def test_websocket_server_closing_after_first_query(
     await session.execute(query)
 
     # Then we do other things
-    await asyncio.sleep(100 * MS)
+    await asyncio.sleep(1000 * MS)
 
     # Now the server is closed but we don't know it yet, we have to send a query
     # to notice it and to receive the exception
@@ -263,11 +271,15 @@ ignore_invalid_id_answers = [
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("server", [ignore_invalid_id_answers], indirect=True)
+@pytest.mark.parametrize(
+    "aiohttp_ws_server", [ignore_invalid_id_answers], indirect=True
+)
 @pytest.mark.parametrize("query_str", [query1_str])
-async def test_websocket_ignore_invalid_id(event_loop, client_and_server, query_str):
+async def test_aiohttp_websocket_ignore_invalid_id(
+    event_loop, aiohttp_client_and_aiohttp_ws_server, query_str
+):
 
-    session, server = client_and_server
+    session, server = aiohttp_client_and_aiohttp_ws_server
 
     query = gql(query_str)
 
@@ -299,14 +311,19 @@ async def assert_client_is_working(session):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("server", [server1_answers], indirect=True)
-async def test_websocket_multiple_connections_in_series(event_loop, server):
-    from gql.transport.websockets import WebsocketsTransport
+@pytest.mark.parametrize("aiohttp_ws_server", [server1_answers], indirect=True)
+async def test_aiohttp_websocket_multiple_connections_in_series(
+    event_loop, aiohttp_ws_server
+):
+
+    server = aiohttp_ws_server
+
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    transport = WebsocketsTransport(url=url)
+    transport = AIOHTTPWebsocketsTransport(url=url)
 
     async with Client(transport=transport) as session:
         await assert_client_is_working(session)
@@ -322,15 +339,20 @@ async def test_websocket_multiple_connections_in_series(event_loop, server):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("server", [server1_answers], indirect=True)
-async def test_websocket_multiple_connections_in_parallel(event_loop, server):
-    from gql.transport.websockets import WebsocketsTransport
+@pytest.mark.parametrize("aiohttp_ws_server", [server1_answers], indirect=True)
+async def test_aiohttp_websocket_multiple_connections_in_parallel(
+    event_loop, aiohttp_ws_server
+):
+
+    server = aiohttp_ws_server
+
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
     async def task_coro():
-        transport = WebsocketsTransport(url=url)
+        transport = AIOHTTPWebsocketsTransport(url=url)
         async with Client(transport=transport) as session:
             await assert_client_is_working(session)
 
@@ -341,16 +363,18 @@ async def test_websocket_multiple_connections_in_parallel(event_loop, server):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("server", [server1_answers], indirect=True)
-async def test_websocket_trying_to_connect_to_already_connected_transport(
-    event_loop, server
+@pytest.mark.parametrize("aiohttp_ws_server", [server1_answers], indirect=True)
+async def test_aiohttp_websocket_trying_to_connect_to_already_connected_transport(
+    event_loop, aiohttp_ws_server
 ):
-    from gql.transport.websockets import WebsocketsTransport
+    server = aiohttp_ws_server
+
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    transport = WebsocketsTransport(url=url)
+    transport = AIOHTTPWebsocketsTransport(url=url)
     async with Client(transport=transport) as session:
         await assert_client_is_working(session)
 
@@ -386,21 +410,22 @@ async def server_with_authentication_in_connection_init_payload(ws, path):
 
 
 @pytest.mark.asyncio
+@pytest.mark.websockets
 @pytest.mark.parametrize(
     "server", [server_with_authentication_in_connection_init_payload], indirect=True
 )
 @pytest.mark.parametrize("query_str", [query1_str])
-async def test_websocket_connect_success_with_authentication_in_connection_init(
+async def test_aiohttp_websocket_connect_success_with_authentication_in_connection_init(
     event_loop, server, query_str
 ):
-    from gql.transport.websockets import WebsocketsTransport
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
     init_payload = {"Authorization": 12345}
 
-    transport = WebsocketsTransport(url=url, init_payload=init_payload)
+    transport = AIOHTTPWebsocketsTransport(url=url, init_payload=init_payload)
 
     async with Client(transport=transport) as session:
 
@@ -420,38 +445,43 @@ async def test_websocket_connect_success_with_authentication_in_connection_init(
 
 
 @pytest.mark.asyncio
+@pytest.mark.websockets
 @pytest.mark.parametrize(
     "server", [server_with_authentication_in_connection_init_payload], indirect=True
 )
 @pytest.mark.parametrize("query_str", [query1_str])
 @pytest.mark.parametrize("init_payload", [{}, {"Authorization": "invalid_code"}])
-async def test_websocket_connect_failed_with_authentication_in_connection_init(
+async def test_aiohttp_websocket_connect_failed_with_authentication_in_connection_init(
     event_loop, server, query_str, init_payload
 ):
-    from gql.transport.websockets import WebsocketsTransport
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    transport = WebsocketsTransport(url=url, init_payload=init_payload)
+    transport = AIOHTTPWebsocketsTransport(url=url, init_payload=init_payload)
 
-    with pytest.raises(TransportServerError):
-        async with Client(transport=transport) as session:
-            query1 = gql(query_str)
+    for _ in range(2):
+        with pytest.raises(TransportServerError):
+            async with Client(transport=transport) as session:
+                query1 = gql(query_str)
 
-            await session.execute(query1)
+                await session.execute(query1)
 
-    assert transport.websocket is None
+        assert transport.session is None
+        assert transport.websocket is None
 
 
-@pytest.mark.parametrize("server", [server1_answers], indirect=True)
-def test_websocket_execute_sync(server):
-    from gql.transport.websockets import WebsocketsTransport
+@pytest.mark.parametrize("aiohttp_ws_server", [server1_answers], indirect=True)
+def test_aiohttp_websocket_execute_sync(aiohttp_ws_server):
+    server = aiohttp_ws_server
+
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    transport = WebsocketsTransport(url=url)
+    transport = AIOHTTPWebsocketsTransport(url=url)
 
     client = Client(transport=transport)
 
@@ -487,14 +517,24 @@ def test_websocket_execute_sync(server):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("server", [server1_answers], indirect=True)
-async def test_websocket_add_extra_parameters_to_connect(event_loop, server):
-    from gql.transport.websockets import WebsocketsTransport
+@pytest.mark.parametrize("aiohttp_ws_server", [server1_answers], indirect=True)
+async def test_aiohttp_websocket_add_extra_parameters_to_connect(
+    event_loop, aiohttp_ws_server
+):
+
+    server = aiohttp_ws_server
+
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
 
-    # Increase max payload size to avoid websockets.exceptions.PayloadTooBig exceptions
-    transport = WebsocketsTransport(url=url, connect_args={"max_size": 2**21})
+    # Increase max payload size
+    transport = AIOHTTPWebsocketsTransport(
+        url=url,
+        connect_args={
+            "max_msg_size": 2**21,
+        },
+    )
 
     query = gql(query1_str)
 
@@ -516,19 +556,20 @@ async def server_sending_keep_alive_before_connection_ack(ws, path):
 
 
 @pytest.mark.asyncio
+@pytest.mark.websockets
 @pytest.mark.parametrize(
     "server", [server_sending_keep_alive_before_connection_ack], indirect=True
 )
 @pytest.mark.parametrize("query_str", [query1_str])
-async def test_websocket_non_regression_bug_108(
-    event_loop, client_and_server, query_str
+async def test_aiohttp_websocket_non_regression_bug_108(
+    event_loop, aiohttp_client_and_server, query_str
 ):
 
     # This test will check that we now ignore keepalive message
     # arriving before the connection_ack
     # See bug #108
 
-    session, server = client_and_server
+    session, server = aiohttp_client_and_server
 
     query = gql(query_str)
 
@@ -543,18 +584,30 @@ async def test_websocket_non_regression_bug_108(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("server", [server1_answers], indirect=True)
-async def test_websocket_using_cli(event_loop, server, monkeypatch, capsys):
+@pytest.mark.parametrize("aiohttp_ws_server", [server1_answers], indirect=True)
+@pytest.mark.parametrize("transport_arg", [[], ["--transport=aiohttp_websockets"]])
+async def test_aiohttp_websocket_using_cli(
+    event_loop, aiohttp_ws_server, transport_arg, monkeypatch, capsys
+):
+
+    """
+    Note: depending on the transport_arg parameter, if there is no transport argument,
+    then we will use WebsocketsTransport if the websockets dependency is installed,
+    or AIOHTTPWebsocketsTransport if that is not the case.
+    """
+
+    server = aiohttp_ws_server
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    from gql.cli import main, get_parser
     import io
     import json
 
+    from gql.cli import get_parser, main
+
     parser = get_parser(with_examples=True)
-    args = parser.parse_args([url])
+    args = parser.parse_args([url, *transport_arg])
 
     # Monkeypatching sys.stdin to simulate getting the query
     # via the standard input
@@ -593,16 +646,62 @@ server1_answers_with_extensions = [
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("server", [server1_answers_with_extensions], indirect=True)
+@pytest.mark.parametrize(
+    "aiohttp_ws_server", [server1_answers_with_extensions], indirect=True
+)
 @pytest.mark.parametrize("query_str", [query1_str])
-async def test_websocket_simple_query_with_extensions(
-    event_loop, client_and_server, query_str
+async def test_aiohttp_websocket_simple_query_with_extensions(
+    event_loop, aiohttp_client_and_aiohttp_ws_server, query_str
 ):
 
-    session, server = client_and_server
+    session, server = aiohttp_client_and_aiohttp_ws_server
 
     query = gql(query_str)
 
     execution_result = await session.execute(query, get_execution_result=True)
 
     assert execution_result.extensions["key1"] == "val1"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("aiohttp_ws_server", [server1_answers], indirect=True)
+async def test_aiohttp_websocket_connector_owner_false(event_loop, aiohttp_ws_server):
+
+    server = aiohttp_ws_server
+
+    from aiohttp import TCPConnector
+
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
+
+    url = f"ws://{server.hostname}:{server.port}/graphql"
+    print(f"url = {url}")
+
+    connector = TCPConnector()
+    transport = AIOHTTPWebsocketsTransport(
+        url=url,
+        client_session_args={
+            "connector": connector,
+            "connector_owner": False,
+        },
+    )
+
+    for _ in range(2):
+        async with Client(transport=transport) as session:
+
+            query1 = gql(query1_str)
+
+            result = await session.execute(query1)
+
+            print("Client received:", result)
+
+            assert isinstance(result, Dict)
+
+            continents = result["continents"]
+            africa = continents[0]
+
+            assert africa["code"] == "AF"
+
+    # Check client is disconnect here
+    assert transport.websocket is None
+
+    await connector.close()
