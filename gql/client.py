@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import sys
 import time
 import warnings
 from concurrent.futures import Future
@@ -13,6 +12,7 @@ from typing import (
     Dict,
     Generator,
     List,
+    Literal,
     Optional,
     Tuple,
     TypeVar,
@@ -43,17 +43,6 @@ from .utilities import build_client_schema
 from .utilities import parse_result as parse_result_fn
 from .utilities import serialize_variable_values
 from .utils import str_first_element
-
-"""
-Load the appropriate instance of the Literal type
-Note: we cannot use try: except ImportError because of the following mypy issue:
-https://github.com/python/mypy/issues/8520
-"""
-if sys.version_info[:2] >= (3, 8):
-    from typing import Literal
-else:
-    from typing_extensions import Literal  # pragma: no cover
-
 
 log = logging.getLogger(__name__)
 
@@ -1368,8 +1357,8 @@ class AsyncClientSession:
             **kwargs,
         )
 
-        # Keep a reference to the inner generator to allow the user to call aclose()
-        # before a break if python version is too old (pypy3 py 3.6.1)
+        # Keep a reference to the inner generator
+        # This is only used for the tests to simulate a KeyboardInterrupt event
         self._generator = inner_generator
 
         try:

@@ -1,6 +1,6 @@
 # GQL
 
-This is a GraphQL client for Python 3.7+.
+This is a GraphQL client for Python 3.8+.
 Plays nicely with `graphene`, `graphql-core`, `graphql-js` and any other GraphQL implementation compatible with the spec.
 
 GQL architecture is inspired by `React-Relay` and `Apollo-Client`.

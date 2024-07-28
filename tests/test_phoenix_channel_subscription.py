@@ -1,6 +1,5 @@
 import asyncio
 import json
-import sys
 
 import pytest
 from parse import search
@@ -208,11 +207,6 @@ async def test_phoenix_channel_subscription(
 
             assert number == count
             if number == end_count:
-                # Note: we need to run generator.aclose() here or the finally block in
-                # the subscribe will not be reached in pypy3 (python version 3.6.1)
-                # In more recent versions, 'break' will trigger __aexit__.
-                if sys.version_info < (3, 7):
-                    await session._generator.aclose()
                 print("break")
                 break
 
@@ -390,11 +384,6 @@ async def test_phoenix_channel_heartbeat(event_loop, server, subscription_str):
 
             assert heartbeat_count == i
             if heartbeat_count == 5:
-                # Note: we need to run generator.aclose() here or the finally block in
-                # the subscribe will not be reached in pypy3 (python version 3.6.1)
-                # In more recent versions, 'break' will trigger __aexit__.
-                if sys.version_info < (3, 7):
-                    await session._generator.aclose()
                 break
 
             i += 1
