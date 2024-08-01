@@ -845,7 +845,27 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
         if self.websocket is None and not self._connecting:
             self._connecting = True
 
-            connect_args: Dict[str, Any] = {}
+            connect_args: Dict[str, Any] = {
+                "url": self.url,
+                "headers": self.headers,
+                "auth": self.auth,
+                "heartbeat": self.heartbeat,
+                "origin": self.origin,
+                "params": self.params,
+                "protocols": self.supported_subprotocols,
+                "proxy": self.proxy,
+                "proxy_auth": self.proxy_auth,
+                "proxy_headers": self.proxy_headers,
+                "timeout": self.websocket_close_timeout,
+                "receive_timeout": self.receive_timeout,
+            }
+
+            if self.ssl is not None:
+                connect_args.update(
+                    {
+                        "ssl": self.ssl,
+                    }
+                )
 
             # Adding custom parameters passed from init
             if self.connect_args:
@@ -857,19 +877,6 @@ class AIOHTTPWebsocketsTransport(AsyncTransport):
                 # Set the _connecting flag to False after in all cases
                 self.websocket = await asyncio.wait_for(
                     self.session.ws_connect(
-                        url=self.url,
-                        headers=self.headers,
-                        auth=self.auth,
-                        heartbeat=self.heartbeat,
-                        origin=self.origin,
-                        params=self.params,
-                        protocols=self.supported_subprotocols,
-                        proxy=self.proxy,
-                        proxy_auth=self.proxy_auth,
-                        proxy_headers=self.proxy_headers,
-                        timeout=self.websocket_close_timeout,
-                        receive_timeout=self.receive_timeout,
-                        ssl=self.ssl,
                         **connect_args,
                     ),
                     self.connect_timeout,
