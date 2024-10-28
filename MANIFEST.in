@@ -6,7 +6,6 @@ include README.md
 include CONTRIBUTING.md
 include .readthedocs.yaml
 
-include dev_requirements.txt
 include Makefile
 
 include tox.ini
@@ -14,7 +13,7 @@ include tox.ini
 include gql/py.typed
 
 recursive-include tests *.py *.graphql *.cnf *.yaml *.pem
-recursive-include docs *.txt *.rst conf.py Makefile make.bat *.jpg *.png *.gif
+recursive-include docs *.txt *.rst conf.py Makefile make.bat
 recursive-include docs/code_examples *.py
 
 prune docs/_build
