@@ -23,7 +23,7 @@ class TransportServerError(TransportError):
     code: Optional[int]
 
     def __init__(self, message: str, code: Optional[int] = None):
-        super(TransportServerError, self).__init__(message)
+        super().__init__(message)
         self.code = code
 
 

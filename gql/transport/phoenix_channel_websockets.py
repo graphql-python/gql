@@ -52,7 +52,7 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransportBase):
         self.heartbeat_interval: float = heartbeat_interval
         self.heartbeat_task: Optional[asyncio.Future] = None
         self.subscriptions: Dict[str, Subscription] = {}
-        super(PhoenixChannelWebsocketsTransport, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     async def _initialize(self) -> None:
         """Join the specified channel and wait for the connection ACK.

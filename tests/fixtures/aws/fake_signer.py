@@ -11,7 +11,7 @@ def fake_signer_factory(fake_request_factory):
     yield _fake_signer_factory
 
 
-class FakeSigner(object):
+class FakeSigner:
     def __init__(self, request=None) -> None:
         self.request = request
 
