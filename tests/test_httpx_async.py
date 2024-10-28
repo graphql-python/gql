@@ -1036,7 +1036,8 @@ async def test_httpx_using_cli_ep(
         monkeypatch.setattr("sys.stdin", io.StringIO(query1_str))
 
         ret = script_runner.run(
-            "gql-cli", url, "--verbose", stdin=io.StringIO(query1_str)
+            ["gql-cli", url, "--verbose"],
+            stdin=io.StringIO(query1_str),
         )
 
         assert ret.success

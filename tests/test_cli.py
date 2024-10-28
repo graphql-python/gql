@@ -372,7 +372,7 @@ def test_cli_get_transport_no_protocol(parser):
 
 @pytest.mark.script_launch_mode("subprocess")
 def test_cli_ep_version(script_runner):
-    ret = script_runner.run("gql-cli", "--version")
+    ret = script_runner.run(["gql-cli", "--version"])
 
     assert ret.success
 

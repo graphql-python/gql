@@ -17,7 +17,7 @@ tests_requires = [
     "parse==1.15.0",
     "pytest==7.4.2",
     "pytest-asyncio==0.21.1",
-    "pytest-console-scripts==1.3.1",
+    "pytest-console-scripts==1.4.1",
     "pytest-cov==5.0.0",
     "vcrpy==4.4.0",
     "aiofiles",
@@ -26,7 +26,7 @@ tests_requires = [
 dev_requires = [
     "black==22.3.0",
     "check-manifest>=0.42,<1",
-    "flake8==3.8.1",
+    "flake8==7.1.1",
     "isort==4.3.21",
     "mypy==1.10",
     "sphinx>=5.3.0,<6",
