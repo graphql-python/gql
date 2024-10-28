@@ -19,7 +19,6 @@ tests_requires = [
     "pytest-asyncio==0.21.1",
     "pytest-console-scripts==1.3.1",
     "pytest-cov==5.0.0",
-    "mock==4.0.2",
     "vcrpy==4.4.0",
     "aiofiles",
 ]

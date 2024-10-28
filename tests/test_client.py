@@ -1,7 +1,7 @@
 import os
 from contextlib import suppress
+from unittest import mock
 
-import mock
 import pytest
 from graphql import build_ast_schema, parse
 
