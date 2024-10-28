@@ -74,6 +74,6 @@ jobs:
         run: pytest --cov=gql --cov-report=xml --cov-report=term-missing tests
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
-          with:
-            fail_ci_if_error: false
-            token: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
