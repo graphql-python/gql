@@ -30,7 +30,7 @@ def http_transport_query():
 def test_request_transport_not_implemented(http_transport_query):
     class RandomTransport(Transport):
         def execute(self):
-            super(RandomTransport, self).execute(http_transport_query)
+            super().execute(http_transport_query)
 
     with pytest.raises(NotImplementedError) as exc_info:
         RandomTransport().execute()

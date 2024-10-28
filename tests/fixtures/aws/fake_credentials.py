@@ -1,7 +1,7 @@
 import pytest
 
 
-class FakeCredentials(object):
+class FakeCredentials:
     def __init__(
         self, access_key=None, secret_key=None, method=None, token=None, region=None
     ):
