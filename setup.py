@@ -26,7 +26,7 @@ tests_requires = [
 dev_requires = [
     "black==22.3.0",
     "check-manifest>=0.42,<1",
-    "flake8==3.8.1",
+    "flake8==7.1.1",
     "isort==4.3.21",
     "mypy==1.10",
     "sphinx>=5.3.0,<6",
