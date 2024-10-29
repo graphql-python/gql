@@ -1,5 +1,8 @@
 name: Tests
 
+permissions:
+  contents: read
+
 on: [push, pull_request]
 
 jobs:
@@ -59,6 +62,10 @@ jobs:
 
   coverage:
     runs-on: ubuntu-24.04
+
+    permissions:
+      contents: read
+      checks: write
 
     steps:
       - uses: actions/checkout@v4
