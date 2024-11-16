@@ -342,9 +342,8 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransportBase):
 
                 elif status == "timeout":
                     raise TransportQueryError("reply timeout", query_id=answer_id)
-                else:
-                    # missing or unrecognized status, just continue
-                    pass
+
+                # In case of missing or unrecognized status, just continue
 
             elif event == "phx_error":
                 # Sent if the channel has crashed
