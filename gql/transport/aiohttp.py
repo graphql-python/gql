@@ -147,7 +147,7 @@ class AIOHTTPTransport(AsyncTransport):
                     all_is_lost.set()
 
         def eof_received(orig_eof_received):
-            try:
+            try:  # pragma: no cover
                 orig_eof_received()
             except AttributeError:  # pragma: no cover
                 # It may happen that eof_received() is called after
