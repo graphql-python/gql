@@ -1,0 +1,9 @@
+[project]
+name = "gql"
+readme = "README.md"
+requires-python = ">=3.8.1"
+dynamic = ["authors", "classifiers", "dependencies", "description", "entry-points", "keywords", "license", "optional-dependencies", "scripts", "version"]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
