@@ -157,6 +157,7 @@ def get_parser(with_examples: bool = False) -> ArgumentParser:
         choices=[
             "auto",
             "aiohttp",
+            "httpx",
             "phoenix",
             "websockets",
             "aiohttp_websockets",
@@ -329,6 +330,11 @@ def get_transport(args: Namespace) -> Optional[AsyncTransport]:
         from gql.transport.aiohttp import AIOHTTPTransport
 
         return AIOHTTPTransport(url=args.server, **transport_args)
+
+    elif transport_name == "httpx":
+        from gql.transport.httpx import HTTPXAsyncTransport
+
+        return HTTPXAsyncTransport(url=args.server, **transport_args)
 
     elif transport_name == "phoenix":
         from gql.transport.phoenix_channel_websockets import (
