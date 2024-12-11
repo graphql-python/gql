@@ -190,6 +190,22 @@ def test_cli_get_transport_aiohttp(parser, url):
     assert isinstance(transport, AIOHTTPTransport)
 
 
+@pytest.mark.httpx
+@pytest.mark.parametrize(
+    "url",
+    ["http://your_server.com", "https://your_server.com"],
+)
+def test_cli_get_transport_httpx(parser, url):
+
+    from gql.transport.httpx import HTTPXAsyncTransport
+
+    args = parser.parse_args([url, "--transport", "httpx"])
+
+    transport = get_transport(args)
+
+    assert isinstance(transport, HTTPXAsyncTransport)
+
+
 @pytest.mark.websockets
 @pytest.mark.parametrize(
     "url",
