@@ -18,7 +18,7 @@ class AppSyncAuthentication(ABC):
     """AWS authentication abstract base class
 
     All AWS authentication class should have a
-    :meth:`get_headers <gql.transport.appsync.AppSyncAuthentication.get_headers>`
+    :meth:`get_headers <gql.transport.appsync_auth.AppSyncAuthentication.get_headers>`
     method which defines the headers used in the authentication process."""
 
     def get_auth_url(self, url: str) -> str:
@@ -91,7 +91,7 @@ class AppSyncIAMAuthentication(AppSyncAuthentication):
 
     .. note::
         There is no need for you to use this class directly, you could instead
-        intantiate the :class:`gql.transport.appsync.AppSyncWebsocketsTransport`
+        intantiate the :class:`gql.transport.appsync_websockets.AppSyncWebsocketsTransport`
         without an auth argument.
 
     During initialization, this class will use botocore to attempt to
