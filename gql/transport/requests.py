@@ -54,9 +54,9 @@ class RequestsHTTPTransport(Transport):
         """Initialize the transport with the given request parameters.
 
         :param url: The GraphQL server URL.
-        :param headers: Dictionary of HTTP Headers to send with the :class:`Request`
+        :param headers: Dictionary of HTTP Headers to send with :meth:`requests.Session.request`
             (Default: None).
-        :param cookies: Dict or CookieJar object to send with the :class:`Request`
+        :param cookies: Dict or CookieJar object to send with :meth:`requests.Session.request`
             (Default: None).
         :param auth: Auth tuple or callable to enable Basic/Digest/Custom HTTP Auth
             (Default: None).
