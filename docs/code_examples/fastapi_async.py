@@ -10,6 +10,7 @@ import logging
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
+
 from gql import Client, gql
 from gql.transport.aiohttp import AIOHTTPTransport
 

@@ -91,7 +91,7 @@ class AppSyncIAMAuthentication(AppSyncAuthentication):
 
     .. note::
         There is no need for you to use this class directly, you could instead
-        intantiate the :class:`gql.transport.appsync_websockets.AppSyncWebsocketsTransport`
+        intantiate :class:`gql.transport.appsync_websockets.AppSyncWebsocketsTransport`
         without an auth argument.
 
     During initialization, this class will use botocore to attempt to
