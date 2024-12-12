@@ -89,3 +89,41 @@ intersphinx_mapping = {
     'websockets': ('https://websockets.readthedocs.io/en/11.0.3/', None),
     'yarl': ('https://yarl.readthedocs.io/en/stable/', None),
 }
+
+nitpick_ignore = [
+    # graphql-core: should be fixed
+    ('py:class', 'graphql.execution.execute.ExecutionResult'),
+    ('py:class', 'Source'),
+    ('py:class', 'GraphQLSchema'),
+
+    # asyncio: should be fixed
+    ('py:class', 'asyncio.locks.Event'),
+
+    # aiohttp: should be fixed
+    ('py:class', 'aiohttp.client_reqrep.Fingerprint'),
+    ('py:class', 'aiohttp.helpers.BasicAuth'),
+
+    # multidict: should be fixed
+    ('py:class', 'multidict._multidict.CIMultiDictProxy'),
+    ('py:class', 'multidict._multidict.CIMultiDict'),
+    ('py:class', 'multidict._multidict.istr'),
+
+    # websockets: first bump websockets version
+    ('py:class', 'websockets.datastructures.SupportsKeysAndGetItem'),
+    ('py:class', 'websockets.typing.Subprotocol'),
+
+    # httpx: no sphinx docs yet https://github.com/encode/httpx/discussions/3091
+    ('py:class', 'httpx.AsyncClient'),
+    ('py:class', 'httpx.Client'),
+    ('py:class', 'httpx.Headers'),
+
+    # botocore: no sphinx docs
+    ('py:class', 'botocore.auth.BaseSigner'),
+    ('py:class', 'botocore.awsrequest.AWSRequest'),
+    ('py:class', 'botocore.credentials.Credentials'),
+    ('py:class', 'botocore.session.Session'),
+
+    # gql: ignore private classes
+    ('py:class', 'gql.transport.httpx._HTTPXTransport'),
+    ('py:class', 'gql.client._CallableT'),
+]
