@@ -347,7 +347,7 @@ class DSLSelector(ABC):
         :type \**fields_with_alias: DSLSelectable
 
         :raises TypeError: if an argument is not an instance of :class:`DSLSelectable`
-        :raises GraphQLError: if an argument is not a valid field
+        :raises graphql.error.GraphQLError: if an argument is not a valid field
         """
         # Concatenate fields without and with alias
         added_fields: Tuple["DSLSelectable", ...] = DSLField.get_aliased_fields(

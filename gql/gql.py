@@ -13,7 +13,7 @@ def gql(request_string: str | Source) -> DocumentNode:
         :class:`async session <gql.client.AsyncClientSession>` or by a
         :class:`sync session <gql.client.SyncClientSession>`
 
-    :raises GraphQLError: if a syntax error is encountered.
+    :raises graphql.error.GraphQLError: if a syntax error is encountered.
     """
     if isinstance(request_string, Source):
         source = request_string
