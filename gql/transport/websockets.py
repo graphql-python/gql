@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 from graphql import DocumentNode, ExecutionResult, print_ast
 from websockets.datastructures import HeadersLike
+from websockets.exceptions import ConnectionClosed
 from websockets.typing import Subprotocol
 
 from .exceptions import (
@@ -505,10 +506,15 @@ class WebsocketsTransport(WebsocketsTransportBase):
             self.send_ping_task = asyncio.ensure_future(self._send_ping_coro())
 
     async def _close_hook(self):
+        log.debug("_close_hook: start")
 
         # Properly shut down the send ping task if enabled
         if self.send_ping_task is not None:
+            log.debug("_close_hook: cancelling send_ping_task")
             self.send_ping_task.cancel()
-            with suppress(asyncio.CancelledError):
+            with suppress(asyncio.CancelledError, ConnectionClosed):
+                log.debug("_close_hook: awaiting send_ping_task")
                 await self.send_ping_task
             self.send_ping_task = None
+
+        log.debug("_close_hook: end")
