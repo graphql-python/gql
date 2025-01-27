@@ -19,7 +19,7 @@ def _node_tree_recursive(
         results.append("  " * indent + f"{type(obj).__name__}")
 
         try:
-            keys = obj.keys
+            keys = sorted(obj.keys)
         except AttributeError:
             # If the object has no keys attribute, print its repr and return.
             results.append("  " * (indent + 1) + repr(obj))
@@ -69,6 +69,9 @@ def node_tree(
     """Method which returns a tree of Node elements as a String.
 
     Useful to debug deep DocumentNode instances created by gql or dsl_gql.
+
+    NOTE: from gql version 3.6.0b4 the elements of each node are sorted to ignore
+          small changes in graphql-core
 
     WARNING: the output of this method is not guaranteed and may change without notice.
     """

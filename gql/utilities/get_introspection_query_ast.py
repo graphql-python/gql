@@ -10,6 +10,7 @@ def get_introspection_query_ast(
     specified_by_url: bool = False,
     directive_is_repeatable: bool = False,
     schema_description: bool = False,
+    input_value_deprecation: bool = False,
     type_recursion_level: int = 7,
 ) -> DocumentNode:
     """Get a query for introspection as a document using the DSL module.
@@ -43,13 +44,20 @@ def get_introspection_query_ast(
 
     directives = ds.__Schema.directives.select(ds.__Directive.name)
 
+    deprecated_expand = {}
+
+    if input_value_deprecation:
+        deprecated_expand = {
+            "includeDeprecated": True,
+        }
+
     if descriptions:
         directives.select(ds.__Directive.description)
     if directive_is_repeatable:
         directives.select(ds.__Directive.isRepeatable)
     directives.select(
         ds.__Directive.locations,
-        ds.__Directive.args.select(fragment_InputValue),
+        ds.__Directive.args(**deprecated_expand).select(fragment_InputValue),
     )
 
     schema.select(directives)
@@ -69,7 +77,7 @@ def get_introspection_query_ast(
         fields.select(ds.__Field.description)
 
     fields.select(
-        ds.__Field.args.select(fragment_InputValue),
+        ds.__Field.args(**deprecated_expand).select(fragment_InputValue),
         ds.__Field.type.select(fragment_TypeRef),
         ds.__Field.isDeprecated,
         ds.__Field.deprecationReason,
@@ -89,7 +97,7 @@ def get_introspection_query_ast(
 
     fragment_FullType.select(
         fields,
-        ds.__Type.inputFields.select(fragment_InputValue),
+        ds.__Type.inputFields(**deprecated_expand).select(fragment_InputValue),
         ds.__Type.interfaces.select(fragment_TypeRef),
         enum_values,
         ds.__Type.possibleTypes.select(fragment_TypeRef),
@@ -104,6 +112,12 @@ def get_introspection_query_ast(
         ds.__InputValue.type.select(fragment_TypeRef),
         ds.__InputValue.defaultValue,
     )
+
+    if input_value_deprecation:
+        fragment_InputValue.select(
+            ds.__InputValue.isDeprecated,
+            ds.__InputValue.deprecationReason,
+        )
 
     fragment_TypeRef.select(
         ds.__Type.kind,
