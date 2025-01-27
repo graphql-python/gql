@@ -984,12 +984,14 @@ def test_get_introspection_query_ast(option):
         specified_by_url=option,
         directive_is_repeatable=option,
         schema_description=option,
+        input_value_deprecation=option,
     )
     dsl_introspection_query = get_introspection_query_ast(
         descriptions=option,
         specified_by_url=option,
         directive_is_repeatable=option,
         schema_description=option,
+        input_value_deprecation=option,
     )
 
     assert print_ast(gql(introspection_query)) == print_ast(dsl_introspection_query)
