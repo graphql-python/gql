@@ -994,10 +994,26 @@ def test_get_introspection_query_ast(option):
         input_value_deprecation=option,
     )
 
-    assert print_ast(gql(introspection_query)) == print_ast(dsl_introspection_query)
-    assert node_tree(dsl_introspection_query) == node_tree(
-        gql(print_ast(dsl_introspection_query))
-    )
+    try:
+        assert print_ast(gql(introspection_query)) == print_ast(dsl_introspection_query)
+        assert node_tree(dsl_introspection_query) == node_tree(
+            gql(print_ast(dsl_introspection_query))
+        )
+    except AssertionError:
+
+        # From graphql-core version 3.3.0a7, there is two more type recursion levels
+        dsl_introspection_query = get_introspection_query_ast(
+            descriptions=option,
+            specified_by_url=option,
+            directive_is_repeatable=option,
+            schema_description=option,
+            input_value_deprecation=option,
+            type_recursion_level=9,
+        )
+        assert print_ast(gql(introspection_query)) == print_ast(dsl_introspection_query)
+        assert node_tree(dsl_introspection_query) == node_tree(
+            gql(print_ast(dsl_introspection_query))
+        )
 
 
 def test_typename_aliased(ds):
