@@ -19,8 +19,7 @@ tests_requires = [
     "pytest-asyncio==0.21.1",
     "pytest-console-scripts==1.4.1",
     "pytest-cov==5.0.0",
-    "vcrpy==4.4.0;python_version<='3.8'",
-    "vcrpy==7.0.0;python_version>'3.8'",
+    "vcrpy==7.0.0",
     "aiofiles",
 ]
 
@@ -86,7 +85,6 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3 :: Only",
-        "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
