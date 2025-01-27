@@ -29,9 +29,10 @@ dev_requires = [
     "flake8==7.1.1",
     "isort==4.3.21",
     "mypy==1.10",
-    "sphinx>=5.3.0,<6",
-    "sphinx_rtd_theme>=0.4,<1",
-    "sphinx-argparse==0.2.5",
+    "sphinx>=7.0.0,<8;python_version<='3.9'",
+    "sphinx>=8.1.0,<9;python_version>'3.9'",
+    "sphinx_rtd_theme>=3.0.2,<4",
+    "sphinx-argparse==0.4.0",
     "types-aiofiles",
     "types-requests",
 ] + tests_requires
