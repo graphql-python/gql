@@ -151,7 +151,6 @@ async def test_websocket_sending_invalid_payload():
 
 
 @pytest.mark.online
-@pytest.mark.skipif(sys.version_info < (3, 8), reason="requires python3.8 or higher")
 @pytest.mark.skip(reason=skip_reason)
 @pytest.mark.asyncio
 async def test_websocket_sending_invalid_data_while_other_query_is_running():
@@ -203,7 +202,6 @@ async def test_websocket_sending_invalid_data_while_other_query_is_running():
 
 
 @pytest.mark.online
-@pytest.mark.skipif(sys.version_info < (3, 8), reason="requires python3.8 or higher")
 @pytest.mark.skip(reason=skip_reason)
 @pytest.mark.asyncio
 async def test_websocket_two_queries_in_parallel_using_two_tasks():
