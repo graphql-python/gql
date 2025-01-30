@@ -7,6 +7,8 @@ install_requires = [
     "yarl>=1.6,<2.0",
     "backoff>=1.11.1,<3.0",
     "anyio>=3.0,<5",
+    "aiohttp>=3.8.0,<4;python_version<='3.11'",
+    "aiohttp>=3.9.0b0,<4;python_version>'3.11'",
 ]
 
 console_scripts = [
@@ -37,11 +39,6 @@ dev_requires = [
     "types-requests",
 ] + tests_requires
 
-install_aiohttp_requires = [
-    "aiohttp>=3.8.0,<4;python_version<='3.11'",
-    "aiohttp>=3.9.0b0,<4;python_version>'3.11'",
-]
-
 install_requests_requires = [
     "requests>=2.26,<3",
     "requests_toolbelt>=1.0.0,<2",
@@ -60,7 +57,7 @@ install_botocore_requires = [
 ]
 
 install_all_requires = (
-    install_aiohttp_requires + install_requests_requires + install_httpx_requires + install_websockets_requires + install_botocore_requires
+    install_requests_requires + install_httpx_requires + install_websockets_requires + install_botocore_requires
 )
 
 # Get version from __version__.py file
@@ -103,7 +100,6 @@ setup(
         "test": install_all_requires + tests_requires,
         "test_no_transport": tests_requires,
         "dev": install_all_requires + dev_requires,
-        "aiohttp": install_aiohttp_requires,
         "requests": install_requests_requires,
         "httpx": install_httpx_requires,
         "websockets": install_websockets_requires,
