@@ -46,7 +46,7 @@ class AIOHTTPTransport(AsyncTransport):
         headers: Optional[LooseHeaders] = None,
         cookies: Optional[LooseCookies] = None,
         auth: Optional[Union[BasicAuth, "AppSyncAuthentication"]] = None,
-        ssl: Union[SSLContext, bool, Fingerprint] = False,
+        ssl: Union[SSLContext, bool, Fingerprint] = True,
         timeout: Optional[int] = None,
         ssl_close_timeout: Optional[Union[int, float]] = 10,
         json_serialize: Callable = json.dumps,
