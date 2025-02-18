@@ -12,7 +12,7 @@ include tox.ini
 
 include gql/py.typed
 
-recursive-include tests *.py *.graphql *.cnf *.yaml *.pem
+recursive-include tests *.py *.graphql *.cnf *.yaml *.pem *.crt
 recursive-include docs *.txt *.rst conf.py Makefile make.bat
 recursive-include docs/code_examples *.py
 

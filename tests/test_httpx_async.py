@@ -14,7 +14,11 @@ from gql.transport.exceptions import (
     TransportServerError,
 )
 
-from .conftest import TemporaryFile, get_localhost_ssl_context, strip_braces_spaces
+from .conftest import (
+    TemporaryFile,
+    get_localhost_ssl_context_client,
+    strip_braces_spaces,
+)
 
 query1_str = """
     query getContinents {
@@ -1162,7 +1166,8 @@ async def test_httpx_query_with_extensions(event_loop, aiohttp_server):
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_httpx_query_https(event_loop, ssl_aiohttp_server):
+@pytest.mark.parametrize("verify_https", ["disabled", "cert_provided"])
+async def test_httpx_query_https(event_loop, ssl_aiohttp_server, verify_https):
     from aiohttp import web
     from gql.transport.httpx import HTTPXAsyncTransport
 
@@ -1177,9 +1182,16 @@ async def test_httpx_query_https(event_loop, ssl_aiohttp_server):
 
     assert url.startswith("https://")
 
-    cert, _ = get_localhost_ssl_context()
+    extra_args = {}
 
-    transport = HTTPXAsyncTransport(url=url, timeout=10, verify=cert.decode())
+    if verify_https == "cert_provided":
+        _, ssl_context = get_localhost_ssl_context_client()
+
+        extra_args["verify"] = ssl_context
+    elif verify_https == "disabled":
+        extra_args["verify"] = False
+
+    transport = HTTPXAsyncTransport(url=url, timeout=10, **extra_args)
 
     async with Client(transport=transport) as session:
 
@@ -1193,6 +1205,47 @@ async def test_httpx_query_https(event_loop, ssl_aiohttp_server):
         africa = continents[0]
 
         assert africa["code"] == "AF"
+
+
+@pytest.mark.aiohttp
+@pytest.mark.asyncio
+@pytest.mark.parametrize("verify_https", ["explicitely_enabled", "default"])
+async def test_httpx_query_https_self_cert_fail(
+    event_loop, ssl_aiohttp_server, verify_https
+):
+    from aiohttp import web
+    from gql.transport.httpx import HTTPXAsyncTransport
+    from httpx import ConnectError
+
+    async def handler(request):
+        return web.Response(text=query1_server_answer, content_type="application/json")
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await ssl_aiohttp_server(app)
+
+    url = str(server.make_url("/"))
+
+    assert url.startswith("https://")
+
+    extra_args = {}
+
+    if verify_https == "explicitely_enabled":
+        extra_args["verify"] = True
+
+    transport = HTTPXAsyncTransport(url=url, timeout=10, **extra_args)
+
+    with pytest.raises(ConnectError) as exc_info:
+        async with Client(transport=transport) as session:
+
+            query = gql(query1_str)
+
+            # Execute query asynchronously
+            await session.execute(query)
+
+    expected_error = "certificate verify failed: self-signed certificate"
+
+    assert expected_error in str(exc_info.value)
 
 
 @pytest.mark.aiohttp

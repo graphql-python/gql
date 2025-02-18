@@ -1,6 +1,5 @@
 import asyncio
 import json
-import ssl
 import sys
 from typing import Dict, Mapping
 
@@ -14,7 +13,7 @@ from gql.transport.exceptions import (
     TransportServerError,
 )
 
-from .conftest import MS, WebSocketServerHelper
+from .conftest import MS, WebSocketServerHelper, get_localhost_ssl_context_client
 
 # Marking all tests in this file with the aiohttp AND websockets marker
 pytestmark = pytest.mark.aiohttp
@@ -92,8 +91,9 @@ async def test_aiohttp_websocket_starting_client_in_context_manager(
 @pytest.mark.websockets
 @pytest.mark.parametrize("ws_ssl_server", [server1_answers], indirect=True)
 @pytest.mark.parametrize("ssl_close_timeout", [0, 10])
+@pytest.mark.parametrize("verify_https", ["disabled", "cert_provided"])
 async def test_aiohttp_websocket_using_ssl_connection(
-    event_loop, ws_ssl_server, ssl_close_timeout
+    event_loop, ws_ssl_server, ssl_close_timeout, verify_https
 ):
 
     from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
@@ -103,11 +103,19 @@ async def test_aiohttp_websocket_using_ssl_connection(
     url = f"wss://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-    ssl_context.load_verify_locations(ws_ssl_server.testcert)
+    extra_args = {}
+
+    if verify_https == "cert_provided":
+        _, ssl_context = get_localhost_ssl_context_client()
+
+        extra_args["ssl"] = ssl_context
+    elif verify_https == "disabled":
+        extra_args["ssl"] = False
 
     transport = AIOHTTPWebsocketsTransport(
-        url=url, ssl=ssl_context, ssl_close_timeout=ssl_close_timeout
+        url=url,
+        ssl_close_timeout=ssl_close_timeout,
+        **extra_args,
     )
 
     async with Client(transport=transport) as session:
@@ -125,6 +133,49 @@ async def test_aiohttp_websocket_using_ssl_connection(
         africa = continents[0]
 
         assert africa["code"] == "AF"
+
+    # Check client is disconnect here
+    assert transport.websocket is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.websockets
+@pytest.mark.parametrize("ws_ssl_server", [server1_answers], indirect=True)
+@pytest.mark.parametrize("ssl_close_timeout", [10])
+@pytest.mark.parametrize("verify_https", ["explicitely_enabled", "default"])
+async def test_aiohttp_websocket_using_ssl_connection_self_cert_fail(
+    event_loop, ws_ssl_server, ssl_close_timeout, verify_https
+):
+
+    from aiohttp.client_exceptions import ClientConnectorCertificateError
+    from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
+
+    server = ws_ssl_server
+
+    url = f"wss://{server.hostname}:{server.port}/graphql"
+    print(f"url = {url}")
+
+    extra_args = {}
+
+    if verify_https == "explicitely_enabled":
+        extra_args["ssl"] = True
+
+    transport = AIOHTTPWebsocketsTransport(
+        url=url,
+        ssl_close_timeout=ssl_close_timeout,
+        **extra_args,
+    )
+
+    with pytest.raises(ClientConnectorCertificateError) as exc_info:
+        async with Client(transport=transport) as session:
+
+            query1 = gql(query1_str)
+
+            await session.execute(query1)
+
+    expected_error = "certificate verify failed: self-signed certificate"
+
+    assert expected_error in str(exc_info.value)
 
     # Check client is disconnect here
     assert transport.websocket is None

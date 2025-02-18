@@ -2,6 +2,8 @@ import pytest
 
 from gql import Client, gql
 
+from .conftest import get_localhost_ssl_context_client
+
 # Marking all tests in this file with the websockets marker
 pytestmark = pytest.mark.websockets
 
@@ -56,15 +58,89 @@ async def test_phoenix_channel_query(event_loop, server, query_str):
 
     path = "/graphql"
     url = f"ws://{server.hostname}:{server.port}{path}"
-    sample_transport = PhoenixChannelWebsocketsTransport(
-        channel_name="test_channel", url=url
-    )
+    transport = PhoenixChannelWebsocketsTransport(channel_name="test_channel", url=url)
 
     query = gql(query_str)
-    async with Client(transport=sample_transport) as session:
+    async with Client(transport=transport) as session:
         result = await session.execute(query)
 
     print("Client received:", result)
+
+
+@pytest.mark.skip(reason="ssl=False is not working for now")
+@pytest.mark.asyncio
+@pytest.mark.parametrize("ws_ssl_server", [query_server], indirect=True)
+@pytest.mark.parametrize("query_str", [query1_str])
+@pytest.mark.parametrize("verify_https", ["disabled", "cert_provided"])
+async def test_phoenix_channel_query_ssl(
+    event_loop, ws_ssl_server, query_str, verify_https
+):
+    from gql.transport.phoenix_channel_websockets import (
+        PhoenixChannelWebsocketsTransport,
+    )
+
+    path = "/graphql"
+    server = ws_ssl_server
+    url = f"wss://{server.hostname}:{server.port}{path}"
+
+    extra_args = {}
+
+    if verify_https == "cert_provided":
+        _, ssl_context = get_localhost_ssl_context_client()
+
+        extra_args["ssl"] = ssl_context
+    elif verify_https == "disabled":
+        extra_args["ssl"] = False
+
+    transport = PhoenixChannelWebsocketsTransport(
+        channel_name="test_channel",
+        url=url,
+        **extra_args,
+    )
+
+    query = gql(query_str)
+    async with Client(transport=transport) as session:
+        result = await session.execute(query)
+
+    print("Client received:", result)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("ws_ssl_server", [query_server], indirect=True)
+@pytest.mark.parametrize("query_str", [query1_str])
+@pytest.mark.parametrize("verify_https", ["explicitely_enabled", "default"])
+async def test_phoenix_channel_query_ssl_self_cert_fail(
+    event_loop, ws_ssl_server, query_str, verify_https
+):
+    from gql.transport.phoenix_channel_websockets import (
+        PhoenixChannelWebsocketsTransport,
+    )
+    from ssl import SSLCertVerificationError
+
+    path = "/graphql"
+    server = ws_ssl_server
+    url = f"wss://{server.hostname}:{server.port}{path}"
+
+    extra_args = {}
+
+    if verify_https == "explicitely_enabled":
+        extra_args["ssl"] = True
+
+    transport = PhoenixChannelWebsocketsTransport(
+        channel_name="test_channel",
+        url=url,
+        **extra_args,
+    )
+
+    query = gql(query_str)
+
+    with pytest.raises(SSLCertVerificationError) as exc_info:
+        async with Client(transport=transport) as session:
+            await session.execute(query)
+
+    expected_error = "certificate verify failed: self-signed certificate"
+
+    assert expected_error in str(exc_info.value)
 
 
 query2_str = """
@@ -133,13 +209,11 @@ async def test_phoenix_channel_subscription(event_loop, server, query_str):
 
     path = "/graphql"
     url = f"ws://{server.hostname}:{server.port}{path}"
-    sample_transport = PhoenixChannelWebsocketsTransport(
-        channel_name="test_channel", url=url
-    )
+    transport = PhoenixChannelWebsocketsTransport(channel_name="test_channel", url=url)
 
     first_result = None
     query = gql(query_str)
-    async with Client(transport=sample_transport) as session:
+    async with Client(transport=transport) as session:
         async for result in session.subscribe(query):
             first_result = result
             break

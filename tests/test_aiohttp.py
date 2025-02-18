@@ -14,7 +14,11 @@ from gql.transport.exceptions import (
     TransportServerError,
 )
 
-from .conftest import TemporaryFile, strip_braces_spaces
+from .conftest import (
+    TemporaryFile,
+    get_localhost_ssl_context_client,
+    strip_braces_spaces,
+)
 
 query1_str = """
     query getContinents {
@@ -1285,7 +1289,10 @@ async def test_aiohttp_query_with_extensions(event_loop, aiohttp_server):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("ssl_close_timeout", [0, 10])
-async def test_aiohttp_query_https(event_loop, ssl_aiohttp_server, ssl_close_timeout):
+@pytest.mark.parametrize("verify_https", ["disabled", "cert_provided"])
+async def test_aiohttp_query_https(
+    event_loop, ssl_aiohttp_server, ssl_close_timeout, verify_https
+):
     from aiohttp import web
     from gql.transport.aiohttp import AIOHTTPTransport
 
@@ -1300,8 +1307,20 @@ async def test_aiohttp_query_https(event_loop, ssl_aiohttp_server, ssl_close_tim
 
     assert str(url).startswith("https://")
 
+    extra_args = {}
+
+    if verify_https == "cert_provided":
+        _, ssl_context = get_localhost_ssl_context_client()
+
+        extra_args["ssl"] = ssl_context
+    elif verify_https == "disabled":
+        extra_args["ssl"] = False
+
     transport = AIOHTTPTransport(
-        url=url, timeout=10, ssl_close_timeout=ssl_close_timeout
+        url=url,
+        timeout=10,
+        ssl_close_timeout=ssl_close_timeout,
+        **extra_args,
     )
 
     async with Client(transport=transport) as session:
@@ -1316,6 +1335,65 @@ async def test_aiohttp_query_https(event_loop, ssl_aiohttp_server, ssl_close_tim
         africa = continents[0]
 
         assert africa["code"] == "AF"
+
+
+@pytest.mark.skip(reason="We will change the default to fix this in a future version")
+@pytest.mark.asyncio
+async def test_aiohttp_query_https_self_cert_fail(event_loop, ssl_aiohttp_server):
+    """By default, we should verify the ssl certificate"""
+    from aiohttp.client_exceptions import ClientConnectorCertificateError
+    from aiohttp import web
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    async def handler(request):
+        return web.Response(text=query1_server_answer, content_type="application/json")
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await ssl_aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    assert str(url).startswith("https://")
+
+    transport = AIOHTTPTransport(url=url, timeout=10)
+
+    with pytest.raises(ClientConnectorCertificateError) as exc_info:
+        async with Client(transport=transport) as session:
+            query = gql(query1_str)
+
+            # Execute query asynchronously
+            await session.execute(query)
+
+    expected_error = "certificate verify failed: self-signed certificate"
+
+    assert expected_error in str(exc_info.value)
+    assert transport.session is None
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_query_https_self_cert_warn(event_loop, ssl_aiohttp_server):
+    from aiohttp import web
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    async def handler(request):
+        return web.Response(text=query1_server_answer, content_type="application/json")
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await ssl_aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    assert str(url).startswith("https://")
+
+    expected_warning = (
+        "WARNING: By default, AIOHTTPTransport does not verify ssl certificates."
+        " This will be fixed in the next major version."
+    )
+
+    with pytest.warns(Warning, match=expected_warning):
+        AIOHTTPTransport(url=url, timeout=10)
 
 
 @pytest.mark.asyncio
