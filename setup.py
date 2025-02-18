@@ -48,7 +48,7 @@ install_requests_requires = [
 ]
 
 install_httpx_requires = [
-    "httpx>=0.23.1,<1",
+    "httpx>=0.27.0,<1",
 ]
 
 install_websockets_requires = [
