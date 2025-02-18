@@ -38,7 +38,7 @@ def ws_server_helper(request):
     yield PhoenixChannelServerHelper
 
 
-async def query_server(ws, path):
+async def query_server(ws):
     from .conftest import PhoenixChannelServerHelper
 
     await PhoenixChannelServerHelper.send_connection_ack(ws)
@@ -185,7 +185,7 @@ unsubscribe_server_answer = (
 )
 
 
-async def subscription_server(ws, path):
+async def subscription_server(ws):
     from .conftest import PhoenixChannelServerHelper
 
     await PhoenixChannelServerHelper.send_connection_ack(ws)

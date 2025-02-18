@@ -228,7 +228,7 @@ async def test_aiohttp_websocket_two_queries_in_series(
     assert result1 == result2
 
 
-async def server1_two_queries_in_parallel(ws, path):
+async def server1_two_queries_in_parallel(ws):
     await WebSocketServerHelper.send_connection_ack(ws)
     result = await ws.recv()
     print(f"Server received: {result}", file=sys.stderr)
@@ -276,7 +276,7 @@ async def test_aiohttp_websocket_two_queries_in_parallel(
     assert result1 == result2
 
 
-async def server_closing_while_we_are_doing_something_else(ws, path):
+async def server_closing_while_we_are_doing_something_else(ws):
     await WebSocketServerHelper.send_connection_ack(ws)
     result = await ws.recv()
     print(f"Server received: {result}", file=sys.stderr)
@@ -434,7 +434,7 @@ async def test_aiohttp_websocket_trying_to_connect_to_already_connected_transpor
                 pass
 
 
-async def server_with_authentication_in_connection_init_payload(ws, path):
+async def server_with_authentication_in_connection_init_payload(ws):
     # Wait the connection_init message
     init_message_str = await ws.recv()
     init_message = json.loads(init_message_str)
@@ -593,7 +593,7 @@ async def test_aiohttp_websocket_add_extra_parameters_to_connect(
         await session.execute(query)
 
 
-async def server_sending_keep_alive_before_connection_ack(ws, path):
+async def server_sending_keep_alive_before_connection_ack(ws):
     await WebSocketServerHelper.send_keepalive(ws)
     await WebSocketServerHelper.send_keepalive(ws)
     await WebSocketServerHelper.send_keepalive(ws)

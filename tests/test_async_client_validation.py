@@ -22,7 +22,7 @@ starwars_expected_two = {
 }
 
 
-async def server_starwars(ws, path):
+async def server_starwars(ws):
     import websockets
 
     await WebSocketServerHelper.send_connection_ack(ws)

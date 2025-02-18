@@ -77,7 +77,7 @@ countdown_data_template = (
 )
 
 
-async def server_countdown(ws, path):
+async def server_countdown(ws):
     import websockets
 
     from .conftest import MS, PhoenixChannelServerHelper
@@ -295,7 +295,7 @@ heartbeat_data_template = (
 )
 
 
-async def phoenix_heartbeat_server(ws, path):
+async def phoenix_heartbeat_server(ws):
     import websockets
 
     from .conftest import PhoenixChannelServerHelper

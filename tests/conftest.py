@@ -501,7 +501,7 @@ def get_server_handler(request):
     else:
         answers = request.param
 
-        async def default_server_handler(ws, path):
+        async def default_server_handler(ws):
 
             try:
                 await WebSocketServerHelper.send_connection_ack(ws)

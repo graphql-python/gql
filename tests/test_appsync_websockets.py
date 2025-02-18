@@ -107,7 +107,7 @@ def realtime_appsync_server_factory(
             "errorCode": 400,
         }
 
-    async def realtime_appsync_server_template(ws, path):
+    async def realtime_appsync_server_template(ws):
         import websockets
 
         logged_messages.clear()
@@ -138,6 +138,8 @@ def realtime_appsync_server_factory(
                     )
                 )
                 return
+
+            path = ws.path
 
             print(f"path = {path}")
 
@@ -348,28 +350,28 @@ def realtime_appsync_server_factory(
     return realtime_appsync_server_template
 
 
-async def realtime_appsync_server(ws, path):
+async def realtime_appsync_server(ws):
 
     server = realtime_appsync_server_factory()
-    await server(ws, path)
+    await server(ws)
 
 
-async def realtime_appsync_server_keepalive(ws, path):
+async def realtime_appsync_server_keepalive(ws):
 
     server = realtime_appsync_server_factory(keepalive=True)
-    await server(ws, path)
+    await server(ws)
 
 
-async def realtime_appsync_server_not_json_answer(ws, path):
+async def realtime_appsync_server_not_json_answer(ws):
 
     server = realtime_appsync_server_factory(not_json_answer=True)
-    await server(ws, path)
+    await server(ws)
 
 
-async def realtime_appsync_server_error_without_id(ws, path):
+async def realtime_appsync_server_error_without_id(ws):
 
     server = realtime_appsync_server_factory(error_without_id=True)
-    await server(ws, path)
+    await server(ws)
 
 
 on_create_message_subscription_str = """
