@@ -11,7 +11,11 @@ from gql.transport.exceptions import (
     TransportServerError,
 )
 
-from .conftest import TemporaryFile, strip_braces_spaces
+from .conftest import (
+    TemporaryFile,
+    get_localhost_ssl_context_client,
+    strip_braces_spaces,
+)
 
 # Marking all tests in this file with the requests marker
 pytestmark = pytest.mark.requests
@@ -79,7 +83,10 @@ async def test_requests_query(event_loop, aiohttp_server, run_sync_test):
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_requests_query_https(event_loop, ssl_aiohttp_server, run_sync_test):
+@pytest.mark.parametrize("verify_https", ["disabled", "cert_provided"])
+async def test_requests_query_https(
+    event_loop, ssl_aiohttp_server, run_sync_test, verify_https
+):
     from aiohttp import web
     from gql.transport.requests import RequestsHTTPTransport
     import warnings
@@ -99,12 +106,22 @@ async def test_requests_query_https(event_loop, ssl_aiohttp_server, run_sync_tes
 
     def test_code():
         with warnings.catch_warnings():
-            # Ignoring Insecure Request warning
-            warnings.filterwarnings("ignore")
+
+            extra_args = {}
+
+            if verify_https == "cert_provided":
+                cert_path, _ = get_localhost_ssl_context_client()
+
+                extra_args["verify"] = cert_path
+            elif verify_https == "disabled":
+                extra_args["verify"] = False
+
+                # Ignoring Insecure Request warning
+                warnings.filterwarnings("ignore")
 
             transport = RequestsHTTPTransport(
                 url=url,
-                verify=False,
+                **extra_args,
             )
 
             with Client(transport=transport) as session:
@@ -130,8 +147,9 @@ async def test_requests_query_https(event_loop, ssl_aiohttp_server, run_sync_tes
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
+@pytest.mark.parametrize("verify_https", ["explicitely_enabled", "default"])
 async def test_requests_query_https_self_cert_fail(
-    event_loop, ssl_aiohttp_server, run_sync_test
+    event_loop, ssl_aiohttp_server, run_sync_test, verify_https
 ):
     """By default, we should verify the ssl certificate"""
     from aiohttp import web
@@ -152,8 +170,14 @@ async def test_requests_query_https_self_cert_fail(
     url = server.make_url("/")
 
     def test_code():
+        extra_args = {}
+
+        if verify_https == "explicitely_enabled":
+            extra_args["verify"] = True
+
         transport = RequestsHTTPTransport(
             url=url,
+            **extra_args,
         )
 
         with pytest.raises(SSLError) as exc_info:

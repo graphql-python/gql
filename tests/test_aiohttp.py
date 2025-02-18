@@ -14,7 +14,11 @@ from gql.transport.exceptions import (
     TransportServerError,
 )
 
-from .conftest import TemporaryFile, strip_braces_spaces
+from .conftest import (
+    TemporaryFile,
+    get_localhost_ssl_context_client,
+    strip_braces_spaces,
+)
 
 query1_str = """
     query getContinents {
@@ -1285,7 +1289,10 @@ async def test_aiohttp_query_with_extensions(event_loop, aiohttp_server):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("ssl_close_timeout", [0, 10])
-async def test_aiohttp_query_https(event_loop, ssl_aiohttp_server, ssl_close_timeout):
+@pytest.mark.parametrize("verify_https", ["disabled", "cert_provided"])
+async def test_aiohttp_query_https(
+    event_loop, ssl_aiohttp_server, ssl_close_timeout, verify_https
+):
     from aiohttp import web
     from gql.transport.aiohttp import AIOHTTPTransport
 
@@ -1300,11 +1307,20 @@ async def test_aiohttp_query_https(event_loop, ssl_aiohttp_server, ssl_close_tim
 
     assert str(url).startswith("https://")
 
+    extra_args = {}
+
+    if verify_https == "cert_provided":
+        _, ssl_context = get_localhost_ssl_context_client()
+
+        extra_args["ssl"] = ssl_context
+    elif verify_https == "disabled":
+        extra_args["ssl"] = False
+
     transport = AIOHTTPTransport(
         url=url,
         timeout=10,
         ssl_close_timeout=ssl_close_timeout,
-        ssl=False,  # Disable cert verification as we are using a self certificate
+        **extra_args,
     )
 
     async with Client(transport=transport) as session:

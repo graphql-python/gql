@@ -11,7 +11,7 @@ from gql.transport.exceptions import (
     TransportServerError,
 )
 
-from .conftest import TemporaryFile, strip_braces_spaces
+from .conftest import TemporaryFile, get_localhost_ssl_context, strip_braces_spaces
 
 # Marking all tests in this file with the httpx marker
 pytestmark = pytest.mark.httpx
@@ -79,7 +79,10 @@ async def test_httpx_query(event_loop, aiohttp_server, run_sync_test):
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_httpx_query_https(event_loop, ssl_aiohttp_server, run_sync_test):
+@pytest.mark.parametrize("verify_https", ["disabled", "cert_provided"])
+async def test_httpx_query_https(
+    event_loop, ssl_aiohttp_server, run_sync_test, verify_https
+):
     from aiohttp import web
     from gql.transport.httpx import HTTPXTransport
 
@@ -96,14 +99,21 @@ async def test_httpx_query_https(event_loop, ssl_aiohttp_server, run_sync_test):
 
     url = str(server.make_url("/"))
 
-    print(url)
-
     assert str(url).startswith("https://")
 
     def test_code():
+        extra_args = {}
+
+        if verify_https == "cert_provided":
+            cert, _ = get_localhost_ssl_context()
+
+            extra_args["verify"] = cert.decode()
+        elif verify_https == "disabled":
+            extra_args["verify"] = False
+
         transport = HTTPXTransport(
             url=url,
-            verify=False,
+            **extra_args,
         )
 
         with Client(transport=transport) as session:
@@ -129,8 +139,9 @@ async def test_httpx_query_https(event_loop, ssl_aiohttp_server, run_sync_test):
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
+@pytest.mark.parametrize("verify_https", ["explicitely_enabled", "default"])
 async def test_httpx_query_https_self_cert_fail(
-    event_loop, ssl_aiohttp_server, run_sync_test
+    event_loop, ssl_aiohttp_server, run_sync_test, verify_https
 ):
     """By default, we should verify the ssl certificate"""
     from aiohttp import web
@@ -150,13 +161,17 @@ async def test_httpx_query_https_self_cert_fail(
 
     url = str(server.make_url("/"))
 
-    print(url)
-
     assert str(url).startswith("https://")
 
     def test_code():
+        extra_args = {}
+
+        if verify_https == "explicitely_enabled":
+            extra_args["verify"] = True
+
         transport = HTTPXTransport(
             url=url,
+            **extra_args,
         )
 
         with pytest.raises(ConnectError) as exc_info:

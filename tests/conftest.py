@@ -156,6 +156,29 @@ def get_localhost_ssl_context():
     return (testcert, ssl_context)
 
 
+def get_localhost_ssl_context_client():
+    """
+    Create a client-side SSL context that verifies the specific self-signed certificate
+    used for our test.
+    """
+    # Get the certificate from the server setup
+    cert_path = bytes(pathlib.Path(__file__).with_name("test_localhost_client.crt"))
+
+    # Create client SSL context
+    ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+
+    # Load just the certificate part as a trusted CA
+    ssl_context.load_verify_locations(cafile=cert_path)
+
+    # Require certificate verification
+    ssl_context.verify_mode = ssl.CERT_REQUIRED
+
+    # Enable hostname checking for localhost
+    ssl_context.check_hostname = True
+
+    return cert_path, ssl_context
+
+
 class WebSocketServer:
     """Websocket server on localhost on a free port.
 
