@@ -3,8 +3,19 @@ import functools
 import io
 import json
 import logging
+import warnings
 from ssl import SSLContext
-from typing import Any, AsyncGenerator, Callable, Dict, Optional, Tuple, Type, Union
+from typing import (
+    Any,
+    AsyncGenerator,
+    Callable,
+    Dict,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+    cast,
+)
 
 import aiohttp
 from aiohttp.client_exceptions import ClientResponseError
@@ -46,7 +57,7 @@ class AIOHTTPTransport(AsyncTransport):
         headers: Optional[LooseHeaders] = None,
         cookies: Optional[LooseCookies] = None,
         auth: Optional[Union[BasicAuth, "AppSyncAuthentication"]] = None,
-        ssl: Union[SSLContext, bool, Fingerprint] = False,
+        ssl: Union[SSLContext, bool, Fingerprint, str] = "ssl_warning",
         timeout: Optional[int] = None,
         ssl_close_timeout: Optional[Union[int, float]] = 10,
         json_serialize: Callable = json.dumps,
@@ -74,7 +85,20 @@ class AIOHTTPTransport(AsyncTransport):
         self.headers: Optional[LooseHeaders] = headers
         self.cookies: Optional[LooseCookies] = cookies
         self.auth: Optional[Union[BasicAuth, "AppSyncAuthentication"]] = auth
-        self.ssl: Union[SSLContext, bool, Fingerprint] = ssl
+
+        if ssl == "ssl_warning":
+            ssl = False
+            if str(url).startswith("https"):
+                warnings.warn(
+                    "WARNING: By default, AIOHTTPTransport does not verify"
+                    " ssl certificates. This will be fixed in the next major version."
+                    " You can set ssl=True to force the ssl certificate verification"
+                    " or ssl=False to disable this warning"
+                )
+
+        self.ssl: Union[SSLContext, bool, Fingerprint] = cast(
+            Union[SSLContext, bool, Fingerprint], ssl
+        )
         self.timeout: Optional[int] = timeout
         self.ssl_close_timeout: Optional[Union[int, float]] = ssl_close_timeout
         self.client_session_args = client_session_args
