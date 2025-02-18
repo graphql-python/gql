@@ -1215,7 +1215,7 @@ async def test_httpx_query_https_self_cert_fail(
 ):
     from aiohttp import web
     from gql.transport.httpx import HTTPXAsyncTransport
-    from ssl import SSLCertVerificationError
+    from httpx import ConnectError
 
     async def handler(request):
         return web.Response(text=query1_server_answer, content_type="application/json")
@@ -1235,7 +1235,7 @@ async def test_httpx_query_https_self_cert_fail(
 
     transport = HTTPXAsyncTransport(url=url, timeout=10, **extra_args)
 
-    with pytest.raises(SSLCertVerificationError) as exc_info:
+    with pytest.raises(ConnectError) as exc_info:
         async with Client(transport=transport) as session:
 
             query = gql(query1_str)
