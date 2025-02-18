@@ -52,7 +52,7 @@ install_httpx_requires = [
 ]
 
 install_websockets_requires = [
-    "websockets>=10,<12",
+    "websockets>=10.1,<14",
 ]
 
 install_botocore_requires = [
