@@ -68,7 +68,7 @@ invalid_subscription_str = """
 """
 
 
-async def server_invalid_subscription(ws, path):
+async def server_invalid_subscription(ws):
     await WebSocketServerHelper.send_connection_ack(ws)
     await ws.recv()
     await ws.send(invalid_query1_server_answer.format(query_id=1))
@@ -102,7 +102,7 @@ async def test_aiohttp_websocket_graphqlws_invalid_subscription(
     assert error["extensions"]["code"] == "INTERNAL_SERVER_ERROR"
 
 
-async def server_no_ack(ws, path):
+async def server_no_ack(ws):
     await ws.wait_closed()
 
 
@@ -130,7 +130,7 @@ invalid_query_server_answer = (
 )
 
 
-async def server_invalid_query(ws, path):
+async def server_invalid_query(ws):
     await WebSocketServerHelper.send_connection_ack(ws)
     result = await ws.recv()
     print(f"Server received: {result}")
@@ -207,7 +207,7 @@ async def test_aiohttp_websocket_graphqlws_transport_protocol_errors(
         await session.execute(query)
 
 
-async def server_without_ack(ws, path):
+async def server_without_ack(ws):
     # Sending something else than an ack
     await WebSocketServerHelper.send_complete(ws, 1)
     await ws.wait_closed()
@@ -230,7 +230,7 @@ async def test_aiohttp_websocket_graphqlws_server_does_not_ack(
             pass
 
 
-async def server_closing_directly(ws, path):
+async def server_closing_directly(ws):
     await ws.close()
 
 
@@ -252,7 +252,7 @@ async def test_aiohttp_websocket_graphqlws_server_closing_directly(
             pass
 
 
-async def server_closing_after_ack(ws, path):
+async def server_closing_after_ack(ws):
     await WebSocketServerHelper.send_connection_ack(ws)
     await ws.close()
 

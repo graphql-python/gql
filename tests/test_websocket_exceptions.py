@@ -69,7 +69,7 @@ invalid_subscription_str = """
 """
 
 
-async def server_invalid_subscription(ws, path):
+async def server_invalid_subscription(ws):
     await WebSocketServerHelper.send_connection_ack(ws)
     await ws.recv()
     await ws.send(invalid_query1_server_answer.format(query_id=1))
@@ -105,7 +105,7 @@ connection_error_server_answer = (
 )
 
 
-async def server_no_ack(ws, path):
+async def server_no_ack(ws):
     await ws.wait_closed()
 
 
@@ -124,7 +124,7 @@ async def test_websocket_server_does_not_send_ack(event_loop, server, query_str)
             pass
 
 
-async def server_connection_error(ws, path):
+async def server_connection_error(ws):
     await WebSocketServerHelper.send_connection_ack(ws)
     result = await ws.recv()
     print(f"Server received: {result}")
@@ -151,7 +151,7 @@ invalid_payload_server_answer = (
 )
 
 
-async def server_invalid_payload(ws, path):
+async def server_invalid_payload(ws):
     await WebSocketServerHelper.send_connection_ack(ws)
     result = await ws.recv()
     print(f"Server received: {result}")
@@ -244,7 +244,7 @@ async def test_websocket_transport_protocol_errors(event_loop, client_and_server
         await session.execute(query)
 
 
-async def server_without_ack(ws, path):
+async def server_without_ack(ws):
     # Sending something else than an ack
     await WebSocketServerHelper.send_complete(ws, 1)
     await ws.wait_closed()
@@ -265,7 +265,7 @@ async def test_websocket_server_does_not_ack(event_loop, server):
             pass
 
 
-async def server_closing_directly(ws, path):
+async def server_closing_directly(ws):
     await ws.close()
 
 
@@ -285,7 +285,7 @@ async def test_websocket_server_closing_directly(event_loop, server):
             pass
 
 
-async def server_closing_after_ack(ws, path):
+async def server_closing_after_ack(ws):
     await WebSocketServerHelper.send_connection_ack(ws)
     await ws.close()
 
@@ -309,7 +309,7 @@ async def test_websocket_server_closing_after_ack(event_loop, client_and_server)
         await session.execute(query)
 
 
-async def server_sending_invalid_query_errors(ws, path):
+async def server_sending_invalid_query_errors(ws):
     await WebSocketServerHelper.send_connection_ack(ws)
     invalid_error = (
         '{"type":"error","id":"404","payload":'

@@ -30,7 +30,7 @@ logged_messages: List[str] = []
 def server_countdown_factory(
     keepalive=False, answer_pings=True, simulate_disconnect=False
 ):
-    async def server_countdown_template(ws, path):
+    async def server_countdown_template(ws):
         import websockets
 
         logged_messages.clear()
@@ -192,28 +192,28 @@ def server_countdown_factory(
     return server_countdown_template
 
 
-async def server_countdown(ws, path):
+async def server_countdown(ws):
 
     server = server_countdown_factory()
-    await server(ws, path)
+    await server(ws)
 
 
-async def server_countdown_keepalive(ws, path):
+async def server_countdown_keepalive(ws):
 
     server = server_countdown_factory(keepalive=True)
-    await server(ws, path)
+    await server(ws)
 
 
-async def server_countdown_dont_answer_pings(ws, path):
+async def server_countdown_dont_answer_pings(ws):
 
     server = server_countdown_factory(answer_pings=False)
-    await server(ws, path)
+    await server(ws)
 
 
-async def server_countdown_disconnect(ws, path):
+async def server_countdown_disconnect(ws):
 
     server = server_countdown_factory(simulate_disconnect=True)
-    await server(ws, path)
+    await server(ws)
 
 
 countdown_subscription_str = """
@@ -353,7 +353,7 @@ async def test_graphqlws_subscription_close_transport(
     assert count > 0
 
 
-async def server_countdown_close_connection_in_middle(ws, path):
+async def server_countdown_close_connection_in_middle(ws):
     await WebSocketServerHelper.send_connection_ack(ws)
 
     result = await ws.recv()

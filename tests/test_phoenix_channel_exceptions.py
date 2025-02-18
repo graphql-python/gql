@@ -127,7 +127,7 @@ invalid_event_server_answer = '{"event":"unknown"}'
 def query_server(server_answers=default_query_server_answer):
     from .conftest import PhoenixChannelServerHelper
 
-    async def phoenix_server(ws, path):
+    async def phoenix_server(ws):
         await PhoenixChannelServerHelper.send_connection_ack(ws)
         await ws.recv()
         for server_answer in ensure_list(server_answers):
@@ -138,7 +138,7 @@ def query_server(server_answers=default_query_server_answer):
     return phoenix_server
 
 
-async def no_connection_ack_phoenix_server(ws, path):
+async def no_connection_ack_phoenix_server(ws):
     from .conftest import PhoenixChannelServerHelper
 
     await ws.recv()
@@ -363,7 +363,7 @@ def subscription_server(
     from .conftest import PhoenixChannelServerHelper
     import json
 
-    async def phoenix_server(ws, path):
+    async def phoenix_server(ws):
         await PhoenixChannelServerHelper.send_connection_ack(ws)
         await ws.recv()
         if server_answers is not None:

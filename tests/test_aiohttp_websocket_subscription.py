@@ -30,7 +30,7 @@ starwars_expected_two = {
 }
 
 
-async def server_starwars(ws, path):
+async def server_starwars(ws):
     import websockets
 
     await WebSocketServerHelper.send_connection_ack(ws)
@@ -91,7 +91,7 @@ WITH_KEEPALIVE = False
 logged_messages: List[str] = []
 
 
-async def server_countdown(ws, path):
+async def server_countdown(ws):
     import websockets
 
     logged_messages.clear()
@@ -343,7 +343,7 @@ async def test_aiohttp_websocket_subscription_close_transport(
     assert count > 0
 
 
-async def server_countdown_close_connection_in_middle(ws, path):
+async def server_countdown_close_connection_in_middle(ws):
     await WebSocketServerHelper.send_connection_ack(ws)
 
     result = await ws.recv()
