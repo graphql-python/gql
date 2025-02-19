@@ -3,7 +3,7 @@ import os
 from setuptools import setup, find_packages
 
 install_requires = [
-    "graphql-core>=3.2,<3.3",
+    "graphql-core>=3.2,<3.2.4",
     "yarl>=1.6,<2.0",
     "backoff>=1.11.1,<3.0",
     "anyio>=3.0,<5",
@@ -20,7 +20,8 @@ tests_requires = [
     "pytest-console-scripts==1.3.1",
     "pytest-cov==3.0.0",
     "mock==4.0.2",
-    "vcrpy==4.4.0",
+    "vcrpy==4.4.0;python_version<='3.8'",
+    "vcrpy==7.0.0;python_version>'3.8'",
     "aiofiles",
 ]
 
