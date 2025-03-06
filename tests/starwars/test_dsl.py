@@ -984,18 +984,36 @@ def test_get_introspection_query_ast(option):
         specified_by_url=option,
         directive_is_repeatable=option,
         schema_description=option,
+        input_value_deprecation=option,
     )
     dsl_introspection_query = get_introspection_query_ast(
         descriptions=option,
         specified_by_url=option,
         directive_is_repeatable=option,
         schema_description=option,
+        input_value_deprecation=option,
     )
 
-    assert print_ast(gql(introspection_query)) == print_ast(dsl_introspection_query)
-    assert node_tree(dsl_introspection_query) == node_tree(
-        gql(print_ast(dsl_introspection_query))
-    )
+    try:
+        assert print_ast(gql(introspection_query)) == print_ast(dsl_introspection_query)
+        assert node_tree(dsl_introspection_query) == node_tree(
+            gql(print_ast(dsl_introspection_query))
+        )
+    except AssertionError:
+
+        # From graphql-core version 3.3.0a7, there is two more type recursion levels
+        dsl_introspection_query = get_introspection_query_ast(
+            descriptions=option,
+            specified_by_url=option,
+            directive_is_repeatable=option,
+            schema_description=option,
+            input_value_deprecation=option,
+            type_recursion_level=9,
+        )
+        assert print_ast(gql(introspection_query)) == print_ast(dsl_introspection_query)
+        assert node_tree(dsl_introspection_query) == node_tree(
+            gql(print_ast(dsl_introspection_query))
+        )
 
 
 def test_typename_aliased(ds):
@@ -1028,11 +1046,10 @@ def test_node_tree_with_loc(ds):
 
     node_tree_result = """
 DocumentNode
-  loc:
-    Location
-      <Location 0:43>
   definitions:
     OperationDefinitionNode
+      directives:
+        empty tuple
       loc:
         Location
           <Location 0:43>
@@ -1043,10 +1060,8 @@ DocumentNode
               <Location 6:17>
           value:
             'GetHeroName'
-      directives:
-        empty tuple
-      variable_definitions:
-        empty tuple
+      operation:
+        <OperationType.QUERY: 'query'>
       selection_set:
         SelectionSetNode
           loc:
@@ -1054,13 +1069,15 @@ DocumentNode
               <Location 18:43>
           selections:
             FieldNode
+              alias:
+                None
+              arguments:
+                empty tuple
+              directives:
+                empty tuple
               loc:
                 Location
                   <Location 22:41>
-              directives:
-                empty tuple
-              alias:
-                None
               name:
                 NameNode
                   loc:
@@ -1068,8 +1085,6 @@ DocumentNode
                       <Location 22:26>
                   value:
                     'hero'
-              arguments:
-                empty tuple
               nullability_assertion:
                 None
               selection_set:
@@ -1079,13 +1094,15 @@ DocumentNode
                       <Location 27:41>
                   selections:
                     FieldNode
+                      alias:
+                        None
+                      arguments:
+                        empty tuple
+                      directives:
+                        empty tuple
                       loc:
                         Location
                           <Location 33:37>
-                      directives:
-                        empty tuple
-                      alias:
-                        None
                       name:
                         NameNode
                           loc:
@@ -1093,23 +1110,23 @@ DocumentNode
                               <Location 33:37>
                           value:
                             'name'
-                      arguments:
-                        empty tuple
                       nullability_assertion:
                         None
                       selection_set:
                         None
-      operation:
-        <OperationType.QUERY: 'query'>
+      variable_definitions:
+        empty tuple
+  loc:
+    Location
+      <Location 0:43>
 """.strip()
 
     node_tree_result_stable = """
 DocumentNode
-  loc:
-    Location
-      <Location 0:43>
   definitions:
     OperationDefinitionNode
+      directives:
+        empty tuple
       loc:
         Location
           <Location 0:43>
@@ -1120,10 +1137,8 @@ DocumentNode
               <Location 6:17>
           value:
             'GetHeroName'
-      directives:
-        empty tuple
-      variable_definitions:
-        empty tuple
+      operation:
+        <OperationType.QUERY: 'query'>
       selection_set:
         SelectionSetNode
           loc:
@@ -1131,13 +1146,15 @@ DocumentNode
               <Location 18:43>
           selections:
             FieldNode
+              alias:
+                None
+              arguments:
+                empty tuple
+              directives:
+                empty tuple
               loc:
                 Location
                   <Location 22:41>
-              directives:
-                empty tuple
-              alias:
-                None
               name:
                 NameNode
                   loc:
@@ -1145,8 +1162,6 @@ DocumentNode
                       <Location 22:26>
                   value:
                     'hero'
-              arguments:
-                empty tuple
               selection_set:
                 SelectionSetNode
                   loc:
@@ -1154,13 +1169,15 @@ DocumentNode
                       <Location 27:41>
                   selections:
                     FieldNode
+                      alias:
+                        None
+                      arguments:
+                        empty tuple
+                      directives:
+                        empty tuple
                       loc:
                         Location
                           <Location 33:37>
-                      directives:
-                        empty tuple
-                      alias:
-                        None
                       name:
                         NameNode
                           loc:
@@ -1168,13 +1185,16 @@ DocumentNode
                               <Location 33:37>
                           value:
                             'name'
-                      arguments:
-                        empty tuple
                       selection_set:
                         None
-      operation:
-        <OperationType.QUERY: 'query'>
+      variable_definitions:
+        empty tuple
+  loc:
+    Location
+      <Location 0:43>
 """.strip()
+
+    print(node_tree(document, ignore_loc=False))
 
     try:
         assert node_tree(document, ignore_loc=False) == node_tree_result
