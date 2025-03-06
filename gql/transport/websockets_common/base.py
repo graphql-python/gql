@@ -13,15 +13,15 @@ from websockets.datastructures import Headers, HeadersLike
 from websockets.exceptions import ConnectionClosed
 from websockets.typing import Data, Subprotocol
 
-from .async_transport import AsyncTransport
-from .exceptions import (
+from ..async_transport import AsyncTransport
+from ..exceptions import (
     TransportAlreadyConnected,
     TransportClosed,
     TransportProtocolError,
     TransportQueryError,
     TransportServerError,
 )
-from .websockets_common import ListenerQueue
+from .listener_queue import ListenerQueue
 
 log = logging.getLogger("gql.transport.websockets")
 

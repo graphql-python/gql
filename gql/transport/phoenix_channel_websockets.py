@@ -11,7 +11,7 @@ from .exceptions import (
     TransportQueryError,
     TransportServerError,
 )
-from .websockets_base import WebsocketsTransportBase
+from .websockets_common.base import WebsocketsTransportBase
 
 log = logging.getLogger(__name__)
 
