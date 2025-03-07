@@ -181,7 +181,7 @@ class AppSyncWebsocketsTransport(WebsocketsTransportBase):
 
         return query_id
 
-    subscribe = WebsocketsTransportBase.subscribe
+    subscribe = WebsocketsTransportBase.subscribe  # type: ignore[assignment]
     """Send a subscription query and receive the results using
     a python async generator.
 

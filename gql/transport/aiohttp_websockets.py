@@ -24,6 +24,7 @@ from multidict import CIMultiDictProxy
 
 from .aiohttp import AIOHTTPTransport
 from .async_transport import AsyncTransport
+from .common import ListenerQueue
 from .exceptions import (
     TransportAlreadyConnected,
     TransportClosed,
@@ -31,7 +32,6 @@ from .exceptions import (
     TransportQueryError,
     TransportServerError,
 )
-from .websockets_common import ListenerQueue
 
 log = logging.getLogger("gql.transport.aiohttp_websockets")
 

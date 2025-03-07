@@ -51,19 +51,19 @@ server1_answers = [
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server1_answers], indirect=True)
 async def test_websocket_starting_client_in_context_manager(event_loop, server):
-    import websockets
     from gql.transport.websockets import WebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    transport = WebsocketsTransport(url=url)
+    transport = WebsocketsTransport(url=url, headers={"test": "1234"})
+
+    assert transport.response_headers == {}
+    assert transport.headers["test"] == "1234"
 
     async with Client(transport=transport) as session:
 
-        assert isinstance(
-            transport.websocket, websockets.client.WebSocketClientProtocol
-        )
+        assert transport._connected is True
 
         query1 = gql(query1_str)
 
@@ -85,7 +85,7 @@ async def test_websocket_starting_client_in_context_manager(event_loop, server):
         assert transport.response_headers["dummy"] == "test1234"
 
     # Check client is disconnect here
-    assert transport.websocket is None
+    assert transport._connected is False
 
 
 @pytest.mark.skip(reason="ssl=False is not working for now")
@@ -133,7 +133,7 @@ async def test_websocket_using_ssl_connection(event_loop, ws_ssl_server, verify_
         assert africa["code"] == "AF"
 
     # Check client is disconnect here
-    assert transport.websocket is None
+    assert transport._connected is False
 
 
 @pytest.mark.asyncio
@@ -169,7 +169,7 @@ async def test_websocket_using_ssl_connection_self_cert_fail(
     assert expected_error in str(exc_info.value)
 
     # Check client is disconnect here
-    assert transport.websocket is None
+    assert transport._connected is False
 
 
 @pytest.mark.asyncio
@@ -355,13 +355,13 @@ async def test_websocket_multiple_connections_in_series(event_loop, server):
         await assert_client_is_working(session)
 
     # Check client is disconnect here
-    assert transport.websocket is None
+    assert transport._connected is False
 
     async with Client(transport=transport) as session:
         await assert_client_is_working(session)
 
     # Check client is disconnect here
-    assert transport.websocket is None
+    assert transport._connected is False
 
 
 @pytest.mark.asyncio
@@ -484,7 +484,7 @@ async def test_websocket_connect_failed_with_authentication_in_connection_init(
 
             await session.execute(query1)
 
-    assert transport.websocket is None
+    assert transport._connected is False
 
 
 @pytest.mark.parametrize("server", [server1_answers], indirect=True)
@@ -526,7 +526,7 @@ def test_websocket_execute_sync(server):
     assert africa["code"] == "AF"
 
     # Check client is disconnect here
-    assert transport.websocket is None
+    assert transport._connected is False
 
 
 @pytest.mark.asyncio
@@ -649,3 +649,52 @@ async def test_websocket_simple_query_with_extensions(
     execution_result = await session.execute(query, get_execution_result=True)
 
     assert execution_result.extensions["key1"] == "val1"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("server", [server1_answers], indirect=True)
+async def test_websocket_adapter_connection_closed(event_loop, server):
+    from gql.transport.websockets import WebsocketsTransport
+
+    url = f"ws://{server.hostname}:{server.port}/graphql"
+    print(f"url = {url}")
+
+    transport = WebsocketsTransport(url=url, headers={"test": "1234"})
+
+    async with Client(transport=transport) as session:
+
+        query1 = gql(query1_str)
+
+        # Close adapter connection manually (should not be done)
+        await transport.adapter.close()
+
+        with pytest.raises(TransportClosed):
+            await session.execute(query1)
+
+    # Check client is disconnect here
+    assert transport._connected is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("server", [server1_answers], indirect=True)
+async def test_websocket_transport_closed_in_receive(event_loop, server):
+    from gql.transport.websockets import WebsocketsTransport
+
+    url = f"ws://{server.hostname}:{server.port}/graphql"
+    print(f"url = {url}")
+
+    transport = WebsocketsTransport(
+        url=url,
+        close_timeout=0.1,
+    )
+
+    async with Client(transport=transport) as session:
+
+        query1 = gql(query1_str)
+
+        # Close adapter connection manually (should not be done)
+        # await transport.adapter.close()
+        transport._connected = False
+
+        with pytest.raises(TransportClosed):
+            await session.execute(query1)

@@ -15,7 +15,7 @@ from .exceptions import (
     TransportQueryError,
     TransportServerError,
 )
-from .websockets_common.base import WebsocketsTransportBase
+from .websockets_base import WebsocketsTransportBase
 
 log = logging.getLogger(__name__)
 
@@ -36,6 +36,7 @@ class WebsocketsTransport(WebsocketsTransportBase):
     def __init__(
         self,
         url: str,
+        *,
         headers: Optional[HeadersLike] = None,
         ssl: Union[SSLContext, bool] = False,
         init_payload: Dict[str, Any] = {},
@@ -83,16 +84,24 @@ class WebsocketsTransport(WebsocketsTransportBase):
             By default: both apollo and graphql-ws subprotocols.
         """
 
+        if subprotocols is None:
+            subprotocols = [
+                self.APOLLO_SUBPROTOCOL,
+                self.GRAPHQLWS_SUBPROTOCOL,
+            ]
+
+        # Initiliaze WebsocketsTransportBase parent class
         super().__init__(
             url,
-            headers,
-            ssl,
-            init_payload,
-            connect_timeout,
-            close_timeout,
-            ack_timeout,
-            keep_alive_timeout,
-            connect_args,
+            headers=headers,
+            ssl=ssl,
+            init_payload=init_payload,
+            connect_timeout=connect_timeout,
+            close_timeout=close_timeout,
+            ack_timeout=ack_timeout,
+            keep_alive_timeout=keep_alive_timeout,
+            connect_args=connect_args,
+            subprotocols=subprotocols,
         )
 
         self.ping_interval: Optional[Union[int, float]] = ping_interval
@@ -114,14 +123,6 @@ class WebsocketsTransport(WebsocketsTransportBase):
         self.pong_received: asyncio.Event = asyncio.Event()
         """pong_received is an asyncio Event which will fire  each time
         a pong is received with the graphql-ws protocol"""
-
-        if subprotocols is None:
-            self.supported_subprotocols = [
-                self.APOLLO_SUBPROTOCOL,
-                self.GRAPHQLWS_SUBPROTOCOL,
-            ]
-        else:
-            self.supported_subprotocols = subprotocols
 
     async def _wait_ack(self) -> None:
         """Wait for the connection_ack message. Keep alive messages are ignored"""
@@ -485,9 +486,8 @@ class WebsocketsTransport(WebsocketsTransportBase):
     async def _after_connect(self):
 
         # Find the backend subprotocol returned in the response headers
-        response_headers = self.websocket.response_headers
         try:
-            self.subprotocol = response_headers["Sec-WebSocket-Protocol"]
+            self.subprotocol = self.response_headers["Sec-WebSocket-Protocol"]
         except KeyError:
             # If the server does not send the subprotocol header, using
             # the apollo subprotocol by default

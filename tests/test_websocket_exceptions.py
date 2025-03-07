@@ -9,6 +9,7 @@ from gql import Client, gql
 from gql.transport.exceptions import (
     TransportAlreadyConnected,
     TransportClosed,
+    TransportConnectionClosed,
     TransportProtocolError,
     TransportQueryError,
 )
@@ -141,7 +142,7 @@ async def test_websocket_sending_invalid_data(event_loop, client_and_server, que
 
     invalid_data = "QSDF"
     print(f">>> {invalid_data}")
-    await session.transport.websocket.send(invalid_data)
+    await session.transport.adapter.websocket.send(invalid_data)
 
     await asyncio.sleep(2 * MS)
 
@@ -272,7 +273,6 @@ async def server_closing_directly(ws):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_closing_directly], indirect=True)
 async def test_websocket_server_closing_directly(event_loop, server):
-    import websockets
     from gql.transport.websockets import WebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
@@ -280,7 +280,7 @@ async def test_websocket_server_closing_directly(event_loop, server):
 
     sample_transport = WebsocketsTransport(url=url)
 
-    with pytest.raises(websockets.exceptions.ConnectionClosed):
+    with pytest.raises(TransportConnectionClosed):
         async with Client(transport=sample_transport):
             pass
 
@@ -294,13 +294,11 @@ async def server_closing_after_ack(ws):
 @pytest.mark.parametrize("server", [server_closing_after_ack], indirect=True)
 async def test_websocket_server_closing_after_ack(event_loop, client_and_server):
 
-    import websockets
-
     session, server = client_and_server
 
     query = gql("query { hello }")
 
-    with pytest.raises(websockets.exceptions.ConnectionClosed):
+    with pytest.raises(TransportConnectionClosed):
         await session.execute(query)
 
     await session.transport.wait_closed()

@@ -9,7 +9,7 @@ from graphql import ExecutionResult
 from parse import search
 
 from gql import Client, gql
-from gql.transport.exceptions import TransportServerError
+from gql.transport.exceptions import TransportConnectionClosed, TransportServerError
 
 from .conftest import MS, WebSocketServerHelper
 
@@ -306,14 +306,12 @@ async def server_countdown_close_connection_in_middle(ws):
 async def test_websocket_subscription_server_connection_closed(
     event_loop, client_and_server, subscription_str
 ):
-    import websockets
-
     session, server = client_and_server
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
 
-    with pytest.raises(websockets.exceptions.ConnectionClosedOK):
+    with pytest.raises(TransportConnectionClosed):
 
         async for result in session.subscribe(subscription):
 

@@ -3,79 +3,54 @@ import logging
 import warnings
 from abc import abstractmethod
 from contextlib import suppress
-from ssl import SSLContext
-from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, AsyncGenerator, Dict, Optional, Tuple, Union
 
-import websockets
 from graphql import DocumentNode, ExecutionResult
-from websockets.client import WebSocketClientProtocol
-from websockets.datastructures import Headers, HeadersLike
-from websockets.exceptions import ConnectionClosed
-from websockets.typing import Data, Subprotocol
 
 from ..async_transport import AsyncTransport
 from ..exceptions import (
     TransportAlreadyConnected,
     TransportClosed,
+    TransportConnectionClosed,
     TransportProtocolError,
     TransportQueryError,
     TransportServerError,
 )
+from .adapters import AdapterConnection
 from .listener_queue import ListenerQueue
 
-log = logging.getLogger("gql.transport.websockets")
+log = logging.getLogger("gql.transport.common.base")
 
 
-class WebsocketsTransportBase(AsyncTransport):
+class SubscriptionTransportBase(AsyncTransport):
     """abstract :ref:`Async Transport <async_transports>` used to implement
-    different websockets protocols.
-
-    This transport uses asyncio and the websockets library in order to send requests
-    on a websocket connection.
+    different subscription protocols (mainly websockets).
     """
 
     def __init__(
         self,
-        url: str,
-        headers: Optional[HeadersLike] = None,
-        ssl: Union[SSLContext, bool] = False,
-        init_payload: Dict[str, Any] = {},
+        *,
+        adapter: AdapterConnection,
         connect_timeout: Optional[Union[int, float]] = 10,
         close_timeout: Optional[Union[int, float]] = 10,
-        ack_timeout: Optional[Union[int, float]] = 10,
         keep_alive_timeout: Optional[Union[int, float]] = None,
-        connect_args: Dict[str, Any] = {},
     ) -> None:
         """Initialize the transport with the given parameters.
 
-        :param url: The GraphQL server URL. Example: 'wss://server.com:PORT/graphql'.
-        :param headers: Dict of HTTP Headers.
-        :param ssl: ssl_context of the connection. Use ssl=False to disable encryption
-        :param init_payload: Dict of the payload sent in the connection_init message.
+        :param adapter: The connection dependency adapter
         :param connect_timeout: Timeout in seconds for the establishment
-            of the websocket connection. If None is provided this will wait forever.
+            of the connection. If None is provided this will wait forever.
         :param close_timeout: Timeout in seconds for the close. If None is provided
             this will wait forever.
-        :param ack_timeout: Timeout in seconds to wait for the connection_ack message
-            from the server. If None is provided this will wait forever.
         :param keep_alive_timeout: Optional Timeout in seconds to receive
             a sign of liveness from the server.
-        :param connect_args: Other parameters forwarded to websockets.connect
         """
-
-        self.url: str = url
-        self.headers: Optional[HeadersLike] = headers
-        self.ssl: Union[SSLContext, bool] = ssl
-        self.init_payload: Dict[str, Any] = init_payload
 
         self.connect_timeout: Optional[Union[int, float]] = connect_timeout
         self.close_timeout: Optional[Union[int, float]] = close_timeout
-        self.ack_timeout: Optional[Union[int, float]] = ack_timeout
         self.keep_alive_timeout: Optional[Union[int, float]] = keep_alive_timeout
+        self.adapter: AdapterConnection = adapter
 
-        self.connect_args = connect_args
-
-        self.websocket: Optional[WebSocketClientProtocol] = None
         self.next_query_id: int = 1
         self.listeners: Dict[int, ListenerQueue] = {}
 
@@ -105,18 +80,14 @@ class WebsocketsTransportBase(AsyncTransport):
             self._next_keep_alive_message: asyncio.Event = asyncio.Event()
             self._next_keep_alive_message.set()
 
-        self.payloads: Dict[str, Any] = {}
-        """payloads is a dict which will contain the payloads received
-        for example with the graphql-ws protocol: 'ping', 'pong', 'connection_ack'"""
-
         self._connecting: bool = False
+        self._connected: bool = False
 
         self.close_exception: Optional[Exception] = None
 
-        # The list of supported subprotocols should be defined in the subclass
-        self.supported_subprotocols: List[Subprotocol] = []
-
-        self.response_headers: Optional[Headers] = None
+    @property
+    def response_headers(self) -> Dict[str, str]:
+        return self.adapter.response_headers
 
     async def _initialize(self):
         """Hook to send the initialization messages after the connection
@@ -153,36 +124,30 @@ class WebsocketsTransportBase(AsyncTransport):
         pass  # pragma: no cover
 
     async def _send(self, message: str) -> None:
-        """Send the provided message to the websocket connection and log the message"""
+        """Send the provided message to the adapter connection and log the message"""
 
-        if not self.websocket:
+        if not self._connected:
             raise TransportClosed(
                 "Transport is not connected"
             ) from self.close_exception
 
         try:
-            await self.websocket.send(message)
+            await self.adapter.send(message)
             log.info(">>> %s", message)
-        except ConnectionClosed as e:
+        except TransportConnectionClosed as e:
             await self._fail(e, clean_close=False)
             raise e
 
     async def _receive(self) -> str:
-        """Wait the next message from the websocket connection and log the answer"""
+        """Wait the next message from the connection and log the answer"""
 
-        # It is possible that the websocket has been already closed in another task
-        if self.websocket is None:
+        # It is possible that the connection has been already closed in another task
+        if not self._connected:
             raise TransportClosed("Transport is already closed")
 
-        # Wait for the next websocket frame. Can raise ConnectionClosed
-        data: Data = await self.websocket.recv()
-
-        # websocket.recv() can return either str or bytes
-        # In our case, we should receive only str here
-        if not isinstance(data, str):
-            raise TransportProtocolError("Binary data received in the websocket")
-
-        answer: str = data
+        # Wait for the next frame.
+        # Can raise TransportConnectionClosed or TransportProtocolError
+        answer: str = await self.adapter.receive()
 
         log.info("<<< %s", answer)
 
@@ -243,10 +208,10 @@ class WebsocketsTransportBase(AsyncTransport):
         try:
             while True:
 
-                # Wait the next answer from the websocket server
+                # Wait the next answer from the server
                 try:
                     answer = await self._receive()
-                except (ConnectionClosed, TransportProtocolError) as e:
+                except (TransportConnectionClosed, TransportProtocolError) as e:
                     await self._fail(e, clean_close=False)
                     break
                 except TransportClosed:
@@ -331,7 +296,7 @@ class WebsocketsTransportBase(AsyncTransport):
             while True:
 
                 # Wait for the answer from the queue of this query_id
-                # This can raise a TransportError or ConnectionClosed exception.
+                # This can raise TransportError or TransportConnectionClosed
                 answer_type, execution_result = await listener.get()
 
                 # If the received answer contains data,
@@ -394,51 +359,29 @@ class WebsocketsTransportBase(AsyncTransport):
         - send the init message
         - wait for the connection acknowledge from the server
         - create an asyncio task which will be used to receive
-          and parse the websocket answers
+          and parse the answers
 
         Should be cleaned with a call to the close coroutine
         """
 
         log.debug("connect: starting")
 
-        if self.websocket is None and not self._connecting:
+        if not self._connected and not self._connecting:
 
             # Set connecting to True to avoid a race condition if user is trying
             # to connect twice using the same client at the same time
             self._connecting = True
 
-            # If the ssl parameter is not provided,
-            # generate the ssl value depending on the url
-            ssl: Optional[Union[SSLContext, bool]]
-            if self.ssl:
-                ssl = self.ssl
-            else:
-                ssl = True if self.url.startswith("wss") else None
-
-            # Set default arguments used in the websockets.connect call
-            connect_args: Dict[str, Any] = {
-                "ssl": ssl,
-                "extra_headers": self.headers,
-                "subprotocols": self.supported_subprotocols,
-            }
-
-            # Adding custom parameters passed from init
-            connect_args.update(self.connect_args)
-
-            # Connection to the specified url
             # Generate a TimeoutError if taking more than connect_timeout seconds
             # Set the _connecting flag to False after in all cases
             try:
-                self.websocket = await asyncio.wait_for(
-                    websockets.client.connect(self.url, **connect_args),
+                await asyncio.wait_for(
+                    self.adapter.connect(),
                     self.connect_timeout,
                 )
+                self._connected = True
             finally:
                 self._connecting = False
-
-            self.websocket = cast(WebSocketClientProtocol, self.websocket)
-
-            self.response_headers = self.websocket.response_headers
 
             # Run the after_connect hook of the subclass
             await self._after_connect()
@@ -452,7 +395,7 @@ class WebsocketsTransportBase(AsyncTransport):
             # if no ACKs are received within the ack_timeout
             try:
                 await self._initialize()
-            except ConnectionClosed as e:
+            except TransportConnectionClosed as e:
                 raise e
             except (
                 TransportProtocolError,
@@ -531,7 +474,7 @@ class WebsocketsTransportBase(AsyncTransport):
         try:
 
             # We should always have an active websocket connection here
-            assert self.websocket is not None
+            assert self._connected
 
             # Properly shut down liveness checker if enabled
             if self.check_keep_alive_task is not None:
@@ -560,11 +503,11 @@ class WebsocketsTransportBase(AsyncTransport):
             for query_id, listener in self.listeners.items():
                 await listener.set_exception(e)
 
-            log.debug("_close_coro: close websocket connection")
+            log.debug("_close_coro: close connection")
 
-            await self.websocket.close()
+            await self.adapter.close()
 
-            log.debug("_close_coro: websocket connection closed")
+            log.debug("_close_coro: connection closed")
 
         except Exception as exc:  # pragma: no cover
             log.warning("Exception catched in _close_coro: " + repr(exc))
@@ -573,7 +516,7 @@ class WebsocketsTransportBase(AsyncTransport):
 
             log.debug("_close_coro: start cleanup")
 
-            self.websocket = None
+            self._connected = False
             self.close_task = None
             self.check_keep_alive_task = None
             self._wait_closed.set()
@@ -585,12 +528,12 @@ class WebsocketsTransportBase(AsyncTransport):
 
         if self.close_task is None:
 
-            if self.websocket is None:
-                log.debug("_fail started with self.websocket == None -> already closed")
-            else:
+            if self._connected:
                 self.close_task = asyncio.shield(
                     asyncio.ensure_future(self._close_coro(e, clean_close=clean_close))
                 )
+            else:
+                log.debug("_fail started with self._connected:False -> already closed")
         else:
             log.debug(
                 "close_task is not None in _fail. Previous exception is: "
@@ -602,7 +545,7 @@ class WebsocketsTransportBase(AsyncTransport):
     async def close(self) -> None:
         log.debug("close: starting")
 
-        await self._fail(TransportClosed("Websocket GraphQL transport closed by user"))
+        await self._fail(TransportClosed("Transport closed by user"))
         await self.wait_closed()
 
         log.debug("close: done")
@@ -610,6 +553,9 @@ class WebsocketsTransportBase(AsyncTransport):
     async def wait_closed(self) -> None:
         log.debug("wait_close: starting")
 
-        await self._wait_closed.wait()
+        try:
+            await asyncio.wait_for(self._wait_closed.wait(), self.close_timeout)
+        except asyncio.TimeoutError:
+            log.debug("Timer close_timeout fired in wait_closed")
 
         log.debug("wait_close: done")

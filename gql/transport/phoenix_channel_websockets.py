@@ -11,7 +11,7 @@ from .exceptions import (
     TransportQueryError,
     TransportServerError,
 )
-from .websockets_common.base import WebsocketsTransportBase
+from .websockets_base import WebsocketsTransportBase
 
 log = logging.getLogger(__name__)
 
@@ -370,7 +370,7 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransportBase):
         execution_result: Optional[ExecutionResult],
     ) -> None:
         if answer_type == "close":
-            await self.close()
+            pass
         else:
             await super()._handle_answer(answer_type, answer_id, execution_result)
 

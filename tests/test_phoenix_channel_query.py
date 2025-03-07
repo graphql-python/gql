@@ -65,6 +65,10 @@ async def test_phoenix_channel_query(event_loop, server, query_str):
         result = await session.execute(query)
 
     print("Client received:", result)
+    continents = result["continents"]
+    print("Continents received:", continents)
+    africa = continents[0]
+    assert africa["code"] == "AF"
 
 
 @pytest.mark.skip(reason="ssl=False is not working for now")
