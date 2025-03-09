@@ -186,7 +186,7 @@ async def test_phoenix_channel_subscription(
         PhoenixChannelWebsocketsTransport,
     )
     from gql.transport.phoenix_channel_websockets import log as phoenix_logger
-    from gql.transport.websockets import log as websockets_logger
+    from gql.transport.websockets_protocol import log as websockets_logger
 
     websockets_logger.setLevel(logging.DEBUG)
     phoenix_logger.setLevel(logging.DEBUG)
@@ -227,7 +227,7 @@ async def test_phoenix_channel_subscription_no_break(
         PhoenixChannelWebsocketsTransport,
     )
     from gql.transport.phoenix_channel_websockets import log as phoenix_logger
-    from gql.transport.websockets import log as websockets_logger
+    from gql.transport.websockets_protocol import log as websockets_logger
 
     from .conftest import MS
 

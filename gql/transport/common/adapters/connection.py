@@ -1,5 +1,5 @@
 import abc
-from typing import Dict
+from typing import Any, Dict
 
 
 class AdapterConnection(abc.ABC):
@@ -7,6 +7,9 @@ class AdapterConnection(abc.ABC):
 
     This allows different WebSocket implementations to be used interchangeably.
     """
+
+    url: str
+    connect_args: Dict[str, Any]
 
     @abc.abstractmethod
     async def connect(self) -> None:

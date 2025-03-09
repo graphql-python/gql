@@ -19,7 +19,7 @@ class WebSocketsAdapter(AdapterConnection):
         *,
         headers: Optional[HeadersLike] = None,
         ssl: Union[SSLContext, bool] = False,
-        connect_args: Dict[str, Any] = {},
+        connect_args: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Initialize the transport with the given parameters.
 
@@ -31,6 +31,10 @@ class WebSocketsAdapter(AdapterConnection):
         self.url: str = url
         self._headers: Optional[HeadersLike] = headers
         self.ssl: Union[SSLContext, bool] = ssl
+
+        if connect_args is None:
+            connect_args = {}
+
         self.connect_args = connect_args
 
         self.websocket: Optional[WebSocketClientProtocol] = None

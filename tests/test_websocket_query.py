@@ -157,6 +157,9 @@ async def test_websocket_using_ssl_connection_self_cert_fail(
 
     transport = WebsocketsTransport(url=url, **extra_args)
 
+    if verify_https == "explicitely_enabled":
+        assert transport.ssl is True
+
     with pytest.raises(SSLCertVerificationError) as exc_info:
         async with Client(transport=transport) as session:
 

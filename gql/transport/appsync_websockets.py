@@ -225,17 +225,5 @@ class AppSyncWebsocketsTransport(SubscriptionTransportBase):
     _wait_ack = WebsocketsTransport._wait_ack
 
     @property
-    def url(self) -> str:
-        return self.adapter.url
-
-    @property
-    def headers(self) -> Dict[str, str]:
-        return self.adapter.headers
-
-    @property
     def ssl(self) -> Union[SSLContext, bool]:
         return self.adapter.ssl
-
-    @property
-    def connect_args(self) -> Dict[str, Any]:
-        return self.adapter.connect_args

@@ -559,3 +559,11 @@ class SubscriptionTransportBase(AsyncTransport):
             log.debug("Timer close_timeout fired in wait_closed")
 
         log.debug("wait_close: done")
+
+    @property
+    def url(self) -> str:
+        return self.adapter.url
+
+    @property
+    def connect_args(self) -> Dict[str, Any]:
+        return self.adapter.connect_args
