@@ -9,6 +9,7 @@ from gql import Client, gql
 from gql.transport.exceptions import (
     TransportAlreadyConnected,
     TransportClosed,
+    TransportConnectionClosed,
     TransportQueryError,
     TransportServerError,
 )
@@ -88,11 +89,9 @@ async def test_websocket_starting_client_in_context_manager(event_loop, server):
     assert transport._connected is False
 
 
-@pytest.mark.skip(reason="ssl=False is not working for now")
 @pytest.mark.asyncio
 @pytest.mark.parametrize("ws_ssl_server", [server1_answers], indirect=True)
-@pytest.mark.parametrize("verify_https", ["disabled", "cert_provided"])
-async def test_websocket_using_ssl_connection(event_loop, ws_ssl_server, verify_https):
+async def test_websocket_using_ssl_connection(event_loop, ws_ssl_server):
     import websockets
     from gql.transport.websockets import WebsocketsTransport
 
@@ -103,19 +102,16 @@ async def test_websocket_using_ssl_connection(event_loop, ws_ssl_server, verify_
 
     extra_args = {}
 
-    if verify_https == "cert_provided":
-        _, ssl_context = get_localhost_ssl_context_client()
+    _, ssl_context = get_localhost_ssl_context_client()
 
-        extra_args["ssl"] = ssl_context
-    elif verify_https == "disabled":
-        extra_args["ssl"] = False
+    extra_args["ssl"] = ssl_context
 
     transport = WebsocketsTransport(url=url, **extra_args)
 
     async with Client(transport=transport) as session:
 
         assert isinstance(
-            transport.websocket, websockets.client.WebSocketClientProtocol
+            transport.adapter.websocket, websockets.client.WebSocketClientProtocol
         )
 
         query1 = gql(query1_str)
@@ -160,16 +156,20 @@ async def test_websocket_using_ssl_connection_self_cert_fail(
     if verify_https == "explicitely_enabled":
         assert transport.ssl is True
 
-    with pytest.raises(SSLCertVerificationError) as exc_info:
+    with pytest.raises(TransportConnectionClosed) as exc_info:
         async with Client(transport=transport) as session:
 
             query1 = gql(query1_str)
 
             await session.execute(query1)
 
+    cause = exc_info.value.__cause__
+
+    assert isinstance(cause, SSLCertVerificationError)
+
     expected_error = "certificate verify failed: self-signed certificate"
 
-    assert expected_error in str(exc_info.value)
+    assert expected_error in str(cause)
 
     # Check client is disconnect here
     assert transport._connected is False

@@ -9,6 +9,7 @@ from gql import Client, gql
 from gql.transport.exceptions import (
     TransportAlreadyConnected,
     TransportClosed,
+    TransportConnectionClosed,
     TransportQueryError,
     TransportServerError,
 )
@@ -60,7 +61,14 @@ async def test_aiohttp_websocket_starting_client_in_context_manager(
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    transport = AIOHTTPWebsocketsTransport(url=url, websocket_close_timeout=10)
+    transport = AIOHTTPWebsocketsTransport(
+        url=url,
+        websocket_close_timeout=10,
+        headers={"test": "1234"},
+    )
+
+    assert transport.response_headers == {}
+    assert transport.headers["test"] == "1234"
 
     async with Client(transport=transport) as session:
 
@@ -84,7 +92,7 @@ async def test_aiohttp_websocket_starting_client_in_context_manager(
         assert transport.response_headers["dummy"] == "test1234"
 
     # Check client is disconnect here
-    assert transport.websocket is None
+    assert transport._connected is False
 
 
 @pytest.mark.asyncio
@@ -135,7 +143,7 @@ async def test_aiohttp_websocket_using_ssl_connection(
         assert africa["code"] == "AF"
 
     # Check client is disconnect here
-    assert transport.websocket is None
+    assert transport._connected is False
 
 
 @pytest.mark.asyncio
@@ -166,19 +174,26 @@ async def test_aiohttp_websocket_using_ssl_connection_self_cert_fail(
         **extra_args,
     )
 
-    with pytest.raises(ClientConnectorCertificateError) as exc_info:
+    if verify_https == "explicitely_enabled":
+        assert transport.ssl is True
+
+    with pytest.raises(TransportConnectionClosed) as exc_info:
         async with Client(transport=transport) as session:
 
             query1 = gql(query1_str)
 
             await session.execute(query1)
 
+    cause = exc_info.value.__cause__
+
+    assert isinstance(cause, ClientConnectorCertificateError)
+
     expected_error = "certificate verify failed: self-signed certificate"
 
-    assert expected_error in str(exc_info.value)
+    assert expected_error in str(cause)
 
     # Check client is disconnect here
-    assert transport.websocket is None
+    assert transport._connected is False
 
 
 @pytest.mark.asyncio
@@ -380,13 +395,13 @@ async def test_aiohttp_websocket_multiple_connections_in_series(
         await assert_client_is_working(session)
 
     # Check client is disconnect here
-    assert transport.websocket is None
+    assert transport._connected is False
 
     async with Client(transport=transport) as session:
         await assert_client_is_working(session)
 
     # Check client is disconnect here
-    assert transport.websocket is None
+    assert transport._connected is False
 
 
 @pytest.mark.asyncio
@@ -519,8 +534,8 @@ async def test_aiohttp_websocket_connect_failed_with_authentication_in_connectio
 
                 await session.execute(query1)
 
-        assert transport.session is None
-        assert transport.websocket is None
+        assert transport.adapter.session is None
+        assert transport._connected is False
 
 
 @pytest.mark.parametrize("aiohttp_ws_server", [server1_answers], indirect=True)
@@ -564,7 +579,7 @@ def test_aiohttp_websocket_execute_sync(aiohttp_ws_server):
     assert africa["code"] == "AF"
 
     # Check client is disconnect here
-    assert transport.websocket is None
+    assert transport._connected is False
 
 
 @pytest.mark.asyncio
@@ -753,6 +768,6 @@ async def test_aiohttp_websocket_connector_owner_false(event_loop, aiohttp_ws_se
             assert africa["code"] == "AF"
 
     # Check client is disconnect here
-    assert transport.websocket is None
+    assert transport._connected is False
 
     await connector.close()

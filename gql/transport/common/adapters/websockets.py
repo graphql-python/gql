@@ -1,13 +1,15 @@
+import logging
 from ssl import SSLContext
 from typing import Any, Dict, Optional, Union
 
 import websockets
 from websockets.client import WebSocketClientProtocol
 from websockets.datastructures import Headers, HeadersLike
-from websockets.exceptions import WebSocketException
 
 from ...exceptions import TransportConnectionClosed, TransportProtocolError
 from .connection import AdapterConnection
+
+log = logging.getLogger("gql.transport.common.adapters.websockets")
 
 
 class WebSocketsAdapter(AdapterConnection):
@@ -26,16 +28,17 @@ class WebSocketsAdapter(AdapterConnection):
         :param url: The GraphQL server URL. Example: 'wss://server.com:PORT/graphql'.
         :param headers: Dict of HTTP Headers.
         :param ssl: ssl_context of the connection. Use ssl=False to disable encryption
-        :param connect_args: Other parameters forwarded to websockets.connect
+        :param connect_args: Other parameters forwarded to
+            `websockets.connect <https://websockets.readthedocs.io/en/stable/reference/\
+            client.html#opening-a-connection>`_
         """
-        self.url: str = url
+        super().__init__(
+            url=url,
+            connect_args=connect_args,
+        )
+
         self._headers: Optional[HeadersLike] = headers
-        self.ssl: Union[SSLContext, bool] = ssl
-
-        if connect_args is None:
-            connect_args = {}
-
-        self.connect_args = connect_args
+        self.ssl = ssl
 
         self.websocket: Optional[WebSocketClientProtocol] = None
         self._response_headers: Optional[Headers] = None
@@ -57,14 +60,17 @@ class WebSocketsAdapter(AdapterConnection):
             "extra_headers": self.headers,
         }
 
+        if self.subprotocols:
+            connect_args["subprotocols"] = self.subprotocols
+
         # Adding custom parameters passed from init
         connect_args.update(self.connect_args)
 
         # Connection to the specified url
         try:
             self.websocket = await websockets.client.connect(self.url, **connect_args)
-        except WebSocketException as e:
-            raise TransportConnectionClosed("Connection was closed") from e
+        except Exception as e:
+            raise TransportConnectionClosed("Connect failed") from e
 
         self._response_headers = self.websocket.response_headers
 
@@ -82,7 +88,7 @@ class WebSocketsAdapter(AdapterConnection):
 
         try:
             await self.websocket.send(message)
-        except WebSocketException as e:
+        except Exception as e:
             raise TransportConnectionClosed("Connection was closed") from e
 
     async def receive(self) -> str:
@@ -102,9 +108,7 @@ class WebSocketsAdapter(AdapterConnection):
         # Wait for the next websocket frame. Can raise ConnectionClosed
         try:
             data = await self.websocket.recv()
-        except WebSocketException as e:
-            # When the connection is closed, make sure to clean up resources
-            self.websocket = None
+        except Exception as e:
             raise TransportConnectionClosed("Connection was closed") from e
 
         # websocket.recv() can return either str or bytes
@@ -124,14 +128,14 @@ class WebSocketsAdapter(AdapterConnection):
             await websocket.close()
 
     @property
-    def headers(self) -> Dict[str, str]:
+    def headers(self) -> Optional[HeadersLike]:
         """Get the response headers from the WebSocket connection.
 
         Returns:
             Dictionary of response headers
         """
         if self._headers:
-            return dict(self._headers)
+            return self._headers
         return {}
 
     @property

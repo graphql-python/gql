@@ -8,7 +8,7 @@ import pytest
 from parse import search
 
 from gql import Client, gql
-from gql.transport.exceptions import TransportServerError
+from gql.transport.exceptions import TransportConnectionClosed, TransportServerError
 
 from .conftest import MS, WebSocketServerHelper
 
@@ -390,7 +390,7 @@ async def test_aiohttp_websocket_graphqlws_subscription_server_connection_closed
     count = 10
     subscription = gql(subscription_str.format(count=count))
 
-    with pytest.raises(ConnectionResetError):
+    with pytest.raises(TransportConnectionClosed):
         async for result in session.subscribe(subscription):
             number = result["number"]
             print(f"Number received: {number}")
@@ -839,7 +839,7 @@ async def test_aiohttp_websocket_graphqlws_subscription_reconnecting_session(
         print("\nSUBSCRIPTION_1_WITH_DISCONNECT\n")
         async for result in session.subscribe(subscription_with_disconnect):
             pass
-    except ConnectionResetError:
+    except TransportConnectionClosed:
         pass
 
     await asyncio.sleep(50 * MS)

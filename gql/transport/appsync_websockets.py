@@ -95,7 +95,7 @@ class AppSyncWebsocketsTransport(SubscriptionTransportBase):
         )
 
         # Using the same 'graphql-ws' protocol as the apollo protocol
-        self.supported_subprotocols = [
+        self.adapter.subprotocols = [
             WebsocketsTransport.APOLLO_SUBPROTOCOL,
         ]
         self.subprotocol = WebsocketsTransport.APOLLO_SUBPROTOCOL

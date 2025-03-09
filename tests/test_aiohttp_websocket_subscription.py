@@ -9,7 +9,7 @@ from graphql import ExecutionResult
 from parse import search
 
 from gql import Client, gql
-from gql.transport.exceptions import TransportClosed, TransportServerError
+from gql.transport.exceptions import TransportConnectionClosed, TransportServerError
 
 from .conftest import MS, WebSocketServerHelper
 from .starwars.schema import StarWarsIntrospection, StarWarsSchema, StarWarsTypeDef
@@ -381,7 +381,7 @@ async def test_aiohttp_websocket_subscription_server_connection_closed(
     count = 10
     subscription = gql(subscription_str.format(count=count))
 
-    with pytest.raises(ConnectionResetError):
+    with pytest.raises(TransportConnectionClosed):
 
         async for result in session.subscribe(subscription):
 
@@ -772,13 +772,11 @@ async def test_subscribe_on_closing_transport(event_loop, server, subscription_s
     subscription = gql(subscription_str.format(count=count))
 
     async with client as session:
-        session.transport.websocket._writer._closing = True
+        session.transport.adapter.websocket._writer._closing = True
 
-        with pytest.raises(ConnectionResetError) as e:
+        with pytest.raises(TransportConnectionClosed):
             async for _ in session.subscribe(subscription):
                 pass
-
-        assert e.value.args[0] == "Cannot write to closing transport"
 
 
 @pytest.mark.asyncio
@@ -798,9 +796,7 @@ async def test_subscribe_on_null_transport(event_loop, server, subscription_str)
 
     async with client as session:
 
-        session.transport.websocket = None
-        with pytest.raises(TransportClosed) as e:
+        session.transport.adapter.websocket = None
+        with pytest.raises(TransportConnectionClosed):
             async for _ in session.subscribe(subscription):
                 pass
-
-        assert e.value.args[0] == "WebSocket connection is closed"

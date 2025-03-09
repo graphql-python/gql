@@ -1,5 +1,5 @@
 import abc
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
 
 class AdapterConnection(abc.ABC):
@@ -10,6 +10,17 @@ class AdapterConnection(abc.ABC):
 
     url: str
     connect_args: Dict[str, Any]
+    subprotocols: Optional[List[str]]
+
+    def __init__(self, url: str, connect_args: Optional[Dict[str, Any]]):
+        """Initialize the connection adapter."""
+        self.url: str = url
+
+        if connect_args is None:
+            connect_args = {}
+        self.connect_args = connect_args
+
+        self.subprotocols = None
 
     @abc.abstractmethod
     async def connect(self) -> None:

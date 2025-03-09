@@ -6,6 +6,7 @@ import pytest
 from gql import Client, gql
 from gql.transport.exceptions import (
     TransportClosed,
+    TransportConnectionClosed,
     TransportProtocolError,
     TransportQueryError,
 )
@@ -247,7 +248,7 @@ async def test_aiohttp_websocket_graphqlws_server_closing_directly(
 
     transport = AIOHTTPWebsocketsTransport(url=url)
 
-    with pytest.raises(ConnectionResetError):
+    with pytest.raises(TransportConnectionClosed):
         async with Client(transport=transport):
             pass
 
@@ -267,7 +268,7 @@ async def test_aiohttp_websocket_graphqlws_server_closing_after_ack(
 
     query = gql("query { hello }")
 
-    with pytest.raises(TransportClosed):
+    with pytest.raises(TransportConnectionClosed):
         await session.execute(query)
 
     await session.transport.wait_closed()

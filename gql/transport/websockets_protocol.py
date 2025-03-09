@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 from graphql import DocumentNode, ExecutionResult, print_ast
 
-from .common.adapters.websockets import AdapterConnection
+from .common.adapters.connection import AdapterConnection
 from .common.base import SubscriptionTransportBase
 from .exceptions import (
     TransportConnectionClosed,
@@ -80,7 +80,7 @@ class WebsocketsProtocolTransportBase(SubscriptionTransportBase):
                 self.GRAPHQLWS_SUBPROTOCOL,
             ]
 
-        self.adapter.connect_args.update({"subprotocols": subprotocols})
+        self.adapter.subprotocols = subprotocols
 
         # Initialize the generic SubscriptionTransportBase parent class
         super().__init__(

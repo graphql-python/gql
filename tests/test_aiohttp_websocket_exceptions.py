@@ -7,7 +7,7 @@ import pytest
 
 from gql import Client, gql
 from gql.transport.exceptions import (
-    TransportClosed,
+    TransportConnectionClosed,
     TransportProtocolError,
     TransportQueryError,
 )
@@ -148,7 +148,7 @@ async def test_aiohttp_websocket_sending_invalid_data(
 
     invalid_data = "QSDF"
     print(f">>> {invalid_data}")
-    await session.transport.websocket.send_str(invalid_data)
+    await session.transport.adapter.websocket.send_str(invalid_data)
 
     await asyncio.sleep(2 * MS)
 
@@ -289,7 +289,7 @@ async def test_aiohttp_websocket_server_closing_directly(event_loop, server):
 
     sample_transport = AIOHTTPWebsocketsTransport(url=url)
 
-    with pytest.raises(ConnectionResetError):
+    with pytest.raises(TransportConnectionClosed):
         async with Client(transport=sample_transport):
             pass
 
@@ -309,7 +309,7 @@ async def test_aiohttp_websocket_server_closing_after_ack(
 
     query = gql("query { hello }")
 
-    with pytest.raises(TransportClosed):
+    with pytest.raises(TransportConnectionClosed):
         await session.execute(query)
 
 

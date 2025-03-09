@@ -1,6 +1,7 @@
 import pytest
 
 from gql import Client, gql
+from gql.transport.exceptions import TransportConnectionClosed
 
 from .conftest import get_localhost_ssl_context_client
 
@@ -71,14 +72,10 @@ async def test_phoenix_channel_query(event_loop, server, query_str):
     assert africa["code"] == "AF"
 
 
-@pytest.mark.skip(reason="ssl=False is not working for now")
 @pytest.mark.asyncio
 @pytest.mark.parametrize("ws_ssl_server", [query_server], indirect=True)
 @pytest.mark.parametrize("query_str", [query1_str])
-@pytest.mark.parametrize("verify_https", ["disabled", "cert_provided"])
-async def test_phoenix_channel_query_ssl(
-    event_loop, ws_ssl_server, query_str, verify_https
-):
+async def test_phoenix_channel_query_ssl(event_loop, ws_ssl_server, query_str):
     from gql.transport.phoenix_channel_websockets import (
         PhoenixChannelWebsocketsTransport,
     )
@@ -89,12 +86,9 @@ async def test_phoenix_channel_query_ssl(
 
     extra_args = {}
 
-    if verify_https == "cert_provided":
-        _, ssl_context = get_localhost_ssl_context_client()
+    _, ssl_context = get_localhost_ssl_context_client()
 
-        extra_args["ssl"] = ssl_context
-    elif verify_https == "disabled":
-        extra_args["ssl"] = False
+    extra_args["ssl"] = ssl_context
 
     transport = PhoenixChannelWebsocketsTransport(
         channel_name="test_channel",
@@ -138,13 +132,17 @@ async def test_phoenix_channel_query_ssl_self_cert_fail(
 
     query = gql(query_str)
 
-    with pytest.raises(SSLCertVerificationError) as exc_info:
+    with pytest.raises(TransportConnectionClosed) as exc_info:
         async with Client(transport=transport) as session:
             await session.execute(query)
 
+    cause = exc_info.value.__cause__
+
+    assert isinstance(cause, SSLCertVerificationError)
+
     expected_error = "certificate verify failed: self-signed certificate"
 
-    assert expected_error in str(exc_info.value)
+    assert expected_error in str(cause)
 
 
 query2_str = """
