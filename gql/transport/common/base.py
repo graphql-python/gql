@@ -317,6 +317,8 @@ class SubscriptionTransportBase(AsyncTransport):
             if listener.send_stop:
                 await self._stop_listener(query_id)
                 listener.send_stop = False
+            if isinstance(e, GeneratorExit):
+                raise e
 
         finally:
             log.debug(f"In subscribe finally for query_id {query_id}")
@@ -344,6 +346,11 @@ class SubscriptionTransportBase(AsyncTransport):
         async for result in generator:
             first_result = result
             break
+
+        # Apparently, on pypy the GeneratorExit exception is not raised after a break
+        # --> the clean_close has to time out
+        # We still need to manually close the async generator
+        await generator.aclose()
 
         if first_result is None:
             raise TransportQueryError(
@@ -445,7 +452,6 @@ class SubscriptionTransportBase(AsyncTransport):
 
         # Send 'stop' message for all current queries
         for query_id, listener in self.listeners.items():
-
             if listener.send_stop:
                 await self._stop_listener(query_id)
                 listener.send_stop = False
@@ -556,7 +562,7 @@ class SubscriptionTransportBase(AsyncTransport):
         try:
             await asyncio.wait_for(self._wait_closed.wait(), self.close_timeout)
         except asyncio.TimeoutError:
-            log.debug("Timer close_timeout fired in wait_closed")
+            log.warning("Timer close_timeout fired in wait_closed")
 
         log.debug("wait_close: done")
 

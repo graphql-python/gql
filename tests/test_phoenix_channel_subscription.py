@@ -201,7 +201,9 @@ async def test_phoenix_channel_subscription(
     subscription = gql(subscription_str.format(count=count))
 
     async with Client(transport=sample_transport) as session:
-        async for result in session.subscribe(subscription):
+
+        generator = session.subscribe(subscription)
+        async for result in generator:
             number = result["countdown"]["number"]
             print(f"Number received: {number}")
 
@@ -211,6 +213,9 @@ async def test_phoenix_channel_subscription(
                 break
 
             count -= 1
+
+        # Using aclose here to make it stop cleanly on pypy
+        await generator.aclose()
 
     assert count == end_count
 
@@ -378,7 +383,8 @@ async def test_phoenix_channel_heartbeat(event_loop, server, subscription_str):
     subscription = gql(heartbeat_subscription_str)
     async with Client(transport=sample_transport) as session:
         i = 0
-        async for result in session.subscribe(subscription):
+        generator = session.subscribe(subscription)
+        async for result in generator:
             heartbeat_count = result["heartbeat"]["heartbeat_count"]
             print(f"Heartbeat count received: {heartbeat_count}")
 
@@ -387,3 +393,6 @@ async def test_phoenix_channel_heartbeat(event_loop, server, subscription_str):
                 break
 
             i += 1
+
+        # Using aclose here to make it stop cleanly on pypy
+        await generator.aclose()

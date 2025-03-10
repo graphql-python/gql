@@ -216,8 +216,12 @@ async def test_phoenix_channel_subscription(event_loop, server, query_str):
     first_result = None
     query = gql(query_str)
     async with Client(transport=transport) as session:
-        async for result in session.subscribe(query):
+        generator = session.subscribe(query)
+        async for result in generator:
             first_result = result
             break
+
+        # Using aclose here to make it stop cleanly on pypy
+        await generator.aclose()
 
     print("Client received:", first_result)

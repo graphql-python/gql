@@ -250,7 +250,8 @@ async def test_aiohttp_websocket_subscription_break(
     count = 10
     subscription = gql(subscription_str.format(count=count))
 
-    async for result in session.subscribe(subscription):
+    generator = session.subscribe(subscription)
+    async for result in generator:
 
         number = result["number"]
         print(f"Number received: {number}")
@@ -263,6 +264,9 @@ async def test_aiohttp_websocket_subscription_break(
         count -= 1
 
     assert count == 5
+
+    # Using aclose here to make it stop cleanly on pypy
+    await generator.aclose()
 
 
 @pytest.mark.asyncio
