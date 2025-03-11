@@ -1,6 +1,6 @@
 import io
 import json
-from typing import Mapping
+from typing import Any, Dict, Mapping
 
 import pytest
 
@@ -450,8 +450,8 @@ async def test_httpx_extra_args(aiohttp_server):
     url = str(server.make_url("/"))
 
     # passing extra arguments to httpx.AsyncClient
-    transport = httpx.AsyncHTTPTransport(retries=2)
-    transport = HTTPXAsyncTransport(url=url, max_redirects=2, transport=transport)
+    inner_transport = httpx.AsyncHTTPTransport(retries=2)
+    transport = HTTPXAsyncTransport(url=url, max_redirects=2, transport=inner_transport)
 
     async with Client(transport=transport) as session:
 
@@ -1240,7 +1240,7 @@ async def test_httpx_query_https_self_cert_fail(ssl_aiohttp_server, verify_https
 
     assert url.startswith("https://")
 
-    extra_args = {}
+    extra_args: Dict[str, Any] = {}
 
     if verify_https == "explicitely_enabled":
         extra_args["verify"] = True

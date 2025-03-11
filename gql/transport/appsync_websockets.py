@@ -29,7 +29,7 @@ class AppSyncWebsocketsTransport(SubscriptionTransportBase):
     on a websocket connection.
     """
 
-    auth: Optional[AppSyncAuthentication]
+    auth: AppSyncAuthentication
 
     def __init__(
         self,
@@ -72,7 +72,7 @@ class AppSyncWebsocketsTransport(SubscriptionTransportBase):
             # May raise NoRegionError or NoCredentialsError or ImportError
             auth = AppSyncIAMAuthentication(host=host, session=session)
 
-        self.auth = auth
+        self.auth: AppSyncAuthentication = auth
         self.ack_timeout: Optional[Union[int, float]] = ack_timeout
         self.init_payload: Dict[str, Any] = {}
 

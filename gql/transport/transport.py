@@ -35,7 +35,7 @@ class Transport(abc.ABC):
         """
         raise NotImplementedError(
             "This Transport has not implemented the execute_batch method"
-        )  # pragma: no cover
+        )
 
     def connect(self):
         """Establish a session with the transport."""

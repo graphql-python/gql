@@ -3,7 +3,7 @@ from contextlib import suppress
 from unittest import mock
 
 import pytest
-from graphql import build_ast_schema, parse
+from graphql import DocumentNode, ExecutionResult, build_ast_schema, parse
 
 from gql import Client, GraphQLRequest, gql
 from gql.transport import Transport
@@ -29,19 +29,25 @@ def http_transport_query():
 
 def test_request_transport_not_implemented(http_transport_query):
     class RandomTransport(Transport):
-        def execute(self):
-            super().execute(http_transport_query)
+        pass
 
-    with pytest.raises(NotImplementedError) as exc_info:
-        RandomTransport().execute()
+    with pytest.raises(TypeError) as exc_info:
+        RandomTransport()  # type: ignore
 
-    assert "Any Transport subclass must implement execute method" == str(exc_info.value)
+    assert (
+        "Can't instantiate abstract class RandomTransport with abstract method execute"
+        == str(exc_info.value)
+    )
 
-    with pytest.raises(NotImplementedError) as exc_info:
-        RandomTransport().execute_batch([])
+    class RandomTransport2(Transport):
+        def execute(self, document: DocumentNode, *args, **kwargs) -> ExecutionResult:
+            return ExecutionResult()
+
+    with pytest.raises(NotImplementedError) as exc_info2:
+        RandomTransport2().execute_batch([])
 
     assert "This Transport has not implemented the execute_batch method" == str(
-        exc_info.value
+        exc_info2.value
     )
 
 
@@ -70,7 +76,7 @@ def test_retries_on_transport(execute_mock):
 
     expected_retries = 3
     execute_mock.side_effect = NewConnectionError(
-        "Should be HTTPConnection", "Fake connection error"
+        "Should be HTTPConnection", "Fake connection error"  # type: ignore
     )
     transport = RequestsHTTPTransport(
         url="http://127.0.0.1:8000/graphql",
@@ -109,11 +115,10 @@ def test_retries_on_transport(execute_mock):
     assert execute_mock.call_count == expected_retries + 1
 
 
-def test_no_schema_exception():
+def test_no_schema_no_transport_exception():
     with pytest.raises(AssertionError) as exc_info:
-        client = Client()
-        client.validate("")
-    assert "Cannot validate the document locally, you need to pass a schema." in str(
+        Client()
+    assert "You need to provide either a transport or a schema to the Client." in str(
         exc_info.value
     )
 
@@ -255,6 +260,7 @@ def test_sync_transport_close_on_schema_retrieval_failure():
         # transport is closed afterwards
         pass
 
+    assert isinstance(client.transport, RequestsHTTPTransport)
     assert client.transport.session is None
 
 
@@ -279,6 +285,7 @@ async def test_async_transport_close_on_schema_retrieval_failure():
         # transport is closed afterwards
         pass
 
+    assert isinstance(client.transport, AIOHTTPTransport)
     assert client.transport.session is None
 
     import asyncio

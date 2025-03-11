@@ -742,7 +742,7 @@ async def test_aiohttp_file_upload_with_content_type(aiohttp_server):
             with open(file_path, "rb") as f:
 
                 # Setting the content_type
-                f.content_type = "application/pdf"
+                f.content_type = "application/pdf"  # type: ignore
 
                 params = {"file": f, "other_var": 42}
 

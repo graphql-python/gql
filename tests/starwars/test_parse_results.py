@@ -1,3 +1,5 @@
+from typing import Any, Dict
+
 import pytest
 from graphql import GraphQLError
 
@@ -87,7 +89,7 @@ def test_key_not_found_in_result():
 
     # Backend returned an invalid result without the hero key
     # Should be impossible. In that case, we ignore the missing key
-    result = {}
+    result: Dict[str, Any] = {}
 
     parsed_result = parse_result(StarWarsSchema, query, result)
 

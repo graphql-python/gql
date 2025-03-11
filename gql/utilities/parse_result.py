@@ -153,6 +153,8 @@ class ParseResultVisitor(Visitor):
 
         list_level = self.inside_list_level
 
+        assert field_type is not None
+
         result_type = _ignore_non_null(field_type)
 
         if self.in_first_field(path):

@@ -17,6 +17,8 @@ async def main():
     # GQL will fetch the schema just after the establishment of the first session
     async with client as session:
 
+        assert client.schema is not None
+
         # Instantiate the root of the DSL Schema as ds
         ds = DSLSchema(client.schema)
 

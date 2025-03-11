@@ -1,7 +1,7 @@
 import asyncio
 import json
 import sys
-from typing import Dict, Mapping
+from typing import Any, Dict, Mapping
 
 import pytest
 
@@ -66,7 +66,8 @@ async def test_aiohttp_websocket_starting_client_in_context_manager(aiohttp_ws_s
     )
 
     assert transport.response_headers == {}
-    assert transport.headers["test"] == "1234"
+    assert isinstance(transport.headers, Mapping)
+    assert transport.headers["test"] == "1234"  # type: ignore
 
     async with Client(transport=transport) as session:
 
@@ -162,7 +163,7 @@ async def test_aiohttp_websocket_using_ssl_connection_self_cert_fail(
     url = f"wss://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    extra_args = {}
+    extra_args: Dict[str, Any] = {}
 
     if verify_https == "explicitely_enabled":
         extra_args["ssl"] = True

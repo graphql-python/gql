@@ -114,6 +114,7 @@ def test_appsync_init_with_iam_auth_and_no_region(
 
     from botocore.exceptions import NoRegionError
 
+    from gql.transport.appsync_auth import AppSyncIAMAuthentication
     from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
 
     caplog.set_level(logging.WARNING)
@@ -123,6 +124,8 @@ def test_appsync_init_with_iam_auth_and_no_region(
         session._region_name = None
         session._credentials.region = None
         transport = AppSyncWebsocketsTransport(url=mock_transport_url, session=session)
+
+        assert isinstance(transport.auth, AppSyncIAMAuthentication)
 
         # prints the region name in case the test fails
         print(f"Region found: {transport.auth._region_name}")

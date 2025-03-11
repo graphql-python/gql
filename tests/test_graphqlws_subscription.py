@@ -8,6 +8,7 @@ import pytest
 from parse import search
 
 from gql import Client, gql
+from gql.client import AsyncClientSession
 from gql.transport.exceptions import TransportConnectionFailed, TransportServerError
 
 from .conftest import MS, PyPy, WebSocketServerHelper
@@ -757,6 +758,7 @@ def test_graphqlws_subscription_sync_graceful_shutdown(
                     warnings.filterwarnings(
                         "ignore", message="There is no current event loop"
                     )
+                    assert isinstance(client.session, AsyncClientSession)
                     asyncio.ensure_future(
                         client.session._generator.athrow(KeyboardInterrupt)
                     )

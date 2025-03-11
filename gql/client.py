@@ -131,7 +131,10 @@ class Client:
         self.introspection: Optional[IntrospectionQuery] = introspection
 
         # GraphQL transport chosen
-        self.transport: Optional[Union[Transport, AsyncTransport]] = transport
+        assert (
+            transport is not None
+        ), "You need to provide either a transport or a schema to the Client."
+        self.transport: Union[Transport, AsyncTransport] = transport
 
         # Flag to indicate that we need to fetch the schema from the transport
         # On async transports, we fetch the schema before executing the first query
@@ -749,6 +752,8 @@ class Client:
             self.transport, AsyncTransport
         ), "Only a transport of type AsyncTransport can be used asynchronously"
 
+        self.session: Union[AsyncClientSession, SyncClientSession]
+
         if reconnecting:
             self.session = ReconnectingAsyncClientSession(client=self, **kwargs)
             await self.session.start_connecting_task()
@@ -804,6 +809,8 @@ class Client:
         if not hasattr(self, "session"):
             self.session = SyncClientSession(client=self)
 
+        assert isinstance(self.session, SyncClientSession)
+
         self.session.connect()
 
         # Get schema from transport if needed
@@ -825,6 +832,8 @@ class Client:
         If batching is enabled, this will block until the remaining queries in the
         batching queue have been processed.
         """
+        assert isinstance(self.session, SyncClientSession)
+
         self.session.close()
 
     def __enter__(self):

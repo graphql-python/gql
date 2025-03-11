@@ -1,4 +1,5 @@
 import json
+from typing import Mapping
 
 import pytest
 from graphql import print_ast
@@ -73,11 +74,12 @@ async def test_websockets_adapter_edge_cases(server):
     query = print_ast(gql(query1_str))
     print("query=", query)
 
-    adapter = WebSocketsAdapter(url, headers={"a": 1}, ssl=False, connect_args={})
+    adapter = WebSocketsAdapter(url, headers={"a": "r1"}, ssl=False, connect_args={})
 
     await adapter.connect()
 
-    assert adapter.headers["a"] == 1
+    assert isinstance(adapter.headers, Mapping)
+    assert adapter.headers["a"] == "r1"
     assert adapter.ssl is False
     assert adapter.connect_args == {}
     assert adapter.response_headers["dummy"] == "test1234"

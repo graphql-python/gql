@@ -1,4 +1,4 @@
-from typing import Mapping
+from typing import Any, Dict, Mapping
 
 import pytest
 
@@ -172,7 +172,7 @@ async def test_requests_query_https_self_cert_fail(
     url = server.make_url("/")
 
     def test_code():
-        extra_args = {}
+        extra_args: Dict[str, Any] = {}
 
         if verify_https == "explicitely_enabled":
             extra_args["verify"] = True
@@ -659,7 +659,7 @@ async def test_requests_file_upload_with_content_type(aiohttp_server, run_sync_t
                 with open(file_path, "rb") as f:
 
                     # Setting the content_type
-                    f.content_type = "application/pdf"
+                    f.content_type = "application/pdf"  # type: ignore
 
                     params = {"file": f, "other_var": 42}
                     execution_result = session._execute(

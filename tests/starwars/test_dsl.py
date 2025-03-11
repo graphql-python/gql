@@ -4,6 +4,7 @@ from graphql import (
     GraphQLError,
     GraphQLFloat,
     GraphQLID,
+    GraphQLInputObjectType,
     GraphQLInt,
     GraphQLList,
     GraphQLNonNull,
@@ -53,6 +54,7 @@ def client():
 
 def test_ast_from_value_with_input_type_and_not_mapping_value():
     obj_type = StarWarsSchema.get_type("ReviewInput")
+    assert isinstance(obj_type, GraphQLInputObjectType)
     assert ast_from_value(8, obj_type) is None
 
 
@@ -78,7 +80,7 @@ def test_ast_from_value_with_graphqlid():
 
 def test_ast_from_value_with_invalid_type():
     with pytest.raises(TypeError) as exc_info:
-        ast_from_value(4, None)
+        ast_from_value(4, None)  # type: ignore
 
     assert "Unexpected input type: None." in str(exc_info.value)
 
@@ -114,7 +116,10 @@ def test_ast_from_serialized_value_untyped_typeerror():
 
 
 def test_variable_to_ast_type_passing_wrapping_type():
-    wrapping_type = GraphQLNonNull(GraphQLList(StarWarsSchema.get_type("ReviewInput")))
+    review_type = StarWarsSchema.get_type("ReviewInput")
+    assert isinstance(review_type, GraphQLInputObjectType)
+
+    wrapping_type = GraphQLNonNull(GraphQLList(review_type))
     variable = DSLVariable("review_input")
     ast = variable.to_ast_type(wrapping_type)
     assert ast == NonNullTypeNode(
@@ -787,7 +792,7 @@ def test_dsl_query_all_fields_should_be_instances_of_DSLField():
         TypeError,
         match="Fields should be instances of DSLSelectable. Received: <class 'str'>",
     ):
-        DSLQuery("I am a string")
+        DSLQuery("I am a string")  # type: ignore
 
 
 def test_dsl_query_all_fields_should_correspond_to_the_root_type(ds):
@@ -839,7 +844,7 @@ def test_dsl_gql_all_arguments_should_be_operations_or_fragments():
     with pytest.raises(
         TypeError, match="Operations should be instances of DSLExecutable "
     ):
-        dsl_gql("I am a string")
+        dsl_gql("I am a string")  # type: ignore
 
 
 def test_DSLSchema_requires_a_schema(client):

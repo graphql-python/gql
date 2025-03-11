@@ -25,17 +25,17 @@ def extract_files(
         """
         nonlocal files
         if isinstance(obj, list):
-            nulled_obj = []
+            nulled_list = []
             for key, value in enumerate(obj):
                 value = recurse_extract(f"{path}.{key}", value)
-                nulled_obj.append(value)
-            return nulled_obj
+                nulled_list.append(value)
+            return nulled_list
         elif isinstance(obj, dict):
-            nulled_obj = {}
+            nulled_dict = {}
             for key, value in obj.items():
                 value = recurse_extract(f"{path}.{key}", value)
-                nulled_obj[key] = value
-            return nulled_obj
+                nulled_dict[key] = value
+            return nulled_dict
         elif isinstance(obj, file_classes):
             # extract obj from its parent and put it into files instead.
             files[path] = obj
