@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import pathlib
+import platform
 import re
 import ssl
 import sys
@@ -17,6 +18,9 @@ import pytest_asyncio
 from gql import Client
 
 all_transport_dependencies = ["aiohttp", "requests", "httpx", "websockets", "botocore"]
+
+
+PyPy = platform.python_implementation() == "PyPy"
 
 
 def pytest_addoption(parser):
@@ -121,9 +125,10 @@ for name in [
     "gql.transport.aiohttp",
     "gql.transport.aiohttp_websockets",
     "gql.transport.appsync",
+    "gql.transport.common.base",
+    "gql.transport.httpx",
     "gql.transport.phoenix_channel_websockets",
     "gql.transport.requests",
-    "gql.transport.httpx",
     "gql.transport.websockets",
     "gql.dsl",
     "gql.utilities.parse_result",

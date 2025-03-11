@@ -280,3 +280,7 @@ async def test_async_transport_close_on_schema_retrieval_failure():
         pass
 
     assert client.transport.session is None
+
+    import asyncio
+
+    await asyncio.sleep(1)

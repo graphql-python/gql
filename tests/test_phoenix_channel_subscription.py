@@ -186,7 +186,7 @@ async def test_phoenix_channel_subscription(
         PhoenixChannelWebsocketsTransport,
     )
     from gql.transport.phoenix_channel_websockets import log as phoenix_logger
-    from gql.transport.websockets import log as websockets_logger
+    from gql.transport.websockets_protocol import log as websockets_logger
 
     websockets_logger.setLevel(logging.DEBUG)
     phoenix_logger.setLevel(logging.DEBUG)
@@ -201,7 +201,9 @@ async def test_phoenix_channel_subscription(
     subscription = gql(subscription_str.format(count=count))
 
     async with Client(transport=sample_transport) as session:
-        async for result in session.subscribe(subscription):
+
+        generator = session.subscribe(subscription)
+        async for result in generator:
             number = result["countdown"]["number"]
             print(f"Number received: {number}")
 
@@ -211,6 +213,9 @@ async def test_phoenix_channel_subscription(
                 break
 
             count -= 1
+
+        # Using aclose here to make it stop cleanly on pypy
+        await generator.aclose()
 
     assert count == end_count
 
@@ -227,7 +232,7 @@ async def test_phoenix_channel_subscription_no_break(
         PhoenixChannelWebsocketsTransport,
     )
     from gql.transport.phoenix_channel_websockets import log as phoenix_logger
-    from gql.transport.websockets import log as websockets_logger
+    from gql.transport.websockets_protocol import log as websockets_logger
 
     from .conftest import MS
 
@@ -378,7 +383,8 @@ async def test_phoenix_channel_heartbeat(event_loop, server, subscription_str):
     subscription = gql(heartbeat_subscription_str)
     async with Client(transport=sample_transport) as session:
         i = 0
-        async for result in session.subscribe(subscription):
+        generator = session.subscribe(subscription)
+        async for result in generator:
             heartbeat_count = result["heartbeat"]["heartbeat_count"]
             print(f"Heartbeat count received: {heartbeat_count}")
 
@@ -387,3 +393,6 @@ async def test_phoenix_channel_heartbeat(event_loop, server, subscription_str):
                 break
 
             i += 1
+
+        # Using aclose here to make it stop cleanly on pypy
+        await generator.aclose()

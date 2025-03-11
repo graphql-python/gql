@@ -8,9 +8,9 @@ import pytest
 from parse import search
 
 from gql import Client, gql
-from gql.transport.exceptions import TransportServerError
+from gql.transport.exceptions import TransportConnectionFailed, TransportServerError
 
-from .conftest import MS, WebSocketServerHelper
+from .conftest import MS, PyPy, WebSocketServerHelper
 
 # Marking all tests in this file with the aiohttp AND websockets marker
 pytestmark = [pytest.mark.aiohttp, pytest.mark.websockets]
@@ -260,7 +260,8 @@ async def test_aiohttp_websocket_graphqlws_subscription_break(
     count = 10
     subscription = gql(subscription_str.format(count=count))
 
-    async for result in session.subscribe(subscription):
+    generator = session.subscribe(subscription)
+    async for result in generator:
 
         number = result["number"]
         print(f"Number received: {number}")
@@ -273,6 +274,9 @@ async def test_aiohttp_websocket_graphqlws_subscription_break(
         count -= 1
 
     assert count == 5
+
+    # Using aclose here to make it stop cleanly on pypy
+    await generator.aclose()
 
 
 @pytest.mark.asyncio
@@ -390,7 +394,7 @@ async def test_aiohttp_websocket_graphqlws_subscription_server_connection_closed
     count = 10
     subscription = gql(subscription_str.format(count=count))
 
-    with pytest.raises(ConnectionResetError):
+    with pytest.raises(TransportConnectionFailed):
         async for result in session.subscribe(subscription):
             number = result["number"]
             print(f"Number received: {number}")
@@ -839,7 +843,7 @@ async def test_aiohttp_websocket_graphqlws_subscription_reconnecting_session(
         print("\nSUBSCRIPTION_1_WITH_DISCONNECT\n")
         async for result in session.subscribe(subscription_with_disconnect):
             pass
-    except ConnectionResetError:
+    except TransportConnectionFailed:
         pass
 
     await asyncio.sleep(50 * MS)
@@ -847,29 +851,41 @@ async def test_aiohttp_websocket_graphqlws_subscription_reconnecting_session(
     # Then with the same session handle, we make a subscription or an execute
     # which will detect that the transport is closed so that the client could
     # try to reconnect
+    generator = None
     try:
         if execute_instead_of_subscribe:
             print("\nEXECUTION_2\n")
             await session.execute(subscription)
         else:
             print("\nSUBSCRIPTION_2\n")
-            async for result in session.subscribe(subscription):
+            generator = session.subscribe(subscription)
+            async for result in generator:
                 pass
-    except TransportClosed:
+    except (TransportClosed, TransportConnectionFailed):
+        if generator:
+            await generator.aclose()
         pass
 
-    await asyncio.sleep(50 * MS)
+    timeout = 50
+
+    if PyPy:
+        timeout = 500
+
+    await asyncio.sleep(timeout * MS)
 
     # And finally with the same session handle, we make a subscription
     # which works correctly
     print("\nSUBSCRIPTION_3\n")
-    async for result in session.subscribe(subscription):
+    generator = session.subscribe(subscription)
+    async for result in generator:
 
         number = result["number"]
         print(f"Number received: {number}")
 
         assert number == count
         count -= 1
+
+    await generator.aclose()
 
     assert count == -1
 

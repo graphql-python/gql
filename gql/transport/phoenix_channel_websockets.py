@@ -1,17 +1,18 @@
 import asyncio
 import json
 import logging
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, Union
 
 from graphql import DocumentNode, ExecutionResult, print_ast
-from websockets.exceptions import ConnectionClosed
 
+from .common.adapters.websockets import WebSocketsAdapter
+from .common.base import SubscriptionTransportBase
 from .exceptions import (
+    TransportConnectionFailed,
     TransportProtocolError,
     TransportQueryError,
     TransportServerError,
 )
-from .websockets_base import WebsocketsTransportBase
 
 log = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ class Subscription:
         self.unsubscribe_id: Optional[int] = None
 
 
-class PhoenixChannelWebsocketsTransport(WebsocketsTransportBase):
+class PhoenixChannelWebsocketsTransport(SubscriptionTransportBase):
     """The PhoenixChannelWebsocketsTransport is an async transport
     which allows you to execute queries and subscriptions against an `Absinthe`_
     backend using the `Phoenix`_ framework `channels`_.
@@ -36,23 +37,48 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransportBase):
 
     def __init__(
         self,
+        url: str,
+        *,
         channel_name: str = "__absinthe__:control",
         heartbeat_interval: float = 30,
-        *args,
+        ack_timeout: Optional[Union[int, float]] = 10,
         **kwargs,
     ) -> None:
         """Initialize the transport with the given parameters.
 
+        :param url: The server URL.'.
         :param channel_name: Channel on the server this transport will join.
             The default for Absinthe servers is "__absinthe__:control"
         :param heartbeat_interval: Interval in second between each heartbeat messages
             sent by the client
+        :param ack_timeout: Timeout in seconds to wait for the reply message
+            from the server.
         """
         self.channel_name: str = channel_name
         self.heartbeat_interval: float = heartbeat_interval
         self.heartbeat_task: Optional[asyncio.Future] = None
         self.subscriptions: Dict[str, Subscription] = {}
-        super().__init__(*args, **kwargs)
+        self.ack_timeout: Optional[Union[int, float]] = ack_timeout
+
+        # Instanciate a WebSocketAdapter to indicate the use
+        # of the websockets dependency for this transport
+        ws_adapter_args = {}
+        for ws_arg in ["headers", "ssl", "connect_args"]:
+            try:
+                ws_adapter_args[ws_arg] = kwargs.pop(ws_arg)
+            except KeyError:
+                pass
+
+        self.adapter: WebSocketsAdapter = WebSocketsAdapter(
+            url=url,
+            **ws_adapter_args,
+        )
+
+        # Initialize the generic SubscriptionTransportBase parent class
+        super().__init__(
+            adapter=self.adapter,
+            **kwargs,
+        )
 
     async def _initialize(self) -> None:
         """Join the specified channel and wait for the connection ACK.
@@ -101,7 +127,7 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransportBase):
                             }
                         )
                     )
-                except ConnectionClosed:  # pragma: no cover
+                except TransportConnectionFailed:  # pragma: no cover
                     return
 
         self.heartbeat_task = asyncio.ensure_future(heartbeat_coro())
@@ -370,7 +396,7 @@ class PhoenixChannelWebsocketsTransport(WebsocketsTransportBase):
         execution_result: Optional[ExecutionResult],
     ) -> None:
         if answer_type == "close":
-            await self.close()
+            pass
         else:
             await super()._handle_answer(answer_type, answer_id, execution_result)
 

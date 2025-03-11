@@ -9,9 +9,9 @@ from graphql import ExecutionResult
 from parse import search
 
 from gql import Client, gql
-from gql.transport.exceptions import TransportServerError
+from gql.transport.exceptions import TransportConnectionFailed, TransportServerError
 
-from .conftest import MS, WebSocketServerHelper
+from .conftest import MS, PyPy, WebSocketServerHelper
 
 # Marking all tests in this file with the websockets marker
 pytestmark = pytest.mark.websockets
@@ -181,7 +181,8 @@ async def test_websocket_subscription_break(
     count = 10
     subscription = gql(subscription_str.format(count=count))
 
-    async for result in session.subscribe(subscription):
+    generator = session.subscribe(subscription)
+    async for result in generator:
 
         number = result["number"]
         print(f"Number received: {number}")
@@ -194,6 +195,9 @@ async def test_websocket_subscription_break(
         count -= 1
 
     assert count == 5
+
+    # Using aclose here to make it stop cleanly on pypy
+    await generator.aclose()
 
 
 @pytest.mark.asyncio
@@ -306,14 +310,12 @@ async def server_countdown_close_connection_in_middle(ws):
 async def test_websocket_subscription_server_connection_closed(
     event_loop, client_and_server, subscription_str
 ):
-    import websockets
-
     session, server = client_and_server
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
 
-    with pytest.raises(websockets.exceptions.ConnectionClosedOK):
+    with pytest.raises(TransportConnectionFailed):
 
         async for result in session.subscribe(subscription):
 
@@ -415,7 +417,14 @@ async def test_websocket_subscription_with_keepalive_with_timeout_ok(
 
     path = "/graphql"
     url = f"ws://{server.hostname}:{server.port}{path}"
-    sample_transport = WebsocketsTransport(url=url, keep_alive_timeout=(20 * MS))
+
+    keep_alive_timeout = 20 * MS
+    if PyPy:
+        keep_alive_timeout = 200 * MS
+
+    sample_transport = WebsocketsTransport(
+        url=url, keep_alive_timeout=keep_alive_timeout
+    )
 
     client = Client(transport=sample_transport)
 

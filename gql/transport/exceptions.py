@@ -61,6 +61,13 @@ class TransportClosed(TransportError):
     """
 
 
+class TransportConnectionFailed(TransportError):
+    """Transport adapter connection closed.
+
+    This exception is by the connection adapter code when a connection closed.
+    """
+
+
 class TransportAlreadyConnected(TransportError):
     """Transport is already connected.
 
