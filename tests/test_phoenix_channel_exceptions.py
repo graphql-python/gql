@@ -161,7 +161,7 @@ async def no_connection_ack_phoenix_server(ws):
     indirect=True,
 )
 @pytest.mark.parametrize("query_str", [query1_str])
-async def test_phoenix_channel_query_protocol_error(event_loop, server, query_str):
+async def test_phoenix_channel_query_protocol_error(server, query_str):
 
     from gql.transport.phoenix_channel_websockets import (
         PhoenixChannelWebsocketsTransport,
@@ -191,7 +191,7 @@ async def test_phoenix_channel_query_protocol_error(event_loop, server, query_st
     indirect=True,
 )
 @pytest.mark.parametrize("query_str", [query1_str])
-async def test_phoenix_channel_query_error(event_loop, server, query_str):
+async def test_phoenix_channel_query_error(server, query_str):
 
     from gql.transport.phoenix_channel_websockets import (
         PhoenixChannelWebsocketsTransport,
@@ -407,9 +407,7 @@ def subscription_server(
     indirect=True,
 )
 @pytest.mark.parametrize("query_str", [query2_str])
-async def test_phoenix_channel_subscription_protocol_error(
-    event_loop, server, query_str
-):
+async def test_phoenix_channel_subscription_protocol_error(server, query_str):
 
     from gql.transport.phoenix_channel_websockets import (
         PhoenixChannelWebsocketsTransport,
@@ -439,7 +437,7 @@ server_error_server_answer = '{"event":"phx_error", "ref":2, "topic":"test_topic
     indirect=True,
 )
 @pytest.mark.parametrize("query_str", [query1_str])
-async def test_phoenix_channel_server_error(event_loop, server, query_str):
+async def test_phoenix_channel_server_error(server, query_str):
 
     from gql.transport.phoenix_channel_websockets import (
         PhoenixChannelWebsocketsTransport,
@@ -468,7 +466,7 @@ async def test_phoenix_channel_server_error(event_loop, server, query_str):
     indirect=True,
 )
 @pytest.mark.parametrize("query_str", [query2_str])
-async def test_phoenix_channel_unsubscribe_error(event_loop, server, query_str):
+async def test_phoenix_channel_unsubscribe_error(server, query_str):
 
     from gql.transport.phoenix_channel_websockets import (
         PhoenixChannelWebsocketsTransport,
@@ -498,7 +496,7 @@ async def test_phoenix_channel_unsubscribe_error(event_loop, server, query_str):
     indirect=True,
 )
 @pytest.mark.parametrize("query_str", [query2_str])
-async def test_phoenix_channel_unsubscribe_error_forcing(event_loop, server, query_str):
+async def test_phoenix_channel_unsubscribe_error_forcing(server, query_str):
 
     from gql.transport.phoenix_channel_websockets import (
         PhoenixChannelWebsocketsTransport,

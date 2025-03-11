@@ -404,7 +404,7 @@ async def default_transport_test(transport):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [realtime_appsync_server_keepalive], indirect=True)
-async def test_appsync_subscription_api_key(event_loop, server):
+async def test_appsync_subscription_api_key(server):
 
     from gql.transport.appsync_auth import AppSyncApiKeyAuthentication
     from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
@@ -424,7 +424,7 @@ async def test_appsync_subscription_api_key(event_loop, server):
 @pytest.mark.asyncio
 @pytest.mark.botocore
 @pytest.mark.parametrize("server", [realtime_appsync_server], indirect=True)
-async def test_appsync_subscription_iam_with_token(event_loop, server):
+async def test_appsync_subscription_iam_with_token(server):
 
     from gql.transport.appsync_auth import AppSyncIAMAuthentication
     from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
@@ -451,7 +451,7 @@ async def test_appsync_subscription_iam_with_token(event_loop, server):
 @pytest.mark.asyncio
 @pytest.mark.botocore
 @pytest.mark.parametrize("server", [realtime_appsync_server], indirect=True)
-async def test_appsync_subscription_iam_without_token(event_loop, server):
+async def test_appsync_subscription_iam_without_token(server):
 
     from gql.transport.appsync_auth import AppSyncIAMAuthentication
     from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
@@ -477,7 +477,7 @@ async def test_appsync_subscription_iam_without_token(event_loop, server):
 @pytest.mark.asyncio
 @pytest.mark.botocore
 @pytest.mark.parametrize("server", [realtime_appsync_server], indirect=True)
-async def test_appsync_execute_method_not_allowed(event_loop, server):
+async def test_appsync_execute_method_not_allowed(server):
 
     from gql.transport.appsync_auth import AppSyncIAMAuthentication
     from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
@@ -524,7 +524,7 @@ mutation createMessage($message: String!) {
 
 @pytest.mark.asyncio
 @pytest.mark.botocore
-async def test_appsync_fetch_schema_from_transport_not_allowed(event_loop):
+async def test_appsync_fetch_schema_from_transport_not_allowed():
 
     from gql.transport.appsync_auth import AppSyncIAMAuthentication
     from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
@@ -552,7 +552,7 @@ async def test_appsync_fetch_schema_from_transport_not_allowed(event_loop):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [realtime_appsync_server], indirect=True)
-async def test_appsync_subscription_api_key_unauthorized(event_loop, server):
+async def test_appsync_subscription_api_key_unauthorized(server):
 
     from gql.transport.appsync_auth import AppSyncApiKeyAuthentication
     from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
@@ -577,7 +577,7 @@ async def test_appsync_subscription_api_key_unauthorized(event_loop, server):
 @pytest.mark.asyncio
 @pytest.mark.botocore
 @pytest.mark.parametrize("server", [realtime_appsync_server], indirect=True)
-async def test_appsync_subscription_iam_not_allowed(event_loop, server):
+async def test_appsync_subscription_iam_not_allowed(server):
 
     from gql.transport.appsync_auth import AppSyncIAMAuthentication
     from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
@@ -616,9 +616,7 @@ async def test_appsync_subscription_iam_not_allowed(event_loop, server):
 @pytest.mark.parametrize(
     "server", [realtime_appsync_server_not_json_answer], indirect=True
 )
-async def test_appsync_subscription_server_sending_a_not_json_answer(
-    event_loop, server
-):
+async def test_appsync_subscription_server_sending_a_not_json_answer(server):
 
     from gql.transport.appsync_auth import AppSyncApiKeyAuthentication
     from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
@@ -644,9 +642,7 @@ async def test_appsync_subscription_server_sending_a_not_json_answer(
 @pytest.mark.parametrize(
     "server", [realtime_appsync_server_error_without_id], indirect=True
 )
-async def test_appsync_subscription_server_sending_an_error_without_an_id(
-    event_loop, server
-):
+async def test_appsync_subscription_server_sending_an_error_without_an_id(server):
 
     from gql.transport.appsync_auth import AppSyncApiKeyAuthentication
     from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
@@ -670,9 +666,7 @@ async def test_appsync_subscription_server_sending_an_error_without_an_id(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [realtime_appsync_server_keepalive], indirect=True)
-async def test_appsync_subscription_variable_values_and_operation_name(
-    event_loop, server
-):
+async def test_appsync_subscription_variable_values_and_operation_name(server):
 
     from gql.transport.appsync_auth import AppSyncApiKeyAuthentication
     from gql.transport.appsync_websockets import AppSyncWebsocketsTransport

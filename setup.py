@@ -15,8 +15,8 @@ console_scripts = [
 
 tests_requires = [
     "parse==1.15.0",
-    "pytest==7.4.2",
-    "pytest-asyncio==0.21.1",
+    "pytest==8.3.4",
+    "pytest-asyncio==0.25.3",
     "pytest-console-scripts==1.4.1",
     "pytest-cov==5.0.0",
     "vcrpy==7.0.0",

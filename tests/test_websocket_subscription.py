@@ -126,7 +126,7 @@ countdown_subscription_str = """
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
-async def test_websocket_subscription(event_loop, client_and_server, subscription_str):
+async def test_websocket_subscription(client_and_server, subscription_str):
 
     session, server = client_and_server
 
@@ -148,7 +148,7 @@ async def test_websocket_subscription(event_loop, client_and_server, subscriptio
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_websocket_subscription_get_execution_result(
-    event_loop, client_and_server, subscription_str
+    client_and_server, subscription_str
 ):
 
     session, server = client_and_server
@@ -172,9 +172,7 @@ async def test_websocket_subscription_get_execution_result(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
-async def test_websocket_subscription_break(
-    event_loop, client_and_server, subscription_str
-):
+async def test_websocket_subscription_break(client_and_server, subscription_str):
 
     session, server = client_and_server
 
@@ -203,9 +201,7 @@ async def test_websocket_subscription_break(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
-async def test_websocket_subscription_task_cancel(
-    event_loop, client_and_server, subscription_str
-):
+async def test_websocket_subscription_task_cancel(client_and_server, subscription_str):
 
     session, server = client_and_server
 
@@ -243,7 +239,7 @@ async def test_websocket_subscription_task_cancel(
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_websocket_subscription_close_transport(
-    event_loop, client_and_server, subscription_str
+    client_and_server, subscription_str
 ):
 
     session, server = client_and_server
@@ -308,7 +304,7 @@ async def server_countdown_close_connection_in_middle(ws):
 )
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_websocket_subscription_server_connection_closed(
-    event_loop, client_and_server, subscription_str
+    client_and_server, subscription_str
 ):
     session, server = client_and_server
 
@@ -331,7 +327,7 @@ async def test_websocket_subscription_server_connection_closed(
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_websocket_subscription_slow_consumer(
-    event_loop, client_and_server, subscription_str
+    client_and_server, subscription_str
 ):
 
     session, server = client_and_server
@@ -356,7 +352,7 @@ async def test_websocket_subscription_slow_consumer(
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_websocket_subscription_with_operation_name(
-    event_loop, client_and_server, subscription_str
+    client_and_server, subscription_str
 ):
 
     session, server = client_and_server
@@ -387,7 +383,7 @@ WITH_KEEPALIVE = True
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_websocket_subscription_with_keepalive(
-    event_loop, client_and_server, subscription_str
+    client_and_server, subscription_str
 ):
 
     session, server = client_and_server
@@ -410,7 +406,7 @@ async def test_websocket_subscription_with_keepalive(
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_websocket_subscription_with_keepalive_with_timeout_ok(
-    event_loop, server, subscription_str
+    server, subscription_str
 ):
 
     from gql.transport.websockets import WebsocketsTransport
@@ -447,7 +443,7 @@ async def test_websocket_subscription_with_keepalive_with_timeout_ok(
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_websocket_subscription_with_keepalive_with_timeout_nok(
-    event_loop, server, subscription_str
+    server, subscription_str
 ):
 
     from gql.transport.websockets import WebsocketsTransport
@@ -623,7 +619,7 @@ def test_websocket_subscription_sync_graceful_shutdown(server, subscription_str)
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_websocket_subscription_running_in_thread(
-    event_loop, server, subscription_str, run_sync_test
+    server, subscription_str, run_sync_test
 ):
     from gql.transport.websockets import WebsocketsTransport
 
@@ -647,4 +643,4 @@ async def test_websocket_subscription_running_in_thread(
 
         assert count == -1
 
-    await run_sync_test(event_loop, server, test_code)
+    await run_sync_test(server, test_code)

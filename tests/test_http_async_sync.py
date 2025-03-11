@@ -7,7 +7,7 @@ from gql import Client, gql
 @pytest.mark.online
 @pytest.mark.asyncio
 @pytest.mark.parametrize("fetch_schema_from_transport", [True, False])
-async def test_async_client_async_transport(event_loop, fetch_schema_from_transport):
+async def test_async_client_async_transport(fetch_schema_from_transport):
 
     from gql.transport.aiohttp import AIOHTTPTransport
 
@@ -51,7 +51,7 @@ async def test_async_client_async_transport(event_loop, fetch_schema_from_transp
 @pytest.mark.online
 @pytest.mark.asyncio
 @pytest.mark.parametrize("fetch_schema_from_transport", [True, False])
-async def test_async_client_sync_transport(event_loop, fetch_schema_from_transport):
+async def test_async_client_sync_transport(fetch_schema_from_transport):
 
     from gql.transport.requests import RequestsHTTPTransport
 

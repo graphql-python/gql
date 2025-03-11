@@ -194,7 +194,7 @@ countdown_subscription_str = """
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_aiohttp_websocket_subscription(
-    event_loop, aiohttp_client_and_server, subscription_str
+    aiohttp_client_and_server, subscription_str
 ):
 
     session, server = aiohttp_client_and_server
@@ -217,7 +217,7 @@ async def test_aiohttp_websocket_subscription(
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_aiohttp_websocket_subscription_get_execution_result(
-    event_loop, aiohttp_client_and_server, subscription_str
+    aiohttp_client_and_server, subscription_str
 ):
 
     session, server = aiohttp_client_and_server
@@ -242,7 +242,7 @@ async def test_aiohttp_websocket_subscription_get_execution_result(
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_aiohttp_websocket_subscription_break(
-    event_loop, aiohttp_client_and_server, subscription_str
+    aiohttp_client_and_server, subscription_str
 ):
 
     session, server = aiohttp_client_and_server
@@ -273,7 +273,7 @@ async def test_aiohttp_websocket_subscription_break(
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_aiohttp_websocket_subscription_task_cancel(
-    event_loop, aiohttp_client_and_server, subscription_str
+    aiohttp_client_and_server, subscription_str
 ):
 
     session, server = aiohttp_client_and_server
@@ -312,7 +312,7 @@ async def test_aiohttp_websocket_subscription_task_cancel(
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_aiohttp_websocket_subscription_close_transport(
-    event_loop, aiohttp_client_and_server, subscription_str
+    aiohttp_client_and_server, subscription_str
 ):
 
     session, _ = aiohttp_client_and_server
@@ -377,7 +377,7 @@ async def server_countdown_close_connection_in_middle(ws):
 )
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_aiohttp_websocket_subscription_server_connection_closed(
-    event_loop, aiohttp_client_and_server, subscription_str
+    aiohttp_client_and_server, subscription_str
 ):
 
     session, server = aiohttp_client_and_server
@@ -401,7 +401,7 @@ async def test_aiohttp_websocket_subscription_server_connection_closed(
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_aiohttp_websocket_subscription_slow_consumer(
-    event_loop, aiohttp_client_and_server, subscription_str
+    aiohttp_client_and_server, subscription_str
 ):
 
     session, server = aiohttp_client_and_server
@@ -426,7 +426,7 @@ async def test_aiohttp_websocket_subscription_slow_consumer(
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_aiohttp_websocket_subscription_with_operation_name(
-    event_loop, aiohttp_client_and_server, subscription_str
+    aiohttp_client_and_server, subscription_str
 ):
 
     session, server = aiohttp_client_and_server
@@ -457,7 +457,7 @@ WITH_KEEPALIVE = True
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_aiohttp_websocket_subscription_with_keepalive(
-    event_loop, aiohttp_client_and_server, subscription_str
+    aiohttp_client_and_server, subscription_str
 ):
 
     session, server = aiohttp_client_and_server
@@ -480,7 +480,7 @@ async def test_aiohttp_websocket_subscription_with_keepalive(
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_aiohttp_websocket_subscription_with_keepalive_with_timeout_ok(
-    event_loop, server, subscription_str
+    server, subscription_str
 ):
 
     from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
@@ -510,7 +510,7 @@ async def test_aiohttp_websocket_subscription_with_keepalive_with_timeout_ok(
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_aiohttp_websocket_subscription_with_keepalive_with_timeout_nok(
-    event_loop, server, subscription_str
+    server, subscription_str
 ):
 
     from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
@@ -688,7 +688,7 @@ def test_aiohttp_websocket_subscription_sync_graceful_shutdown(
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_aiohttp_websocket_subscription_running_in_thread(
-    event_loop, server, subscription_str, run_sync_test
+    server, subscription_str, run_sync_test
 ):
     from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
@@ -712,7 +712,7 @@ async def test_aiohttp_websocket_subscription_running_in_thread(
 
         assert count == -1
 
-    await run_sync_test(event_loop, server, test_code)
+    await run_sync_test(server, test_code)
 
 
 @pytest.mark.asyncio
@@ -726,9 +726,7 @@ async def test_aiohttp_websocket_subscription_running_in_thread(
         {"schema": StarWarsTypeDef},
     ],
 )
-async def test_async_aiohttp_client_validation(
-    event_loop, server, subscription_str, client_params
-):
+async def test_async_aiohttp_client_validation(server, subscription_str, client_params):
 
     from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
@@ -763,7 +761,7 @@ async def test_async_aiohttp_client_validation(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
-async def test_subscribe_on_closing_transport(event_loop, server, subscription_str):
+async def test_subscribe_on_closing_transport(server, subscription_str):
 
     from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
@@ -786,7 +784,7 @@ async def test_subscribe_on_closing_transport(event_loop, server, subscription_s
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
-async def test_subscribe_on_null_transport(event_loop, server, subscription_str):
+async def test_subscribe_on_null_transport(server, subscription_str):
 
     from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 

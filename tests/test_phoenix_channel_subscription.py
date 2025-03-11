@@ -173,9 +173,7 @@ countdown_subscription_str = """
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 @pytest.mark.parametrize("end_count", [0, 5])
-async def test_phoenix_channel_subscription(
-    event_loop, server, subscription_str, end_count
-):
+async def test_phoenix_channel_subscription(server, subscription_str, end_count):
     """Parameterized test.
 
     :param end_count: Target count at which the test will 'break' to unsubscribe.
@@ -223,9 +221,7 @@ async def test_phoenix_channel_subscription(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
-async def test_phoenix_channel_subscription_no_break(
-    event_loop, server, subscription_str
-):
+async def test_phoenix_channel_subscription_no_break(server, subscription_str):
     import logging
 
     from gql.transport.phoenix_channel_websockets import (
@@ -369,7 +365,7 @@ heartbeat_subscription_str = """
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [phoenix_heartbeat_server], indirect=True)
 @pytest.mark.parametrize("subscription_str", [heartbeat_subscription_str])
-async def test_phoenix_channel_heartbeat(event_loop, server, subscription_str):
+async def test_phoenix_channel_heartbeat(server, subscription_str):
     from gql.transport.phoenix_channel_websockets import (
         PhoenixChannelWebsocketsTransport,
     )

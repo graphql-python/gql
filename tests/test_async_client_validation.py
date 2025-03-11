@@ -85,9 +85,7 @@ starwars_invalid_subscription_str = """
         {"schema": StarWarsTypeDef},
     ],
 )
-async def test_async_client_validation(
-    event_loop, server, subscription_str, client_params
-):
+async def test_async_client_validation(server, subscription_str, client_params):
 
     from gql.transport.websockets import WebsocketsTransport
 
@@ -133,7 +131,7 @@ async def test_async_client_validation(
     ],
 )
 async def test_async_client_validation_invalid_query(
-    event_loop, server, subscription_str, client_params
+    server, subscription_str, client_params
 ):
 
     from gql.transport.websockets import WebsocketsTransport
@@ -166,7 +164,7 @@ async def test_async_client_validation_invalid_query(
     [{"schema": StarWarsSchema, "introspection": StarWarsIntrospection}],
 )
 async def test_async_client_validation_different_schemas_parameters_forbidden(
-    event_loop, server, subscription_str, client_params
+    server, subscription_str, client_params
 ):
 
     from gql.transport.websockets import WebsocketsTransport
@@ -192,7 +190,7 @@ hero_server_answers = (
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [hero_server_answers], indirect=True)
 async def test_async_client_validation_fetch_schema_from_server_valid_query(
-    event_loop, client_and_server
+    client_and_server,
 ):
     session, server = client_and_server
     client = session.client
@@ -230,7 +228,7 @@ async def test_async_client_validation_fetch_schema_from_server_valid_query(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [hero_server_answers], indirect=True)
 async def test_async_client_validation_fetch_schema_from_server_invalid_query(
-    event_loop, client_and_server
+    client_and_server,
 ):
     session, server = client_and_server
 
@@ -256,7 +254,7 @@ async def test_async_client_validation_fetch_schema_from_server_invalid_query(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [hero_server_answers], indirect=True)
 async def test_async_client_validation_fetch_schema_from_server_with_client_argument(
-    event_loop, server
+    server,
 ):
 
     from gql.transport.websockets import WebsocketsTransport

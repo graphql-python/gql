@@ -7,3 +7,6 @@ dynamic = ["authors", "classifiers", "dependencies", "description", "entry-point
 [build-system]
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "function"

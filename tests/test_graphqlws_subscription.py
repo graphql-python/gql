@@ -228,9 +228,7 @@ countdown_subscription_str = """
 @pytest.mark.asyncio
 @pytest.mark.parametrize("graphqlws_server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
-async def test_graphqlws_subscription(
-    event_loop, client_and_graphqlws_server, subscription_str
-):
+async def test_graphqlws_subscription(client_and_graphqlws_server, subscription_str):
 
     session, server = client_and_graphqlws_server
 
@@ -252,7 +250,7 @@ async def test_graphqlws_subscription(
 @pytest.mark.parametrize("graphqlws_server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_graphqlws_subscription_break(
-    event_loop, client_and_graphqlws_server, subscription_str
+    client_and_graphqlws_server, subscription_str
 ):
 
     session, server = client_and_graphqlws_server
@@ -283,7 +281,7 @@ async def test_graphqlws_subscription_break(
 @pytest.mark.parametrize("graphqlws_server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_graphqlws_subscription_task_cancel(
-    event_loop, client_and_graphqlws_server, subscription_str
+    client_and_graphqlws_server, subscription_str
 ):
 
     session, server = client_and_graphqlws_server
@@ -322,7 +320,7 @@ async def test_graphqlws_subscription_task_cancel(
 @pytest.mark.parametrize("graphqlws_server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_graphqlws_subscription_close_transport(
-    event_loop, client_and_graphqlws_server, subscription_str
+    client_and_graphqlws_server, subscription_str
 ):
 
     session, server = client_and_graphqlws_server
@@ -387,7 +385,7 @@ async def server_countdown_close_connection_in_middle(ws):
 )
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_graphqlws_subscription_server_connection_closed(
-    event_loop, client_and_graphqlws_server, subscription_str
+    client_and_graphqlws_server, subscription_str
 ):
     session, server = client_and_graphqlws_server
 
@@ -410,7 +408,7 @@ async def test_graphqlws_subscription_server_connection_closed(
 @pytest.mark.parametrize("graphqlws_server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_graphqlws_subscription_with_operation_name(
-    event_loop, client_and_graphqlws_server, subscription_str
+    client_and_graphqlws_server, subscription_str
 ):
 
     session, server = client_and_graphqlws_server
@@ -440,7 +438,7 @@ async def test_graphqlws_subscription_with_operation_name(
 )
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_graphqlws_subscription_with_keepalive(
-    event_loop, client_and_graphqlws_server, subscription_str
+    client_and_graphqlws_server, subscription_str
 ):
 
     session, server = client_and_graphqlws_server
@@ -470,7 +468,7 @@ async def test_graphqlws_subscription_with_keepalive(
 )
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_graphqlws_subscription_with_keepalive_with_timeout_ok(
-    event_loop, graphqlws_server, subscription_str
+    graphqlws_server, subscription_str
 ):
 
     from gql.transport.websockets import WebsocketsTransport
@@ -502,7 +500,7 @@ async def test_graphqlws_subscription_with_keepalive_with_timeout_ok(
 )
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_graphqlws_subscription_with_keepalive_with_timeout_nok(
-    event_loop, graphqlws_server, subscription_str
+    graphqlws_server, subscription_str
 ):
 
     from gql.transport.websockets import WebsocketsTransport
@@ -535,7 +533,7 @@ async def test_graphqlws_subscription_with_keepalive_with_timeout_nok(
 )
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_graphqlws_subscription_with_ping_interval_ok(
-    event_loop, graphqlws_server, subscription_str
+    graphqlws_server, subscription_str
 ):
 
     from gql.transport.websockets import WebsocketsTransport
@@ -571,7 +569,7 @@ async def test_graphqlws_subscription_with_ping_interval_ok(
 )
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_graphqlws_subscription_with_ping_interval_nok(
-    event_loop, graphqlws_server, subscription_str
+    graphqlws_server, subscription_str
 ):
 
     from gql.transport.websockets import WebsocketsTransport
@@ -604,7 +602,7 @@ async def test_graphqlws_subscription_with_ping_interval_nok(
 )
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_graphqlws_subscription_manual_pings_with_payload(
-    event_loop, graphqlws_server, subscription_str
+    graphqlws_server, subscription_str
 ):
 
     from gql.transport.websockets import WebsocketsTransport
@@ -646,7 +644,7 @@ async def test_graphqlws_subscription_manual_pings_with_payload(
 )
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_graphqlws_subscription_manual_pong_answers_with_payload(
-    event_loop, graphqlws_server, subscription_str
+    graphqlws_server, subscription_str
 ):
 
     from gql.transport.websockets import WebsocketsTransport
@@ -777,7 +775,7 @@ def test_graphqlws_subscription_sync_graceful_shutdown(
 )
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_graphqlws_subscription_running_in_thread(
-    event_loop, graphqlws_server, subscription_str, run_sync_test
+    graphqlws_server, subscription_str, run_sync_test
 ):
     from gql.transport.websockets import WebsocketsTransport
 
@@ -801,7 +799,7 @@ async def test_graphqlws_subscription_running_in_thread(
 
         assert count == -1
 
-    await run_sync_test(event_loop, graphqlws_server, test_code)
+    await run_sync_test(graphqlws_server, test_code)
 
 
 @pytest.mark.asyncio
@@ -811,7 +809,7 @@ async def test_graphqlws_subscription_running_in_thread(
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 @pytest.mark.parametrize("execute_instead_of_subscribe", [False, True])
 async def test_graphqlws_subscription_reconnecting_session(
-    event_loop, graphqlws_server, subscription_str, execute_instead_of_subscribe
+    graphqlws_server, subscription_str, execute_instead_of_subscribe
 ):
 
     from gql.transport.websockets import WebsocketsTransport

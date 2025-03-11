@@ -48,7 +48,7 @@ query1_server_answer_twice_list = (
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_requests_query(event_loop, aiohttp_server, run_sync_test):
+async def test_requests_query(aiohttp_server, run_sync_test):
     from aiohttp import web
     from gql.transport.requests import RequestsHTTPTransport
 
@@ -86,14 +86,12 @@ async def test_requests_query(event_loop, aiohttp_server, run_sync_test):
             assert isinstance(transport.response_headers, Mapping)
             assert transport.response_headers["dummy"] == "test1234"
 
-    await run_sync_test(event_loop, server, test_code)
+    await run_sync_test(server, test_code)
 
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_requests_query_auto_batch_enabled(
-    event_loop, aiohttp_server, run_sync_test
-):
+async def test_requests_query_auto_batch_enabled(aiohttp_server, run_sync_test):
     from aiohttp import web
     from gql.transport.requests import RequestsHTTPTransport
 
@@ -134,13 +132,13 @@ async def test_requests_query_auto_batch_enabled(
             assert isinstance(transport.response_headers, Mapping)
             assert transport.response_headers["dummy"] == "test1234"
 
-    await run_sync_test(event_loop, server, test_code)
+    await run_sync_test(server, test_code)
 
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
 async def test_requests_query_auto_batch_enabled_two_requests(
-    event_loop, aiohttp_server, run_sync_test
+    aiohttp_server, run_sync_test
 ):
     from aiohttp import web
     from gql.transport.requests import RequestsHTTPTransport
@@ -194,12 +192,12 @@ async def test_requests_query_auto_batch_enabled_two_requests(
         for thread in threads:
             thread.join()
 
-    await run_sync_test(event_loop, server, test_code)
+    await run_sync_test(server, test_code)
 
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_requests_cookies(event_loop, aiohttp_server, run_sync_test):
+async def test_requests_cookies(aiohttp_server, run_sync_test):
     from aiohttp import web
     from gql.transport.requests import RequestsHTTPTransport
 
@@ -233,12 +231,12 @@ async def test_requests_cookies(event_loop, aiohttp_server, run_sync_test):
 
             assert africa["code"] == "AF"
 
-    await run_sync_test(event_loop, server, test_code)
+    await run_sync_test(server, test_code)
 
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_requests_error_code_401(event_loop, aiohttp_server, run_sync_test):
+async def test_requests_error_code_401(aiohttp_server, run_sync_test):
     from aiohttp import web
     from gql.transport.requests import RequestsHTTPTransport
 
@@ -268,13 +266,13 @@ async def test_requests_error_code_401(event_loop, aiohttp_server, run_sync_test
 
             assert "401 Client Error: Unauthorized" in str(exc_info.value)
 
-    await run_sync_test(event_loop, server, test_code)
+    await run_sync_test(server, test_code)
 
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
 async def test_requests_error_code_401_auto_batch_enabled(
-    event_loop, aiohttp_server, run_sync_test
+    aiohttp_server, run_sync_test
 ):
     from aiohttp import web
     from gql.transport.requests import RequestsHTTPTransport
@@ -308,12 +306,12 @@ async def test_requests_error_code_401_auto_batch_enabled(
 
             assert "401 Client Error: Unauthorized" in str(exc_info.value)
 
-    await run_sync_test(event_loop, server, test_code)
+    await run_sync_test(server, test_code)
 
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_requests_error_code_429(event_loop, aiohttp_server, run_sync_test):
+async def test_requests_error_code_429(aiohttp_server, run_sync_test):
     from aiohttp import web
     from gql.transport.requests import RequestsHTTPTransport
 
@@ -362,7 +360,7 @@ async def test_requests_error_code_429(event_loop, aiohttp_server, run_sync_test
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_requests_error_code_500(event_loop, aiohttp_server, run_sync_test):
+async def test_requests_error_code_500(aiohttp_server, run_sync_test):
     from aiohttp import web
     from gql.transport.requests import RequestsHTTPTransport
 
@@ -386,7 +384,7 @@ async def test_requests_error_code_500(event_loop, aiohttp_server, run_sync_test
             with pytest.raises(TransportServerError):
                 session.execute_batch(query)
 
-    await run_sync_test(event_loop, server, test_code)
+    await run_sync_test(server, test_code)
 
 
 query1_server_error_answer_list = '[{"errors": ["Error 1", "Error 2"]}]'
@@ -394,7 +392,7 @@ query1_server_error_answer_list = '[{"errors": ["Error 1", "Error 2"]}]'
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_requests_error_code(event_loop, aiohttp_server, run_sync_test):
+async def test_requests_error_code(aiohttp_server, run_sync_test):
     from aiohttp import web
     from gql.transport.requests import RequestsHTTPTransport
 
@@ -419,7 +417,7 @@ async def test_requests_error_code(event_loop, aiohttp_server, run_sync_test):
             with pytest.raises(TransportQueryError):
                 session.execute_batch(query)
 
-    await run_sync_test(event_loop, server, test_code)
+    await run_sync_test(server, test_code)
 
 
 invalid_protocol_responses = [
@@ -437,9 +435,7 @@ invalid_protocol_responses = [
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
 @pytest.mark.parametrize("response", invalid_protocol_responses)
-async def test_requests_invalid_protocol(
-    event_loop, aiohttp_server, response, run_sync_test
-):
+async def test_requests_invalid_protocol(aiohttp_server, response, run_sync_test):
     from aiohttp import web
     from gql.transport.requests import RequestsHTTPTransport
 
@@ -462,14 +458,12 @@ async def test_requests_invalid_protocol(
             with pytest.raises(TransportProtocolError):
                 session.execute_batch(query)
 
-    await run_sync_test(event_loop, server, test_code)
+    await run_sync_test(server, test_code)
 
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_requests_cannot_execute_if_not_connected(
-    event_loop, aiohttp_server, run_sync_test
-):
+async def test_requests_cannot_execute_if_not_connected(aiohttp_server, run_sync_test):
     from aiohttp import web
     from gql.transport.requests import RequestsHTTPTransport
 
@@ -492,7 +486,7 @@ async def test_requests_cannot_execute_if_not_connected(
         with pytest.raises(TransportClosed):
             transport.execute_batch(query)
 
-    await run_sync_test(event_loop, server, test_code)
+    await run_sync_test(server, test_code)
 
 
 query1_server_answer_with_extensions_list = (
@@ -508,9 +502,7 @@ query1_server_answer_with_extensions_list = (
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_requests_query_with_extensions(
-    event_loop, aiohttp_server, run_sync_test
-):
+async def test_requests_query_with_extensions(aiohttp_server, run_sync_test):
     from aiohttp import web
     from gql.transport.requests import RequestsHTTPTransport
 
@@ -537,7 +529,7 @@ async def test_requests_query_with_extensions(
 
             assert execution_results[0].extensions["key1"] == "val1"
 
-    await run_sync_test(event_loop, server, test_code)
+    await run_sync_test(server, test_code)
 
 
 ONLINE_URL = "https://countries.trevorblades.com/"

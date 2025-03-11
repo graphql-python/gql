@@ -1,3 +1,5 @@
+import copy
+
 import pytest
 
 from gql import Client, gql
@@ -62,7 +64,8 @@ def introspection_schema():
 
 @pytest.fixture
 def introspection_schema_empty_directives():
-    introspection = StarWarsIntrospection
+    # Create a deep copy to avoid modifying the original
+    introspection = copy.deepcopy(StarWarsIntrospection)
 
     # Simulate an empty dictionary for directives
     introspection["__schema"]["directives"] = []
@@ -72,7 +75,8 @@ def introspection_schema_empty_directives():
 
 @pytest.fixture
 def introspection_schema_no_directives():
-    introspection = StarWarsIntrospection
+    # Create a deep copy to avoid modifying the original
+    introspection = copy.deepcopy(StarWarsIntrospection)
 
     # Simulate no directives key
     del introspection["__schema"]["directives"]

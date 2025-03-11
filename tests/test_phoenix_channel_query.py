@@ -52,7 +52,7 @@ async def query_server(ws):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [query_server], indirect=True)
 @pytest.mark.parametrize("query_str", [query1_str])
-async def test_phoenix_channel_query(event_loop, server, query_str):
+async def test_phoenix_channel_query(server, query_str):
     from gql.transport.phoenix_channel_websockets import (
         PhoenixChannelWebsocketsTransport,
     )
@@ -75,7 +75,7 @@ async def test_phoenix_channel_query(event_loop, server, query_str):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("ws_ssl_server", [query_server], indirect=True)
 @pytest.mark.parametrize("query_str", [query1_str])
-async def test_phoenix_channel_query_ssl(event_loop, ws_ssl_server, query_str):
+async def test_phoenix_channel_query_ssl(ws_ssl_server, query_str):
     from gql.transport.phoenix_channel_websockets import (
         PhoenixChannelWebsocketsTransport,
     )
@@ -108,7 +108,7 @@ async def test_phoenix_channel_query_ssl(event_loop, ws_ssl_server, query_str):
 @pytest.mark.parametrize("query_str", [query1_str])
 @pytest.mark.parametrize("verify_https", ["explicitely_enabled", "default"])
 async def test_phoenix_channel_query_ssl_self_cert_fail(
-    event_loop, ws_ssl_server, query_str, verify_https
+    ws_ssl_server, query_str, verify_https
 ):
     from gql.transport.phoenix_channel_websockets import (
         PhoenixChannelWebsocketsTransport,
@@ -204,7 +204,7 @@ async def subscription_server(ws):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [subscription_server], indirect=True)
 @pytest.mark.parametrize("query_str", [query2_str])
-async def test_phoenix_channel_subscription(event_loop, server, query_str):
+async def test_phoenix_channel_subscription(server, query_str):
     from gql.transport.phoenix_channel_websockets import (
         PhoenixChannelWebsocketsTransport,
     )
