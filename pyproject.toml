@@ -10,3 +10,8 @@ build-backend = "setuptools.build_meta"
 
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "function"
+
+[tool.isort]
+extra_standard_library = "ssl"
+known_first_party = "gql"
+profile = "black"
