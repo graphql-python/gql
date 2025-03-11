@@ -28,7 +28,7 @@ dev_requires = [
     "check-manifest>=0.42,<1",
     "flake8==7.1.2",
     "isort==6.0.1",
-    "mypy==1.10",
+    "mypy==1.15",
     "sphinx>=7.0.0,<8;python_version<='3.9'",
     "sphinx>=8.1.0,<9;python_version>'3.9'",
     "sphinx_rtd_theme>=3.0.2,<4",
