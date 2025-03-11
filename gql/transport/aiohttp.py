@@ -125,9 +125,9 @@ class AIOHTTPTransport(AsyncTransport):
             client_session_args: Dict[str, Any] = {
                 "cookies": self.cookies,
                 "headers": self.headers,
-                "auth": None
-                if isinstance(self.auth, AppSyncAuthentication)
-                else self.auth,
+                "auth": (
+                    None if isinstance(self.auth, AppSyncAuthentication) else self.auth
+                ),
                 "json_serialize": self.json_serialize,
             }
 

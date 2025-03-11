@@ -1,4 +1,5 @@
 import trio
+
 from gql import Client, gql
 from gql.transport.httpx import HTTPXAsyncTransport
 

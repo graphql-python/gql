@@ -19,9 +19,7 @@ def ensure_list(s):
     return (
         s
         if s is None or isinstance(s, list)
-        else list(s)
-        if isinstance(s, tuple)
-        else [s]
+        else list(s) if isinstance(s, tuple) else [s]
     )
 
 

@@ -645,7 +645,6 @@ async def test_aiohttp_websocket_non_regression_bug_108(
 async def test_aiohttp_websocket_using_cli(
     aiohttp_ws_server, transport_arg, monkeypatch, capsys
 ):
-
     """
     Note: depending on the transport_arg parameter, if there is no transport argument,
     then we will use WebsocketsTransport if the websockets dependency is installed,

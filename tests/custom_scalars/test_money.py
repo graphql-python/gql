@@ -441,9 +441,9 @@ async def make_money_backend(aiohttp_server):
                 [
                     {
                         "data": result.data,
-                        "errors": [str(e) for e in result.errors]
-                        if result.errors
-                        else None,
+                        "errors": (
+                            [str(e) for e in result.errors] if result.errors else None
+                        ),
                     }
                     for result in results
                 ]
@@ -453,9 +453,9 @@ async def make_money_backend(aiohttp_server):
             return web.json_response(
                 {
                     "data": result.data,
-                    "errors": [str(e) for e in result.errors]
-                    if result.errors
-                    else None,
+                    "errors": (
+                        [str(e) for e in result.errors] if result.errors else None
+                    ),
                 }
             )
 
