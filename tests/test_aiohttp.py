@@ -1325,7 +1325,6 @@ async def test_aiohttp_query_https(ssl_aiohttp_server, ssl_close_timeout, verify
         assert africa["code"] == "AF"
 
 
-@pytest.mark.skip(reason="We will change the default to fix this in a future version")
 @pytest.mark.asyncio
 async def test_aiohttp_query_https_self_cert_fail(ssl_aiohttp_server):
     """By default, we should verify the ssl certificate"""
@@ -1360,7 +1359,7 @@ async def test_aiohttp_query_https_self_cert_fail(ssl_aiohttp_server):
 
 
 @pytest.mark.asyncio
-async def test_aiohttp_query_https_self_cert_warn(ssl_aiohttp_server):
+async def test_aiohttp_query_https_self_cert_default(ssl_aiohttp_server):
     from aiohttp import web
     from gql.transport.aiohttp import AIOHTTPTransport
 
@@ -1375,13 +1374,9 @@ async def test_aiohttp_query_https_self_cert_warn(ssl_aiohttp_server):
 
     assert str(url).startswith("https://")
 
-    expected_warning = (
-        "WARNING: By default, AIOHTTPTransport does not verify ssl certificates."
-        " This will be fixed in the next major version."
-    )
+    transport = AIOHTTPTransport(url=url)
 
-    with pytest.warns(Warning, match=expected_warning):
-        AIOHTTPTransport(url=url, timeout=10)
+    assert transport.ssl is True
 
 
 @pytest.mark.asyncio
