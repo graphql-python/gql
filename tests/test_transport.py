@@ -28,6 +28,7 @@ def use_cassette(name):
 @pytest.fixture
 def client():
     import requests
+
     from gql.transport.requests import RequestsHTTPTransport
 
     with use_cassette("client"):

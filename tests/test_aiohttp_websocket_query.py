@@ -154,6 +154,7 @@ async def test_aiohttp_websocket_using_ssl_connection_self_cert_fail(
 ):
 
     from aiohttp.client_exceptions import ClientConnectorCertificateError
+
     from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
     server = ws_ssl_server

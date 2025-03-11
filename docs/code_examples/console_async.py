@@ -2,6 +2,7 @@ import asyncio
 import logging
 
 from aioconsole import ainput
+
 from gql import Client, gql
 from gql.transport.aiohttp import AIOHTTPTransport
 

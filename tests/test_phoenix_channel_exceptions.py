@@ -358,8 +358,9 @@ def subscription_server(
     data_answers=default_subscription_data_answer,
     unsubscribe_answers=default_subscription_unsubscribe_answer,
 ):
-    from .conftest import PhoenixChannelServerHelper
     import json
+
+    from .conftest import PhoenixChannelServerHelper
 
     async def phoenix_server(ws):
         await PhoenixChannelServerHelper.send_connection_ack(ws)

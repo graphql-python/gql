@@ -812,8 +812,8 @@ async def test_graphqlws_subscription_reconnecting_session(
     graphqlws_server, subscription_str, execute_instead_of_subscribe
 ):
 
-    from gql.transport.websockets import WebsocketsTransport
     from gql.transport.exceptions import TransportClosed
+    from gql.transport.websockets import WebsocketsTransport
 
     path = "/graphql"
     url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}{path}"

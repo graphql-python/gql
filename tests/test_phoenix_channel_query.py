@@ -110,10 +110,11 @@ async def test_phoenix_channel_query_ssl(ws_ssl_server, query_str):
 async def test_phoenix_channel_query_ssl_self_cert_fail(
     ws_ssl_server, query_str, verify_https
 ):
+    from ssl import SSLCertVerificationError
+
     from gql.transport.phoenix_channel_websockets import (
         PhoenixChannelWebsocketsTransport,
     )
-    from ssl import SSLCertVerificationError
 
     path = "/graphql"
     server = ws_ssl_server

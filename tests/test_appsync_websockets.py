@@ -426,9 +426,10 @@ async def test_appsync_subscription_api_key(server):
 @pytest.mark.parametrize("server", [realtime_appsync_server], indirect=True)
 async def test_appsync_subscription_iam_with_token(server):
 
+    from botocore.credentials import Credentials
+
     from gql.transport.appsync_auth import AppSyncIAMAuthentication
     from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
-    from botocore.credentials import Credentials
 
     path = "/graphql"
     url = f"ws://{server.hostname}:{server.port}{path}"
@@ -453,9 +454,10 @@ async def test_appsync_subscription_iam_with_token(server):
 @pytest.mark.parametrize("server", [realtime_appsync_server], indirect=True)
 async def test_appsync_subscription_iam_without_token(server):
 
+    from botocore.credentials import Credentials
+
     from gql.transport.appsync_auth import AppSyncIAMAuthentication
     from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
-    from botocore.credentials import Credentials
 
     path = "/graphql"
     url = f"ws://{server.hostname}:{server.port}{path}"
@@ -479,9 +481,10 @@ async def test_appsync_subscription_iam_without_token(server):
 @pytest.mark.parametrize("server", [realtime_appsync_server], indirect=True)
 async def test_appsync_execute_method_not_allowed(server):
 
+    from botocore.credentials import Credentials
+
     from gql.transport.appsync_auth import AppSyncIAMAuthentication
     from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
-    from botocore.credentials import Credentials
 
     path = "/graphql"
     url = f"ws://{server.hostname}:{server.port}{path}"
@@ -526,9 +529,10 @@ mutation createMessage($message: String!) {
 @pytest.mark.botocore
 async def test_appsync_fetch_schema_from_transport_not_allowed():
 
+    from botocore.credentials import Credentials
+
     from gql.transport.appsync_auth import AppSyncIAMAuthentication
     from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
-    from botocore.credentials import Credentials
 
     dummy_credentials = Credentials(
         access_key=DUMMY_ACCESS_KEY_ID,
@@ -579,10 +583,11 @@ async def test_appsync_subscription_api_key_unauthorized(server):
 @pytest.mark.parametrize("server", [realtime_appsync_server], indirect=True)
 async def test_appsync_subscription_iam_not_allowed(server):
 
+    from botocore.credentials import Credentials
+
     from gql.transport.appsync_auth import AppSyncIAMAuthentication
     from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
     from gql.transport.exceptions import TransportQueryError
-    from botocore.credentials import Credentials
 
     path = "/graphql"
     url = f"ws://{server.hostname}:{server.port}{path}"
