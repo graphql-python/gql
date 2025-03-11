@@ -407,9 +407,7 @@ def subscription_server(
     indirect=True,
 )
 @pytest.mark.parametrize("query_str", [query2_str])
-async def test_phoenix_channel_subscription_protocol_error(
-    server, query_str
-):
+async def test_phoenix_channel_subscription_protocol_error(server, query_str):
 
     from gql.transport.phoenix_channel_websockets import (
         PhoenixChannelWebsocketsTransport,

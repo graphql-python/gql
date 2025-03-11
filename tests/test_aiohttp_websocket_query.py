@@ -51,9 +51,7 @@ server1_answers = [
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("aiohttp_ws_server", [server1_answers], indirect=True)
-async def test_aiohttp_websocket_starting_client_in_context_manager(
-    aiohttp_ws_server
-):
+async def test_aiohttp_websocket_starting_client_in_context_manager(aiohttp_ws_server):
 
     server = aiohttp_ws_server
     from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
@@ -200,9 +198,7 @@ async def test_aiohttp_websocket_using_ssl_connection_self_cert_fail(
 @pytest.mark.websockets
 @pytest.mark.parametrize("server", [server1_answers], indirect=True)
 @pytest.mark.parametrize("query_str", [query1_str])
-async def test_aiohttp_websocket_simple_query(
-    aiohttp_client_and_server, query_str
-):
+async def test_aiohttp_websocket_simple_query(aiohttp_client_and_server, query_str):
 
     session, server = aiohttp_client_and_server
 
@@ -378,9 +374,7 @@ async def assert_client_is_working(session):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("aiohttp_ws_server", [server1_answers], indirect=True)
-async def test_aiohttp_websocket_multiple_connections_in_series(
-    aiohttp_ws_server
-):
+async def test_aiohttp_websocket_multiple_connections_in_series(aiohttp_ws_server):
 
     server = aiohttp_ws_server
 
@@ -406,9 +400,7 @@ async def test_aiohttp_websocket_multiple_connections_in_series(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("aiohttp_ws_server", [server1_answers], indirect=True)
-async def test_aiohttp_websocket_multiple_connections_in_parallel(
-    aiohttp_ws_server
-):
+async def test_aiohttp_websocket_multiple_connections_in_parallel(aiohttp_ws_server):
 
     server = aiohttp_ws_server
 
@@ -431,7 +423,7 @@ async def test_aiohttp_websocket_multiple_connections_in_parallel(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("aiohttp_ws_server", [server1_answers], indirect=True)
 async def test_aiohttp_websocket_trying_to_connect_to_already_connected_transport(
-    aiohttp_ws_server
+    aiohttp_ws_server,
 ):
     server = aiohttp_ws_server
 
@@ -584,9 +576,7 @@ def test_aiohttp_websocket_execute_sync(aiohttp_ws_server):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("aiohttp_ws_server", [server1_answers], indirect=True)
-async def test_aiohttp_websocket_add_extra_parameters_to_connect(
-    aiohttp_ws_server
-):
+async def test_aiohttp_websocket_add_extra_parameters_to_connect(aiohttp_ws_server):
 
     server = aiohttp_ws_server
 

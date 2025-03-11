@@ -164,9 +164,7 @@ async def server_invalid_payload(ws):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_invalid_payload], indirect=True)
 @pytest.mark.parametrize("query_str", [invalid_query_str])
-async def test_websocket_sending_invalid_payload(
-    client_and_server, query_str
-):
+async def test_websocket_sending_invalid_payload(client_and_server, query_str):
 
     session, server = client_and_server
 
@@ -363,9 +361,7 @@ async def test_websocket_non_regression_bug_105(server):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [invalid_query1_server], indirect=True)
-async def test_websocket_using_cli_invalid_query(
-    server, monkeypatch, capsys
-):
+async def test_websocket_using_cli_invalid_query(server, monkeypatch, capsys):
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")

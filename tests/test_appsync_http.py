@@ -8,9 +8,7 @@ from gql import Client, gql
 @pytest.mark.asyncio
 @pytest.mark.aiohttp
 @pytest.mark.botocore
-async def test_appsync_iam_mutation(
-    aiohttp_server, fake_credentials_factory
-):
+async def test_appsync_iam_mutation(aiohttp_server, fake_credentials_factory):
     from aiohttp import web
     from gql.transport.aiohttp import AIOHTTPTransport
     from gql.transport.appsync_auth import AppSyncIAMAuthentication

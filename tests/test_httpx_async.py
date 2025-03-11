@@ -536,9 +536,7 @@ async def test_httpx_query_variable_values_fix_issue_292(aiohttp_server):
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_httpx_execute_running_in_thread(
-    aiohttp_server, run_sync_test
-):
+async def test_httpx_execute_running_in_thread(aiohttp_server, run_sync_test):
     from aiohttp import web
     from gql.transport.httpx import HTTPXAsyncTransport
 
@@ -565,9 +563,7 @@ async def test_httpx_execute_running_in_thread(
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_httpx_subscribe_running_in_thread(
-    aiohttp_server, run_sync_test
-):
+async def test_httpx_subscribe_running_in_thread(aiohttp_server, run_sync_test):
     from aiohttp import web
     from gql.transport.httpx import HTTPXAsyncTransport
 
@@ -690,9 +686,7 @@ async def test_httpx_file_upload(aiohttp_server):
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_httpx_file_upload_without_session(
-    aiohttp_server, run_sync_test
-):
+async def test_httpx_file_upload_without_session(aiohttp_server, run_sync_test):
     from aiohttp import web
     from gql.transport.httpx import HTTPXAsyncTransport
 
@@ -1060,9 +1054,7 @@ async def test_httpx_using_cli_ep(
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_httpx_using_cli_invalid_param(
-    aiohttp_server, monkeypatch, capsys
-):
+async def test_httpx_using_cli_invalid_param(aiohttp_server, monkeypatch, capsys):
     from aiohttp import web
 
     async def handler(request):
@@ -1097,9 +1089,7 @@ async def test_httpx_using_cli_invalid_param(
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_httpx_using_cli_invalid_query(
-    aiohttp_server, monkeypatch, capsys
-):
+async def test_httpx_using_cli_invalid_query(aiohttp_server, monkeypatch, capsys):
     from aiohttp import web
 
     async def handler(request):
@@ -1210,9 +1200,7 @@ async def test_httpx_query_https(ssl_aiohttp_server, verify_https):
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
 @pytest.mark.parametrize("verify_https", ["explicitely_enabled", "default"])
-async def test_httpx_query_https_self_cert_fail(
-    ssl_aiohttp_server, verify_https
-):
+async def test_httpx_query_https_self_cert_fail(ssl_aiohttp_server, verify_https):
     from aiohttp import web
     from gql.transport.httpx import HTTPXAsyncTransport
     from httpx import ConnectError

@@ -143,7 +143,7 @@ async def server_invalid_query(ws):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("graphqlws_server", [server_invalid_query], indirect=True)
 async def test_aiohttp_websocket_graphqlws_sending_invalid_query(
-    client_and_aiohttp_websocket_graphql_server
+    client_and_aiohttp_websocket_graphql_server,
 ):
 
     session, server = client_and_aiohttp_websocket_graphql_server
@@ -197,7 +197,7 @@ sending_bytes = [b"\x01\x02\x03"]
     indirect=True,
 )
 async def test_aiohttp_websocket_graphqlws_transport_protocol_errors(
-    client_and_aiohttp_websocket_graphql_server
+    client_and_aiohttp_websocket_graphql_server,
 ):
 
     session, server = client_and_aiohttp_websocket_graphql_server
@@ -216,9 +216,7 @@ async def server_without_ack(ws):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("graphqlws_server", [server_without_ack], indirect=True)
-async def test_aiohttp_websocket_graphqlws_server_does_not_ack(
-    graphqlws_server
-):
+async def test_aiohttp_websocket_graphqlws_server_does_not_ack(graphqlws_server):
     from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
     url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}/graphql"
@@ -237,9 +235,7 @@ async def server_closing_directly(ws):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("graphqlws_server", [server_closing_directly], indirect=True)
-async def test_aiohttp_websocket_graphqlws_server_closing_directly(
-    graphqlws_server
-):
+async def test_aiohttp_websocket_graphqlws_server_closing_directly(graphqlws_server):
 
     from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
@@ -261,7 +257,7 @@ async def server_closing_after_ack(ws):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("graphqlws_server", [server_closing_after_ack], indirect=True)
 async def test_aiohttp_websocket_graphqlws_server_closing_after_ack(
-    client_and_aiohttp_websocket_graphql_server
+    client_and_aiohttp_websocket_graphql_server,
 ):
 
     session, _ = client_and_aiohttp_websocket_graphql_server

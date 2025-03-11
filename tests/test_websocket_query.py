@@ -198,9 +198,7 @@ server1_two_answers_in_series = [
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server1_two_answers_in_series], indirect=True)
 @pytest.mark.parametrize("query_str", [query1_str])
-async def test_websocket_two_queries_in_series(
-    client_and_server, query_str
-):
+async def test_websocket_two_queries_in_series(client_and_server, query_str):
 
     session, server = client_and_server
 
@@ -234,9 +232,7 @@ async def server1_two_queries_in_parallel(ws):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server1_two_queries_in_parallel], indirect=True)
 @pytest.mark.parametrize("query_str", [query1_str])
-async def test_websocket_two_queries_in_parallel(
-    client_and_server, query_str
-):
+async def test_websocket_two_queries_in_parallel(client_and_server, query_str):
 
     session, server = client_and_server
 
@@ -281,9 +277,7 @@ async def server_closing_while_we_are_doing_something_else(ws):
     "server", [server_closing_while_we_are_doing_something_else], indirect=True
 )
 @pytest.mark.parametrize("query_str", [query1_str])
-async def test_websocket_server_closing_after_first_query(
-    client_and_server, query_str
-):
+async def test_websocket_server_closing_after_first_query(client_and_server, query_str):
 
     session, server = client_and_server
 
@@ -388,9 +382,7 @@ async def test_websocket_multiple_connections_in_parallel(server):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server1_answers], indirect=True)
-async def test_websocket_trying_to_connect_to_already_connected_transport(
-    server
-):
+async def test_websocket_trying_to_connect_to_already_connected_transport(server):
     from gql.transport.websockets import WebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
@@ -566,9 +558,7 @@ async def server_sending_keep_alive_before_connection_ack(ws):
     "server", [server_sending_keep_alive_before_connection_ack], indirect=True
 )
 @pytest.mark.parametrize("query_str", [query1_str])
-async def test_websocket_non_regression_bug_108(
-    client_and_server, query_str
-):
+async def test_websocket_non_regression_bug_108(client_and_server, query_str):
 
     # This test will check that we now ignore keepalive message
     # arriving before the connection_ack
@@ -641,9 +631,7 @@ server1_answers_with_extensions = [
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server1_answers_with_extensions], indirect=True)
 @pytest.mark.parametrize("query_str", [query1_str])
-async def test_websocket_simple_query_with_extensions(
-    client_and_server, query_str
-):
+async def test_websocket_simple_query_with_extensions(client_and_server, query_str):
 
     session, server = client_and_server
 

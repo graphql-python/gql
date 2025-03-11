@@ -39,9 +39,7 @@ invalid_query1_server = [invalid_query1_server_answer]
 @pytest.mark.asyncio
 @pytest.mark.parametrize("graphqlws_server", [invalid_query1_server], indirect=True)
 @pytest.mark.parametrize("query_str", [invalid_query_str])
-async def test_graphqlws_invalid_query(
-    client_and_graphqlws_server, query_str
-):
+async def test_graphqlws_invalid_query(client_and_graphqlws_server, query_str):
 
     session, server = client_and_graphqlws_server
 
@@ -82,9 +80,7 @@ async def server_invalid_subscription(ws):
     "graphqlws_server", [server_invalid_subscription], indirect=True
 )
 @pytest.mark.parametrize("query_str", [invalid_subscription_str])
-async def test_graphqlws_invalid_subscription(
-    client_and_graphqlws_server, query_str
-):
+async def test_graphqlws_invalid_subscription(client_and_graphqlws_server, query_str):
 
     session, server = client_and_graphqlws_server
 
@@ -110,9 +106,7 @@ async def server_no_ack(ws):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("graphqlws_server", [server_no_ack], indirect=True)
 @pytest.mark.parametrize("query_str", [invalid_query_str])
-async def test_graphqlws_server_does_not_send_ack(
-    graphqlws_server, query_str
-):
+async def test_graphqlws_server_does_not_send_ack(graphqlws_server, query_str):
     from gql.transport.websockets import WebsocketsTransport
 
     url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}/graphql"
@@ -194,9 +188,7 @@ sending_bytes = [b"\x01\x02\x03"]
     ],
     indirect=True,
 )
-async def test_graphqlws_transport_protocol_errors(
-    client_and_graphqlws_server
-):
+async def test_graphqlws_transport_protocol_errors(client_and_graphqlws_server):
 
     session, server = client_and_graphqlws_server
 
@@ -253,9 +245,7 @@ async def server_closing_after_ack(ws):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("graphqlws_server", [server_closing_after_ack], indirect=True)
-async def test_graphqlws_server_closing_after_ack(
-    client_and_graphqlws_server
-):
+async def test_graphqlws_server_closing_after_ack(client_and_graphqlws_server):
 
     session, server = client_and_graphqlws_server
 

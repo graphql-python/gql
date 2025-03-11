@@ -726,9 +726,7 @@ async def test_aiohttp_websocket_subscription_running_in_thread(
         {"schema": StarWarsTypeDef},
     ],
 )
-async def test_async_aiohttp_client_validation(
-    server, subscription_str, client_params
-):
+async def test_async_aiohttp_client_validation(server, subscription_str, client_params):
 
     from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 

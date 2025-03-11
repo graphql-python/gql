@@ -531,9 +531,7 @@ async def test_custom_scalar_in_input_query_with_transport(aiohttp_server):
 
 
 @pytest.mark.asyncio
-async def test_custom_scalar_in_input_variable_values_with_transport(
-    aiohttp_server
-):
+async def test_custom_scalar_in_input_variable_values_with_transport(aiohttp_server):
 
     transport = await make_money_transport(aiohttp_server)
 
@@ -556,7 +554,7 @@ async def test_custom_scalar_in_input_variable_values_with_transport(
 
 @pytest.mark.asyncio
 async def test_custom_scalar_in_input_variable_values_split_with_transport(
-    aiohttp_server
+    aiohttp_server,
 ):
 
     transport = await make_money_transport(aiohttp_server)
@@ -623,7 +621,7 @@ async def test_custom_scalar_serialize_variables_no_schema(aiohttp_server):
 
 @pytest.mark.asyncio
 async def test_custom_scalar_serialize_variables_schema_from_introspection(
-    aiohttp_server
+    aiohttp_server,
 ):
 
     transport = await make_money_transport(aiohttp_server)

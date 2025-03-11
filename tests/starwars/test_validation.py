@@ -1,4 +1,5 @@
 import copy
+
 import pytest
 
 from gql import Client, gql

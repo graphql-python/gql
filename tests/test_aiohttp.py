@@ -524,9 +524,7 @@ async def test_aiohttp_query_variable_values_fix_issue_292(aiohttp_server):
 
 
 @pytest.mark.asyncio
-async def test_aiohttp_execute_running_in_thread(
-    aiohttp_server, run_sync_test
-):
+async def test_aiohttp_execute_running_in_thread(aiohttp_server, run_sync_test):
     from aiohttp import web
     from gql.transport.aiohttp import AIOHTTPTransport
 
@@ -552,9 +550,7 @@ async def test_aiohttp_execute_running_in_thread(
 
 
 @pytest.mark.asyncio
-async def test_aiohttp_subscribe_running_in_thread(
-    aiohttp_server, run_sync_test
-):
+async def test_aiohttp_subscribe_running_in_thread(aiohttp_server, run_sync_test):
     from aiohttp import web
     from gql.transport.aiohttp import AIOHTTPTransport
 
@@ -743,9 +739,7 @@ async def test_aiohttp_file_upload_with_content_type(aiohttp_server):
 
 
 @pytest.mark.asyncio
-async def test_aiohttp_file_upload_without_session(
-    aiohttp_server, run_sync_test
-):
+async def test_aiohttp_file_upload_without_session(aiohttp_server, run_sync_test):
     from aiohttp import web
     from gql.transport.aiohttp import AIOHTTPTransport
 
@@ -1185,9 +1179,7 @@ async def test_aiohttp_using_cli_ep(
 
 
 @pytest.mark.asyncio
-async def test_aiohttp_using_cli_invalid_param(
-    aiohttp_server, monkeypatch, capsys
-):
+async def test_aiohttp_using_cli_invalid_param(aiohttp_server, monkeypatch, capsys):
     from aiohttp import web
 
     async def handler(request):
@@ -1221,9 +1213,7 @@ async def test_aiohttp_using_cli_invalid_param(
 
 
 @pytest.mark.asyncio
-async def test_aiohttp_using_cli_invalid_query(
-    aiohttp_server, monkeypatch, capsys
-):
+async def test_aiohttp_using_cli_invalid_query(aiohttp_server, monkeypatch, capsys):
     from aiohttp import web
 
     async def handler(request):
@@ -1290,9 +1280,7 @@ async def test_aiohttp_query_with_extensions(aiohttp_server):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("ssl_close_timeout", [0, 10])
 @pytest.mark.parametrize("verify_https", ["disabled", "cert_provided"])
-async def test_aiohttp_query_https(
-    ssl_aiohttp_server, ssl_close_timeout, verify_https
-):
+async def test_aiohttp_query_https(ssl_aiohttp_server, ssl_close_timeout, verify_https):
     from aiohttp import web
     from gql.transport.aiohttp import AIOHTTPTransport
 
@@ -1478,9 +1466,7 @@ async def test_aiohttp_reconnecting_session(aiohttp_server):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("retries", [False, lambda e: e])
-async def test_aiohttp_reconnecting_session_retries(
-    aiohttp_server, retries
-):
+async def test_aiohttp_reconnecting_session_retries(aiohttp_server, retries):
     from aiohttp import web
     from gql.transport.aiohttp import AIOHTTPTransport
 

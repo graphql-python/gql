@@ -84,9 +84,7 @@ async def test_requests_query(aiohttp_server, run_sync_test):
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
 @pytest.mark.parametrize("verify_https", ["disabled", "cert_provided"])
-async def test_requests_query_https(
-    ssl_aiohttp_server, run_sync_test, verify_https
-):
+async def test_requests_query_https(ssl_aiohttp_server, run_sync_test, verify_https):
     from aiohttp import web
     from gql.transport.requests import RequestsHTTPTransport
     import warnings
@@ -388,9 +386,7 @@ invalid_protocol_responses = [
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
 @pytest.mark.parametrize("response", invalid_protocol_responses)
-async def test_requests_invalid_protocol(
-    aiohttp_server, response, run_sync_test
-):
+async def test_requests_invalid_protocol(aiohttp_server, response, run_sync_test):
     from aiohttp import web
     from gql.transport.requests import RequestsHTTPTransport
 
@@ -444,9 +440,7 @@ async def test_requests_cannot_connect_twice(aiohttp_server, run_sync_test):
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_requests_cannot_execute_if_not_connected(
-    aiohttp_server, run_sync_test
-):
+async def test_requests_cannot_execute_if_not_connected(aiohttp_server, run_sync_test):
     from aiohttp import web
     from gql.transport.requests import RequestsHTTPTransport
 
@@ -483,9 +477,7 @@ query1_server_answer_with_extensions = (
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_requests_query_with_extensions(
-    aiohttp_server, run_sync_test
-):
+async def test_requests_query_with_extensions(aiohttp_server, run_sync_test):
     from aiohttp import web
     from gql.transport.requests import RequestsHTTPTransport
 
@@ -600,9 +592,7 @@ async def test_requests_file_upload(aiohttp_server, run_sync_test):
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_requests_file_upload_with_content_type(
-    aiohttp_server, run_sync_test
-):
+async def test_requests_file_upload_with_content_type(aiohttp_server, run_sync_test):
     from aiohttp import web
     from gql.transport.requests import RequestsHTTPTransport
 
@@ -668,9 +658,7 @@ async def test_requests_file_upload_with_content_type(
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_requests_file_upload_additional_headers(
-    aiohttp_server, run_sync_test
-):
+async def test_requests_file_upload_additional_headers(aiohttp_server, run_sync_test):
     from aiohttp import web
     from gql.transport.requests import RequestsHTTPTransport
 
@@ -805,9 +793,7 @@ file_upload_mutation_2_operations = (
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_requests_file_upload_two_files(
-    aiohttp_server, run_sync_test
-):
+async def test_requests_file_upload_two_files(aiohttp_server, run_sync_test):
     from aiohttp import web
     from gql.transport.requests import RequestsHTTPTransport
 
@@ -905,9 +891,7 @@ file_upload_mutation_3_operations = (
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_requests_file_upload_list_of_two_files(
-    aiohttp_server, run_sync_test
-):
+async def test_requests_file_upload_list_of_two_files(aiohttp_server, run_sync_test):
     from aiohttp import web
     from gql.transport.requests import RequestsHTTPTransport
 
@@ -996,9 +980,7 @@ async def test_requests_file_upload_list_of_two_files(
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_requests_error_fetching_schema(
-    aiohttp_server, run_sync_test
-):
+async def test_requests_error_fetching_schema(aiohttp_server, run_sync_test):
     from aiohttp import web
     from gql.transport.requests import RequestsHTTPTransport
 
@@ -1045,9 +1027,7 @@ async def test_requests_error_fetching_schema(
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_requests_json_serializer(
-    aiohttp_server, run_sync_test, caplog
-):
+async def test_requests_json_serializer(aiohttp_server, run_sync_test, caplog):
     import json
     from aiohttp import web
     from gql.transport.requests import RequestsHTTPTransport

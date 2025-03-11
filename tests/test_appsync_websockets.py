@@ -616,9 +616,7 @@ async def test_appsync_subscription_iam_not_allowed(server):
 @pytest.mark.parametrize(
     "server", [realtime_appsync_server_not_json_answer], indirect=True
 )
-async def test_appsync_subscription_server_sending_a_not_json_answer(
-    server
-):
+async def test_appsync_subscription_server_sending_a_not_json_answer(server):
 
     from gql.transport.appsync_auth import AppSyncApiKeyAuthentication
     from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
@@ -644,9 +642,7 @@ async def test_appsync_subscription_server_sending_a_not_json_answer(
 @pytest.mark.parametrize(
     "server", [realtime_appsync_server_error_without_id], indirect=True
 )
-async def test_appsync_subscription_server_sending_an_error_without_an_id(
-    server
-):
+async def test_appsync_subscription_server_sending_an_error_without_an_id(server):
 
     from gql.transport.appsync_auth import AppSyncApiKeyAuthentication
     from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
@@ -670,9 +666,7 @@ async def test_appsync_subscription_server_sending_an_error_without_an_id(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [realtime_appsync_server_keepalive], indirect=True)
-async def test_appsync_subscription_variable_values_and_operation_name(
-    server
-):
+async def test_appsync_subscription_variable_values_and_operation_name(server):
 
     from gql.transport.appsync_auth import AppSyncApiKeyAuthentication
     from gql.transport.appsync_websockets import AppSyncWebsocketsTransport

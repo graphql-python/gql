@@ -91,9 +91,7 @@ async def test_requests_query(aiohttp_server, run_sync_test):
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_requests_query_auto_batch_enabled(
-    aiohttp_server, run_sync_test
-):
+async def test_requests_query_auto_batch_enabled(aiohttp_server, run_sync_test):
     from aiohttp import web
     from gql.transport.requests import RequestsHTTPTransport
 
@@ -437,9 +435,7 @@ invalid_protocol_responses = [
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
 @pytest.mark.parametrize("response", invalid_protocol_responses)
-async def test_requests_invalid_protocol(
-    aiohttp_server, response, run_sync_test
-):
+async def test_requests_invalid_protocol(aiohttp_server, response, run_sync_test):
     from aiohttp import web
     from gql.transport.requests import RequestsHTTPTransport
 
@@ -467,9 +463,7 @@ async def test_requests_invalid_protocol(
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_requests_cannot_execute_if_not_connected(
-    aiohttp_server, run_sync_test
-):
+async def test_requests_cannot_execute_if_not_connected(aiohttp_server, run_sync_test):
     from aiohttp import web
     from gql.transport.requests import RequestsHTTPTransport
 
@@ -508,9 +502,7 @@ query1_server_answer_with_extensions_list = (
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_requests_query_with_extensions(
-    aiohttp_server, run_sync_test
-):
+async def test_requests_query_with_extensions(aiohttp_server, run_sync_test):
     from aiohttp import web
     from gql.transport.requests import RequestsHTTPTransport
 

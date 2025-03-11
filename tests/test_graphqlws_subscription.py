@@ -228,9 +228,7 @@ countdown_subscription_str = """
 @pytest.mark.asyncio
 @pytest.mark.parametrize("graphqlws_server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
-async def test_graphqlws_subscription(
-    client_and_graphqlws_server, subscription_str
-):
+async def test_graphqlws_subscription(client_and_graphqlws_server, subscription_str):
 
     session, server = client_and_graphqlws_server
 

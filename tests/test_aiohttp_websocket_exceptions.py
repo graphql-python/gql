@@ -40,9 +40,7 @@ invalid_query1_server = [invalid_query1_server_answer]
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [invalid_query1_server], indirect=True)
 @pytest.mark.parametrize("query_str", [invalid_query_str])
-async def test_aiohttp_websocket_invalid_query(
-    aiohttp_client_and_server, query_str
-):
+async def test_aiohttp_websocket_invalid_query(aiohttp_client_and_server, query_str):
 
     session, server = aiohttp_client_and_server
 
@@ -115,9 +113,7 @@ async def server_no_ack(ws):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_no_ack], indirect=True)
 @pytest.mark.parametrize("query_str", [invalid_query_str])
-async def test_aiohttp_websocket_server_does_not_send_ack(
-    server, query_str
-):
+async def test_aiohttp_websocket_server_does_not_send_ack(server, query_str):
     from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
@@ -241,9 +237,7 @@ sending_bytes = [b"\x01\x02\x03"]
     ],
     indirect=True,
 )
-async def test_aiohttp_websocket_transport_protocol_errors(
-    aiohttp_client_and_server
-):
+async def test_aiohttp_websocket_transport_protocol_errors(aiohttp_client_and_server):
 
     session, server = aiohttp_client_and_server
 
@@ -301,9 +295,7 @@ async def server_closing_after_ack(ws):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_closing_after_ack], indirect=True)
-async def test_aiohttp_websocket_server_closing_after_ack(
-    aiohttp_client_and_server
-):
+async def test_aiohttp_websocket_server_closing_after_ack(aiohttp_client_and_server):
 
     session, server = aiohttp_client_and_server
 
@@ -325,9 +317,7 @@ async def server_sending_invalid_query_errors(ws):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_sending_invalid_query_errors], indirect=True)
-async def test_aiohttp_websocket_server_sending_invalid_query_errors(
-    server
-):
+async def test_aiohttp_websocket_server_sending_invalid_query_errors(server):
     from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
@@ -373,9 +363,7 @@ async def test_aiohttp_websocket_non_regression_bug_105(server):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [invalid_query1_server], indirect=True)
-async def test_aiohttp_websocket_using_cli_invalid_query(
-    server, monkeypatch, capsys
-):
+async def test_aiohttp_websocket_using_cli_invalid_query(server, monkeypatch, capsys):
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
