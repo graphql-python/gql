@@ -11,7 +11,7 @@ from gql.transport.exceptions import TransportQueryError
 @pytest.mark.httpx
 @pytest.mark.online
 @pytest.mark.asyncio
-async def test_httpx_simple_query(event_loop):
+async def test_httpx_simple_query():
 
     from gql.transport.httpx import HTTPXAsyncTransport
 
@@ -56,7 +56,7 @@ async def test_httpx_simple_query(event_loop):
 @pytest.mark.httpx
 @pytest.mark.online
 @pytest.mark.asyncio
-async def test_httpx_invalid_query(event_loop):
+async def test_httpx_invalid_query():
 
     from gql.transport.httpx import HTTPXAsyncTransport
 
@@ -85,7 +85,7 @@ async def test_httpx_invalid_query(event_loop):
 @pytest.mark.online
 @pytest.mark.skipif(sys.version_info < (3, 8), reason="requires python3.8 or higher")
 @pytest.mark.asyncio
-async def test_httpx_two_queries_in_parallel_using_two_tasks(event_loop):
+async def test_httpx_two_queries_in_parallel_using_two_tasks():
 
     from gql.transport.httpx import HTTPXAsyncTransport
 

@@ -9,7 +9,7 @@ from gql import Client, gql
 @pytest.mark.aiohttp
 @pytest.mark.botocore
 async def test_appsync_iam_mutation(
-    event_loop, aiohttp_server, fake_credentials_factory
+    aiohttp_server, fake_credentials_factory
 ):
     from aiohttp import web
     from gql.transport.aiohttp import AIOHTTPTransport

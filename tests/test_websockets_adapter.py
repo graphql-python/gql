@@ -33,7 +33,7 @@ server1_answers = [
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server1_answers], indirect=True)
-async def test_websockets_adapter_simple_query(event_loop, server):
+async def test_websockets_adapter_simple_query(server):
     from gql.transport.common.adapters.websockets import WebSocketsAdapter
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
@@ -65,7 +65,7 @@ async def test_websockets_adapter_simple_query(event_loop, server):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server1_answers], indirect=True)
-async def test_websockets_adapter_edge_cases(event_loop, server):
+async def test_websockets_adapter_edge_cases(server):
     from gql.transport.common.adapters.websockets import WebSocketsAdapter
 
     url = f"ws://{server.hostname}:{server.port}/graphql"

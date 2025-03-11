@@ -10,7 +10,7 @@ pytestmark = pytest.mark.aiohttp
 
 
 @pytest.mark.asyncio
-async def test_starwars_introspection_args(event_loop, aiohttp_server):
+async def test_starwars_introspection_args(aiohttp_server):
 
     transport = await make_starwars_transport(aiohttp_server)
 

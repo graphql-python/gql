@@ -36,7 +36,7 @@ query1_server_answer = (
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_httpx_query(event_loop, aiohttp_server, run_sync_test):
+async def test_httpx_query(aiohttp_server, run_sync_test):
     from aiohttp import web
     from gql.transport.httpx import HTTPXTransport
 
@@ -74,14 +74,14 @@ async def test_httpx_query(event_loop, aiohttp_server, run_sync_test):
             assert isinstance(transport.response_headers, Mapping)
             assert transport.response_headers["dummy"] == "test1234"
 
-    await run_sync_test(event_loop, server, test_code)
+    await run_sync_test(server, test_code)
 
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
 @pytest.mark.parametrize("verify_https", ["disabled", "cert_provided"])
 async def test_httpx_query_https(
-    event_loop, ssl_aiohttp_server, run_sync_test, verify_https
+    ssl_aiohttp_server, run_sync_test, verify_https
 ):
     from aiohttp import web
     from gql.transport.httpx import HTTPXTransport
@@ -134,14 +134,14 @@ async def test_httpx_query_https(
             assert isinstance(transport.response_headers, Mapping)
             assert transport.response_headers["dummy"] == "test1234"
 
-    await run_sync_test(event_loop, server, test_code)
+    await run_sync_test(server, test_code)
 
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
 @pytest.mark.parametrize("verify_https", ["explicitely_enabled", "default"])
 async def test_httpx_query_https_self_cert_fail(
-    event_loop, ssl_aiohttp_server, run_sync_test, verify_https
+    ssl_aiohttp_server, run_sync_test, verify_https
 ):
     """By default, we should verify the ssl certificate"""
     from aiohttp import web
@@ -186,12 +186,12 @@ async def test_httpx_query_https_self_cert_fail(
 
         assert expected_error in str(exc_info.value)
 
-    await run_sync_test(event_loop, server, test_code)
+    await run_sync_test(server, test_code)
 
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_httpx_cookies(event_loop, aiohttp_server, run_sync_test):
+async def test_httpx_cookies(aiohttp_server, run_sync_test):
     from aiohttp import web
     from gql.transport.httpx import HTTPXTransport
 
@@ -223,12 +223,12 @@ async def test_httpx_cookies(event_loop, aiohttp_server, run_sync_test):
 
             assert africa["code"] == "AF"
 
-    await run_sync_test(event_loop, server, test_code)
+    await run_sync_test(server, test_code)
 
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_httpx_error_code_401(event_loop, aiohttp_server, run_sync_test):
+async def test_httpx_error_code_401(aiohttp_server, run_sync_test):
     from aiohttp import web
     from gql.transport.httpx import HTTPXTransport
 
@@ -258,12 +258,12 @@ async def test_httpx_error_code_401(event_loop, aiohttp_server, run_sync_test):
 
             assert "Client error '401 Unauthorized'" in str(exc_info.value)
 
-    await run_sync_test(event_loop, server, test_code)
+    await run_sync_test(server, test_code)
 
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_httpx_error_code_429(event_loop, aiohttp_server, run_sync_test):
+async def test_httpx_error_code_429(aiohttp_server, run_sync_test):
     from aiohttp import web
     from gql.transport.httpx import HTTPXTransport
 
@@ -312,7 +312,7 @@ async def test_httpx_error_code_429(event_loop, aiohttp_server, run_sync_test):
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_httpx_error_code_500(event_loop, aiohttp_server, run_sync_test):
+async def test_httpx_error_code_500(aiohttp_server, run_sync_test):
     from aiohttp import web
     from gql.transport.httpx import HTTPXTransport
 
@@ -336,7 +336,7 @@ async def test_httpx_error_code_500(event_loop, aiohttp_server, run_sync_test):
             with pytest.raises(TransportServerError):
                 session.execute(query)
 
-    await run_sync_test(event_loop, server, test_code)
+    await run_sync_test(server, test_code)
 
 
 query1_server_error_answer = '{"errors": ["Error 1", "Error 2"]}'
@@ -344,7 +344,7 @@ query1_server_error_answer = '{"errors": ["Error 1", "Error 2"]}'
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_httpx_error_code(event_loop, aiohttp_server, run_sync_test):
+async def test_httpx_error_code(aiohttp_server, run_sync_test):
     from aiohttp import web
     from gql.transport.httpx import HTTPXTransport
 
@@ -369,7 +369,7 @@ async def test_httpx_error_code(event_loop, aiohttp_server, run_sync_test):
             with pytest.raises(TransportQueryError):
                 session.execute(query)
 
-    await run_sync_test(event_loop, server, test_code)
+    await run_sync_test(server, test_code)
 
 
 invalid_protocol_responses = [
@@ -383,7 +383,7 @@ invalid_protocol_responses = [
 @pytest.mark.asyncio
 @pytest.mark.parametrize("response", invalid_protocol_responses)
 async def test_httpx_invalid_protocol(
-    event_loop, aiohttp_server, response, run_sync_test
+    aiohttp_server, response, run_sync_test
 ):
     from aiohttp import web
     from gql.transport.httpx import HTTPXTransport
@@ -407,12 +407,12 @@ async def test_httpx_invalid_protocol(
             with pytest.raises(TransportProtocolError):
                 session.execute(query)
 
-    await run_sync_test(event_loop, server, test_code)
+    await run_sync_test(server, test_code)
 
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_httpx_cannot_connect_twice(event_loop, aiohttp_server, run_sync_test):
+async def test_httpx_cannot_connect_twice(aiohttp_server, run_sync_test):
     from aiohttp import web
     from gql.transport.httpx import HTTPXTransport
 
@@ -433,13 +433,13 @@ async def test_httpx_cannot_connect_twice(event_loop, aiohttp_server, run_sync_t
             with pytest.raises(TransportAlreadyConnected):
                 session.transport.connect()
 
-    await run_sync_test(event_loop, server, test_code)
+    await run_sync_test(server, test_code)
 
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
 async def test_httpx_cannot_execute_if_not_connected(
-    event_loop, aiohttp_server, run_sync_test
+    aiohttp_server, run_sync_test
 ):
     from aiohttp import web
     from gql.transport.httpx import HTTPXTransport
@@ -461,7 +461,7 @@ async def test_httpx_cannot_execute_if_not_connected(
         with pytest.raises(TransportClosed):
             transport.execute(query)
 
-    await run_sync_test(event_loop, server, test_code)
+    await run_sync_test(server, test_code)
 
 
 query1_server_answer_with_extensions = (
@@ -477,7 +477,7 @@ query1_server_answer_with_extensions = (
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_httpx_query_with_extensions(event_loop, aiohttp_server, run_sync_test):
+async def test_httpx_query_with_extensions(aiohttp_server, run_sync_test):
     from aiohttp import web
     from gql.transport.httpx import HTTPXTransport
 
@@ -503,7 +503,7 @@ async def test_httpx_query_with_extensions(event_loop, aiohttp_server, run_sync_
 
             assert execution_result.extensions["key1"] == "val1"
 
-    await run_sync_test(event_loop, server, test_code)
+    await run_sync_test(server, test_code)
 
 
 file_upload_server_answer = '{"data":{"success":true}}'
@@ -532,7 +532,7 @@ This file will be sent in the GraphQL mutation
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_httpx_file_upload(event_loop, aiohttp_server, run_sync_test):
+async def test_httpx_file_upload(aiohttp_server, run_sync_test):
     from aiohttp import web
     from gql.transport.httpx import HTTPXTransport
 
@@ -587,13 +587,13 @@ async def test_httpx_file_upload(event_loop, aiohttp_server, run_sync_test):
 
                     assert execution_result.data["success"]
 
-    await run_sync_test(event_loop, server, test_code)
+    await run_sync_test(server, test_code)
 
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
 async def test_httpx_file_upload_with_content_type(
-    event_loop, aiohttp_server, run_sync_test
+    aiohttp_server, run_sync_test
 ):
     from aiohttp import web
     from gql.transport.httpx import HTTPXTransport
@@ -655,13 +655,13 @@ async def test_httpx_file_upload_with_content_type(
 
                     assert execution_result.data["success"]
 
-    await run_sync_test(event_loop, server, test_code)
+    await run_sync_test(server, test_code)
 
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
 async def test_httpx_file_upload_additional_headers(
-    event_loop, aiohttp_server, run_sync_test
+    aiohttp_server, run_sync_test
 ):
     from aiohttp import web
     from gql.transport.httpx import HTTPXTransport
@@ -719,12 +719,12 @@ async def test_httpx_file_upload_additional_headers(
 
                     assert execution_result.data["success"]
 
-    await run_sync_test(event_loop, server, test_code)
+    await run_sync_test(server, test_code)
 
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_httpx_binary_file_upload(event_loop, aiohttp_server, run_sync_test):
+async def test_httpx_binary_file_upload(aiohttp_server, run_sync_test):
     from aiohttp import web
     from gql.transport.httpx import HTTPXTransport
 
@@ -785,7 +785,7 @@ async def test_httpx_binary_file_upload(event_loop, aiohttp_server, run_sync_tes
 
                     assert execution_result.data["success"]
 
-    await run_sync_test(event_loop, server, test_code)
+    await run_sync_test(server, test_code)
 
 
 file_upload_mutation_2_operations = (
@@ -797,7 +797,7 @@ file_upload_mutation_2_operations = (
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_httpx_file_upload_two_files(event_loop, aiohttp_server, run_sync_test):
+async def test_httpx_file_upload_two_files(aiohttp_server, run_sync_test):
     from aiohttp import web
     from gql.transport.httpx import HTTPXTransport
 
@@ -883,7 +883,7 @@ async def test_httpx_file_upload_two_files(event_loop, aiohttp_server, run_sync_
                     f1.close()
                     f2.close()
 
-    await run_sync_test(event_loop, server, test_code)
+    await run_sync_test(server, test_code)
 
 
 file_upload_mutation_3_operations = (
@@ -896,7 +896,7 @@ file_upload_mutation_3_operations = (
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
 async def test_httpx_file_upload_list_of_two_files(
-    event_loop, aiohttp_server, run_sync_test
+    aiohttp_server, run_sync_test
 ):
     from aiohttp import web
     from gql.transport.httpx import HTTPXTransport
@@ -981,12 +981,12 @@ async def test_httpx_file_upload_list_of_two_files(
                     f1.close()
                     f2.close()
 
-    await run_sync_test(event_loop, server, test_code)
+    await run_sync_test(server, test_code)
 
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_httpx_error_fetching_schema(event_loop, aiohttp_server, run_sync_test):
+async def test_httpx_error_fetching_schema(aiohttp_server, run_sync_test):
     from aiohttp import web
     from gql.transport.httpx import HTTPXTransport
 
@@ -1028,4 +1028,4 @@ async def test_httpx_error_fetching_schema(event_loop, aiohttp_server, run_sync_
         assert expected_error in str(exc_info.value)
         assert transport.client is None
 
-    await run_sync_test(event_loop, server, test_code)
+    await run_sync_test(server, test_code)

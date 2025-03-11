@@ -51,7 +51,7 @@ server1_answers = [
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server1_answers], indirect=True)
-async def test_websocket_starting_client_in_context_manager(event_loop, server):
+async def test_websocket_starting_client_in_context_manager(server):
     from gql.transport.websockets import WebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
@@ -91,7 +91,7 @@ async def test_websocket_starting_client_in_context_manager(event_loop, server):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("ws_ssl_server", [server1_answers], indirect=True)
-async def test_websocket_using_ssl_connection(event_loop, ws_ssl_server):
+async def test_websocket_using_ssl_connection(ws_ssl_server):
     import websockets
     from gql.transport.websockets import WebsocketsTransport
 
@@ -136,7 +136,7 @@ async def test_websocket_using_ssl_connection(event_loop, ws_ssl_server):
 @pytest.mark.parametrize("ws_ssl_server", [server1_answers], indirect=True)
 @pytest.mark.parametrize("verify_https", ["explicitely_enabled", "default"])
 async def test_websocket_using_ssl_connection_self_cert_fail(
-    event_loop, ws_ssl_server, verify_https
+    ws_ssl_server, verify_https
 ):
     from gql.transport.websockets import WebsocketsTransport
     from ssl import SSLCertVerificationError
@@ -178,7 +178,7 @@ async def test_websocket_using_ssl_connection_self_cert_fail(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server1_answers], indirect=True)
 @pytest.mark.parametrize("query_str", [query1_str])
-async def test_websocket_simple_query(event_loop, client_and_server, query_str):
+async def test_websocket_simple_query(client_and_server, query_str):
 
     session, server = client_and_server
 
@@ -199,7 +199,7 @@ server1_two_answers_in_series = [
 @pytest.mark.parametrize("server", [server1_two_answers_in_series], indirect=True)
 @pytest.mark.parametrize("query_str", [query1_str])
 async def test_websocket_two_queries_in_series(
-    event_loop, client_and_server, query_str
+    client_and_server, query_str
 ):
 
     session, server = client_and_server
@@ -235,7 +235,7 @@ async def server1_two_queries_in_parallel(ws):
 @pytest.mark.parametrize("server", [server1_two_queries_in_parallel], indirect=True)
 @pytest.mark.parametrize("query_str", [query1_str])
 async def test_websocket_two_queries_in_parallel(
-    event_loop, client_and_server, query_str
+    client_and_server, query_str
 ):
 
     session, server = client_and_server
@@ -282,7 +282,7 @@ async def server_closing_while_we_are_doing_something_else(ws):
 )
 @pytest.mark.parametrize("query_str", [query1_str])
 async def test_websocket_server_closing_after_first_query(
-    event_loop, client_and_server, query_str
+    client_and_server, query_str
 ):
 
     session, server = client_and_server
@@ -311,7 +311,7 @@ ignore_invalid_id_answers = [
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [ignore_invalid_id_answers], indirect=True)
 @pytest.mark.parametrize("query_str", [query1_str])
-async def test_websocket_ignore_invalid_id(event_loop, client_and_server, query_str):
+async def test_websocket_ignore_invalid_id(client_and_server, query_str):
 
     session, server = client_and_server
 
@@ -346,7 +346,7 @@ async def assert_client_is_working(session):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server1_answers], indirect=True)
-async def test_websocket_multiple_connections_in_series(event_loop, server):
+async def test_websocket_multiple_connections_in_series(server):
     from gql.transport.websockets import WebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
@@ -369,7 +369,7 @@ async def test_websocket_multiple_connections_in_series(event_loop, server):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server1_answers], indirect=True)
-async def test_websocket_multiple_connections_in_parallel(event_loop, server):
+async def test_websocket_multiple_connections_in_parallel(server):
     from gql.transport.websockets import WebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
@@ -389,7 +389,7 @@ async def test_websocket_multiple_connections_in_parallel(event_loop, server):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server1_answers], indirect=True)
 async def test_websocket_trying_to_connect_to_already_connected_transport(
-    event_loop, server
+    server
 ):
     from gql.transport.websockets import WebsocketsTransport
 
@@ -437,7 +437,7 @@ async def server_with_authentication_in_connection_init_payload(ws):
 )
 @pytest.mark.parametrize("query_str", [query1_str])
 async def test_websocket_connect_success_with_authentication_in_connection_init(
-    event_loop, server, query_str
+    server, query_str
 ):
     from gql.transport.websockets import WebsocketsTransport
 
@@ -472,7 +472,7 @@ async def test_websocket_connect_success_with_authentication_in_connection_init(
 @pytest.mark.parametrize("query_str", [query1_str])
 @pytest.mark.parametrize("init_payload", [{}, {"Authorization": "invalid_code"}])
 async def test_websocket_connect_failed_with_authentication_in_connection_init(
-    event_loop, server, query_str, init_payload
+    server, query_str, init_payload
 ):
     from gql.transport.websockets import WebsocketsTransport
 
@@ -534,7 +534,7 @@ def test_websocket_execute_sync(server):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server1_answers], indirect=True)
-async def test_websocket_add_extra_parameters_to_connect(event_loop, server):
+async def test_websocket_add_extra_parameters_to_connect(server):
     from gql.transport.websockets import WebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
@@ -567,7 +567,7 @@ async def server_sending_keep_alive_before_connection_ack(ws):
 )
 @pytest.mark.parametrize("query_str", [query1_str])
 async def test_websocket_non_regression_bug_108(
-    event_loop, client_and_server, query_str
+    client_and_server, query_str
 ):
 
     # This test will check that we now ignore keepalive message
@@ -590,7 +590,7 @@ async def test_websocket_non_regression_bug_108(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server1_answers], indirect=True)
-async def test_websocket_using_cli(event_loop, server, monkeypatch, capsys):
+async def test_websocket_using_cli(server, monkeypatch, capsys):
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
@@ -642,7 +642,7 @@ server1_answers_with_extensions = [
 @pytest.mark.parametrize("server", [server1_answers_with_extensions], indirect=True)
 @pytest.mark.parametrize("query_str", [query1_str])
 async def test_websocket_simple_query_with_extensions(
-    event_loop, client_and_server, query_str
+    client_and_server, query_str
 ):
 
     session, server = client_and_server
@@ -656,7 +656,7 @@ async def test_websocket_simple_query_with_extensions(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server1_answers], indirect=True)
-async def test_websocket_adapter_connection_closed(event_loop, server):
+async def test_websocket_adapter_connection_closed(server):
     from gql.transport.websockets import WebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
@@ -680,7 +680,7 @@ async def test_websocket_adapter_connection_closed(event_loop, server):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server1_answers], indirect=True)
-async def test_websocket_transport_closed_in_receive(event_loop, server):
+async def test_websocket_transport_closed_in_receive(server):
     from gql.transport.websockets import WebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
