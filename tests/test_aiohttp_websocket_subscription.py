@@ -9,7 +9,7 @@ from graphql import ExecutionResult
 from parse import search
 
 from gql import Client, gql
-from gql.transport.exceptions import TransportConnectionClosed, TransportServerError
+from gql.transport.exceptions import TransportConnectionFailed, TransportServerError
 
 from .conftest import MS, WebSocketServerHelper
 from .starwars.schema import StarWarsIntrospection, StarWarsSchema, StarWarsTypeDef
@@ -385,7 +385,7 @@ async def test_aiohttp_websocket_subscription_server_connection_closed(
     count = 10
     subscription = gql(subscription_str.format(count=count))
 
-    with pytest.raises(TransportConnectionClosed):
+    with pytest.raises(TransportConnectionFailed):
 
         async for result in session.subscribe(subscription):
 
@@ -778,7 +778,7 @@ async def test_subscribe_on_closing_transport(event_loop, server, subscription_s
     async with client as session:
         session.transport.adapter.websocket._writer._closing = True
 
-        with pytest.raises(TransportConnectionClosed):
+        with pytest.raises(TransportConnectionFailed):
             async for _ in session.subscribe(subscription):
                 pass
 
@@ -801,6 +801,6 @@ async def test_subscribe_on_null_transport(event_loop, server, subscription_str)
     async with client as session:
 
         session.transport.adapter.websocket = None
-        with pytest.raises(TransportConnectionClosed):
+        with pytest.raises(TransportConnectionFailed):
             async for _ in session.subscribe(subscription):
                 pass

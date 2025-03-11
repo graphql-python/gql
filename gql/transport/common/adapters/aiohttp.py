@@ -8,7 +8,7 @@ from aiohttp import BasicAuth, Fingerprint, WSMsgType
 from aiohttp.typedefs import LooseHeaders, StrOrURL
 from multidict import CIMultiDictProxy
 
-from ...exceptions import TransportConnectionClosed, TransportProtocolError
+from ...exceptions import TransportConnectionFailed, TransportProtocolError
 from ..aiohttp_closed_event import create_aiohttp_closed_event
 from .connection import AdapterConnection
 
@@ -160,7 +160,7 @@ class AIOHTTPWebSocketsAdapter(AdapterConnection):
                 **connect_args,
             )
         except Exception as e:
-            raise TransportConnectionClosed("Connect failed") from e
+            raise TransportConnectionFailed("Connect failed") from e
 
         self._response_headers = self.websocket._response.headers
 
@@ -171,15 +171,15 @@ class AIOHTTPWebSocketsAdapter(AdapterConnection):
             message: String message to send
 
         Raises:
-            TransportConnectionClosed: If connection closed
+            TransportConnectionFailed: If connection closed
         """
         if self.websocket is None:
-            raise TransportConnectionClosed("Connection is already closed")
+            raise TransportConnectionFailed("Connection is already closed")
 
         try:
             await self.websocket.send_str(message)
         except ConnectionResetError as e:
-            raise TransportConnectionClosed("Connection was closed") from e
+            raise TransportConnectionFailed("Connection was closed") from e
 
     async def receive(self) -> str:
         """Receive message from the WebSocket server.
@@ -188,12 +188,12 @@ class AIOHTTPWebSocketsAdapter(AdapterConnection):
             String message received
 
         Raises:
-            TransportConnectionClosed: If connection closed
+            TransportConnectionFailed: If connection closed
             TransportProtocolError: If protocol error or binary data received
         """
         # It is possible that the websocket has been already closed in another task
         if self.websocket is None:
-            raise TransportConnectionClosed("Connection is already closed")
+            raise TransportConnectionFailed("Connection is already closed")
 
         while True:
             ws_message = await self.websocket.receive()
@@ -208,7 +208,7 @@ class AIOHTTPWebSocketsAdapter(AdapterConnection):
             WSMsgType.CLOSING,
             WSMsgType.ERROR,
         ):
-            raise TransportConnectionClosed("Connection was closed")
+            raise TransportConnectionFailed("Connection was closed")
         elif ws_message.type is WSMsgType.BINARY:
             raise TransportProtocolError("Binary data received in the websocket")
 

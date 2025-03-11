@@ -11,7 +11,7 @@ from ..async_transport import AsyncTransport
 from ..exceptions import (
     TransportAlreadyConnected,
     TransportClosed,
-    TransportConnectionClosed,
+    TransportConnectionFailed,
     TransportProtocolError,
     TransportQueryError,
     TransportServerError,
@@ -134,7 +134,7 @@ class SubscriptionTransportBase(AsyncTransport):
         try:
             await self.adapter.send(message)
             log.info(">>> %s", message)
-        except TransportConnectionClosed as e:
+        except TransportConnectionFailed as e:
             await self._fail(e, clean_close=False)
             raise e
 
@@ -146,7 +146,7 @@ class SubscriptionTransportBase(AsyncTransport):
             raise TransportClosed("Transport is already closed")
 
         # Wait for the next frame.
-        # Can raise TransportConnectionClosed or TransportProtocolError
+        # Can raise TransportConnectionFailed or TransportProtocolError
         answer: str = await self.adapter.receive()
 
         log.info("<<< %s", answer)
@@ -211,7 +211,7 @@ class SubscriptionTransportBase(AsyncTransport):
                 # Wait the next answer from the server
                 try:
                     answer = await self._receive()
-                except (TransportConnectionClosed, TransportProtocolError) as e:
+                except (TransportConnectionFailed, TransportProtocolError) as e:
                     await self._fail(e, clean_close=False)
                     break
                 except TransportClosed:
@@ -296,7 +296,7 @@ class SubscriptionTransportBase(AsyncTransport):
             while True:
 
                 # Wait for the answer from the queue of this query_id
-                # This can raise TransportError or TransportConnectionClosed
+                # This can raise TransportError or TransportConnectionFailed
                 answer_type, execution_result = await listener.get()
 
                 # If the received answer contains data,
@@ -402,7 +402,7 @@ class SubscriptionTransportBase(AsyncTransport):
             # if no ACKs are received within the ack_timeout
             try:
                 await self._initialize()
-            except TransportConnectionClosed as e:
+            except TransportConnectionFailed as e:
                 raise e
             except (
                 TransportProtocolError,

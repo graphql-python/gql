@@ -8,7 +8,7 @@ from graphql import DocumentNode, ExecutionResult, print_ast
 from .common.adapters.websockets import WebSocketsAdapter
 from .common.base import SubscriptionTransportBase
 from .exceptions import (
-    TransportConnectionClosed,
+    TransportConnectionFailed,
     TransportProtocolError,
     TransportQueryError,
     TransportServerError,
@@ -127,7 +127,7 @@ class PhoenixChannelWebsocketsTransport(SubscriptionTransportBase):
                             }
                         )
                     )
-                except TransportConnectionClosed:  # pragma: no cover
+                except TransportConnectionFailed:  # pragma: no cover
                     return
 
         self.heartbeat_task = asyncio.ensure_future(heartbeat_coro())

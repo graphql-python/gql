@@ -4,7 +4,7 @@ import pytest
 from graphql import print_ast
 
 from gql import gql
-from gql.transport.exceptions import TransportConnectionClosed
+from gql.transport.exceptions import TransportConnectionFailed
 
 # Marking all tests in this file with the websockets marker
 pytestmark = pytest.mark.websockets
@@ -91,8 +91,8 @@ async def test_websockets_adapter_edge_cases(event_loop, server):
     # Second close call is ignored
     await adapter.close()
 
-    with pytest.raises(TransportConnectionClosed):
+    with pytest.raises(TransportConnectionFailed):
         await adapter.send("Blah")
 
-    with pytest.raises(TransportConnectionClosed):
+    with pytest.raises(TransportConnectionFailed):
         await adapter.receive()

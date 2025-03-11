@@ -1,7 +1,7 @@
 import pytest
 
 from gql import Client, gql
-from gql.transport.exceptions import TransportConnectionClosed
+from gql.transport.exceptions import TransportConnectionFailed
 
 from .conftest import get_localhost_ssl_context_client
 
@@ -132,7 +132,7 @@ async def test_phoenix_channel_query_ssl_self_cert_fail(
 
     query = gql(query_str)
 
-    with pytest.raises(TransportConnectionClosed) as exc_info:
+    with pytest.raises(TransportConnectionFailed) as exc_info:
         async with Client(transport=transport) as session:
             await session.execute(query)
 

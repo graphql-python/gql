@@ -9,7 +9,7 @@ from graphql import DocumentNode, ExecutionResult, print_ast
 from .common.adapters.connection import AdapterConnection
 from .common.base import SubscriptionTransportBase
 from .exceptions import (
-    TransportConnectionClosed,
+    TransportConnectionFailed,
     TransportProtocolError,
     TransportQueryError,
     TransportServerError,
@@ -508,7 +508,7 @@ class WebsocketsProtocolTransportBase(SubscriptionTransportBase):
         if self.send_ping_task is not None:
             log.debug("_close_hook: cancelling send_ping_task")
             self.send_ping_task.cancel()
-            with suppress(asyncio.CancelledError, TransportConnectionClosed):
+            with suppress(asyncio.CancelledError, TransportConnectionFailed):
                 log.debug("_close_hook: awaiting send_ping_task")
                 await self.send_ping_task
             self.send_ping_task = None

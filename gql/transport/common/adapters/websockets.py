@@ -6,7 +6,7 @@ import websockets
 from websockets.client import WebSocketClientProtocol
 from websockets.datastructures import Headers, HeadersLike
 
-from ...exceptions import TransportConnectionClosed, TransportProtocolError
+from ...exceptions import TransportConnectionFailed, TransportProtocolError
 from .connection import AdapterConnection
 
 log = logging.getLogger("gql.transport.common.adapters.websockets")
@@ -70,7 +70,7 @@ class WebSocketsAdapter(AdapterConnection):
         try:
             self.websocket = await websockets.client.connect(self.url, **connect_args)
         except Exception as e:
-            raise TransportConnectionClosed("Connect failed") from e
+            raise TransportConnectionFailed("Connect failed") from e
 
         self._response_headers = self.websocket.response_headers
 
@@ -81,15 +81,15 @@ class WebSocketsAdapter(AdapterConnection):
             message: String message to send
 
         Raises:
-            TransportConnectionClosed: If connection closed
+            TransportConnectionFailed: If connection closed
         """
         if self.websocket is None:
-            raise TransportConnectionClosed("Connection is already closed")
+            raise TransportConnectionFailed("Connection is already closed")
 
         try:
             await self.websocket.send(message)
         except Exception as e:
-            raise TransportConnectionClosed("Connection was closed") from e
+            raise TransportConnectionFailed("Connection was closed") from e
 
     async def receive(self) -> str:
         """Receive message from the WebSocket server.
@@ -98,18 +98,18 @@ class WebSocketsAdapter(AdapterConnection):
             String message received
 
         Raises:
-            TransportConnectionClosed: If connection closed
+            TransportConnectionFailed: If connection closed
             TransportProtocolError: If protocol error or binary data received
         """
         # It is possible that the websocket has been already closed in another task
         if self.websocket is None:
-            raise TransportConnectionClosed("Connection is already closed")
+            raise TransportConnectionFailed("Connection is already closed")
 
         # Wait for the next websocket frame. Can raise ConnectionClosed
         try:
             data = await self.websocket.recv()
         except Exception as e:
-            raise TransportConnectionClosed("Connection was closed") from e
+            raise TransportConnectionFailed("Connection was closed") from e
 
         # websocket.recv() can return either str or bytes
         # In our case, we should receive only str here

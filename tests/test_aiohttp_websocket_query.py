@@ -9,7 +9,7 @@ from gql import Client, gql
 from gql.transport.exceptions import (
     TransportAlreadyConnected,
     TransportClosed,
-    TransportConnectionClosed,
+    TransportConnectionFailed,
     TransportQueryError,
     TransportServerError,
 )
@@ -177,7 +177,7 @@ async def test_aiohttp_websocket_using_ssl_connection_self_cert_fail(
     if verify_https == "explicitely_enabled":
         assert transport.ssl is True
 
-    with pytest.raises(TransportConnectionClosed) as exc_info:
+    with pytest.raises(TransportConnectionFailed) as exc_info:
         async with Client(transport=transport) as session:
 
             query1 = gql(query1_str)

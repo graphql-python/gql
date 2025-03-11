@@ -35,7 +35,7 @@ class AdapterConnection(abc.ABC):
             message: String message to send
 
         Raises:
-            TransportConnectionClosed: If connection closed
+            TransportConnectionFailed: If connection closed
         """
         pass  # pragma: no cover
 
@@ -47,7 +47,7 @@ class AdapterConnection(abc.ABC):
             String message received
 
         Raises:
-            TransportConnectionClosed: If connection closed
+            TransportConnectionFailed: If connection closed
             TransportProtocolError: If protocol error or binary data received
         """
         pass  # pragma: no cover
