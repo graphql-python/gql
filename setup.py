@@ -38,8 +38,7 @@ dev_requires = [
 ] + tests_requires
 
 install_aiohttp_requires = [
-    "aiohttp>=3.8.0,<4;python_version<='3.11'",
-    "aiohttp>=3.9.0b0,<4;python_version>'3.11'",
+    "aiohttp>=3.11.2,<4",
 ]
 
 install_requests_requires = [
