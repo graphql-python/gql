@@ -179,7 +179,7 @@ async def test_aiohttp_websocket_sending_invalid_payload(
         document,
         variable_values=None,
         operation_name=None,
-    ) -> int:
+    ):
         query_id = self.next_query_id
         self.next_query_id += 1
 

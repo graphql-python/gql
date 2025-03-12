@@ -12,10 +12,10 @@ def fake_signer_factory(fake_request_factory):
 
 
 class FakeSigner:
-    def __init__(self, request=None) -> None:
+    def __init__(self, request=None):
         self.request = request
 
-    def add_auth(self, request) -> None:
+    def add_auth(self, request):
         """
         A fake for getting a request object that
         :return:

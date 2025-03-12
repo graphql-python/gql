@@ -1,5 +1,5 @@
 import abc
-from typing import List
+from typing import Any, List
 
 from graphql import DocumentNode, ExecutionResult
 
@@ -8,7 +8,9 @@ from ..graphql_request import GraphQLRequest
 
 class Transport(abc.ABC):
     @abc.abstractmethod
-    def execute(self, document: DocumentNode, *args, **kwargs) -> ExecutionResult:
+    def execute(
+        self, document: DocumentNode, *args: Any, **kwargs: Any
+    ) -> ExecutionResult:
         """Execute GraphQL query.
 
         Execute the provided document AST for either a remote or local GraphQL Schema.
@@ -23,8 +25,8 @@ class Transport(abc.ABC):
     def execute_batch(
         self,
         reqs: List[GraphQLRequest],
-        *args,
-        **kwargs,
+        *args: Any,
+        **kwargs: Any,
     ) -> List[ExecutionResult]:
         """Execute multiple GraphQL requests in a batch.
 

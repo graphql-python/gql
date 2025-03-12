@@ -10,10 +10,11 @@ import sys
 import tempfile
 import types
 from concurrent.futures import ThreadPoolExecutor
-from typing import Callable, Iterable, Union
+from typing import Callable, Iterable, List, Union, cast
 
 import pytest
 import pytest_asyncio
+from _pytest.fixtures import SubRequest
 
 from gql import Client
 
@@ -250,7 +251,7 @@ class AIOHTTPWebsocketServer:
         if with_ssl:
             _, self.ssl_context = get_localhost_ssl_context()
 
-    def get_default_server_handler(answers: Iterable[str]):
+    def get_default_server_handler(answers: Iterable[str]) -> Callable:
         async def default_server_handler(request):
 
             import aiohttp
@@ -475,24 +476,30 @@ class TemporaryFile:
         os.unlink(self.filename)
 
 
-def get_aiohttp_ws_server_handler(request):
+def get_aiohttp_ws_server_handler(
+    request: SubRequest,
+) -> Callable:
     """Get the server handler for the aiohttp websocket server.
 
     Either get it from test or use the default server handler
     if the test provides only an array of answers.
     """
 
+    server_handler: Callable
+
     if isinstance(request.param, types.FunctionType):
         server_handler = request.param
 
     else:
-        answers = request.param
+        answers = cast(List[str], request.param)
         server_handler = AIOHTTPWebsocketServer.get_default_server_handler(answers)
 
     return server_handler
 
 
-def get_server_handler(request):
+def get_server_handler(
+    request: SubRequest,
+) -> Callable:
     """Get the server handler.
 
     Either get it from test or use the default server handler

@@ -388,7 +388,7 @@ luke: human(id: "1000") {
     assert query == str(query_dsl)
 
 
-def test_fetch_name_aliased(ds: DSLSchema):
+def test_fetch_name_aliased(ds: DSLSchema) -> None:
     query = """
 human(id: "1000") {
   my_name: name
@@ -399,7 +399,7 @@ human(id: "1000") {
     assert query == str(query_dsl)
 
 
-def test_fetch_name_aliased_as_kwargs(ds: DSLSchema):
+def test_fetch_name_aliased_as_kwargs(ds: DSLSchema) -> None:
     query = """
 human(id: "1000") {
   my_name: name

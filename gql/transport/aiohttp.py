@@ -9,6 +9,7 @@ from typing import (
     AsyncGenerator,
     Callable,
     Dict,
+    NoReturn,
     Optional,
     Tuple,
     Type,
@@ -285,7 +286,9 @@ class AIOHTTPTransport(AsyncTransport):
             # Saving latest response headers in the transport
             self.response_headers = resp.headers
 
-            async def raise_response_error(resp: aiohttp.ClientResponse, reason: str):
+            async def raise_response_error(
+                resp: aiohttp.ClientResponse, reason: str
+            ) -> NoReturn:
                 # We raise a TransportServerError if the status code is 400 or higher
                 # We raise a TransportProtocolError in the other cases
 

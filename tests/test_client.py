@@ -1,5 +1,6 @@
 import os
 from contextlib import suppress
+from typing import Any
 from unittest import mock
 
 import pytest
@@ -40,7 +41,12 @@ def test_request_transport_not_implemented(http_transport_query):
     )
 
     class RandomTransport2(Transport):
-        def execute(self, document: DocumentNode, *args, **kwargs) -> ExecutionResult:
+        def execute(
+            self,
+            document: DocumentNode,
+            *args: Any,
+            **kwargs: Any,
+        ) -> ExecutionResult:
             return ExecutionResult()
 
     with pytest.raises(NotImplementedError) as exc_info2:

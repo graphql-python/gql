@@ -1,6 +1,6 @@
 import asyncio
 from inspect import isawaitable
-from typing import AsyncGenerator, Awaitable, cast
+from typing import Any, AsyncGenerator, Awaitable, cast
 
 from graphql import DocumentNode, ExecutionResult, GraphQLSchema, execute, subscribe
 
@@ -31,8 +31,8 @@ class LocalSchemaTransport(AsyncTransport):
     async def execute(
         self,
         document: DocumentNode,
-        *args,
-        **kwargs,
+        *args: Any,
+        **kwargs: Any,
     ) -> ExecutionResult:
         """Execute the provided document AST for on a local GraphQL Schema."""
 
@@ -58,8 +58,8 @@ class LocalSchemaTransport(AsyncTransport):
     async def subscribe(
         self,
         document: DocumentNode,
-        *args,
-        **kwargs,
+        *args: Any,
+        **kwargs: Any,
     ) -> AsyncGenerator[ExecutionResult, None]:
         """Send a subscription and receive the results using an async generator
 

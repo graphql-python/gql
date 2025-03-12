@@ -95,29 +95,29 @@ class SubscriptionTransportBase(AsyncTransport):
         """
         pass  # pragma: no cover
 
-    async def _stop_listener(self, query_id: int):
+    async def _stop_listener(self, query_id: int) -> None:
         """Hook to stop to listen to a specific query.
         Will send a stop message in some subclasses.
         """
         pass  # pragma: no cover
 
-    async def _after_connect(self):
+    async def _after_connect(self) -> None:
         """Hook to add custom code for subclasses after the connection
         has been established.
         """
         pass  # pragma: no cover
 
-    async def _after_initialize(self):
+    async def _after_initialize(self) -> None:
         """Hook to add custom code for subclasses after the initialization
         has been done.
         """
         pass  # pragma: no cover
 
-    async def _close_hook(self):
+    async def _close_hook(self) -> None:
         """Hook to add custom code for subclasses for the connection close"""
         pass  # pragma: no cover
 
-    async def _connection_terminate(self):
+    async def _connection_terminate(self) -> None:
         """Hook to add custom code for subclasses after the initialization
         has been done.
         """
@@ -430,7 +430,7 @@ class SubscriptionTransportBase(AsyncTransport):
 
         log.debug("connect: done")
 
-    def _remove_listener(self, query_id) -> None:
+    def _remove_listener(self, query_id: int) -> None:
         """After exiting from a subscription, remove the listener and
         signal an event if this was the last listener for the client.
         """

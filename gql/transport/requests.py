@@ -1,7 +1,18 @@
 import io
 import json
 import logging
-from typing import Any, Callable, Collection, Dict, List, Optional, Tuple, Type, Union
+from typing import (
+    Any,
+    Callable,
+    Collection,
+    Dict,
+    List,
+    NoReturn,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+)
 
 import requests
 from graphql import DocumentNode, ExecutionResult, print_ast
@@ -248,7 +259,7 @@ class RequestsHTTPTransport(Transport):
         )
         self.response_headers = response.headers
 
-        def raise_response_error(resp: requests.Response, reason: str):
+        def raise_response_error(resp: requests.Response, reason: str) -> NoReturn:
             # We raise a TransportServerError if the status code is 400 or higher
             # We raise a TransportProtocolError in the other cases
 

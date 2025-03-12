@@ -339,7 +339,7 @@ class DSLSelector(ABC):
         self,
         *fields: "DSLSelectable",
         **fields_with_alias: "DSLSelectableWithAlias",
-    ):
+    ) -> Any:
         r"""Select the fields which should be added.
 
         :param \*fields: fields or fragments
@@ -839,10 +839,10 @@ class DSLField(DSLSelectableWithAlias, DSLFieldSelector):
         """:meta private:"""
         return self.ast_field.name.value
 
-    def __call__(self, **kwargs) -> "DSLField":
+    def __call__(self, **kwargs: Any) -> "DSLField":
         return self.args(**kwargs)
 
-    def args(self, **kwargs) -> "DSLField":
+    def args(self, **kwargs: Any) -> "DSLField":
         r"""Set the arguments of a field
 
         The arguments are parsed to be stored in the AST of this field.

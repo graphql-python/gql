@@ -175,7 +175,7 @@ async def test_websocket_sending_invalid_payload(client_and_server, query_str):
         document,
         variable_values=None,
         operation_name=None,
-    ) -> int:
+    ):
         query_id = self.next_query_id
         self.next_query_id += 1
 

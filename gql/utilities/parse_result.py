@@ -44,7 +44,7 @@ RESULT_DOCUMENT_KEYS: Dict[str, Tuple[str, ...]] = {
 }
 
 
-def _ignore_non_null(type_: GraphQLType):
+def _ignore_non_null(type_: GraphQLType) -> GraphQLType:
     """Removes the GraphQLNonNull wrappings around types."""
     if isinstance(type_, GraphQLNonNull):
         return type_.of_type

@@ -194,7 +194,7 @@ class WebsocketsProtocolTransportBase(SubscriptionTransportBase):
 
         await self._send(complete_message)
 
-    async def _stop_listener(self, query_id: int):
+    async def _stop_listener(self, query_id: int) -> None:
         """Stop the listener corresponding to the query_id depending on the
         detected backend protocol.
 
