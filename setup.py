@@ -51,7 +51,7 @@ install_httpx_requires = [
 ]
 
 install_websockets_requires = [
-    "websockets>=10.1,<14",
+    "websockets>=14.2,<16",
 ]
 
 install_botocore_requires = [

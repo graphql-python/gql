@@ -111,10 +111,10 @@ async def test_graphqlws_server_does_not_send_ack(graphqlws_server, query_str):
 
     url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}/graphql"
 
-    sample_transport = WebsocketsTransport(url=url, ack_timeout=1)
+    transport = WebsocketsTransport(url=url, ack_timeout=1)
 
     with pytest.raises(asyncio.TimeoutError):
-        async with Client(transport=sample_transport):
+        async with Client(transport=transport):
             pass
 
 
@@ -212,10 +212,10 @@ async def test_graphqlws_server_does_not_ack(graphqlws_server):
     url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}/graphql"
     print(f"url = {url}")
 
-    sample_transport = WebsocketsTransport(url=url)
+    transport = WebsocketsTransport(url=url)
 
     with pytest.raises(TransportProtocolError):
-        async with Client(transport=sample_transport):
+        async with Client(transport=transport):
             pass
 
 
@@ -231,10 +231,10 @@ async def test_graphqlws_server_closing_directly(graphqlws_server):
     url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}/graphql"
     print(f"url = {url}")
 
-    sample_transport = WebsocketsTransport(url=url)
+    transport = WebsocketsTransport(url=url)
 
     with pytest.raises(TransportConnectionFailed):
-        async with Client(transport=sample_transport):
+        async with Client(transport=transport):
             pass
 
 
@@ -251,7 +251,7 @@ async def test_graphqlws_server_closing_after_ack(client_and_graphqlws_server):
 
     query = gql("query { hello }")
 
-    with pytest.raises(TransportConnectionFailed):
+    with pytest.raises(TransportClosed):
         await session.execute(query)
 
     await session.transport.wait_closed()

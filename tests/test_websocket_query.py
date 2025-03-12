@@ -112,9 +112,7 @@ async def test_websocket_using_ssl_connection(ws_ssl_server):
 
     async with Client(transport=transport) as session:
 
-        assert isinstance(
-            transport.adapter.websocket, websockets.client.WebSocketClientProtocol
-        )
+        assert isinstance(transport.adapter.websocket, websockets.ClientConnection)
 
         query1 = gql(query1_str)
 

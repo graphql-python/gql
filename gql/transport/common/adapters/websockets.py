@@ -3,7 +3,7 @@ from ssl import SSLContext
 from typing import Any, Dict, Optional, Union
 
 import websockets
-from websockets.client import WebSocketClientProtocol
+from websockets import ClientConnection
 from websockets.datastructures import Headers, HeadersLike
 
 from ...exceptions import TransportConnectionFailed, TransportProtocolError
@@ -40,7 +40,7 @@ class WebSocketsAdapter(AdapterConnection):
         self._headers: Optional[HeadersLike] = headers
         self.ssl = ssl
 
-        self.websocket: Optional[WebSocketClientProtocol] = None
+        self.websocket: Optional[ClientConnection] = None
         self._response_headers: Optional[Headers] = None
 
     async def connect(self) -> None:
@@ -57,7 +57,7 @@ class WebSocketsAdapter(AdapterConnection):
         # Set default arguments used in the websockets.connect call
         connect_args: Dict[str, Any] = {
             "ssl": ssl,
-            "extra_headers": self.headers,
+            "additional_headers": self.headers,
         }
 
         if self.subprotocols:
@@ -68,11 +68,13 @@ class WebSocketsAdapter(AdapterConnection):
 
         # Connection to the specified url
         try:
-            self.websocket = await websockets.client.connect(self.url, **connect_args)
+            self.websocket = await websockets.connect(self.url, **connect_args)
         except Exception as e:
             raise TransportConnectionFailed("Connect failed") from e
 
-        self._response_headers = self.websocket.response_headers
+        assert self.websocket.response is not None
+
+        self._response_headers = self.websocket.response.headers
 
     async def send(self, message: str) -> None:
         """Send message to the WebSocket server.

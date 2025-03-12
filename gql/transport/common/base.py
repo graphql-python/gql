@@ -482,6 +482,10 @@ class SubscriptionTransportBase(AsyncTransport):
             # We should always have an active websocket connection here
             assert self._connected
 
+            # Saving exception to raise it later if trying to use the transport
+            # after it has already closed.
+            self.close_exception = e
+
             # Properly shut down liveness checker if enabled
             if self.check_keep_alive_task is not None:
                 # More info: https://stackoverflow.com/a/43810272/1113207
@@ -492,10 +496,6 @@ class SubscriptionTransportBase(AsyncTransport):
             # Calling the subclass close hook
             await self._close_hook()
 
-            # Saving exception to raise it later if trying to use the transport
-            # after it has already closed.
-            self.close_exception = e
-
             if clean_close:
                 log.debug("_close_coro: starting clean_close")
                 try:
@@ -503,7 +503,9 @@ class SubscriptionTransportBase(AsyncTransport):
                 except Exception as exc:  # pragma: no cover
                     log.warning("Ignoring exception in _clean_close: " + repr(exc))
 
-            log.debug("_close_coro: sending exception to listeners")
+            log.debug(
+                f"_close_coro: sending exception to {len(self.listeners)} listeners"
+            )
 
             # Send an exception to all remaining listeners
             for query_id, listener in self.listeners.items():

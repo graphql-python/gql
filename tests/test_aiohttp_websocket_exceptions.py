@@ -118,10 +118,10 @@ async def test_aiohttp_websocket_server_does_not_send_ack(server, query_str):
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
 
-    sample_transport = AIOHTTPWebsocketsTransport(url=url, ack_timeout=1)
+    transport = AIOHTTPWebsocketsTransport(url=url, ack_timeout=1)
 
     with pytest.raises(asyncio.TimeoutError):
-        async with Client(transport=sample_transport):
+        async with Client(transport=transport):
             pass
 
 
@@ -261,10 +261,10 @@ async def test_aiohttp_websocket_server_does_not_ack(server):
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    sample_transport = AIOHTTPWebsocketsTransport(url=url)
+    transport = AIOHTTPWebsocketsTransport(url=url)
 
     with pytest.raises(TransportProtocolError):
-        async with Client(transport=sample_transport):
+        async with Client(transport=transport):
             pass
 
 
@@ -281,10 +281,10 @@ async def test_aiohttp_websocket_server_closing_directly(server):
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    sample_transport = AIOHTTPWebsocketsTransport(url=url)
+    transport = AIOHTTPWebsocketsTransport(url=url)
 
     with pytest.raises(TransportConnectionFailed):
-        async with Client(transport=sample_transport):
+        async with Client(transport=transport):
             pass
 
 
@@ -323,10 +323,10 @@ async def test_aiohttp_websocket_server_sending_invalid_query_errors(server):
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    sample_transport = AIOHTTPWebsocketsTransport(url=url)
+    transport = AIOHTTPWebsocketsTransport(url=url)
 
     # Invalid server message is ignored
-    async with Client(transport=sample_transport):
+    async with Client(transport=transport):
         await asyncio.sleep(2 * MS)
 
 
@@ -342,9 +342,9 @@ async def test_aiohttp_websocket_non_regression_bug_105(server):
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    sample_transport = AIOHTTPWebsocketsTransport(url=url)
+    transport = AIOHTTPWebsocketsTransport(url=url)
 
-    client = Client(transport=sample_transport)
+    client = Client(transport=transport)
 
     # Create a coroutine which start the connection with the transport but does nothing
     async def client_connect(client):

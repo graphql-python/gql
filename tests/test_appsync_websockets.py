@@ -139,7 +139,7 @@ def realtime_appsync_server_factory(
                 )
                 return
 
-            path = ws.path
+            path = ws.request.path
 
             print(f"path = {path}")
 
