@@ -32,7 +32,7 @@ dev_requires = [
     "sphinx>=7.0.0,<8;python_version<='3.9'",
     "sphinx>=8.1.0,<9;python_version>'3.9'",
     "sphinx_rtd_theme>=3.0.2,<4",
-    "sphinx-argparse==0.4.0",
+    "sphinx-argparse==0.5.2",
     "types-aiofiles",
     "types-requests",
 ] + tests_requires
