@@ -11,7 +11,11 @@ from gql.transport.exceptions import (
     TransportServerError,
 )
 
-from .conftest import TemporaryFile, get_localhost_ssl_context, strip_braces_spaces
+from .conftest import (
+    TemporaryFile,
+    get_localhost_ssl_context_client,
+    strip_braces_spaces,
+)
 
 # Marking all tests in this file with the httpx marker
 pytestmark = pytest.mark.httpx
@@ -105,9 +109,9 @@ async def test_httpx_query_https(ssl_aiohttp_server, run_sync_test, verify_https
         extra_args = {}
 
         if verify_https == "cert_provided":
-            cert, _ = get_localhost_ssl_context()
+            _, ssl_context = get_localhost_ssl_context_client()
 
-            extra_args["verify"] = cert.decode()
+            extra_args["verify"] = ssl_context
         elif verify_https == "disabled":
             extra_args["verify"] = False
 
