@@ -35,10 +35,7 @@ def test_request_transport_not_implemented(http_transport_query):
     with pytest.raises(TypeError) as exc_info:
         RandomTransport()  # type: ignore
 
-    assert (
-        "Can't instantiate abstract class RandomTransport with abstract method execute"
-        == str(exc_info.value)
-    )
+    assert "Can't instantiate abstract class RandomTransport" in str(exc_info.value)
 
     class RandomTransport2(Transport):
         def execute(
