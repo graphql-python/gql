@@ -111,7 +111,7 @@ async def test_graphqlws_server_does_not_send_ack(graphqlws_server, query_str):
 
     url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}/graphql"
 
-    transport = WebsocketsTransport(url=url, ack_timeout=1)
+    transport = WebsocketsTransport(url=url, ack_timeout=0.1)
 
     with pytest.raises(asyncio.TimeoutError):
         async with Client(transport=transport):
