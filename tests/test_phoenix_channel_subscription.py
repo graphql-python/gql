@@ -191,14 +191,14 @@ async def test_phoenix_channel_subscription(server, subscription_str, end_count)
 
     path = "/graphql"
     url = f"ws://{server.hostname}:{server.port}{path}"
-    sample_transport = PhoenixChannelWebsocketsTransport(
+    transport = PhoenixChannelWebsocketsTransport(
         channel_name=test_channel, url=url, close_timeout=5
     )
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
 
-    async with Client(transport=sample_transport) as session:
+    async with Client(transport=transport) as session:
 
         generator = session.subscribe(subscription)
         async for result in generator:
@@ -240,14 +240,14 @@ async def test_phoenix_channel_subscription_no_break(server, subscription_str):
 
     async def testing_stopping_without_break():
 
-        sample_transport = PhoenixChannelWebsocketsTransport(
+        transport = PhoenixChannelWebsocketsTransport(
             channel_name=test_channel, url=url, close_timeout=(5000 * MS)
         )
 
         count = 10
         subscription = gql(subscription_str.format(count=count))
 
-        async with Client(transport=sample_transport) as session:
+        async with Client(transport=transport) as session:
             async for result in session.subscribe(subscription):
                 number = result["countdown"]["number"]
                 print(f"Number received: {number}")
@@ -372,12 +372,12 @@ async def test_phoenix_channel_heartbeat(server, subscription_str):
 
     path = "/graphql"
     url = f"ws://{server.hostname}:{server.port}{path}"
-    sample_transport = PhoenixChannelWebsocketsTransport(
+    transport = PhoenixChannelWebsocketsTransport(
         channel_name=test_channel, url=url, heartbeat_interval=0.1
     )
 
     subscription = gql(heartbeat_subscription_str)
-    async with Client(transport=sample_transport) as session:
+    async with Client(transport=transport) as session:
         i = 0
         generator = session.subscribe(subscription)
         async for result in generator:

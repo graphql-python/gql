@@ -420,11 +420,9 @@ async def test_websocket_subscription_with_keepalive_with_timeout_ok(
     if PyPy:
         keep_alive_timeout = 200 * MS
 
-    sample_transport = WebsocketsTransport(
-        url=url, keep_alive_timeout=keep_alive_timeout
-    )
+    transport = WebsocketsTransport(url=url, keep_alive_timeout=keep_alive_timeout)
 
-    client = Client(transport=sample_transport)
+    client = Client(transport=transport)
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
@@ -452,9 +450,9 @@ async def test_websocket_subscription_with_keepalive_with_timeout_nok(
 
     path = "/graphql"
     url = f"ws://{server.hostname}:{server.port}{path}"
-    sample_transport = WebsocketsTransport(url=url, keep_alive_timeout=(1 * MS))
+    transport = WebsocketsTransport(url=url, keep_alive_timeout=(1 * MS))
 
-    client = Client(transport=sample_transport)
+    client = Client(transport=transport)
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
@@ -480,9 +478,9 @@ def test_websocket_subscription_sync(server, subscription_str):
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    sample_transport = WebsocketsTransport(url=url)
+    transport = WebsocketsTransport(url=url)
 
-    client = Client(transport=sample_transport)
+    client = Client(transport=transport)
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
@@ -506,9 +504,9 @@ def test_websocket_subscription_sync_user_exception(server, subscription_str):
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    sample_transport = WebsocketsTransport(url=url)
+    transport = WebsocketsTransport(url=url)
 
-    client = Client(transport=sample_transport)
+    client = Client(transport=transport)
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
@@ -537,9 +535,9 @@ def test_websocket_subscription_sync_break(server, subscription_str):
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    sample_transport = WebsocketsTransport(url=url)
+    transport = WebsocketsTransport(url=url)
 
-    client = Client(transport=sample_transport)
+    client = Client(transport=transport)
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
@@ -578,9 +576,9 @@ def test_websocket_subscription_sync_graceful_shutdown(server, subscription_str)
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    sample_transport = WebsocketsTransport(url=url)
+    transport = WebsocketsTransport(url=url)
 
-    client = Client(transport=sample_transport)
+    client = Client(transport=transport)
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
@@ -630,9 +628,9 @@ async def test_websocket_subscription_running_in_thread(
     def test_code():
         path = "/graphql"
         url = f"ws://{server.hostname}:{server.port}{path}"
-        sample_transport = WebsocketsTransport(url=url)
+        transport = WebsocketsTransport(url=url)
 
-        client = Client(transport=sample_transport)
+        client = Client(transport=transport)
 
         count = 10
         subscription = gql(subscription_str.format(count=count))
