@@ -4,7 +4,7 @@ from ssl import SSLContext
 from typing import Any, Dict, Literal, Mapping, Optional, Union
 
 import aiohttp
-from aiohttp import BasicAuth, Fingerprint, WSMsgType
+from aiohttp import BasicAuth, ClientWSTimeout, Fingerprint, WSMsgType
 from aiohttp.typedefs import LooseHeaders, StrOrURL
 from multidict import CIMultiDictProxy
 
@@ -132,6 +132,11 @@ class AIOHTTPWebSocketsAdapter(AdapterConnection):
 
             self.session = aiohttp.ClientSession(**client_session_args)
 
+        ws_timeout = ClientWSTimeout(
+            ws_receive=self.receive_timeout,
+            ws_close=self.websocket_close_timeout,
+        )
+
         connect_args: Dict[str, Any] = {
             "url": self.url,
             "headers": self.headers,
@@ -142,8 +147,7 @@ class AIOHTTPWebSocketsAdapter(AdapterConnection):
             "proxy": self.proxy,
             "proxy_auth": self.proxy_auth,
             "proxy_headers": self.proxy_headers,
-            "timeout": self.websocket_close_timeout,
-            "receive_timeout": self.receive_timeout,
+            "timeout": ws_timeout,
         }
 
         if self.subprotocols:
