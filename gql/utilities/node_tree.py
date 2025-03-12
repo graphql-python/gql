@@ -8,7 +8,7 @@ def _node_tree_recursive(
     *,
     indent: int = 0,
     ignored_keys: List,
-):
+) -> str:
 
     assert ignored_keys is not None
 
@@ -65,7 +65,7 @@ def node_tree(
     ignore_loc: bool = True,
     ignore_block: bool = True,
     ignored_keys: Optional[List] = None,
-):
+) -> str:
     """Method which returns a tree of Node elements as a String.
 
     Useful to debug deep DocumentNode instances created by gql or dsl_gql.

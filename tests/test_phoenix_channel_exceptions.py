@@ -19,9 +19,7 @@ def ensure_list(s):
     return (
         s
         if s is None or isinstance(s, list)
-        else list(s)
-        if isinstance(s, tuple)
-        else [s]
+        else list(s) if isinstance(s, tuple) else [s]
     )
 
 
@@ -360,8 +358,9 @@ def subscription_server(
     data_answers=default_subscription_data_answer,
     unsubscribe_answers=default_subscription_unsubscribe_answer,
 ):
-    from .conftest import PhoenixChannelServerHelper
     import json
+
+    from .conftest import PhoenixChannelServerHelper
 
     async def phoenix_server(ws):
         await PhoenixChannelServerHelper.send_connection_ack(ws)

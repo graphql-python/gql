@@ -3,7 +3,17 @@ import io
 import json
 import logging
 from ssl import SSLContext
-from typing import Any, AsyncGenerator, Callable, Dict, Optional, Tuple, Type, Union
+from typing import (
+    Any,
+    AsyncGenerator,
+    Callable,
+    Dict,
+    NoReturn,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+)
 
 import aiohttp
 from aiohttp.client_exceptions import ClientResponseError
@@ -102,9 +112,9 @@ class AIOHTTPTransport(AsyncTransport):
             client_session_args: Dict[str, Any] = {
                 "cookies": self.cookies,
                 "headers": self.headers,
-                "auth": None
-                if isinstance(self.auth, AppSyncAuthentication)
-                else self.auth,
+                "auth": (
+                    None if isinstance(self.auth, AppSyncAuthentication) else self.auth
+                ),
                 "json_serialize": self.json_serialize,
             }
 
@@ -262,7 +272,9 @@ class AIOHTTPTransport(AsyncTransport):
             # Saving latest response headers in the transport
             self.response_headers = resp.headers
 
-            async def raise_response_error(resp: aiohttp.ClientResponse, reason: str):
+            async def raise_response_error(
+                resp: aiohttp.ClientResponse, reason: str
+            ) -> NoReturn:
                 # We raise a TransportServerError if the status code is 400 or higher
                 # We raise a TransportProtocolError in the other cases
 

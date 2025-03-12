@@ -131,7 +131,10 @@ class Client:
         self.introspection: Optional[IntrospectionQuery] = introspection
 
         # GraphQL transport chosen
-        self.transport: Optional[Union[Transport, AsyncTransport]] = transport
+        assert (
+            transport is not None
+        ), "You need to provide either a transport or a schema to the Client."
+        self.transport: Union[Transport, AsyncTransport] = transport
 
         # Flag to indicate that we need to fetch the schema from the transport
         # On async transports, we fetch the schema before executing the first query
@@ -149,10 +152,10 @@ class Client:
         self.batch_max = batch_max
 
     @property
-    def batching_enabled(self):
+    def batching_enabled(self) -> bool:
         return self.batch_interval != 0
 
-    def validate(self, document: DocumentNode):
+    def validate(self, document: DocumentNode) -> None:
         """:meta private:"""
         assert (
             self.schema
@@ -162,7 +165,9 @@ class Client:
         if validation_errors:
             raise validation_errors[0]
 
-    def _build_schema_from_introspection(self, execution_result: ExecutionResult):
+    def _build_schema_from_introspection(
+        self, execution_result: ExecutionResult
+    ) -> None:
         if execution_result.errors:
             raise TransportQueryError(
                 (
@@ -189,9 +194,8 @@ class Client:
         parse_result: Optional[bool] = ...,
         *,  # https://github.com/python/mypy/issues/7333#issuecomment-788255229
         get_execution_result: Literal[False] = ...,
-        **kwargs,
-    ) -> Dict[str, Any]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Dict[str, Any]: ...  # pragma: no cover
 
     @overload
     def execute_sync(
@@ -203,9 +207,8 @@ class Client:
         parse_result: Optional[bool] = ...,
         *,
         get_execution_result: Literal[True],
-        **kwargs,
-    ) -> ExecutionResult:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> ExecutionResult: ...  # pragma: no cover
 
     @overload
     def execute_sync(
@@ -217,9 +220,8 @@ class Client:
         parse_result: Optional[bool] = ...,
         *,
         get_execution_result: bool,
-        **kwargs,
-    ) -> Union[Dict[str, Any], ExecutionResult]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Union[Dict[str, Any], ExecutionResult]: ...  # pragma: no cover
 
     def execute_sync(
         self,
@@ -229,7 +231,7 @@ class Client:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[Dict[str, Any], ExecutionResult]:
         """:meta private:"""
         with self as session:
@@ -251,9 +253,8 @@ class Client:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: Literal[False] = ...,
-        **kwargs,
-    ) -> List[Dict[str, Any]]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> List[Dict[str, Any]]: ...  # pragma: no cover
 
     @overload
     def execute_batch_sync(
@@ -263,9 +264,8 @@ class Client:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: Literal[True],
-        **kwargs,
-    ) -> List[ExecutionResult]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> List[ExecutionResult]: ...  # pragma: no cover
 
     @overload
     def execute_batch_sync(
@@ -275,9 +275,8 @@ class Client:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool,
-        **kwargs,
-    ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]: ...  # pragma: no cover
 
     def execute_batch_sync(
         self,
@@ -286,7 +285,7 @@ class Client:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]:
         """:meta private:"""
         with self as session:
@@ -308,9 +307,8 @@ class Client:
         parse_result: Optional[bool] = ...,
         *,  # https://github.com/python/mypy/issues/7333#issuecomment-788255229
         get_execution_result: Literal[False] = ...,
-        **kwargs,
-    ) -> Dict[str, Any]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Dict[str, Any]: ...  # pragma: no cover
 
     @overload
     async def execute_async(
@@ -322,9 +320,8 @@ class Client:
         parse_result: Optional[bool] = ...,
         *,
         get_execution_result: Literal[True],
-        **kwargs,
-    ) -> ExecutionResult:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> ExecutionResult: ...  # pragma: no cover
 
     @overload
     async def execute_async(
@@ -336,9 +333,8 @@ class Client:
         parse_result: Optional[bool] = ...,
         *,
         get_execution_result: bool,
-        **kwargs,
-    ) -> Union[Dict[str, Any], ExecutionResult]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Union[Dict[str, Any], ExecutionResult]: ...  # pragma: no cover
 
     async def execute_async(
         self,
@@ -348,7 +344,7 @@ class Client:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[Dict[str, Any], ExecutionResult]:
         """:meta private:"""
         async with self as session:
@@ -372,9 +368,8 @@ class Client:
         parse_result: Optional[bool] = ...,
         *,  # https://github.com/python/mypy/issues/7333#issuecomment-788255229
         get_execution_result: Literal[False] = ...,
-        **kwargs,
-    ) -> Dict[str, Any]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Dict[str, Any]: ...  # pragma: no cover
 
     @overload
     def execute(
@@ -386,9 +381,8 @@ class Client:
         parse_result: Optional[bool] = ...,
         *,
         get_execution_result: Literal[True],
-        **kwargs,
-    ) -> ExecutionResult:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> ExecutionResult: ...  # pragma: no cover
 
     @overload
     def execute(
@@ -400,9 +394,8 @@ class Client:
         parse_result: Optional[bool] = ...,
         *,
         get_execution_result: bool,
-        **kwargs,
-    ) -> Union[Dict[str, Any], ExecutionResult]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Union[Dict[str, Any], ExecutionResult]: ...  # pragma: no cover
 
     def execute(
         self,
@@ -412,7 +405,7 @@ class Client:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[Dict[str, Any], ExecutionResult]:
         """Execute the provided document AST against the remote server using
         the transport provided during init.
@@ -487,9 +480,8 @@ class Client:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: Literal[False] = ...,
-        **kwargs,
-    ) -> List[Dict[str, Any]]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> List[Dict[str, Any]]: ...  # pragma: no cover
 
     @overload
     def execute_batch(
@@ -499,9 +491,8 @@ class Client:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: Literal[True],
-        **kwargs,
-    ) -> List[ExecutionResult]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> List[ExecutionResult]: ...  # pragma: no cover
 
     @overload
     def execute_batch(
@@ -511,9 +502,8 @@ class Client:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool,
-        **kwargs,
-    ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]: ...  # pragma: no cover
 
     def execute_batch(
         self,
@@ -522,7 +512,7 @@ class Client:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]:
         """Execute multiple GraphQL requests in a batch against the remote server using
         the transport provided during init.
@@ -568,9 +558,8 @@ class Client:
         parse_result: Optional[bool] = ...,
         *,
         get_execution_result: Literal[False] = ...,
-        **kwargs,
-    ) -> AsyncGenerator[Dict[str, Any], None]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> AsyncGenerator[Dict[str, Any], None]: ...  # pragma: no cover
 
     @overload
     def subscribe_async(
@@ -582,9 +571,8 @@ class Client:
         parse_result: Optional[bool] = ...,
         *,
         get_execution_result: Literal[True],
-        **kwargs,
-    ) -> AsyncGenerator[ExecutionResult, None]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> AsyncGenerator[ExecutionResult, None]: ...  # pragma: no cover
 
     @overload
     def subscribe_async(
@@ -596,11 +584,10 @@ class Client:
         parse_result: Optional[bool] = ...,
         *,
         get_execution_result: bool,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[
         AsyncGenerator[Dict[str, Any], None], AsyncGenerator[ExecutionResult, None]
-    ]:
-        ...  # pragma: no cover
+    ]: ...  # pragma: no cover
 
     async def subscribe_async(
         self,
@@ -610,7 +597,7 @@ class Client:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[
         AsyncGenerator[Dict[str, Any], None], AsyncGenerator[ExecutionResult, None]
     ]:
@@ -639,9 +626,8 @@ class Client:
         parse_result: Optional[bool] = ...,
         *,
         get_execution_result: Literal[False] = ...,
-        **kwargs,
-    ) -> Generator[Dict[str, Any], None, None]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Generator[Dict[str, Any], None, None]: ...  # pragma: no cover
 
     @overload
     def subscribe(
@@ -653,9 +639,8 @@ class Client:
         parse_result: Optional[bool] = ...,
         *,
         get_execution_result: Literal[True],
-        **kwargs,
-    ) -> Generator[ExecutionResult, None, None]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Generator[ExecutionResult, None, None]: ...  # pragma: no cover
 
     @overload
     def subscribe(
@@ -667,11 +652,10 @@ class Client:
         parse_result: Optional[bool] = ...,
         *,
         get_execution_result: bool,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[
         Generator[Dict[str, Any], None, None], Generator[ExecutionResult, None, None]
-    ]:
-        ...  # pragma: no cover
+    ]: ...  # pragma: no cover
 
     def subscribe(
         self,
@@ -682,7 +666,7 @@ class Client:
         parse_result: Optional[bool] = None,
         *,
         get_execution_result: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[
         Generator[Dict[str, Any], None, None], Generator[ExecutionResult, None, None]
     ]:
@@ -770,6 +754,8 @@ class Client:
             self.transport, AsyncTransport
         ), "Only a transport of type AsyncTransport can be used asynchronously"
 
+        self.session: Union[AsyncClientSession, SyncClientSession]
+
         if reconnecting:
             self.session = ReconnectingAsyncClientSession(client=self, **kwargs)
             await self.session.start_connecting_task()
@@ -825,6 +811,8 @@ class Client:
         if not hasattr(self, "session"):
             self.session = SyncClientSession(client=self)
 
+        assert isinstance(self.session, SyncClientSession)
+
         self.session.connect()
 
         # Get schema from transport if needed
@@ -846,6 +834,8 @@ class Client:
         If batching is enabled, this will block until the remaining queries in the
         batching queue have been processed.
         """
+        assert isinstance(self.session, SyncClientSession)
+
         self.session.close()
 
     def __enter__(self):
@@ -873,7 +863,7 @@ class SyncClientSession:
         operation_name: Optional[str] = None,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> ExecutionResult:
         """Execute the provided document AST synchronously using
         the sync transport, returning an ExecutionResult object.
@@ -944,9 +934,8 @@ class SyncClientSession:
         parse_result: Optional[bool] = ...,
         *,
         get_execution_result: Literal[False] = ...,
-        **kwargs,
-    ) -> Dict[str, Any]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Dict[str, Any]: ...  # pragma: no cover
 
     @overload
     def execute(
@@ -958,9 +947,8 @@ class SyncClientSession:
         parse_result: Optional[bool] = ...,
         *,
         get_execution_result: Literal[True],
-        **kwargs,
-    ) -> ExecutionResult:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> ExecutionResult: ...  # pragma: no cover
 
     @overload
     def execute(
@@ -972,9 +960,8 @@ class SyncClientSession:
         parse_result: Optional[bool] = ...,
         *,
         get_execution_result: bool,
-        **kwargs,
-    ) -> Union[Dict[str, Any], ExecutionResult]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Union[Dict[str, Any], ExecutionResult]: ...  # pragma: no cover
 
     def execute(
         self,
@@ -984,7 +971,7 @@ class SyncClientSession:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[Dict[str, Any], ExecutionResult]:
         """Execute the provided document AST synchronously using
         the sync transport.
@@ -1040,7 +1027,7 @@ class SyncClientSession:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         validate_document: Optional[bool] = True,
-        **kwargs,
+        **kwargs: Any,
     ) -> List[ExecutionResult]:
         """Execute multiple GraphQL requests in a batch, using
         the sync transport, returning a list of ExecutionResult objects.
@@ -1067,9 +1054,11 @@ class SyncClientSession:
                 serialize_variables is None and self.client.serialize_variables
             ):
                 requests = [
-                    req.serialize_variable_values(self.client.schema)
-                    if req.variable_values is not None
-                    else req
+                    (
+                        req.serialize_variable_values(self.client.schema)
+                        if req.variable_values is not None
+                        else req
+                    )
                     for req in requests
                 ]
 
@@ -1096,9 +1085,8 @@ class SyncClientSession:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: Literal[False] = ...,
-        **kwargs,
-    ) -> List[Dict[str, Any]]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> List[Dict[str, Any]]: ...  # pragma: no cover
 
     @overload
     def execute_batch(
@@ -1108,9 +1096,8 @@ class SyncClientSession:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: Literal[True],
-        **kwargs,
-    ) -> List[ExecutionResult]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> List[ExecutionResult]: ...  # pragma: no cover
 
     @overload
     def execute_batch(
@@ -1120,9 +1107,8 @@ class SyncClientSession:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool,
-        **kwargs,
-    ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]: ...  # pragma: no cover
 
     def execute_batch(
         self,
@@ -1131,7 +1117,7 @@ class SyncClientSession:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]:
         """Execute multiple GraphQL requests in a batch, using
         the sync transport. This method sends the requests to the server all at once.
@@ -1312,7 +1298,7 @@ class AsyncClientSession:
         operation_name: Optional[str] = None,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> AsyncGenerator[ExecutionResult, None]:
         """Coroutine to subscribe asynchronously to the provided document AST
         asynchronously using the async transport,
@@ -1349,13 +1335,13 @@ class AsyncClientSession:
                     )
 
         # Subscribe to the transport
-        inner_generator: AsyncGenerator[
-            ExecutionResult, None
-        ] = self.transport.subscribe(
-            document,
-            variable_values=variable_values,
-            operation_name=operation_name,
-            **kwargs,
+        inner_generator: AsyncGenerator[ExecutionResult, None] = (
+            self.transport.subscribe(
+                document,
+                variable_values=variable_values,
+                operation_name=operation_name,
+                **kwargs,
+            )
         )
 
         # Keep a reference to the inner generator
@@ -1390,9 +1376,8 @@ class AsyncClientSession:
         parse_result: Optional[bool] = ...,
         *,
         get_execution_result: Literal[False] = ...,
-        **kwargs,
-    ) -> AsyncGenerator[Dict[str, Any], None]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> AsyncGenerator[Dict[str, Any], None]: ...  # pragma: no cover
 
     @overload
     def subscribe(
@@ -1404,9 +1389,8 @@ class AsyncClientSession:
         parse_result: Optional[bool] = ...,
         *,
         get_execution_result: Literal[True],
-        **kwargs,
-    ) -> AsyncGenerator[ExecutionResult, None]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> AsyncGenerator[ExecutionResult, None]: ...  # pragma: no cover
 
     @overload
     def subscribe(
@@ -1418,11 +1402,10 @@ class AsyncClientSession:
         parse_result: Optional[bool] = ...,
         *,
         get_execution_result: bool,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[
         AsyncGenerator[Dict[str, Any], None], AsyncGenerator[ExecutionResult, None]
-    ]:
-        ...  # pragma: no cover
+    ]: ...  # pragma: no cover
 
     async def subscribe(
         self,
@@ -1432,7 +1415,7 @@ class AsyncClientSession:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[
         AsyncGenerator[Dict[str, Any], None], AsyncGenerator[ExecutionResult, None]
     ]:
@@ -1491,7 +1474,7 @@ class AsyncClientSession:
         operation_name: Optional[str] = None,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> ExecutionResult:
         """Coroutine to execute the provided document AST asynchronously using
         the async transport, returning an ExecutionResult object.
@@ -1557,9 +1540,8 @@ class AsyncClientSession:
         parse_result: Optional[bool] = ...,
         *,
         get_execution_result: Literal[False] = ...,
-        **kwargs,
-    ) -> Dict[str, Any]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Dict[str, Any]: ...  # pragma: no cover
 
     @overload
     async def execute(
@@ -1571,9 +1553,8 @@ class AsyncClientSession:
         parse_result: Optional[bool] = ...,
         *,
         get_execution_result: Literal[True],
-        **kwargs,
-    ) -> ExecutionResult:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> ExecutionResult: ...  # pragma: no cover
 
     @overload
     async def execute(
@@ -1585,9 +1566,8 @@ class AsyncClientSession:
         parse_result: Optional[bool] = ...,
         *,
         get_execution_result: bool,
-        **kwargs,
-    ) -> Union[Dict[str, Any], ExecutionResult]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Union[Dict[str, Any], ExecutionResult]: ...  # pragma: no cover
 
     async def execute(
         self,
@@ -1597,7 +1577,7 @@ class AsyncClientSession:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[Dict[str, Any], ExecutionResult]:
         """Coroutine to execute the provided document AST asynchronously using
         the async transport.
@@ -1775,7 +1755,7 @@ class ReconnectingAsyncClientSession(AsyncClientSession):
         operation_name: Optional[str] = None,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> ExecutionResult:
         """Same Coroutine as parent method _execute but requesting a
         reconnection if we receive a TransportClosed exception.
@@ -1803,7 +1783,7 @@ class ReconnectingAsyncClientSession(AsyncClientSession):
         operation_name: Optional[str] = None,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> ExecutionResult:
         """Same Coroutine as parent, but with optional retries
         and requesting a reconnection if we receive a TransportClosed exception.
@@ -1825,7 +1805,7 @@ class ReconnectingAsyncClientSession(AsyncClientSession):
         operation_name: Optional[str] = None,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> AsyncGenerator[ExecutionResult, None]:
         """Same Async generator as parent method _subscribe but requesting a
         reconnection if we receive a TransportClosed exception.

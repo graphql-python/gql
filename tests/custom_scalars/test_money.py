@@ -441,9 +441,9 @@ async def make_money_backend(aiohttp_server):
                 [
                     {
                         "data": result.data,
-                        "errors": [str(e) for e in result.errors]
-                        if result.errors
-                        else None,
+                        "errors": (
+                            [str(e) for e in result.errors] if result.errors else None
+                        ),
                     }
                     for result in results
                 ]
@@ -453,9 +453,9 @@ async def make_money_backend(aiohttp_server):
             return web.json_response(
                 {
                     "data": result.data,
-                    "errors": [str(e) for e in result.errors]
-                    if result.errors
-                    else None,
+                    "errors": (
+                        [str(e) for e in result.errors] if result.errors else None
+                    ),
                 }
             )
 
@@ -680,14 +680,14 @@ async def test_update_schema_scalars(aiohttp_server):
 def test_update_schema_scalars_invalid_scalar():
 
     with pytest.raises(TypeError) as exc_info:
-        update_schema_scalars(schema, [int])
+        update_schema_scalars(schema, [int])  # type: ignore
 
     exception = exc_info.value
 
     assert str(exception) == "Scalars should be instances of GraphQLScalarType."
 
     with pytest.raises(TypeError) as exc_info:
-        update_schema_scalar(schema, "test", int)
+        update_schema_scalar(schema, "test", int)  # type: ignore
 
     exception = exc_info.value
 
@@ -697,7 +697,7 @@ def test_update_schema_scalars_invalid_scalar():
 def test_update_schema_scalars_invalid_scalar_argument():
 
     with pytest.raises(TypeError) as exc_info:
-        update_schema_scalars(schema, MoneyScalar)
+        update_schema_scalars(schema, MoneyScalar)  # type: ignore
 
     exception = exc_info.value
 
@@ -787,7 +787,7 @@ async def test_custom_scalar_serialize_variables_sync_transport_2(
 def test_serialize_value_with_invalid_type():
 
     with pytest.raises(GraphQLError) as exc_info:
-        serialize_value("Not a valid type", 50)
+        serialize_value("Not a valid type", 50)  # type: ignore
 
     exception = exc_info.value
 

@@ -44,7 +44,7 @@ RESULT_DOCUMENT_KEYS: Dict[str, Tuple[str, ...]] = {
 }
 
 
-def _ignore_non_null(type_: GraphQLType):
+def _ignore_non_null(type_: GraphQLType) -> GraphQLType:
     """Removes the GraphQLNonNull wrappings around types."""
     if isinstance(type_, GraphQLNonNull):
         return type_.of_type
@@ -152,6 +152,8 @@ class ParseResultVisitor(Visitor):
         field_type = self.type_info.get_type()
 
         list_level = self.inside_list_level
+
+        assert field_type is not None
 
         result_type = _ignore_non_null(field_type)
 

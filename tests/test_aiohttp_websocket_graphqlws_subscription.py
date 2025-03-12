@@ -8,6 +8,7 @@ import pytest
 from parse import search
 
 from gql import Client, gql
+from gql.client import AsyncClientSession
 from gql.transport.exceptions import TransportConnectionFailed, TransportServerError
 
 from .conftest import MS, PyPy, WebSocketServerHelper
@@ -763,6 +764,7 @@ def test_aiohttp_websocket_graphqlws_subscription_sync_graceful_shutdown(
                     warnings.filterwarnings(
                         "ignore", message="There is no current event loop"
                     )
+                    assert isinstance(client.session, AsyncClientSession)
                     asyncio.ensure_future(
                         client.session._generator.athrow(KeyboardInterrupt)
                     )
@@ -818,8 +820,8 @@ async def test_aiohttp_websocket_graphqlws_subscription_reconnecting_session(
     graphqlws_server, subscription_str, execute_instead_of_subscribe
 ):
 
-    from gql.transport.exceptions import TransportClosed
     from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
+    from gql.transport.exceptions import TransportClosed
 
     path = "/graphql"
     url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}{path}"

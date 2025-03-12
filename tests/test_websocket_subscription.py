@@ -9,6 +9,7 @@ from graphql import ExecutionResult
 from parse import search
 
 from gql import Client, gql
+from gql.client import AsyncClientSession
 from gql.transport.exceptions import TransportConnectionFailed, TransportServerError
 
 from .conftest import MS, PyPy, WebSocketServerHelper
@@ -160,6 +161,7 @@ async def test_websocket_subscription_get_execution_result(
 
         assert isinstance(result, ExecutionResult)
 
+        assert result.data is not None
         number = result.data["number"]
         print(f"Number received: {number}")
 
@@ -600,6 +602,7 @@ def test_websocket_subscription_sync_graceful_shutdown(server, subscription_str)
                     warnings.filterwarnings(
                         "ignore", message="There is no current event loop"
                     )
+                    assert isinstance(client.session, AsyncClientSession)
                     interrupt_task = asyncio.ensure_future(
                         client.session._generator.athrow(KeyboardInterrupt)
                     )
@@ -609,6 +612,7 @@ def test_websocket_subscription_sync_graceful_shutdown(server, subscription_str)
     assert count == 4
 
     # Catch interrupt_task exception to remove warning
+    assert interrupt_task is not None
     interrupt_task.exception()
 
     # Check that the server received a connection_terminate message last

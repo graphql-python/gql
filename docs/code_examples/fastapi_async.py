@@ -12,6 +12,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 
 from gql import Client, gql
+from gql.client import ReconnectingAsyncClientSession
 from gql.transport.aiohttp import AIOHTTPTransport
 
 logging.basicConfig(level=logging.DEBUG)
@@ -91,6 +92,7 @@ async def get_continent(continent_code):
         raise HTTPException(status_code=404, detail="Continent not found")
 
     try:
+        assert isinstance(client.session, ReconnectingAsyncClientSession)
         result = await client.session.execute(
             query, variable_values={"code": continent_code}
         )

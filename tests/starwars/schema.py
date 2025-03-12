@@ -1,4 +1,5 @@
 import asyncio
+from typing import cast
 
 from graphql import (
     GraphQLArgument,
@@ -14,6 +15,7 @@ from graphql import (
     GraphQLObjectType,
     GraphQLSchema,
     GraphQLString,
+    IntrospectionQuery,
     get_introspection_query,
     graphql_sync,
     print_schema,
@@ -271,6 +273,8 @@ StarWarsSchema = GraphQLSchema(
 )
 
 
-StarWarsIntrospection = graphql_sync(StarWarsSchema, get_introspection_query()).data
+StarWarsIntrospection = cast(
+    IntrospectionQuery, graphql_sync(StarWarsSchema, get_introspection_query()).data
+)
 
 StarWarsTypeDef = print_schema(StarWarsSchema)

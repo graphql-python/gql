@@ -42,7 +42,7 @@ class PhoenixChannelWebsocketsTransport(SubscriptionTransportBase):
         channel_name: str = "__absinthe__:control",
         heartbeat_interval: float = 30,
         ack_timeout: Optional[Union[int, float]] = 10,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """Initialize the transport with the given parameters.
 
@@ -244,7 +244,7 @@ class PhoenixChannelWebsocketsTransport(SubscriptionTransportBase):
             return value
 
         def _required_subscription_id(
-            d: Any, label: str, must_exist: bool = False, must_not_exist=False
+            d: Any, label: str, must_exist: bool = False, must_not_exist: bool = False
         ) -> str:
             subscription_id = str(_required_value(d, "subscriptionId", label))
             if must_exist and (subscription_id not in self.subscriptions):

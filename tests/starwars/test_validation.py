@@ -79,7 +79,7 @@ def introspection_schema_no_directives():
     introspection = copy.deepcopy(StarWarsIntrospection)
 
     # Simulate no directives key
-    del introspection["__schema"]["directives"]
+    del introspection["__schema"]["directives"]  # type: ignore
 
     return Client(introspection=introspection)
 
@@ -108,7 +108,7 @@ def validation_errors(client, query):
 
 def test_incompatible_request_gql(client):
     with pytest.raises(TypeError):
-        gql(123)
+        gql(123)  # type: ignore
 
     """
     The error generated depends on graphql-core version
@@ -253,7 +253,7 @@ def test_build_client_schema_invalid_introspection():
     from gql.utilities import build_client_schema
 
     with pytest.raises(TypeError) as exc_info:
-        build_client_schema("blah")
+        build_client_schema("blah")  # type: ignore
 
     assert (
         "Invalid or incomplete introspection result. Ensure that you are passing the "

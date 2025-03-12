@@ -336,4 +336,4 @@ def test_query_from_source(client):
 def test_already_parsed_query(client):
     query = gql("{ hero { name } }")
     with pytest.raises(TypeError, match="must be passed as a string"):
-        gql(query)
+        gql(query)  # type: ignore

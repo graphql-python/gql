@@ -1,3 +1,5 @@
+from graphql import GraphQLSchema
+
 from gql import Client, gql
 from gql.dsl import DSLFragment, DSLQuery, DSLSchema, dsl_gql, print_ast
 from gql.utilities import node_tree
@@ -34,6 +36,9 @@ type Sprite {
 def test_issue_447():
 
     client = Client(schema=schema_str)
+
+    assert isinstance(client.schema, GraphQLSchema)
+
     ds = DSLSchema(client.schema)
 
     sprite = DSLFragment("SpriteUnionAsSprite")

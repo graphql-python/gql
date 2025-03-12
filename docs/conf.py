@@ -83,11 +83,11 @@ autosummary_generate = True
 intersphinx_mapping = {
     'aiohttp': ('https://docs.aiohttp.org/en/stable/', None),
     'graphql': ('https://graphql-core-3.readthedocs.io/en/latest/', None),
-    'multidict': ('https://multidict.readthedocs.io/en/stable/', None),
+    'multidict': ('https://multidict.aio-libs.org/en/stable/', None),
     'python': ('https://docs.python.org/3/', None),
     'requests': ('https://requests.readthedocs.io/en/latest/', None),
     'websockets': ('https://websockets.readthedocs.io/en/11.0.3/', None),
-    'yarl': ('https://yarl.readthedocs.io/en/stable/', None),
+    'yarl': ('https://yarl.aio-libs.org/en/stable/', None),
 }
 
 nitpick_ignore = [
@@ -100,6 +100,8 @@ nitpick_ignore = [
     ('py:class', 'asyncio.locks.Event'),
 
     # aiohttp: should be fixed
+    # See issue: https://github.com/aio-libs/aiohttp/issues/10468
+    ('py:class', 'aiohttp.client.ClientSession'),
     ('py:class', 'aiohttp.client_reqrep.Fingerprint'),
     ('py:class', 'aiohttp.helpers.BasicAuth'),
 

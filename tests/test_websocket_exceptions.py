@@ -175,7 +175,7 @@ async def test_websocket_sending_invalid_payload(client_and_server, query_str):
         document,
         variable_values=None,
         operation_name=None,
-    ) -> int:
+    ):
         query_id = self.next_query_id
         self.next_query_id += 1
 
@@ -366,8 +366,9 @@ async def test_websocket_using_cli_invalid_query(server, monkeypatch, capsys):
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    from gql.cli import main, get_parser
     import io
+
+    from gql.cli import get_parser, main
 
     parser = get_parser(with_examples=True)
     args = parser.parse_args([url])

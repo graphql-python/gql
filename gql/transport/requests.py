@@ -1,13 +1,25 @@
 import io
 import json
 import logging
-from typing import Any, Callable, Collection, Dict, List, Optional, Tuple, Type, Union
+from typing import (
+    Any,
+    Callable,
+    Collection,
+    Dict,
+    List,
+    NoReturn,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+)
 
 import requests
 from graphql import DocumentNode, ExecutionResult, print_ast
 from requests.adapters import HTTPAdapter, Retry
 from requests.auth import AuthBase
 from requests.cookies import RequestsCookieJar
+from requests.structures import CaseInsensitiveDict
 from requests_toolbelt.multipart.encoder import MultipartEncoder
 
 from gql.transport import Transport
@@ -100,9 +112,9 @@ class RequestsHTTPTransport(Transport):
         self.json_deserialize: Callable = json_deserialize
         self.kwargs = kwargs
 
-        self.session = None
+        self.session: Optional[requests.Session] = None
 
-        self.response_headers = None
+        self.response_headers: Optional[CaseInsensitiveDict[str]] = None
 
     def connect(self):
         if self.session is None:
@@ -159,7 +171,7 @@ class RequestsHTTPTransport(Transport):
         if operation_name:
             payload["operationName"] = operation_name
 
-        post_args = {
+        post_args: Dict[str, Any] = {
             "headers": self.headers,
             "auth": self.auth,
             "cookies": self.cookies,
@@ -219,7 +231,7 @@ class RequestsHTTPTransport(Transport):
             if post_args["headers"] is None:
                 post_args["headers"] = {}
             else:
-                post_args["headers"] = {**post_args["headers"]}
+                post_args["headers"] = dict(post_args["headers"])
 
             post_args["headers"]["Content-Type"] = data.content_type
 
@@ -247,7 +259,7 @@ class RequestsHTTPTransport(Transport):
         )
         self.response_headers = response.headers
 
-        def raise_response_error(resp: requests.Response, reason: str):
+        def raise_response_error(resp: requests.Response, reason: str) -> NoReturn:
             # We raise a TransportServerError if the status code is 400 or higher
             # We raise a TransportProtocolError in the other cases
 
@@ -255,7 +267,8 @@ class RequestsHTTPTransport(Transport):
                 # Raise a HTTPError if response status is 400 or higher
                 resp.raise_for_status()
             except requests.HTTPError as e:
-                raise TransportServerError(str(e), e.response.status_code) from e
+                status_code = e.response.status_code if e.response is not None else None
+                raise TransportServerError(str(e), status_code) from e
 
             result_text = resp.text
             raise TransportProtocolError(

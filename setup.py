@@ -24,15 +24,15 @@ tests_requires = [
 ]
 
 dev_requires = [
-    "black==22.3.0",
+    "black==25.1.0",
     "check-manifest>=0.42,<1",
-    "flake8==7.1.1",
-    "isort==4.3.21",
-    "mypy==1.10",
+    "flake8==7.1.2",
+    "isort==6.0.1",
+    "mypy==1.15",
     "sphinx>=7.0.0,<8;python_version<='3.9'",
     "sphinx>=8.1.0,<9;python_version>'3.9'",
     "sphinx_rtd_theme>=3.0.2,<4",
-    "sphinx-argparse==0.4.0",
+    "sphinx-argparse==0.5.2",
     "types-aiofiles",
     "types-requests",
 ] + tests_requires
