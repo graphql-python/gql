@@ -100,6 +100,8 @@ nitpick_ignore = [
     ('py:class', 'asyncio.locks.Event'),
 
     # aiohttp: should be fixed
+    # See issue: https://github.com/aio-libs/aiohttp/issues/10468
+    ('py:class', 'aiohttp.client.ClientSession'),
     ('py:class', 'aiohttp.client_reqrep.Fingerprint'),
     ('py:class', 'aiohttp.helpers.BasicAuth'),
 

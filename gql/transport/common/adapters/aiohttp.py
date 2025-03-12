@@ -50,9 +50,9 @@ class AIOHTTPWebSocketsAdapter(AdapterConnection):
                       certificate validation.
         :param session: Optional aiohttp opened session.
         :param client_session_args: Dict of extra args passed to
-                `aiohttp.ClientSession`_
+                :class:`aiohttp.ClientSession`
         :param connect_args: Dict of extra args passed to
-                `aiohttp.ClientSession.ws_connect`_
+                :meth:`aiohttp.ClientSession.ws_connect`
 
         :param float heartbeat: Send low level `ping` message every `heartbeat`
                                 seconds and wait `pong` response, close
