@@ -35,7 +35,7 @@ from graphql import (
 
 from .graphql_request import GraphQLRequest
 from .transport.async_transport import AsyncTransport
-from .transport.exceptions import TransportClosed, TransportQueryError
+from .transport.exceptions import TransportConnectionFailed, TransportQueryError
 from .transport.local_schema import LocalSchemaTransport
 from .transport.transport import Transport
 from .utilities import build_client_schema, get_introspection_query_ast
@@ -1730,6 +1730,7 @@ class ReconnectingAsyncClientSession(AsyncClientSession):
             # Then wait for the reconnect event
             self._reconnect_request_event.clear()
             await self._reconnect_request_event.wait()
+            await self.transport.close()
 
     async def start_connecting_task(self):
         """Start the task responsible to restart the connection
@@ -1758,7 +1759,7 @@ class ReconnectingAsyncClientSession(AsyncClientSession):
         **kwargs: Any,
     ) -> ExecutionResult:
         """Same Coroutine as parent method _execute but requesting a
-        reconnection if we receive a TransportClosed exception.
+        reconnection if we receive a TransportConnectionFailed exception.
         """
 
         try:
@@ -1770,7 +1771,7 @@ class ReconnectingAsyncClientSession(AsyncClientSession):
                 parse_result=parse_result,
                 **kwargs,
             )
-        except TransportClosed:
+        except TransportConnectionFailed:
             self._reconnect_request_event.set()
             raise
 
@@ -1786,7 +1787,8 @@ class ReconnectingAsyncClientSession(AsyncClientSession):
         **kwargs: Any,
     ) -> ExecutionResult:
         """Same Coroutine as parent, but with optional retries
-        and requesting a reconnection if we receive a TransportClosed exception.
+        and requesting a reconnection if we receive a
+        TransportConnectionFailed exception.
         """
 
         return await self._execute_with_retries(
@@ -1808,7 +1810,7 @@ class ReconnectingAsyncClientSession(AsyncClientSession):
         **kwargs: Any,
     ) -> AsyncGenerator[ExecutionResult, None]:
         """Same Async generator as parent method _subscribe but requesting a
-        reconnection if we receive a TransportClosed exception.
+        reconnection if we receive a TransportConnectionFailed exception.
         """
 
         inner_generator: AsyncGenerator[ExecutionResult, None] = super()._subscribe(
@@ -1824,7 +1826,7 @@ class ReconnectingAsyncClientSession(AsyncClientSession):
             async for result in inner_generator:
                 yield result
 
-        except TransportClosed:
+        except TransportConnectionFailed:
             self._reconnect_request_event.set()
             raise
 

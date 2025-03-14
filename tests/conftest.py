@@ -197,7 +197,7 @@ class WebSocketServer:
 
     async def start(self, handler, extra_serve_args=None):
 
-        import websockets.server
+        import websockets
 
         print("Starting server")
 
@@ -209,15 +209,20 @@ class WebSocketServer:
             extra_serve_args["ssl"] = ssl_context
 
         # Adding dummy response headers
-        extra_serve_args["extra_headers"] = {"dummy": "test1234"}
+        extra_headers = {"dummy": "test1234"}
+
+        def process_response(connection, request, response):
+            response.headers.update(extra_headers)
+            return response
 
         # Start a server with a random open port
-        self.start_server = websockets.server.serve(
-            handler, "127.0.0.1", 0, **extra_serve_args
+        self.server = await websockets.serve(
+            handler,
+            "127.0.0.1",
+            0,
+            process_response=process_response,
+            **extra_serve_args,
         )
-
-        # Wait that the server is started
-        self.server = await self.start_server
 
         # Get hostname and port
         hostname, port = self.server.sockets[0].getsockname()[:2]  # type: ignore
@@ -603,24 +608,6 @@ async def graphqlws_server(request):
 
     subprotocol = "graphql-transport-ws"
 
-    from websockets.server import WebSocketServerProtocol
-
-    class CustomSubprotocol(WebSocketServerProtocol):
-        def select_subprotocol(self, client_subprotocols, server_subprotocols):
-            print(f"Client subprotocols: {client_subprotocols!r}")
-            print(f"Server subprotocols: {server_subprotocols!r}")
-
-            return subprotocol
-
-        def process_subprotocol(self, headers, available_subprotocols):
-            # Overwriting available subprotocols
-            available_subprotocols = [subprotocol]
-
-            print(f"headers: {headers!r}")
-            # print (f"Available subprotocols: {available_subprotocols!r}")
-
-            return super().process_subprotocol(headers, available_subprotocols)
-
     server_handler = get_server_handler(request)
 
     try:
@@ -628,7 +615,7 @@ async def graphqlws_server(request):
 
         # Starting the server with the fixture param as the handler function
         await test_server.start(
-            server_handler, extra_serve_args={"create_protocol": CustomSubprotocol}
+            server_handler, extra_serve_args={"subprotocols": [subprotocol]}
         )
 
         yield test_server

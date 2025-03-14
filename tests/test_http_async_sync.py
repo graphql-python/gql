@@ -15,11 +15,11 @@ async def test_async_client_async_transport(fetch_schema_from_transport):
     url = "https://countries.trevorblades.com/graphql"
 
     # Get async transport
-    sample_transport = AIOHTTPTransport(url=url)
+    transport = AIOHTTPTransport(url=url)
 
     # Instantiate client
     async with Client(
-        transport=sample_transport,
+        transport=transport,
         fetch_schema_from_transport=fetch_schema_from_transport,
     ) as session:
 
@@ -58,17 +58,17 @@ async def test_async_client_sync_transport(fetch_schema_from_transport):
     url = "http://countries.trevorblades.com/graphql"
 
     # Get sync transport
-    sample_transport = RequestsHTTPTransport(url=url, use_json=True)
+    transport = RequestsHTTPTransport(url=url, use_json=True)
 
     # Impossible to use a sync transport asynchronously
     with pytest.raises(AssertionError):
         async with Client(
-            transport=sample_transport,
+            transport=transport,
             fetch_schema_from_transport=fetch_schema_from_transport,
         ):
             pass
 
-    sample_transport.close()
+    transport.close()
 
 
 @pytest.mark.aiohttp
@@ -82,11 +82,11 @@ def test_sync_client_async_transport(fetch_schema_from_transport):
     url = "https://countries.trevorblades.com/graphql"
 
     # Get async transport
-    sample_transport = AIOHTTPTransport(url=url)
+    transport = AIOHTTPTransport(url=url)
 
     # Instanciate client
     client = Client(
-        transport=sample_transport,
+        transport=transport,
         fetch_schema_from_transport=fetch_schema_from_transport,
     )
 
@@ -125,11 +125,11 @@ def test_sync_client_sync_transport(fetch_schema_from_transport):
     url = "https://countries.trevorblades.com/graphql"
 
     # Get sync transport
-    sample_transport = RequestsHTTPTransport(url=url, use_json=True)
+    transport = RequestsHTTPTransport(url=url, use_json=True)
 
     # Instanciate client
     client = Client(
-        transport=sample_transport,
+        transport=transport,
         fetch_schema_from_transport=fetch_schema_from_transport,
     )
 

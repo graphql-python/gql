@@ -19,10 +19,10 @@ async def test_httpx_simple_query():
     url = "https://countries.trevorblades.com/graphql"
 
     # Get transport
-    sample_transport = HTTPXAsyncTransport(url=url)
+    transport = HTTPXAsyncTransport(url=url)
 
     # Instanciate client
-    async with Client(transport=sample_transport) as session:
+    async with Client(transport=transport) as session:
 
         query = gql(
             """
@@ -60,11 +60,9 @@ async def test_httpx_invalid_query():
 
     from gql.transport.httpx import HTTPXAsyncTransport
 
-    sample_transport = HTTPXAsyncTransport(
-        url="https://countries.trevorblades.com/graphql"
-    )
+    transport = HTTPXAsyncTransport(url="https://countries.trevorblades.com/graphql")
 
-    async with Client(transport=sample_transport) as session:
+    async with Client(transport=transport) as session:
 
         query = gql(
             """
@@ -89,12 +87,12 @@ async def test_httpx_two_queries_in_parallel_using_two_tasks():
 
     from gql.transport.httpx import HTTPXAsyncTransport
 
-    sample_transport = HTTPXAsyncTransport(
+    transport = HTTPXAsyncTransport(
         url="https://countries.trevorblades.com/graphql",
     )
 
     # Instanciate client
-    async with Client(transport=sample_transport) as session:
+    async with Client(transport=transport) as session:
 
         query1 = gql(
             """

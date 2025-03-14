@@ -127,11 +127,13 @@ class SubscriptionTransportBase(AsyncTransport):
         """Send the provided message to the adapter connection and log the message"""
 
         if not self._connected:
-            raise TransportClosed(
-                "Transport is not connected"
-            ) from self.close_exception
+            if isinstance(self.close_exception, TransportConnectionFailed):
+                raise self.close_exception
+            else:
+                raise TransportConnectionFailed() from self.close_exception
 
         try:
+            # Can raise TransportConnectionFailed
             await self.adapter.send(message)
             log.info(">>> %s", message)
         except TransportConnectionFailed as e:
@@ -143,7 +145,7 @@ class SubscriptionTransportBase(AsyncTransport):
 
         # It is possible that the connection has been already closed in another task
         if not self._connected:
-            raise TransportClosed("Transport is already closed")
+            raise TransportConnectionFailed() from self.close_exception
 
         # Wait for the next frame.
         # Can raise TransportConnectionFailed or TransportProtocolError
@@ -213,8 +215,6 @@ class SubscriptionTransportBase(AsyncTransport):
                     answer = await self._receive()
                 except (TransportConnectionFailed, TransportProtocolError) as e:
                     await self._fail(e, clean_close=False)
-                    break
-                except TransportClosed:
                     break
 
                 # Parse the answer
@@ -482,6 +482,10 @@ class SubscriptionTransportBase(AsyncTransport):
             # We should always have an active websocket connection here
             assert self._connected
 
+            # Saving exception to raise it later if trying to use the transport
+            # after it has already closed.
+            self.close_exception = e
+
             # Properly shut down liveness checker if enabled
             if self.check_keep_alive_task is not None:
                 # More info: https://stackoverflow.com/a/43810272/1113207
@@ -492,10 +496,6 @@ class SubscriptionTransportBase(AsyncTransport):
             # Calling the subclass close hook
             await self._close_hook()
 
-            # Saving exception to raise it later if trying to use the transport
-            # after it has already closed.
-            self.close_exception = e
-
             if clean_close:
                 log.debug("_close_coro: starting clean_close")
                 try:
@@ -503,7 +503,10 @@ class SubscriptionTransportBase(AsyncTransport):
                 except Exception as exc:  # pragma: no cover
                     log.warning("Ignoring exception in _clean_close: " + repr(exc))
 
-            log.debug("_close_coro: sending exception to listeners")
+            if log.isEnabledFor(logging.DEBUG):
+                log.debug(
+                    f"_close_coro: sending exception to {len(self.listeners)} listeners"
+                )
 
             # Send an exception to all remaining listeners
             for query_id, listener in self.listeners.items():
@@ -530,7 +533,15 @@ class SubscriptionTransportBase(AsyncTransport):
         log.debug("_close_coro: exiting")
 
     async def _fail(self, e: Exception, clean_close: bool = True) -> None:
-        log.debug("_fail: starting with exception: " + repr(e))
+        if log.isEnabledFor(logging.DEBUG):
+            import inspect
+
+            current_frame = inspect.currentframe()
+            assert current_frame is not None
+            caller_frame = current_frame.f_back
+            assert caller_frame is not None
+            caller_name = inspect.getframeinfo(caller_frame).function
+            log.debug(f"_fail from {caller_name}: " + repr(e))
 
         if self.close_task is None:
 

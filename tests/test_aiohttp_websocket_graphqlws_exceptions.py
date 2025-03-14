@@ -5,7 +5,6 @@ import pytest
 
 from gql import Client, gql
 from gql.transport.exceptions import (
-    TransportClosed,
     TransportConnectionFailed,
     TransportProtocolError,
     TransportQueryError,
@@ -117,7 +116,7 @@ async def test_aiohttp_websocket_graphqlws_server_does_not_send_ack(
 
     url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}/graphql"
 
-    transport = AIOHTTPWebsocketsTransport(url=url, ack_timeout=1)
+    transport = AIOHTTPWebsocketsTransport(url=url, ack_timeout=0.1)
 
     with pytest.raises(asyncio.TimeoutError):
         async with Client(transport=transport):
@@ -264,10 +263,14 @@ async def test_aiohttp_websocket_graphqlws_server_closing_after_ack(
 
     query = gql("query { hello }")
 
+    print("\n Trying to execute first query.\n")
+
     with pytest.raises(TransportConnectionFailed):
         await session.execute(query)
 
     await session.transport.wait_closed()
 
-    with pytest.raises(TransportClosed):
+    print("\n Trying to execute second query.\n")
+
+    with pytest.raises(TransportConnectionFailed):
         await session.execute(query)

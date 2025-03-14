@@ -8,7 +8,6 @@ import pytest
 from gql import Client, gql
 from gql.transport.exceptions import (
     TransportAlreadyConnected,
-    TransportClosed,
     TransportConnectionFailed,
     TransportQueryError,
     TransportServerError,
@@ -112,9 +111,7 @@ async def test_websocket_using_ssl_connection(ws_ssl_server):
 
     async with Client(transport=transport) as session:
 
-        assert isinstance(
-            transport.adapter.websocket, websockets.client.WebSocketClientProtocol
-        )
+        assert isinstance(transport.adapter.websocket, websockets.ClientConnection)
 
         query1 = gql(query1_str)
 
@@ -290,11 +287,11 @@ async def test_websocket_server_closing_after_first_query(client_and_server, que
     await session.execute(query)
 
     # Then we do other things
-    await asyncio.sleep(100 * MS)
+    await asyncio.sleep(10 * MS)
 
     # Now the server is closed but we don't know it yet, we have to send a query
     # to notice it and to receive the exception
-    with pytest.raises(TransportClosed):
+    with pytest.raises(TransportConnectionFailed):
         await session.execute(query)
 
 
@@ -663,7 +660,7 @@ async def test_websocket_adapter_connection_closed(server):
         # Close adapter connection manually (should not be done)
         await transport.adapter.close()
 
-        with pytest.raises(TransportClosed):
+        with pytest.raises(TransportConnectionFailed):
             await session.execute(query1)
 
     # Check client is disconnect here
@@ -691,5 +688,5 @@ async def test_websocket_transport_closed_in_receive(server):
         # await transport.adapter.close()
         transport._connected = False
 
-        with pytest.raises(TransportClosed):
+        with pytest.raises(TransportConnectionFailed):
             await session.execute(query1)

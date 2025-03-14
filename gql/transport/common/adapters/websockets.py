@@ -3,7 +3,7 @@ from ssl import SSLContext
 from typing import Any, Dict, Optional, Union
 
 import websockets
-from websockets.client import WebSocketClientProtocol
+from websockets import ClientConnection
 from websockets.datastructures import Headers, HeadersLike
 
 from ...exceptions import TransportConnectionFailed, TransportProtocolError
@@ -40,7 +40,7 @@ class WebSocketsAdapter(AdapterConnection):
         self._headers: Optional[HeadersLike] = headers
         self.ssl = ssl
 
-        self.websocket: Optional[WebSocketClientProtocol] = None
+        self.websocket: Optional[ClientConnection] = None
         self._response_headers: Optional[Headers] = None
 
     async def connect(self) -> None:
@@ -57,7 +57,7 @@ class WebSocketsAdapter(AdapterConnection):
         # Set default arguments used in the websockets.connect call
         connect_args: Dict[str, Any] = {
             "ssl": ssl,
-            "extra_headers": self.headers,
+            "additional_headers": self.headers,
         }
 
         if self.subprotocols:
@@ -68,11 +68,13 @@ class WebSocketsAdapter(AdapterConnection):
 
         # Connection to the specified url
         try:
-            self.websocket = await websockets.client.connect(self.url, **connect_args)
+            self.websocket = await websockets.connect(self.url, **connect_args)
         except Exception as e:
             raise TransportConnectionFailed("Connect failed") from e
 
-        self._response_headers = self.websocket.response_headers
+        assert self.websocket.response is not None
+
+        self._response_headers = self.websocket.response.headers
 
     async def send(self, message: str) -> None:
         """Send message to the WebSocket server.
@@ -84,12 +86,14 @@ class WebSocketsAdapter(AdapterConnection):
             TransportConnectionFailed: If connection closed
         """
         if self.websocket is None:
-            raise TransportConnectionFailed("Connection is already closed")
+            raise TransportConnectionFailed("WebSocket connection is already closed")
 
         try:
             await self.websocket.send(message)
         except Exception as e:
-            raise TransportConnectionFailed("Connection was closed") from e
+            raise TransportConnectionFailed(
+                f"Error trying to send data: {type(e).__name__}"
+            ) from e
 
     async def receive(self) -> str:
         """Receive message from the WebSocket server.
@@ -109,7 +113,9 @@ class WebSocketsAdapter(AdapterConnection):
         try:
             data = await self.websocket.recv()
         except Exception as e:
-            raise TransportConnectionFailed("Connection was closed") from e
+            raise TransportConnectionFailed(
+                f"Error trying to receive data: {type(e).__name__}"
+            ) from e
 
         # websocket.recv() can return either str or bytes
         # In our case, we should receive only str here

@@ -8,7 +8,6 @@ import pytest
 from gql import Client, gql
 from gql.transport.exceptions import (
     TransportAlreadyConnected,
-    TransportClosed,
     TransportConnectionFailed,
     TransportProtocolError,
     TransportQueryError,
@@ -118,10 +117,10 @@ async def test_websocket_server_does_not_send_ack(server, query_str):
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
 
-    sample_transport = WebsocketsTransport(url=url, ack_timeout=1)
+    transport = WebsocketsTransport(url=url, ack_timeout=0.1)
 
     with pytest.raises(asyncio.TimeoutError):
-        async with Client(transport=sample_transport):
+        async with Client(transport=transport):
             pass
 
 
@@ -257,10 +256,10 @@ async def test_websocket_server_does_not_ack(server):
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    sample_transport = WebsocketsTransport(url=url)
+    transport = WebsocketsTransport(url=url)
 
     with pytest.raises(TransportProtocolError):
-        async with Client(transport=sample_transport):
+        async with Client(transport=transport):
             pass
 
 
@@ -276,10 +275,10 @@ async def test_websocket_server_closing_directly(server):
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    sample_transport = WebsocketsTransport(url=url)
+    transport = WebsocketsTransport(url=url)
 
     with pytest.raises(TransportConnectionFailed):
-        async with Client(transport=sample_transport):
+        async with Client(transport=transport):
             pass
 
 
@@ -296,13 +295,35 @@ async def test_websocket_server_closing_after_ack(client_and_server):
 
     query = gql("query { hello }")
 
-    with pytest.raises(TransportConnectionFailed):
+    print("\n Trying to execute first query.\n")
+
+    with pytest.raises(TransportConnectionFailed) as exc1:
         await session.execute(query)
+
+    exc1_cause = exc1.value.__cause__
+    exc1_cause_str = f"{type(exc1_cause).__name__}:{exc1_cause!s}"
+
+    print(f"\n First query Exception cause: {exc1_cause_str}\n")
+
+    assert (
+        exc1_cause_str == "ConnectionClosedOK:received 1000 (OK); then sent 1000 (OK)"
+    )
 
     await session.transport.wait_closed()
 
-    with pytest.raises(TransportClosed):
+    print("\n Trying to execute second query.\n")
+
+    with pytest.raises(TransportConnectionFailed) as exc2:
         await session.execute(query)
+
+    exc2_cause = exc2.value.__cause__
+    exc2_cause_str = f"{type(exc2_cause).__name__}:{exc2_cause!s}"
+
+    print(f" Second query Exception cause: {exc2_cause_str}\n")
+
+    assert (
+        exc2_cause_str == "ConnectionClosedOK:received 1000 (OK); then sent 1000 (OK)"
+    )
 
 
 async def server_sending_invalid_query_errors(ws):
@@ -323,10 +344,10 @@ async def test_websocket_server_sending_invalid_query_errors(server):
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    sample_transport = WebsocketsTransport(url=url)
+    transport = WebsocketsTransport(url=url)
 
     # Invalid server message is ignored
-    async with Client(transport=sample_transport):
+    async with Client(transport=transport):
         await asyncio.sleep(2 * MS)
 
 
@@ -342,9 +363,9 @@ async def test_websocket_non_regression_bug_105(server):
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    sample_transport = WebsocketsTransport(url=url)
+    transport = WebsocketsTransport(url=url)
 
-    client = Client(transport=sample_transport)
+    client = Client(transport=transport)
 
     # Create a coroutine which start the connection with the transport but does nothing
     async def client_connect(client):

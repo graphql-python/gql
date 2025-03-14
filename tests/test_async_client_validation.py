@@ -91,9 +91,9 @@ async def test_async_client_validation(server, subscription_str, client_params):
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
 
-    sample_transport = WebsocketsTransport(url=url)
+    transport = WebsocketsTransport(url=url)
 
-    client = Client(transport=sample_transport, **client_params)
+    client = Client(transport=transport, **client_params)
 
     async with client as session:
 
@@ -138,9 +138,9 @@ async def test_async_client_validation_invalid_query(
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
 
-    sample_transport = WebsocketsTransport(url=url)
+    transport = WebsocketsTransport(url=url)
 
-    client = Client(transport=sample_transport, **client_params)
+    client = Client(transport=transport, **client_params)
 
     async with client as session:
 
@@ -171,10 +171,10 @@ async def test_async_client_validation_different_schemas_parameters_forbidden(
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
 
-    sample_transport = WebsocketsTransport(url=url)
+    transport = WebsocketsTransport(url=url)
 
     with pytest.raises(AssertionError):
-        async with Client(transport=sample_transport, **client_params):
+        async with Client(transport=transport, **client_params):
             pass
 
 
@@ -261,10 +261,10 @@ async def test_async_client_validation_fetch_schema_from_server_with_client_argu
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
 
-    sample_transport = WebsocketsTransport(url=url)
+    transport = WebsocketsTransport(url=url)
 
     async with Client(
-        transport=sample_transport,
+        transport=transport,
         fetch_schema_from_transport=True,
     ) as session:
 

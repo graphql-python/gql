@@ -167,13 +167,11 @@ async def test_phoenix_channel_query_protocol_error(server, query_str):
 
     path = "/graphql"
     url = f"ws://{server.hostname}:{server.port}{path}"
-    sample_transport = PhoenixChannelWebsocketsTransport(
-        channel_name="test_channel", url=url
-    )
+    transport = PhoenixChannelWebsocketsTransport(channel_name="test_channel", url=url)
 
     query = gql(query_str)
     with pytest.raises(TransportProtocolError):
-        async with Client(transport=sample_transport) as session:
+        async with Client(transport=transport) as session:
             await session.execute(query)
 
 
@@ -197,13 +195,11 @@ async def test_phoenix_channel_query_error(server, query_str):
 
     path = "/graphql"
     url = f"ws://{server.hostname}:{server.port}{path}"
-    sample_transport = PhoenixChannelWebsocketsTransport(
-        channel_name="test_channel", url=url
-    )
+    transport = PhoenixChannelWebsocketsTransport(channel_name="test_channel", url=url)
 
     query = gql(query_str)
     with pytest.raises(TransportQueryError):
-        async with Client(transport=sample_transport) as session:
+        async with Client(transport=transport) as session:
             await session.execute(query)
 
 
@@ -414,13 +410,11 @@ async def test_phoenix_channel_subscription_protocol_error(server, query_str):
 
     path = "/graphql"
     url = f"ws://{server.hostname}:{server.port}{path}"
-    sample_transport = PhoenixChannelWebsocketsTransport(
-        channel_name="test_channel", url=url
-    )
+    transport = PhoenixChannelWebsocketsTransport(channel_name="test_channel", url=url)
 
     query = gql(query_str)
     with pytest.raises(TransportProtocolError):
-        async with Client(transport=sample_transport) as session:
+        async with Client(transport=transport) as session:
             async for _result in session.subscribe(query):
                 await asyncio.sleep(10 * MS)
                 break
@@ -444,13 +438,11 @@ async def test_phoenix_channel_server_error(server, query_str):
 
     path = "/graphql"
     url = f"ws://{server.hostname}:{server.port}{path}"
-    sample_transport = PhoenixChannelWebsocketsTransport(
-        channel_name="test_channel", url=url
-    )
+    transport = PhoenixChannelWebsocketsTransport(channel_name="test_channel", url=url)
 
     query = gql(query_str)
     with pytest.raises(TransportServerError):
-        async with Client(transport=sample_transport) as session:
+        async with Client(transport=transport) as session:
             await session.execute(query)
 
 
@@ -476,12 +468,12 @@ async def test_phoenix_channel_unsubscribe_error(server, query_str):
 
     # Reduce close_timeout. These tests will wait for an unsubscribe
     # reply that will never come...
-    sample_transport = PhoenixChannelWebsocketsTransport(
+    transport = PhoenixChannelWebsocketsTransport(
         channel_name="test_channel", url=url, close_timeout=1
     )
 
     query = gql(query_str)
-    async with Client(transport=sample_transport) as session:
+    async with Client(transport=transport) as session:
         async for _result in session.subscribe(query):
             break
 
@@ -504,13 +496,13 @@ async def test_phoenix_channel_unsubscribe_error_forcing(server, query_str):
     path = "/graphql"
     url = f"ws://{server.hostname}:{server.port}{path}"
 
-    sample_transport = PhoenixChannelWebsocketsTransport(
+    transport = PhoenixChannelWebsocketsTransport(
         channel_name="test_channel", url=url, close_timeout=1
     )
 
     query = gql(query_str)
     with pytest.raises(TransportProtocolError):
-        async with Client(transport=sample_transport) as session:
+        async with Client(transport=transport) as session:
             async for _result in session.subscribe(query):
                 await session.transport._send_stop_message(2)
                 await asyncio.sleep(10 * MS)

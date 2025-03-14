@@ -49,9 +49,9 @@ async def test_appsync_iam_mutation(aiohttp_server, fake_credentials_factory):
         region_name="us-east-1",
     )
 
-    sample_transport = AIOHTTPTransport(url=url, auth=auth)
+    transport = AIOHTTPTransport(url=url, auth=auth)
 
-    async with Client(transport=sample_transport) as session:
+    async with Client(transport=transport) as session:
 
         query = gql(
             """
