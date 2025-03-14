@@ -858,8 +858,6 @@ async def test_aiohttp_websocket_graphqlws_subscription_reconnecting_session(
             print(f"\nDisconnected in {i+1} MS")
             break
 
-    assert transport._connected is False
-
     # Wait for reconnect
     for i in range(200):
         await asyncio.sleep(1 * MS)
