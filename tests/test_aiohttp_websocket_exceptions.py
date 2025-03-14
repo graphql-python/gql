@@ -301,6 +301,15 @@ async def test_aiohttp_websocket_server_closing_after_ack(aiohttp_client_and_ser
 
     query = gql("query { hello }")
 
+    print("\n Trying to execute first query.\n")
+
+    with pytest.raises(TransportConnectionFailed):
+        await session.execute(query)
+
+    await session.transport.wait_closed()
+
+    print("\n Trying to execute second query.\n")
+
     with pytest.raises(TransportConnectionFailed):
         await session.execute(query)
 

@@ -11,7 +11,7 @@ from gql import Client, gql
 from gql.client import AsyncClientSession
 from gql.transport.exceptions import TransportConnectionFailed, TransportServerError
 
-from .conftest import MS, PyPy, WebSocketServerHelper
+from .conftest import MS, WebSocketServerHelper
 
 # Marking all tests in this file with the aiohttp AND websockets marker
 pytestmark = [pytest.mark.aiohttp, pytest.mark.websockets]
@@ -821,7 +821,6 @@ async def test_aiohttp_websocket_graphqlws_subscription_reconnecting_session(
 ):
 
     from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
-    from gql.transport.exceptions import TransportClosed
 
     path = "/graphql"
     url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}{path}"
@@ -839,56 +838,64 @@ async def test_aiohttp_websocket_graphqlws_subscription_reconnecting_session(
         reconnecting=True, retry_connect=False, retry_execute=False
     )
 
-    # First we make a subscription which will cause a disconnect in the backend
-    # (count=8)
+    # First we make a query or subscription which will cause a disconnect
+    # in the backend (count=8)
     try:
-        print("\nSUBSCRIPTION_1_WITH_DISCONNECT\n")
-        async for result in session.subscribe(subscription_with_disconnect):
-            pass
+        if execute_instead_of_subscribe:
+            print("\nEXECUTION_1\n")
+            await session.execute(subscription_with_disconnect)
+        else:
+            print("\nSUBSCRIPTION_1_WITH_DISCONNECT\n")
+            async for result in session.subscribe(subscription_with_disconnect):
+                pass
     except TransportConnectionFailed:
         pass
 
-    await asyncio.sleep(50 * MS)
+    # Wait for disconnect
+    for i in range(200):
+        await asyncio.sleep(1 * MS)
+        if not transport._connected:
+            print(f"\nDisconnected in {i+1} MS")
+            break
 
-    # Then with the same session handle, we make a subscription or an execute
-    # which will detect that the transport is closed so that the client could
-    # try to reconnect
-    generator = None
-    try:
-        if execute_instead_of_subscribe:
-            print("\nEXECUTION_2\n")
-            await session.execute(subscription)
-        else:
-            print("\nSUBSCRIPTION_2\n")
-            generator = session.subscribe(subscription)
-            async for result in generator:
-                pass
-    except (TransportClosed, TransportConnectionFailed):
-        if generator:
-            await generator.aclose()
-        pass
+    assert transport._connected is False
 
-    timeout = 50
+    # Wait for reconnect
+    for i in range(200):
+        await asyncio.sleep(1 * MS)
+        if transport._connected:
+            print(f"\nConnected again in {i+1} MS")
+            break
 
-    if PyPy:
-        timeout = 500
+    assert transport._connected is True
 
-    await asyncio.sleep(timeout * MS)
+    # Then after the reconnection, we make a query or a subscription
+    if execute_instead_of_subscribe:
+        print("\nEXECUTION_2\n")
+        result = await session.execute(subscription)
+        assert result["number"] == 10
+    else:
+        print("\nSUBSCRIPTION_2\n")
+        generator = session.subscribe(subscription)
+        async for result in generator:
+            number = result["number"]
+            print(f"Number received: {number}")
 
-    # And finally with the same session handle, we make a subscription
-    # which works correctly
-    print("\nSUBSCRIPTION_3\n")
-    generator = session.subscribe(subscription)
-    async for result in generator:
+            assert number == count
+            count -= 1
 
-        number = result["number"]
-        print(f"Number received: {number}")
+        await generator.aclose()
 
-        assert number == count
-        count -= 1
+        assert count == -1
 
-    await generator.aclose()
-
-    assert count == -1
-
+    # Close the reconnecting session
     await client.close_async()
+
+    # Wait for disconnect
+    for i in range(200):
+        await asyncio.sleep(1 * MS)
+        if not transport._connected:
+            print(f"\nDisconnected in {i+1} MS")
+            break
+
+    assert transport._connected is False

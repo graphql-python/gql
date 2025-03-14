@@ -8,7 +8,6 @@ import pytest
 from gql import Client, gql
 from gql.transport.exceptions import (
     TransportAlreadyConnected,
-    TransportClosed,
     TransportConnectionFailed,
     TransportProtocolError,
     TransportQueryError,
@@ -296,13 +295,35 @@ async def test_websocket_server_closing_after_ack(client_and_server):
 
     query = gql("query { hello }")
 
-    with pytest.raises(TransportClosed):
+    print("\n Trying to execute first query.\n")
+
+    with pytest.raises(TransportConnectionFailed) as exc1:
         await session.execute(query)
+
+    exc1_cause = exc1.value.__cause__
+    exc1_cause_str = f"{type(exc1_cause).__name__}:{exc1_cause!s}"
+
+    print(f"\n First query Exception cause: {exc1_cause_str}\n")
+
+    assert (
+        exc1_cause_str == "ConnectionClosedOK:received 1000 (OK); then sent 1000 (OK)"
+    )
 
     await session.transport.wait_closed()
 
-    with pytest.raises(TransportClosed):
+    print("\n Trying to execute second query.\n")
+
+    with pytest.raises(TransportConnectionFailed) as exc2:
         await session.execute(query)
+
+    exc2_cause = exc2.value.__cause__
+    exc2_cause_str = f"{type(exc2_cause).__name__}:{exc2_cause!s}"
+
+    print(f" Second query Exception cause: {exc2_cause_str}\n")
+
+    assert (
+        exc2_cause_str == "ConnectionClosedOK:received 1000 (OK); then sent 1000 (OK)"
+    )
 
 
 async def server_sending_invalid_query_errors(ws):

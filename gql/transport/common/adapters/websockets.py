@@ -86,12 +86,14 @@ class WebSocketsAdapter(AdapterConnection):
             TransportConnectionFailed: If connection closed
         """
         if self.websocket is None:
-            raise TransportConnectionFailed("Connection is already closed")
+            raise TransportConnectionFailed("WebSocket connection is already closed")
 
         try:
             await self.websocket.send(message)
         except Exception as e:
-            raise TransportConnectionFailed("Connection was closed") from e
+            raise TransportConnectionFailed(
+                f"Error trying to send data: {type(e).__name__}"
+            ) from e
 
     async def receive(self) -> str:
         """Receive message from the WebSocket server.
@@ -111,7 +113,9 @@ class WebSocketsAdapter(AdapterConnection):
         try:
             data = await self.websocket.recv()
         except Exception as e:
-            raise TransportConnectionFailed("Connection was closed") from e
+            raise TransportConnectionFailed(
+                f"Error trying to receive data: {type(e).__name__}"
+            ) from e
 
         # websocket.recv() can return either str or bytes
         # In our case, we should receive only str here

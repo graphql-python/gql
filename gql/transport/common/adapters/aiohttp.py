@@ -178,12 +178,14 @@ class AIOHTTPWebSocketsAdapter(AdapterConnection):
             TransportConnectionFailed: If connection closed
         """
         if self.websocket is None:
-            raise TransportConnectionFailed("Connection is already closed")
+            raise TransportConnectionFailed("WebSocket connection is already closed")
 
         try:
             await self.websocket.send_str(message)
-        except ConnectionResetError as e:
-            raise TransportConnectionFailed("Connection was closed") from e
+        except Exception as e:
+            raise TransportConnectionFailed(
+                f"Error trying to send data: {type(e).__name__}"
+            ) from e
 
     async def receive(self) -> str:
         """Receive message from the WebSocket server.
@@ -200,6 +202,9 @@ class AIOHTTPWebSocketsAdapter(AdapterConnection):
             raise TransportConnectionFailed("Connection is already closed")
 
         while True:
+            # Should not raise any exception:
+            # https://docs.aiohttp.org/en/stable/_modules/aiohttp/client_ws.html
+            #                                           #ClientWebSocketResponse.receive
             ws_message = await self.websocket.receive()
 
             # Ignore low-level ping and pong received

@@ -8,7 +8,6 @@ import pytest
 from gql import Client, gql
 from gql.transport.exceptions import (
     TransportAlreadyConnected,
-    TransportClosed,
     TransportConnectionFailed,
     TransportQueryError,
     TransportServerError,
@@ -323,7 +322,7 @@ async def test_aiohttp_websocket_server_closing_after_first_query(
 
     # Now the server is closed but we don't know it yet, we have to send a query
     # to notice it and to receive the exception
-    with pytest.raises(TransportClosed):
+    with pytest.raises(TransportConnectionFailed):
         await session.execute(query)
 
 
