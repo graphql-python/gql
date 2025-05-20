@@ -15,12 +15,14 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: 3.12
-    - name: Build wheel and source tarball
+    - name: Install build dependencies
       run: |
-        pip install wheel setuptools
-        python setup.py sdist bdist_wheel
+        python -m pip install --upgrade pip
+        pip install build wheel
+    - name: Build package
+      run: |
+        python -m build
     - name: Publish a Python distribution to PyPI
-      uses: pypa/gh-action-pypi-publish@v1.1.0
+      uses: pypa/gh-action-pypi-publish@release/v1
       with:
-        user: __token__
         password: ${{ secrets.pypi_password }}
