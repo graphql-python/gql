@@ -210,16 +210,24 @@ async def test_websocket_subscription_task_cancel(client_and_server, subscriptio
     count = 10
     subscription = gql(subscription_str.format(count=count))
 
+    task_cancelled = False
+
     async def task_coro():
         nonlocal count
-        async for result in session.subscribe(subscription):
+        nonlocal task_cancelled
 
-            number = result["number"]
-            print(f"Number received: {number}")
+        try:
+            async for result in session.subscribe(subscription):
 
-            assert number == count
+                number = result["number"]
+                print(f"Number received: {number}")
 
-            count -= 1
+                assert number == count
+
+                count -= 1
+        except asyncio.CancelledError:
+            print("Inside task cancelled")
+            task_cancelled = True
 
     task = asyncio.ensure_future(task_coro())
 
@@ -235,6 +243,7 @@ async def test_websocket_subscription_task_cancel(client_and_server, subscriptio
     await asyncio.gather(task, cancel_task)
 
     assert count > 0
+    assert task_cancelled is True
 
 
 @pytest.mark.asyncio

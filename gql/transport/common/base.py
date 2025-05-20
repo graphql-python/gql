@@ -317,8 +317,7 @@ class SubscriptionTransportBase(AsyncTransport):
             if listener.send_stop:
                 await self._stop_listener(query_id)
                 listener.send_stop = False
-            if isinstance(e, GeneratorExit):
-                raise e
+            raise e
 
         finally:
             log.debug(f"In subscribe finally for query_id {query_id}")
