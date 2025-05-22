@@ -1,4 +1,5 @@
 import io
+import warnings
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple, Type
 
@@ -11,6 +12,9 @@ class FileVar:
     content_type: Optional[str] = None
     streaming: bool = False
     streaming_block_size: int = 64 * 1024
+
+
+FILE_UPLOAD_DOCS = "https://gql.readthedocs.io/en/latest/usage/file_upload.html"
 
 
 def extract_files(
@@ -39,6 +43,11 @@ def extract_files(
             return nulled_dict
         elif isinstance(obj, file_classes):
             # extract obj from its parent and put it into files instead.
+            warnings.warn(
+                "Not using FileVar for file upload is deprecated. "
+                f"See {FILE_UPLOAD_DOCS} for details.",
+                DeprecationWarning,
+            )
             name = getattr(obj, "name", None)
             content_type = getattr(obj, "content_type", None)
             files[path] = FileVar(obj, filename=name, content_type=content_type)
