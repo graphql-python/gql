@@ -1,18 +1,47 @@
 import io
 import warnings
-from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple, Type
 
 
-@dataclass
 class FileVar:
-    f: Any  # str | io.IOBase | aiohttp.StreamReader | AsyncGenerator
-    # Add KW_ONLY here once Python 3.9 is deprecated
-    filename: Optional[str] = None
-    content_type: Optional[str] = None
-    streaming: bool = False
-    streaming_block_size: int = 64 * 1024
-    _file_opened: bool = False
+    def __init__(
+        self,
+        f: Any,  # str | io.IOBase | aiohttp.StreamReader | AsyncGenerator
+        *,
+        filename: Optional[str] = None,
+        content_type: Optional[str] = None,
+        streaming: bool = False,
+        streaming_block_size: int = 64 * 1024,
+    ):
+        self.f = f
+        self.filename = filename
+        self.content_type = content_type
+        self.streaming = streaming
+        self.streaming_block_size = streaming_block_size
+
+        self._file_opened: bool = False
+
+    def open_file(self):
+        assert self._file_opened is False
+        if isinstance(self.f, str):
+            self.f = open(self.f, "rb")
+            self._file_opened = True
+
+    def close_file(self):
+        if self._file_opened:
+            assert isinstance(self.f, io.IOBase)
+            self.f.close()
+            self._file_opened = False
+
+
+def open_files(filevars: List[FileVar]) -> None:
+    for filevar in filevars:
+        filevar.open_file()
+
+
+def close_files(filevars: List[FileVar]) -> None:
+    for filevar in filevars:
+        filevar.close_file()
 
 
 FILE_UPLOAD_DOCS = "https://gql.readthedocs.io/en/latest/usage/file_upload.html"
@@ -64,23 +93,3 @@ def extract_files(
     nulled_variables = recurse_extract("variables", variables)
 
     return nulled_variables, files
-
-
-def open_files(filevars: List[FileVar]) -> None:
-
-    for filevar in filevars:
-        assert isinstance(filevar, FileVar)
-
-        if isinstance(filevar.f, str):
-            filevar.f = open(filevar.f, "rb")
-            filevar._file_opened = True
-
-
-def close_files(filevars: List[FileVar]) -> None:
-    for filevar in filevars:
-        assert isinstance(filevar, FileVar)
-
-        if isinstance(filevar.f, io.IOBase):
-            if filevar._file_opened:
-                filevar.f.close()
-                filevar._file_opened = False
