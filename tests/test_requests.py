@@ -686,7 +686,7 @@ async def test_requests_file_upload_with_content_type(aiohttp_server, run_sync_t
                 with open(file_path, "rb") as f:
 
                     # Setting the content_type
-                    f.content_type = "application/pdf"
+                    f.content_type = "application/pdf"  # type: ignore
 
                     params = {"file": f, "other_var": 42}
                     execution_result = session._execute(
@@ -715,10 +715,9 @@ async def test_requests_file_upload_with_content_type(aiohttp_server, run_sync_t
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_requests_file_upload_with_filename(
-    aiohttp_server, run_sync_test
-):
+async def test_requests_file_upload_with_filename(aiohttp_server, run_sync_test):
     from aiohttp import web
+
     from gql.transport.requests import RequestsHTTPTransport
 
     app = web.Application()
@@ -901,13 +900,13 @@ async def test_requests_file_upload_two_files(aiohttp_server, run_sync_test):
                     f1 = open(file_path_1, "rb")
                     f2 = open(file_path_2, "rb")
 
-                    params = {
+                    params_1 = {
                         "file1": f1,
                         "file2": f2,
                     }
 
                     execution_result = session._execute(
-                        query, variable_values=params, upload_files=True
+                        query, variable_values=params_1, upload_files=True
                     )
 
                     assert execution_result.data["success"]
@@ -924,13 +923,13 @@ async def test_requests_file_upload_two_files(aiohttp_server, run_sync_test):
                     f1 = open(file_path_1, "rb")
                     f2 = open(file_path_2, "rb")
 
-                    params = {
+                    params_2 = {
                         "file1": FileVar(f1),
                         "file2": FileVar(f2),
                     }
 
                     execution_result = session._execute(
-                        query, variable_values=params, upload_files=True
+                        query, variable_values=params_2, upload_files=True
                     )
 
                     assert execution_result.data["success"]
@@ -1022,10 +1021,10 @@ async def test_requests_file_upload_list_of_two_files(aiohttp_server, run_sync_t
                     f1 = open(file_path_1, "rb")
                     f2 = open(file_path_2, "rb")
 
-                    params = {"files": [FileVar(f1), FileVar(f2)]}
+                    params_2 = {"files": [FileVar(f1), FileVar(f2)]}
 
                     execution_result = session._execute(
-                        query, variable_values=params, upload_files=True
+                        query, variable_values=params_2, upload_files=True
                     )
 
                     assert execution_result.data["success"]

@@ -1,7 +1,6 @@
 import io
-
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, Tuple, Type, List
+from typing import Any, Dict, List, Optional, Tuple, Type
 
 
 @dataclass
@@ -16,8 +15,8 @@ class FileVar:
 
 def extract_files(
     variables: Dict, file_classes: Tuple[Type[Any], ...]
-) -> Tuple[Dict, Dict]:
-    files = {}
+) -> Tuple[Dict, Dict[str, FileVar]]:
+    files: Dict[str, FileVar] = {}
 
     def recurse_extract(path, obj):
         """
@@ -27,17 +26,17 @@ def extract_files(
         """
         nonlocal files
         if isinstance(obj, list):
-            nulled_obj = []
+            nulled_list = []
             for key, value in enumerate(obj):
                 value = recurse_extract(f"{path}.{key}", value)
-                nulled_obj.append(value)
-            return nulled_obj
+                nulled_list.append(value)
+            return nulled_list
         elif isinstance(obj, dict):
-            nulled_obj = {}
+            nulled_dict = {}
             for key, value in obj.items():
                 value = recurse_extract(f"{path}.{key}", value)
-                nulled_obj[key] = value
-            return nulled_obj
+                nulled_dict[key] = value
+            return nulled_dict
         elif isinstance(obj, file_classes):
             # extract obj from its parent and put it into files instead.
             name = getattr(obj, "name", None)
@@ -56,9 +55,8 @@ def extract_files(
 
     return nulled_variables, files
 
-def open_files(
-    filevars: List[FileVar]
-):
+
+def open_files(filevars: List[FileVar]) -> None:
 
     for filevar in filevars:
         assert isinstance(filevar, FileVar)
@@ -66,9 +64,8 @@ def open_files(
         if isinstance(filevar.f, str):
             filevar.f = open(filevar.f, "rb")
 
-def close_files(
-    filevars: List[FileVar]
-):
+
+def close_files(filevars: List[FileVar]) -> None:
     for filevar in filevars:
         assert isinstance(filevar, FileVar)
 

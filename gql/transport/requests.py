@@ -31,7 +31,7 @@ from .exceptions import (
     TransportProtocolError,
     TransportServerError,
 )
-from .file_upload import FileVar, extract_files, open_files, close_files
+from .file_upload import FileVar, close_files, extract_files, open_files
 
 log = logging.getLogger(__name__)
 
@@ -191,7 +191,7 @@ class RequestsHTTPTransport(Transport):
             )
 
             # Opening the files using the FileVar parameters
-            open_files(files.values())
+            open_files(list(files.values()))
             self.files = files
 
             # Save the nulled variable values in the payload
@@ -264,7 +264,7 @@ class RequestsHTTPTransport(Transport):
             )
         finally:
             if upload_files:
-                close_files(self.files.values())
+                close_files(list(self.files.values()))
 
         self.response_headers = response.headers
 
