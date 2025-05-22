@@ -24,7 +24,7 @@ from .exceptions import (
     TransportProtocolError,
     TransportServerError,
 )
-from .file_upload import extract_files
+from .file_upload import close_files, extract_files, open_files
 
 log = logging.getLogger(__name__)
 
@@ -102,6 +102,10 @@ class _HTTPXTransport:
             variables=variable_values,
             file_classes=self.file_classes,
         )
+
+        # Opening the files using the FileVar parameters
+        open_files(list(files.values()))
+        self.files = files
 
         # Save the nulled variable values in the payload
         payload["variables"] = nulled_variable_values
@@ -227,7 +231,11 @@ class HTTPXTransport(Transport, _HTTPXTransport):
             upload_files,
         )
 
-        response = self.client.post(self.url, **post_args)
+        try:
+            response = self.client.post(self.url, **post_args)
+        finally:
+            if upload_files:
+                close_files(list(self.files.values()))
 
         return self._prepare_result(response)
 
@@ -290,7 +298,11 @@ class HTTPXAsyncTransport(AsyncTransport, _HTTPXTransport):
             upload_files,
         )
 
-        response = await self.client.post(self.url, **post_args)
+        try:
+            response = await self.client.post(self.url, **post_args)
+        finally:
+            if upload_files:
+                close_files(list(self.files.values()))
 
         return self._prepare_result(response)
 
