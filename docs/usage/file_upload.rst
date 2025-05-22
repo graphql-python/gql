@@ -14,10 +14,13 @@ Single File
 In order to upload a single file, you need to:
 
 * set the file as a variable value in the mutation
-* provide the opened file to the `variable_values` argument of `execute`
+* create a :class:`FileVar <gql.FileVar>` object with your file path
+* provide the `FileVar` instance to the `variable_values` argument of `execute`
 * set the `upload_files` argument to True
 
 .. code-block:: python
+
+    from gql import client, gql, FileVar
 
     transport = AIOHTTPTransport(url='YOUR_URL')
     # Or transport = RequestsHTTPTransport(url='YOUR_URL')
@@ -34,32 +37,38 @@ In order to upload a single file, you need to:
       }
     ''')
 
-    with open("YOUR_FILE_PATH", "rb") as f:
+    params = {"file": FileVar("YOUR_FILE_PATH")}
 
-        params = {"file": f}
-
-        result = client.execute(
-            query, variable_values=params, upload_files=True
-        )
+    result = client.execute(
+        query, variable_values=params, upload_files=True
+    )
 
 Setting the content-type
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 If you need to set a specific Content-Type attribute to a file,
-you can set the :code:`content_type` attribute of the file like this:
+you can set the :code:`content_type` attribute of :class:`FileVar <gql.FileVar>`:
 
 .. code-block:: python
 
-    with open("YOUR_FILE_PATH", "rb") as f:
+    # Setting the content-type to a pdf file for example
+    filevar = FileVar(
+        "YOUR_FILE_PATH",
+        content_type="application/pdf",
+    )
 
-        # Setting the content-type to a pdf file for example
-        f.content_type = "application/pdf"
+Setting the uploaded file name
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-        params = {"file": f}
+To modify the uploaded filename, use the :code:`filename` attribute of :class:`FileVar <gql.FileVar>`:
 
-        result = client.execute(
-            query, variable_values=params, upload_files=True
-        )
+.. code-block:: python
+
+    # Setting the content-type to a pdf file for example
+    filevar = FileVar(
+        "YOUR_FILE_PATH",
+        filename="filename1.txt",
+    )
 
 File list
 ---------
@@ -67,6 +76,8 @@ File list
 It is also possible to upload multiple files using a list.
 
 .. code-block:: python
+
+    from gql import client, gql, FileVar
 
     transport = AIOHTTPTransport(url='YOUR_URL')
     # Or transport = RequestsHTTPTransport(url='YOUR_URL')
@@ -83,17 +94,14 @@ It is also possible to upload multiple files using a list.
       }
     ''')
 
-    f1 = open("YOUR_FILE_PATH_1", "rb")
-    f2 = open("YOUR_FILE_PATH_2", "rb")
+    f1 = FileVar("YOUR_FILE_PATH_1")
+    f2 = FileVar("YOUR_FILE_PATH_2")
 
     params = {"files": [f1, f2]}
 
     result = client.execute(
         query, variable_values=params, upload_files=True
     )
-
-    f1.close()
-    f2.close()
 
 
 Streaming
@@ -154,7 +162,8 @@ Example:
                     yield chunk
                     chunk = await f.read(64*1024)
 
-    params = {"file": file_sender(file_name='YOUR_FILE_PATH')}
+    f1 = FileVar(file_sender(file_name='YOUR_FILE_PATH'))
+    params = {"file": f1}
 
     result = client.execute(
 		query, variable_values=params, upload_files=True
@@ -200,7 +209,7 @@ Example:
               }
             ''')
 
-            params = {"file": resp.content}
+            params = {"file": FileVar(resp.content)}
 
             result = client.execute(
                 query, variable_values=params, upload_files=True
