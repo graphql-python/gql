@@ -21,22 +21,48 @@ class FileVar:
 
         self._file_opened: bool = False
 
-    def open_file(self):
+    def open_file(
+        self,
+        transport_supports_streaming: bool = False,
+    ) -> None:
         assert self._file_opened is False
-        if isinstance(self.f, str):
-            self.f = open(self.f, "rb")
-            self._file_opened = True
 
-    def close_file(self):
+        if self.streaming:
+            assert (
+                transport_supports_streaming
+            ), "streaming not supported on this transport"
+            self._make_file_streamer()
+        else:
+            if isinstance(self.f, str):
+                self.f = open(self.f, "rb")
+                self._file_opened = True
+
+    def close_file(self) -> None:
         if self._file_opened:
             assert isinstance(self.f, io.IOBase)
             self.f.close()
             self._file_opened = False
 
+    def _make_file_streamer(self) -> None:
+        assert isinstance(self.f, str), "streaming option needs a filepath str"
 
-def open_files(filevars: List[FileVar]) -> None:
+        import aiofiles
+
+        async def file_sender(file_name):
+            async with aiofiles.open(file_name, "rb") as f:
+                while chunk := await f.read(self.streaming_block_size):
+                    yield chunk
+
+        self.f = file_sender(self.f)
+
+
+def open_files(
+    filevars: List[FileVar],
+    transport_supports_streaming: bool = False,
+) -> None:
+
     for filevar in filevars:
-        filevar.open_file()
+        filevar.open_file(transport_supports_streaming=transport_supports_streaming)
 
 
 def close_files(filevars: List[FileVar]) -> None:

@@ -1002,6 +1002,22 @@ async def test_aiohttp_async_generator_upload(aiohttp_server):
             success = result["success"]
             assert success
 
+        # Using FileVar with new streaming support
+        async with Client(transport=transport) as session:
+
+            params = {
+                "file": FileVar(file_path, streaming=True),
+                "other_var": 42,
+            }
+
+            # Execute query asynchronously
+            result = await session.execute(
+                query, variable_values=params, upload_files=True
+            )
+
+            success = result["success"]
+            assert success
+
 
 @pytest.mark.asyncio
 async def test_aiohttp_file_upload_two_files(aiohttp_server):

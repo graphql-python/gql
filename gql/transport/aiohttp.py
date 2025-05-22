@@ -208,7 +208,7 @@ class AIOHTTPTransport(AsyncTransport):
             )
 
             # Opening the files using the FileVar parameters
-            open_files(list(files.values()))
+            open_files(list(files.values()), transport_supports_streaming=True)
             self.files = files
 
             # Save the nulled variable values in the payload

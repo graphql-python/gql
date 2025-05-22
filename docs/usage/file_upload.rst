@@ -128,18 +128,8 @@ Streaming local files
 aiohttp allows to upload files using an asynchronous generator.
 See `Streaming uploads on aiohttp docs`_.
 
-
-In order to stream local files, instead of providing opened files to the
-`variable_values` argument of `execute`, you need to provide an async generator
-which will provide parts of the files.
-
-You can use `aiofiles`_
-to read the files in chunks and create this asynchronous generator.
-
-.. _Streaming uploads on aiohttp docs: https://docs.aiohttp.org/en/stable/client_quickstart.html#streaming-uploads
-.. _aiofiles: https://github.com/Tinche/aiofiles
-
-Example:
+From gql version 4.0, it is possible to activate file streaming simply by
+setting the `streaming` argument of :class:`FileVar <gql.FileVar>` to `True`
 
 .. code-block:: python
 
@@ -155,19 +145,38 @@ Example:
       }
     ''')
 
+    f1 = FileVar(
+        file_name='YOUR_FILE_PATH',
+        streaming=True,
+    )
+
+    params = {"file": f1}
+
+    result = client.execute(
+        query, variable_values=params, upload_files=True
+    )
+
+Another option is to use an async generator to provide parts of the file.
+
+You can use `aiofiles`_
+to read the files in chunks and create this asynchronous generator.
+
+.. _Streaming uploads on aiohttp docs: https://docs.aiohttp.org/en/stable/client_quickstart.html#streaming-uploads
+.. _aiofiles: https://github.com/Tinche/aiofiles
+
+.. code-block:: python
+
     async def file_sender(file_name):
         async with aiofiles.open(file_name, 'rb') as f:
-            chunk = await f.read(64*1024)
-                while chunk:
-                    yield chunk
-                    chunk = await f.read(64*1024)
+            while chunk := await f.read(64*1024):
+                yield chunk
 
     f1 = FileVar(file_sender(file_name='YOUR_FILE_PATH'))
     params = {"file": f1}
 
     result = client.execute(
-		query, variable_values=params, upload_files=True
-	)
+        query, variable_values=params, upload_files=True
+    )
 
 Streaming downloaded files
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
