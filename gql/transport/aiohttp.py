@@ -32,7 +32,7 @@ from .exceptions import (
     TransportProtocolError,
     TransportServerError,
 )
-from .file_upload import FileVar, extract_files
+from .file_upload import FileVar, close_files, extract_files, open_files
 
 log = logging.getLogger(__name__)
 
@@ -207,6 +207,10 @@ class AIOHTTPTransport(AsyncTransport):
                 file_classes=self.file_classes,
             )
 
+            # Opening the files using the FileVar parameters
+            open_files(list(files.values()))
+            self.files = files
+
             # Save the nulled variable values in the payload
             payload["variables"] = nulled_variable_values
 
@@ -270,51 +274,59 @@ class AIOHTTPTransport(AsyncTransport):
         if self.session is None:
             raise TransportClosed("Transport is not connected")
 
-        async with self.session.post(self.url, ssl=self.ssl, **post_args) as resp:
+        try:
+            async with self.session.post(self.url, ssl=self.ssl, **post_args) as resp:
 
-            # Saving latest response headers in the transport
-            self.response_headers = resp.headers
+                # Saving latest response headers in the transport
+                self.response_headers = resp.headers
 
-            async def raise_response_error(
-                resp: aiohttp.ClientResponse, reason: str
-            ) -> NoReturn:
-                # We raise a TransportServerError if the status code is 400 or higher
-                # We raise a TransportProtocolError in the other cases
+                async def raise_response_error(
+                    resp: aiohttp.ClientResponse, reason: str
+                ) -> NoReturn:
+                    # We raise a TransportServerError if status code is 400 or higher
+                    # We raise a TransportProtocolError in the other cases
+
+                    try:
+                        # Raise ClientResponseError if response status is 400 or higher
+                        resp.raise_for_status()
+                    except ClientResponseError as e:
+                        raise TransportServerError(str(e), e.status) from e
+
+                    result_text = await resp.text()
+                    raise TransportProtocolError(
+                        f"Server did not return a GraphQL result: "
+                        f"{reason}: "
+                        f"{result_text}"
+                    )
 
                 try:
-                    # Raise a ClientResponseError if response status is 400 or higher
-                    resp.raise_for_status()
-                except ClientResponseError as e:
-                    raise TransportServerError(str(e), e.status) from e
+                    result = await resp.json(
+                        loads=self.json_deserialize, content_type=None
+                    )
 
-                result_text = await resp.text()
-                raise TransportProtocolError(
-                    f"Server did not return a GraphQL result: "
-                    f"{reason}: "
-                    f"{result_text}"
+                    if log.isEnabledFor(logging.INFO):
+                        result_text = await resp.text()
+                        log.info("<<< %s", result_text)
+
+                except Exception:
+                    await raise_response_error(resp, "Not a JSON answer")
+
+                if result is None:
+                    await raise_response_error(resp, "Not a JSON answer")
+
+                if "errors" not in result and "data" not in result:
+                    await raise_response_error(
+                        resp, 'No "data" or "errors" keys in answer'
+                    )
+
+                return ExecutionResult(
+                    errors=result.get("errors"),
+                    data=result.get("data"),
+                    extensions=result.get("extensions"),
                 )
-
-            try:
-                result = await resp.json(loads=self.json_deserialize, content_type=None)
-
-                if log.isEnabledFor(logging.INFO):
-                    result_text = await resp.text()
-                    log.info("<<< %s", result_text)
-
-            except Exception:
-                await raise_response_error(resp, "Not a JSON answer")
-
-            if result is None:
-                await raise_response_error(resp, "Not a JSON answer")
-
-            if "errors" not in result and "data" not in result:
-                await raise_response_error(resp, 'No "data" or "errors" keys in answer')
-
-            return ExecutionResult(
-                errors=result.get("errors"),
-                data=result.get("data"),
-                extensions=result.get("extensions"),
-            )
+        finally:
+            if upload_files:
+                close_files(list(self.files.values()))
 
     def subscribe(
         self,
