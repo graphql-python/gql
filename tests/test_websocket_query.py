@@ -1,20 +1,19 @@
 import asyncio
 import json
-import ssl
 import sys
-from typing import Dict, Mapping
+from typing import Any, Dict, Mapping
 
 import pytest
 
 from gql import Client, gql
 from gql.transport.exceptions import (
     TransportAlreadyConnected,
-    TransportClosed,
+    TransportConnectionFailed,
     TransportQueryError,
     TransportServerError,
 )
 
-from .conftest import MS, WebSocketServerHelper
+from .conftest import MS, WebSocketServerHelper, get_localhost_ssl_context_client
 
 # Marking all tests in this file with the websockets marker
 pytestmark = pytest.mark.websockets
@@ -51,20 +50,21 @@ server1_answers = [
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server1_answers], indirect=True)
-async def test_websocket_starting_client_in_context_manager(event_loop, server):
-    import websockets
+async def test_websocket_starting_client_in_context_manager(server):
     from gql.transport.websockets import WebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    transport = WebsocketsTransport(url=url)
+    transport = WebsocketsTransport(url=url, headers={"test": "1234"})
+
+    assert transport.response_headers == {}
+    assert isinstance(transport.headers, Mapping)
+    assert transport.headers["test"] == "1234"
 
     async with Client(transport=transport) as session:
 
-        assert isinstance(
-            transport.websocket, websockets.client.WebSocketClientProtocol
-        )
+        assert transport._connected is True
 
         query1 = gql(query1_str)
 
@@ -86,13 +86,14 @@ async def test_websocket_starting_client_in_context_manager(event_loop, server):
         assert transport.response_headers["dummy"] == "test1234"
 
     # Check client is disconnect here
-    assert transport.websocket is None
+    assert transport._connected is False
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("ws_ssl_server", [server1_answers], indirect=True)
-async def test_websocket_using_ssl_connection(event_loop, ws_ssl_server):
+async def test_websocket_using_ssl_connection(ws_ssl_server):
     import websockets
+
     from gql.transport.websockets import WebsocketsTransport
 
     server = ws_ssl_server
@@ -100,16 +101,17 @@ async def test_websocket_using_ssl_connection(event_loop, ws_ssl_server):
     url = f"wss://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-    ssl_context.load_verify_locations(ws_ssl_server.testcert)
+    extra_args = {}
 
-    transport = WebsocketsTransport(url=url, ssl=ssl_context)
+    _, ssl_context = get_localhost_ssl_context_client()
+
+    extra_args["ssl"] = ssl_context
+
+    transport = WebsocketsTransport(url=url, **extra_args)
 
     async with Client(transport=transport) as session:
 
-        assert isinstance(
-            transport.websocket, websockets.client.WebSocketClientProtocol
-        )
+        assert isinstance(transport.adapter.websocket, websockets.ClientConnection)
 
         query1 = gql(query1_str)
 
@@ -126,13 +128,57 @@ async def test_websocket_using_ssl_connection(event_loop, ws_ssl_server):
         assert africa["code"] == "AF"
 
     # Check client is disconnect here
-    assert transport.websocket is None
+    assert transport._connected is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("ws_ssl_server", [server1_answers], indirect=True)
+@pytest.mark.parametrize("verify_https", ["explicitely_enabled", "default"])
+async def test_websocket_using_ssl_connection_self_cert_fail(
+    ws_ssl_server, verify_https
+):
+    from ssl import SSLCertVerificationError
+
+    from gql.transport.websockets import WebsocketsTransport
+
+    server = ws_ssl_server
+
+    url = f"wss://{server.hostname}:{server.port}/graphql"
+    print(f"url = {url}")
+
+    extra_args: Dict[str, Any] = {}
+
+    if verify_https == "explicitely_enabled":
+        extra_args["ssl"] = True
+
+    transport = WebsocketsTransport(url=url, **extra_args)
+
+    if verify_https == "explicitely_enabled":
+        assert transport.ssl is True
+
+    with pytest.raises(TransportConnectionFailed) as exc_info:
+        async with Client(transport=transport) as session:
+
+            query1 = gql(query1_str)
+
+            await session.execute(query1)
+
+    cause = exc_info.value.__cause__
+
+    assert isinstance(cause, SSLCertVerificationError)
+
+    expected_error = "certificate verify failed: self-signed certificate"
+
+    assert expected_error in str(cause)
+
+    # Check client is disconnect here
+    assert transport._connected is False
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server1_answers], indirect=True)
 @pytest.mark.parametrize("query_str", [query1_str])
-async def test_websocket_simple_query(event_loop, client_and_server, query_str):
+async def test_websocket_simple_query(client_and_server, query_str):
 
     session, server = client_and_server
 
@@ -152,9 +198,7 @@ server1_two_answers_in_series = [
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server1_two_answers_in_series], indirect=True)
 @pytest.mark.parametrize("query_str", [query1_str])
-async def test_websocket_two_queries_in_series(
-    event_loop, client_and_server, query_str
-):
+async def test_websocket_two_queries_in_series(client_and_server, query_str):
 
     session, server = client_and_server
 
@@ -171,7 +215,7 @@ async def test_websocket_two_queries_in_series(
     assert result1 == result2
 
 
-async def server1_two_queries_in_parallel(ws, path):
+async def server1_two_queries_in_parallel(ws):
     await WebSocketServerHelper.send_connection_ack(ws)
     result = await ws.recv()
     print(f"Server received: {result}", file=sys.stderr)
@@ -188,9 +232,7 @@ async def server1_two_queries_in_parallel(ws, path):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server1_two_queries_in_parallel], indirect=True)
 @pytest.mark.parametrize("query_str", [query1_str])
-async def test_websocket_two_queries_in_parallel(
-    event_loop, client_and_server, query_str
-):
+async def test_websocket_two_queries_in_parallel(client_and_server, query_str):
 
     session, server = client_and_server
 
@@ -218,7 +260,7 @@ async def test_websocket_two_queries_in_parallel(
     assert result1 == result2
 
 
-async def server_closing_while_we_are_doing_something_else(ws, path):
+async def server_closing_while_we_are_doing_something_else(ws):
     await WebSocketServerHelper.send_connection_ack(ws)
     result = await ws.recv()
     print(f"Server received: {result}", file=sys.stderr)
@@ -235,9 +277,7 @@ async def server_closing_while_we_are_doing_something_else(ws, path):
     "server", [server_closing_while_we_are_doing_something_else], indirect=True
 )
 @pytest.mark.parametrize("query_str", [query1_str])
-async def test_websocket_server_closing_after_first_query(
-    event_loop, client_and_server, query_str
-):
+async def test_websocket_server_closing_after_first_query(client_and_server, query_str):
 
     session, server = client_and_server
 
@@ -247,11 +287,11 @@ async def test_websocket_server_closing_after_first_query(
     await session.execute(query)
 
     # Then we do other things
-    await asyncio.sleep(100 * MS)
+    await asyncio.sleep(10 * MS)
 
     # Now the server is closed but we don't know it yet, we have to send a query
     # to notice it and to receive the exception
-    with pytest.raises(TransportClosed):
+    with pytest.raises(TransportConnectionFailed):
         await session.execute(query)
 
 
@@ -265,7 +305,7 @@ ignore_invalid_id_answers = [
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [ignore_invalid_id_answers], indirect=True)
 @pytest.mark.parametrize("query_str", [query1_str])
-async def test_websocket_ignore_invalid_id(event_loop, client_and_server, query_str):
+async def test_websocket_ignore_invalid_id(client_and_server, query_str):
 
     session, server = client_and_server
 
@@ -300,7 +340,7 @@ async def assert_client_is_working(session):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server1_answers], indirect=True)
-async def test_websocket_multiple_connections_in_series(event_loop, server):
+async def test_websocket_multiple_connections_in_series(server):
     from gql.transport.websockets import WebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
@@ -312,18 +352,18 @@ async def test_websocket_multiple_connections_in_series(event_loop, server):
         await assert_client_is_working(session)
 
     # Check client is disconnect here
-    assert transport.websocket is None
+    assert transport._connected is False
 
     async with Client(transport=transport) as session:
         await assert_client_is_working(session)
 
     # Check client is disconnect here
-    assert transport.websocket is None
+    assert transport._connected is False
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server1_answers], indirect=True)
-async def test_websocket_multiple_connections_in_parallel(event_loop, server):
+async def test_websocket_multiple_connections_in_parallel(server):
     from gql.transport.websockets import WebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
@@ -342,9 +382,7 @@ async def test_websocket_multiple_connections_in_parallel(event_loop, server):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server1_answers], indirect=True)
-async def test_websocket_trying_to_connect_to_already_connected_transport(
-    event_loop, server
-):
+async def test_websocket_trying_to_connect_to_already_connected_transport(server):
     from gql.transport.websockets import WebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
@@ -359,7 +397,7 @@ async def test_websocket_trying_to_connect_to_already_connected_transport(
                 pass
 
 
-async def server_with_authentication_in_connection_init_payload(ws, path):
+async def server_with_authentication_in_connection_init_payload(ws):
     # Wait the connection_init message
     init_message_str = await ws.recv()
     init_message = json.loads(init_message_str)
@@ -391,7 +429,7 @@ async def server_with_authentication_in_connection_init_payload(ws, path):
 )
 @pytest.mark.parametrize("query_str", [query1_str])
 async def test_websocket_connect_success_with_authentication_in_connection_init(
-    event_loop, server, query_str
+    server, query_str
 ):
     from gql.transport.websockets import WebsocketsTransport
 
@@ -426,7 +464,7 @@ async def test_websocket_connect_success_with_authentication_in_connection_init(
 @pytest.mark.parametrize("query_str", [query1_str])
 @pytest.mark.parametrize("init_payload", [{}, {"Authorization": "invalid_code"}])
 async def test_websocket_connect_failed_with_authentication_in_connection_init(
-    event_loop, server, query_str, init_payload
+    server, query_str, init_payload
 ):
     from gql.transport.websockets import WebsocketsTransport
 
@@ -440,6 +478,8 @@ async def test_websocket_connect_failed_with_authentication_in_connection_init(
             query1 = gql(query_str)
 
             await session.execute(query1)
+
+    assert transport._connected is False
 
 
 @pytest.mark.parametrize("server", [server1_answers], indirect=True)
@@ -481,12 +521,12 @@ def test_websocket_execute_sync(server):
     assert africa["code"] == "AF"
 
     # Check client is disconnect here
-    assert transport.websocket is None
+    assert transport._connected is False
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server1_answers], indirect=True)
-async def test_websocket_add_extra_parameters_to_connect(event_loop, server):
+async def test_websocket_add_extra_parameters_to_connect(server):
     from gql.transport.websockets import WebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
@@ -500,7 +540,7 @@ async def test_websocket_add_extra_parameters_to_connect(event_loop, server):
         await session.execute(query)
 
 
-async def server_sending_keep_alive_before_connection_ack(ws, path):
+async def server_sending_keep_alive_before_connection_ack(ws):
     await WebSocketServerHelper.send_keepalive(ws)
     await WebSocketServerHelper.send_keepalive(ws)
     await WebSocketServerHelper.send_keepalive(ws)
@@ -518,9 +558,7 @@ async def server_sending_keep_alive_before_connection_ack(ws, path):
     "server", [server_sending_keep_alive_before_connection_ack], indirect=True
 )
 @pytest.mark.parametrize("query_str", [query1_str])
-async def test_websocket_non_regression_bug_108(
-    event_loop, client_and_server, query_str
-):
+async def test_websocket_non_regression_bug_108(client_and_server, query_str):
 
     # This test will check that we now ignore keepalive message
     # arriving before the connection_ack
@@ -542,14 +580,15 @@ async def test_websocket_non_regression_bug_108(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server1_answers], indirect=True)
-async def test_websocket_using_cli(event_loop, server, monkeypatch, capsys):
+async def test_websocket_using_cli(server, monkeypatch, capsys):
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    from gql.cli import main, get_parser
     import io
     import json
+
+    from gql.cli import get_parser, main
 
     parser = get_parser(with_examples=True)
     args = parser.parse_args([url])
@@ -593,9 +632,7 @@ server1_answers_with_extensions = [
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server1_answers_with_extensions], indirect=True)
 @pytest.mark.parametrize("query_str", [query1_str])
-async def test_websocket_simple_query_with_extensions(
-    event_loop, client_and_server, query_str
-):
+async def test_websocket_simple_query_with_extensions(client_and_server, query_str):
 
     session, server = client_and_server
 
@@ -604,3 +641,52 @@ async def test_websocket_simple_query_with_extensions(
     execution_result = await session.execute(query, get_execution_result=True)
 
     assert execution_result.extensions["key1"] == "val1"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("server", [server1_answers], indirect=True)
+async def test_websocket_adapter_connection_closed(server):
+    from gql.transport.websockets import WebsocketsTransport
+
+    url = f"ws://{server.hostname}:{server.port}/graphql"
+    print(f"url = {url}")
+
+    transport = WebsocketsTransport(url=url, headers={"test": "1234"})
+
+    async with Client(transport=transport) as session:
+
+        query1 = gql(query1_str)
+
+        # Close adapter connection manually (should not be done)
+        await transport.adapter.close()
+
+        with pytest.raises(TransportConnectionFailed):
+            await session.execute(query1)
+
+    # Check client is disconnect here
+    assert transport._connected is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("server", [server1_answers], indirect=True)
+async def test_websocket_transport_closed_in_receive(server):
+    from gql.transport.websockets import WebsocketsTransport
+
+    url = f"ws://{server.hostname}:{server.port}/graphql"
+    print(f"url = {url}")
+
+    transport = WebsocketsTransport(
+        url=url,
+        close_timeout=0.1,
+    )
+
+    async with Client(transport=transport) as session:
+
+        query1 = gql(query1_str)
+
+        # Close adapter connection manually (should not be done)
+        # await transport.adapter.close()
+        transport._connected = False
+
+        with pytest.raises(TransportConnectionFailed):
+            await session.execute(query1)

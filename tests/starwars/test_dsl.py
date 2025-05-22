@@ -4,6 +4,7 @@ from graphql import (
     GraphQLError,
     GraphQLFloat,
     GraphQLID,
+    GraphQLInputObjectType,
     GraphQLInt,
     GraphQLList,
     GraphQLNonNull,
@@ -35,8 +36,9 @@ from gql.dsl import (
     ast_from_value,
     dsl_gql,
 )
-from gql.utilities import get_introspection_query_ast
+from gql.utilities import get_introspection_query_ast, node_tree
 
+from ..conftest import strip_braces_spaces
 from .schema import StarWarsSchema
 
 
@@ -52,6 +54,7 @@ def client():
 
 def test_ast_from_value_with_input_type_and_not_mapping_value():
     obj_type = StarWarsSchema.get_type("ReviewInput")
+    assert isinstance(obj_type, GraphQLInputObjectType)
     assert ast_from_value(8, obj_type) is None
 
 
@@ -77,7 +80,7 @@ def test_ast_from_value_with_graphqlid():
 
 def test_ast_from_value_with_invalid_type():
     with pytest.raises(TypeError) as exc_info:
-        ast_from_value(4, None)
+        ast_from_value(4, None)  # type: ignore
 
     assert "Unexpected input type: None." in str(exc_info.value)
 
@@ -113,7 +116,10 @@ def test_ast_from_serialized_value_untyped_typeerror():
 
 
 def test_variable_to_ast_type_passing_wrapping_type():
-    wrapping_type = GraphQLNonNull(GraphQLList(StarWarsSchema.get_type("ReviewInput")))
+    review_type = StarWarsSchema.get_type("ReviewInput")
+    assert isinstance(review_type, GraphQLInputObjectType)
+
+    wrapping_type = GraphQLNonNull(GraphQLList(review_type))
     variable = DSLVariable("review_input")
     ast = variable.to_ast_type(wrapping_type)
     assert ast == NonNullTypeNode(
@@ -151,6 +157,8 @@ def test_use_variable_definition_multiple_times(ds):
 }"""
     )
 
+    assert node_tree(query) == node_tree(gql(print_ast(query)))
+
 
 def test_add_variable_definitions(ds):
     var = DSLVariableDefinitions()
@@ -171,6 +179,8 @@ def test_add_variable_definitions(ds):
   }
 }"""
     )
+
+    assert node_tree(query) == node_tree(gql(print_ast(query)))
 
 
 def test_add_variable_definitions_with_default_value_enum(ds):
@@ -206,15 +216,17 @@ def test_add_variable_definitions_with_default_value_input_object(ds):
     query = dsl_gql(op)
 
     assert (
-        print_ast(query)
+        strip_braces_spaces(print_ast(query))
         == """
-mutation ($review: ReviewInput = { stars: 5, commentary: "Wow!" }, $episode: Episode) {
+mutation ($review: ReviewInput = {stars: 5, commentary: "Wow!"}, $episode: Episode) {
   createReview(review: $review, episode: $episode) {
     stars
     commentary
   }
 }""".strip()
     )
+
+    assert node_tree(query) == node_tree(gql(print_ast(query)))
 
 
 def test_add_variable_definitions_in_input_object(ds):
@@ -229,10 +241,10 @@ def test_add_variable_definitions_in_input_object(ds):
     query = dsl_gql(op)
 
     assert (
-        print_ast(query)
+        strip_braces_spaces(print_ast(query))
         == """mutation ($stars: Int, $commentary: String, $episode: Episode) {
   createReview(
-    review: { stars: $stars, commentary: $commentary }
+    review: {stars: $stars, commentary: $commentary}
     episode: $episode
   ) {
     stars
@@ -240,6 +252,8 @@ def test_add_variable_definitions_in_input_object(ds):
   }
 }"""
     )
+
+    assert node_tree(query) == node_tree(gql(print_ast(query)))
 
 
 def test_invalid_field_on_type_query(ds):
@@ -374,7 +388,7 @@ luke: human(id: "1000") {
     assert query == str(query_dsl)
 
 
-def test_fetch_name_aliased(ds: DSLSchema):
+def test_fetch_name_aliased(ds: DSLSchema) -> None:
     query = """
 human(id: "1000") {
   my_name: name
@@ -385,7 +399,7 @@ human(id: "1000") {
     assert query == str(query_dsl)
 
 
-def test_fetch_name_aliased_as_kwargs(ds: DSLSchema):
+def test_fetch_name_aliased_as_kwargs(ds: DSLSchema) -> None:
     query = """
 human(id: "1000") {
   my_name: name
@@ -402,6 +416,7 @@ def test_hero_name_query_result(ds, client):
     result = client.execute(query)
     expected = {"hero": {"name": "R2-D2"}}
     assert result == expected
+    assert node_tree(query) == node_tree(gql(print_ast(query)))
 
 
 def test_arg_serializer_list(ds, client):
@@ -421,6 +436,7 @@ def test_arg_serializer_list(ds, client):
         ]
     }
     assert result == expected
+    assert node_tree(query) == node_tree(gql(print_ast(query)))
 
 
 def test_arg_serializer_enum(ds, client):
@@ -428,6 +444,7 @@ def test_arg_serializer_enum(ds, client):
     result = client.execute(query)
     expected = {"hero": {"name": "Luke Skywalker"}}
     assert result == expected
+    assert node_tree(query) == node_tree(gql(print_ast(query)))
 
 
 def test_create_review_mutation_result(ds, client):
@@ -442,6 +459,7 @@ def test_create_review_mutation_result(ds, client):
     result = client.execute(query)
     expected = {"createReview": {"stars": 5, "commentary": "This is a great movie!"}}
     assert result == expected
+    assert node_tree(query) == node_tree(gql(print_ast(query)))
 
 
 def test_subscription(ds):
@@ -462,6 +480,8 @@ def test_subscription(ds):
   }
 }"""
     )
+
+    assert node_tree(query) == node_tree(gql(print_ast(query)))
 
 
 def test_field_does_not_exit_in_type(ds):
@@ -502,6 +522,7 @@ def test_multiple_root_fields(ds, client):
         "hero_of_episode_5": {"name": "Luke Skywalker"},
     }
     assert result == expected
+    assert node_tree(query) == node_tree(gql(print_ast(query)))
 
 
 def test_root_fields_aliased(ds, client):
@@ -517,6 +538,7 @@ def test_root_fields_aliased(ds, client):
         "hero_of_episode_5": {"name": "Luke Skywalker"},
     }
     assert result == expected
+    assert node_tree(query) == node_tree(gql(print_ast(query)))
 
 
 def test_operation_name(ds):
@@ -535,6 +557,8 @@ def test_operation_name(ds):
 }"""
     )
 
+    assert node_tree(query) == node_tree(gql(print_ast(query)))
+
 
 def test_multiple_operations(ds):
     query = dsl_gql(
@@ -547,7 +571,7 @@ def test_multiple_operations(ds):
     )
 
     assert (
-        print_ast(query)
+        strip_braces_spaces(print_ast(query))
         == """query GetHeroName {
   hero {
     name
@@ -557,13 +581,15 @@ def test_multiple_operations(ds):
 mutation CreateReviewMutation {
   createReview(
     episode: JEDI
-    review: { stars: 5, commentary: "This is a great movie!" }
+    review: {stars: 5, commentary: "This is a great movie!"}
   ) {
     stars
     commentary
   }
 }"""
     )
+
+    assert node_tree(query) == node_tree(gql(print_ast(query)))
 
 
 def test_inline_fragments(ds):
@@ -635,6 +661,7 @@ def test_fragments(ds):
     print(print_ast(document))
 
     assert query == print_ast(document)
+    assert node_tree(document) == node_tree(gql(print_ast(document)))
 
 
 def test_fragment_without_type_condition_error(ds):
@@ -731,6 +758,7 @@ query NestedQueryWithFragment {
     print(print_ast(document))
 
     assert query == print_ast(document)
+    assert node_tree(document) == node_tree(gql(print_ast(document)))
 
     # Same thing, but incrementaly
 
@@ -756,6 +784,7 @@ query NestedQueryWithFragment {
     print(print_ast(document))
 
     assert query == print_ast(document)
+    assert node_tree(document) == node_tree(gql(print_ast(document)))
 
 
 def test_dsl_query_all_fields_should_be_instances_of_DSLField():
@@ -763,7 +792,7 @@ def test_dsl_query_all_fields_should_be_instances_of_DSLField():
         TypeError,
         match="Fields should be instances of DSLSelectable. Received: <class 'str'>",
     ):
-        DSLQuery("I am a string")
+        DSLQuery("I am a string")  # type: ignore
 
 
 def test_dsl_query_all_fields_should_correspond_to_the_root_type(ds):
@@ -808,12 +837,14 @@ type QueryNotDefault {
         "Invalid field for <DSLSubscription>: <DSLField QueryNotDefault::version>"
     ) in str(excinfo.value)
 
+    assert node_tree(query) == node_tree(gql(print_ast(query)))
+
 
 def test_dsl_gql_all_arguments_should_be_operations_or_fragments():
     with pytest.raises(
         TypeError, match="Operations should be instances of DSLExecutable "
     ):
-        dsl_gql("I am a string")
+        dsl_gql("I am a string")  # type: ignore
 
 
 def test_DSLSchema_requires_a_schema(client):
@@ -958,15 +989,36 @@ def test_get_introspection_query_ast(option):
         specified_by_url=option,
         directive_is_repeatable=option,
         schema_description=option,
+        input_value_deprecation=option,
     )
     dsl_introspection_query = get_introspection_query_ast(
         descriptions=option,
         specified_by_url=option,
         directive_is_repeatable=option,
         schema_description=option,
+        input_value_deprecation=option,
     )
 
-    assert print_ast(gql(introspection_query)) == print_ast(dsl_introspection_query)
+    try:
+        assert print_ast(gql(introspection_query)) == print_ast(dsl_introspection_query)
+        assert node_tree(dsl_introspection_query) == node_tree(
+            gql(print_ast(dsl_introspection_query))
+        )
+    except AssertionError:
+
+        # From graphql-core version 3.3.0a7, there is two more type recursion levels
+        dsl_introspection_query = get_introspection_query_ast(
+            descriptions=option,
+            specified_by_url=option,
+            directive_is_repeatable=option,
+            schema_description=option,
+            input_value_deprecation=option,
+            type_recursion_level=9,
+        )
+        assert print_ast(gql(introspection_query)) == print_ast(dsl_introspection_query)
+        assert node_tree(dsl_introspection_query) == node_tree(
+            gql(print_ast(dsl_introspection_query))
+        )
 
 
 def test_typename_aliased(ds):
@@ -986,3 +1038,198 @@ hero {
         ds.Character.name, DSLMetaField("__typename").alias("typenameField")
     )
     assert query == str(query_dsl)
+
+
+def test_node_tree_with_loc(ds):
+    query = """query GetHeroName {
+  hero {
+    name
+  }
+}""".strip()
+
+    document = gql(query)
+
+    node_tree_result = """
+DocumentNode
+  definitions:
+    OperationDefinitionNode
+      directives:
+        empty tuple
+      loc:
+        Location
+          <Location 0:43>
+      name:
+        NameNode
+          loc:
+            Location
+              <Location 6:17>
+          value:
+            'GetHeroName'
+      operation:
+        <OperationType.QUERY: 'query'>
+      selection_set:
+        SelectionSetNode
+          loc:
+            Location
+              <Location 18:43>
+          selections:
+            FieldNode
+              alias:
+                None
+              arguments:
+                empty tuple
+              directives:
+                empty tuple
+              loc:
+                Location
+                  <Location 22:41>
+              name:
+                NameNode
+                  loc:
+                    Location
+                      <Location 22:26>
+                  value:
+                    'hero'
+              nullability_assertion:
+                None
+              selection_set:
+                SelectionSetNode
+                  loc:
+                    Location
+                      <Location 27:41>
+                  selections:
+                    FieldNode
+                      alias:
+                        None
+                      arguments:
+                        empty tuple
+                      directives:
+                        empty tuple
+                      loc:
+                        Location
+                          <Location 33:37>
+                      name:
+                        NameNode
+                          loc:
+                            Location
+                              <Location 33:37>
+                          value:
+                            'name'
+                      nullability_assertion:
+                        None
+                      selection_set:
+                        None
+      variable_definitions:
+        empty tuple
+  loc:
+    Location
+      <Location 0:43>
+""".strip()
+
+    node_tree_result_stable = """
+DocumentNode
+  definitions:
+    OperationDefinitionNode
+      directives:
+        empty tuple
+      loc:
+        Location
+          <Location 0:43>
+      name:
+        NameNode
+          loc:
+            Location
+              <Location 6:17>
+          value:
+            'GetHeroName'
+      operation:
+        <OperationType.QUERY: 'query'>
+      selection_set:
+        SelectionSetNode
+          loc:
+            Location
+              <Location 18:43>
+          selections:
+            FieldNode
+              alias:
+                None
+              arguments:
+                empty tuple
+              directives:
+                empty tuple
+              loc:
+                Location
+                  <Location 22:41>
+              name:
+                NameNode
+                  loc:
+                    Location
+                      <Location 22:26>
+                  value:
+                    'hero'
+              selection_set:
+                SelectionSetNode
+                  loc:
+                    Location
+                      <Location 27:41>
+                  selections:
+                    FieldNode
+                      alias:
+                        None
+                      arguments:
+                        empty tuple
+                      directives:
+                        empty tuple
+                      loc:
+                        Location
+                          <Location 33:37>
+                      name:
+                        NameNode
+                          loc:
+                            Location
+                              <Location 33:37>
+                          value:
+                            'name'
+                      selection_set:
+                        None
+      variable_definitions:
+        empty tuple
+  loc:
+    Location
+      <Location 0:43>
+""".strip()
+
+    print(node_tree(document, ignore_loc=False))
+
+    try:
+        assert node_tree(document, ignore_loc=False) == node_tree_result
+    except AssertionError:
+        # graphql-core version 3.2.3
+        assert node_tree(document, ignore_loc=False) == node_tree_result_stable
+
+
+def test_legacy_fragment_with_variables(ds):
+    var = DSLVariableDefinitions()
+
+    hero_fragment = (
+        DSLFragment("heroFragment")
+        .on(ds.Query)
+        .select(
+            ds.Query.hero.args(episode=var.episode).select(ds.Character.name),
+        )
+    )
+
+    print(hero_fragment)
+
+    hero_fragment.variable_definitions = var
+
+    query = dsl_gql(hero_fragment)
+
+    expected = """
+fragment heroFragment($episode: Episode) on Query {
+  hero(episode: $episode) {
+    name
+  }
+}
+""".strip()
+    assert print_ast(query) == expected

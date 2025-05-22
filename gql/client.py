@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import sys
 import time
 import warnings
 from concurrent.futures import Future
@@ -13,6 +12,7 @@ from typing import (
     Dict,
     Generator,
     List,
+    Literal,
     Optional,
     Tuple,
     TypeVar,
@@ -22,37 +22,26 @@ from typing import (
 )
 
 import backoff
+from anyio import fail_after
 from graphql import (
     DocumentNode,
     ExecutionResult,
     GraphQLSchema,
     IntrospectionQuery,
     build_ast_schema,
-    get_introspection_query,
     parse,
     validate,
 )
 
 from .graphql_request import GraphQLRequest
 from .transport.async_transport import AsyncTransport
-from .transport.exceptions import TransportClosed, TransportQueryError
+from .transport.exceptions import TransportConnectionFailed, TransportQueryError
 from .transport.local_schema import LocalSchemaTransport
 from .transport.transport import Transport
-from .utilities import build_client_schema
+from .utilities import build_client_schema, get_introspection_query_ast
 from .utilities import parse_result as parse_result_fn
 from .utilities import serialize_variable_values
 from .utils import str_first_element
-
-"""
-Load the appropriate instance of the Literal type
-Note: we cannot use try: except ImportError because of the following mypy issue:
-https://github.com/python/mypy/issues/8520
-"""
-if sys.version_info[:2] >= (3, 8):
-    from typing import Literal
-else:
-    from typing_extensions import Literal  # pragma: no cover
-
 
 log = logging.getLogger(__name__)
 
@@ -97,15 +86,15 @@ class Client:
         :param transport: The provided :ref:`transport <Transports>`.
         :param fetch_schema_from_transport: Boolean to indicate that if we want to fetch
                 the schema from the transport using an introspection query.
-        :param introspection_args: arguments passed to the get_introspection_query
-                method of graphql-core.
+        :param introspection_args: arguments passed to the
+                :meth:`gql.utilities.get_introspection_query_ast` method.
         :param execute_timeout: The maximum time in seconds for the execution of a
                 request before a TimeoutError is raised. Only used for async transports.
                 Passing None results in waiting forever for a response.
         :param serialize_variables: whether the variable values should be
             serialized. Used for custom scalars and/or enums. Default: False.
         :param parse_results: Whether gql will try to parse the serialized output
-                sent by the backend. Can be used to unserialize custom scalars or enums.
+                sent by the backend. Can be used to deserialize custom scalars or enums.
         :param batch_interval: Time to wait in seconds for batching requests together.
                 Batching is disabled (by default) if 0.
         :param batch_max: Maximum number of requests in a single batch.
@@ -142,7 +131,10 @@ class Client:
         self.introspection: Optional[IntrospectionQuery] = introspection
 
         # GraphQL transport chosen
-        self.transport: Optional[Union[Transport, AsyncTransport]] = transport
+        assert (
+            transport is not None
+        ), "You need to provide either a transport or a schema to the Client."
+        self.transport: Union[Transport, AsyncTransport] = transport
 
         # Flag to indicate that we need to fetch the schema from the transport
         # On async transports, we fetch the schema before executing the first query
@@ -160,10 +152,10 @@ class Client:
         self.batch_max = batch_max
 
     @property
-    def batching_enabled(self):
+    def batching_enabled(self) -> bool:
         return self.batch_interval != 0
 
-    def validate(self, document: DocumentNode):
+    def validate(self, document: DocumentNode) -> None:
         """:meta private:"""
         assert (
             self.schema
@@ -173,7 +165,9 @@ class Client:
         if validation_errors:
             raise validation_errors[0]
 
-    def _build_schema_from_introspection(self, execution_result: ExecutionResult):
+    def _build_schema_from_introspection(
+        self, execution_result: ExecutionResult
+    ) -> None:
         if execution_result.errors:
             raise TransportQueryError(
                 (
@@ -200,9 +194,8 @@ class Client:
         parse_result: Optional[bool] = ...,
         *,  # https://github.com/python/mypy/issues/7333#issuecomment-788255229
         get_execution_result: Literal[False] = ...,
-        **kwargs,
-    ) -> Dict[str, Any]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Dict[str, Any]: ...  # pragma: no cover
 
     @overload
     def execute_sync(
@@ -214,9 +207,8 @@ class Client:
         parse_result: Optional[bool] = ...,
         *,
         get_execution_result: Literal[True],
-        **kwargs,
-    ) -> ExecutionResult:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> ExecutionResult: ...  # pragma: no cover
 
     @overload
     def execute_sync(
@@ -228,9 +220,8 @@ class Client:
         parse_result: Optional[bool] = ...,
         *,
         get_execution_result: bool,
-        **kwargs,
-    ) -> Union[Dict[str, Any], ExecutionResult]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Union[Dict[str, Any], ExecutionResult]: ...  # pragma: no cover
 
     def execute_sync(
         self,
@@ -240,7 +231,7 @@ class Client:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[Dict[str, Any], ExecutionResult]:
         """:meta private:"""
         with self as session:
@@ -261,10 +252,9 @@ class Client:
         *,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
-        get_execution_result: Literal[False],
-        **kwargs,
-    ) -> List[Dict[str, Any]]:
-        ...  # pragma: no cover
+        get_execution_result: Literal[False] = ...,
+        **kwargs: Any,
+    ) -> List[Dict[str, Any]]: ...  # pragma: no cover
 
     @overload
     def execute_batch_sync(
@@ -274,9 +264,8 @@ class Client:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: Literal[True],
-        **kwargs,
-    ) -> List[ExecutionResult]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> List[ExecutionResult]: ...  # pragma: no cover
 
     @overload
     def execute_batch_sync(
@@ -286,9 +275,8 @@ class Client:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool,
-        **kwargs,
-    ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]: ...  # pragma: no cover
 
     def execute_batch_sync(
         self,
@@ -297,7 +285,7 @@ class Client:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]:
         """:meta private:"""
         with self as session:
@@ -319,9 +307,8 @@ class Client:
         parse_result: Optional[bool] = ...,
         *,  # https://github.com/python/mypy/issues/7333#issuecomment-788255229
         get_execution_result: Literal[False] = ...,
-        **kwargs,
-    ) -> Dict[str, Any]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Dict[str, Any]: ...  # pragma: no cover
 
     @overload
     async def execute_async(
@@ -333,9 +320,8 @@ class Client:
         parse_result: Optional[bool] = ...,
         *,
         get_execution_result: Literal[True],
-        **kwargs,
-    ) -> ExecutionResult:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> ExecutionResult: ...  # pragma: no cover
 
     @overload
     async def execute_async(
@@ -347,9 +333,8 @@ class Client:
         parse_result: Optional[bool] = ...,
         *,
         get_execution_result: bool,
-        **kwargs,
-    ) -> Union[Dict[str, Any], ExecutionResult]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Union[Dict[str, Any], ExecutionResult]: ...  # pragma: no cover
 
     async def execute_async(
         self,
@@ -359,7 +344,7 @@ class Client:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[Dict[str, Any], ExecutionResult]:
         """:meta private:"""
         async with self as session:
@@ -383,9 +368,8 @@ class Client:
         parse_result: Optional[bool] = ...,
         *,  # https://github.com/python/mypy/issues/7333#issuecomment-788255229
         get_execution_result: Literal[False] = ...,
-        **kwargs,
-    ) -> Dict[str, Any]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Dict[str, Any]: ...  # pragma: no cover
 
     @overload
     def execute(
@@ -397,9 +381,8 @@ class Client:
         parse_result: Optional[bool] = ...,
         *,
         get_execution_result: Literal[True],
-        **kwargs,
-    ) -> ExecutionResult:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> ExecutionResult: ...  # pragma: no cover
 
     @overload
     def execute(
@@ -411,9 +394,8 @@ class Client:
         parse_result: Optional[bool] = ...,
         *,
         get_execution_result: bool,
-        **kwargs,
-    ) -> Union[Dict[str, Any], ExecutionResult]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Union[Dict[str, Any], ExecutionResult]: ...  # pragma: no cover
 
     def execute(
         self,
@@ -423,7 +405,7 @@ class Client:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[Dict[str, Any], ExecutionResult]:
         """Execute the provided document AST against the remote server using
         the transport provided during init.
@@ -497,10 +479,9 @@ class Client:
         *,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
-        get_execution_result: Literal[False],
-        **kwargs,
-    ) -> List[Dict[str, Any]]:
-        ...  # pragma: no cover
+        get_execution_result: Literal[False] = ...,
+        **kwargs: Any,
+    ) -> List[Dict[str, Any]]: ...  # pragma: no cover
 
     @overload
     def execute_batch(
@@ -510,9 +491,8 @@ class Client:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: Literal[True],
-        **kwargs,
-    ) -> List[ExecutionResult]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> List[ExecutionResult]: ...  # pragma: no cover
 
     @overload
     def execute_batch(
@@ -522,9 +502,8 @@ class Client:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool,
-        **kwargs,
-    ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]: ...  # pragma: no cover
 
     def execute_batch(
         self,
@@ -533,7 +512,7 @@ class Client:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]:
         """Execute multiple GraphQL requests in a batch against the remote server using
         the transport provided during init.
@@ -579,9 +558,8 @@ class Client:
         parse_result: Optional[bool] = ...,
         *,
         get_execution_result: Literal[False] = ...,
-        **kwargs,
-    ) -> AsyncGenerator[Dict[str, Any], None]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> AsyncGenerator[Dict[str, Any], None]: ...  # pragma: no cover
 
     @overload
     def subscribe_async(
@@ -593,9 +571,8 @@ class Client:
         parse_result: Optional[bool] = ...,
         *,
         get_execution_result: Literal[True],
-        **kwargs,
-    ) -> AsyncGenerator[ExecutionResult, None]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> AsyncGenerator[ExecutionResult, None]: ...  # pragma: no cover
 
     @overload
     def subscribe_async(
@@ -607,11 +584,10 @@ class Client:
         parse_result: Optional[bool] = ...,
         *,
         get_execution_result: bool,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[
         AsyncGenerator[Dict[str, Any], None], AsyncGenerator[ExecutionResult, None]
-    ]:
-        ...  # pragma: no cover
+    ]: ...  # pragma: no cover
 
     async def subscribe_async(
         self,
@@ -621,7 +597,7 @@ class Client:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[
         AsyncGenerator[Dict[str, Any], None], AsyncGenerator[ExecutionResult, None]
     ]:
@@ -650,9 +626,8 @@ class Client:
         parse_result: Optional[bool] = ...,
         *,
         get_execution_result: Literal[False] = ...,
-        **kwargs,
-    ) -> Generator[Dict[str, Any], None, None]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Generator[Dict[str, Any], None, None]: ...  # pragma: no cover
 
     @overload
     def subscribe(
@@ -664,9 +639,8 @@ class Client:
         parse_result: Optional[bool] = ...,
         *,
         get_execution_result: Literal[True],
-        **kwargs,
-    ) -> Generator[ExecutionResult, None, None]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Generator[ExecutionResult, None, None]: ...  # pragma: no cover
 
     @overload
     def subscribe(
@@ -678,11 +652,10 @@ class Client:
         parse_result: Optional[bool] = ...,
         *,
         get_execution_result: bool,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[
         Generator[Dict[str, Any], None, None], Generator[ExecutionResult, None, None]
-    ]:
-        ...  # pragma: no cover
+    ]: ...  # pragma: no cover
 
     def subscribe(
         self,
@@ -693,7 +666,7 @@ class Client:
         parse_result: Optional[bool] = None,
         *,
         get_execution_result: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[
         Generator[Dict[str, Any], None, None], Generator[ExecutionResult, None, None]
     ]:
@@ -781,11 +754,17 @@ class Client:
             self.transport, AsyncTransport
         ), "Only a transport of type AsyncTransport can be used asynchronously"
 
+        self.session: Union[AsyncClientSession, SyncClientSession]
+
         if reconnecting:
             self.session = ReconnectingAsyncClientSession(client=self, **kwargs)
             await self.session.start_connecting_task()
         else:
-            await self.transport.connect()
+            try:
+                await self.transport.connect()
+            except Exception as e:
+                await self.transport.close()
+                raise e
             self.session = AsyncClientSession(client=self)
 
         # Get schema from transport if needed
@@ -832,6 +811,8 @@ class Client:
         if not hasattr(self, "session"):
             self.session = SyncClientSession(client=self)
 
+        assert isinstance(self.session, SyncClientSession)
+
         self.session.connect()
 
         # Get schema from transport if needed
@@ -853,6 +834,8 @@ class Client:
         If batching is enabled, this will block until the remaining queries in the
         batching queue have been processed.
         """
+        assert isinstance(self.session, SyncClientSession)
+
         self.session.close()
 
     def __enter__(self):
@@ -880,7 +863,7 @@ class SyncClientSession:
         operation_name: Optional[str] = None,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> ExecutionResult:
         """Execute the provided document AST synchronously using
         the sync transport, returning an ExecutionResult object.
@@ -891,7 +874,7 @@ class SyncClientSession:
         :param serialize_variables: whether the variable values should be
             serialized. Used for custom scalars and/or enums.
             By default use the serialize_variables argument of the client.
-        :param parse_result: Whether gql will unserialize the result.
+        :param parse_result: Whether gql will deserialize the result.
             By default use the parse_results argument of the client.
 
         The extra arguments are passed to the transport execute method."""
@@ -951,9 +934,8 @@ class SyncClientSession:
         parse_result: Optional[bool] = ...,
         *,
         get_execution_result: Literal[False] = ...,
-        **kwargs,
-    ) -> Dict[str, Any]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Dict[str, Any]: ...  # pragma: no cover
 
     @overload
     def execute(
@@ -965,9 +947,8 @@ class SyncClientSession:
         parse_result: Optional[bool] = ...,
         *,
         get_execution_result: Literal[True],
-        **kwargs,
-    ) -> ExecutionResult:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> ExecutionResult: ...  # pragma: no cover
 
     @overload
     def execute(
@@ -979,9 +960,8 @@ class SyncClientSession:
         parse_result: Optional[bool] = ...,
         *,
         get_execution_result: bool,
-        **kwargs,
-    ) -> Union[Dict[str, Any], ExecutionResult]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Union[Dict[str, Any], ExecutionResult]: ...  # pragma: no cover
 
     def execute(
         self,
@@ -991,7 +971,7 @@ class SyncClientSession:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[Dict[str, Any], ExecutionResult]:
         """Execute the provided document AST synchronously using
         the sync transport.
@@ -1005,7 +985,7 @@ class SyncClientSession:
         :param serialize_variables: whether the variable values should be
             serialized. Used for custom scalars and/or enums.
             By default use the serialize_variables argument of the client.
-        :param parse_result: Whether gql will unserialize the result.
+        :param parse_result: Whether gql will deserialize the result.
             By default use the parse_results argument of the client.
         :param get_execution_result: return the full ExecutionResult instance instead of
             only the "data" field. Necessary if you want to get the "extensions" field.
@@ -1047,7 +1027,7 @@ class SyncClientSession:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         validate_document: Optional[bool] = True,
-        **kwargs,
+        **kwargs: Any,
     ) -> List[ExecutionResult]:
         """Execute multiple GraphQL requests in a batch, using
         the sync transport, returning a list of ExecutionResult objects.
@@ -1056,7 +1036,7 @@ class SyncClientSession:
         :param serialize_variables: whether the variable values should be
             serialized. Used for custom scalars and/or enums.
             By default use the serialize_variables argument of the client.
-        :param parse_result: Whether gql will unserialize the result.
+        :param parse_result: Whether gql will deserialize the result.
             By default use the parse_results argument of the client.
         :param validate_document: Whether we still need to validate the document.
 
@@ -1074,9 +1054,11 @@ class SyncClientSession:
                 serialize_variables is None and self.client.serialize_variables
             ):
                 requests = [
-                    req.serialize_variable_values(self.client.schema)
-                    if req.variable_values is not None
-                    else req
+                    (
+                        req.serialize_variable_values(self.client.schema)
+                        if req.variable_values is not None
+                        else req
+                    )
                     for req in requests
                 ]
 
@@ -1102,10 +1084,9 @@ class SyncClientSession:
         *,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
-        get_execution_result: Literal[False],
-        **kwargs,
-    ) -> List[Dict[str, Any]]:
-        ...  # pragma: no cover
+        get_execution_result: Literal[False] = ...,
+        **kwargs: Any,
+    ) -> List[Dict[str, Any]]: ...  # pragma: no cover
 
     @overload
     def execute_batch(
@@ -1115,9 +1096,8 @@ class SyncClientSession:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: Literal[True],
-        **kwargs,
-    ) -> List[ExecutionResult]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> List[ExecutionResult]: ...  # pragma: no cover
 
     @overload
     def execute_batch(
@@ -1127,9 +1107,8 @@ class SyncClientSession:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool,
-        **kwargs,
-    ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]: ...  # pragma: no cover
 
     def execute_batch(
         self,
@@ -1138,7 +1117,7 @@ class SyncClientSession:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]:
         """Execute multiple GraphQL requests in a batch, using
         the sync transport. This method sends the requests to the server all at once.
@@ -1150,7 +1129,7 @@ class SyncClientSession:
         :param serialize_variables: whether the variable values should be
             serialized. Used for custom scalars and/or enums.
             By default use the serialize_variables argument of the client.
-        :param parse_result: Whether gql will unserialize the result.
+        :param parse_result: Whether gql will deserialize the result.
             By default use the parse_results argument of the client.
         :param get_execution_result: return the full ExecutionResult instance instead of
             only the "data" field. Necessary if you want to get the "extensions" field.
@@ -1288,8 +1267,10 @@ class SyncClientSession:
 
         Don't use this function and instead set the fetch_schema_from_transport
         attribute to True"""
-        introspection_query = get_introspection_query(**self.client.introspection_args)
-        execution_result = self.transport.execute(parse(introspection_query))
+        introspection_query = get_introspection_query_ast(
+            **self.client.introspection_args
+        )
+        execution_result = self.transport.execute(introspection_query)
 
         self.client._build_schema_from_introspection(execution_result)
 
@@ -1317,7 +1298,7 @@ class AsyncClientSession:
         operation_name: Optional[str] = None,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> AsyncGenerator[ExecutionResult, None]:
         """Coroutine to subscribe asynchronously to the provided document AST
         asynchronously using the async transport,
@@ -1332,7 +1313,7 @@ class AsyncClientSession:
         :param serialize_variables: whether the variable values should be
             serialized. Used for custom scalars and/or enums.
             By default use the serialize_variables argument of the client.
-        :param parse_result: Whether gql will unserialize the result.
+        :param parse_result: Whether gql will deserialize the result.
             By default use the parse_results argument of the client.
 
         The extra arguments are passed to the transport subscribe method."""
@@ -1354,17 +1335,17 @@ class AsyncClientSession:
                     )
 
         # Subscribe to the transport
-        inner_generator: AsyncGenerator[
-            ExecutionResult, None
-        ] = self.transport.subscribe(
-            document,
-            variable_values=variable_values,
-            operation_name=operation_name,
-            **kwargs,
+        inner_generator: AsyncGenerator[ExecutionResult, None] = (
+            self.transport.subscribe(
+                document,
+                variable_values=variable_values,
+                operation_name=operation_name,
+                **kwargs,
+            )
         )
 
-        # Keep a reference to the inner generator to allow the user to call aclose()
-        # before a break if python version is too old (pypy3 py 3.6.1)
+        # Keep a reference to the inner generator
+        # This is only used for the tests to simulate a KeyboardInterrupt event
         self._generator = inner_generator
 
         try:
@@ -1395,9 +1376,8 @@ class AsyncClientSession:
         parse_result: Optional[bool] = ...,
         *,
         get_execution_result: Literal[False] = ...,
-        **kwargs,
-    ) -> AsyncGenerator[Dict[str, Any], None]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> AsyncGenerator[Dict[str, Any], None]: ...  # pragma: no cover
 
     @overload
     def subscribe(
@@ -1409,9 +1389,8 @@ class AsyncClientSession:
         parse_result: Optional[bool] = ...,
         *,
         get_execution_result: Literal[True],
-        **kwargs,
-    ) -> AsyncGenerator[ExecutionResult, None]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> AsyncGenerator[ExecutionResult, None]: ...  # pragma: no cover
 
     @overload
     def subscribe(
@@ -1423,11 +1402,10 @@ class AsyncClientSession:
         parse_result: Optional[bool] = ...,
         *,
         get_execution_result: bool,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[
         AsyncGenerator[Dict[str, Any], None], AsyncGenerator[ExecutionResult, None]
-    ]:
-        ...  # pragma: no cover
+    ]: ...  # pragma: no cover
 
     async def subscribe(
         self,
@@ -1437,7 +1415,7 @@ class AsyncClientSession:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[
         AsyncGenerator[Dict[str, Any], None], AsyncGenerator[ExecutionResult, None]
     ]:
@@ -1453,7 +1431,7 @@ class AsyncClientSession:
         :param serialize_variables: whether the variable values should be
             serialized. Used for custom scalars and/or enums.
             By default use the serialize_variables argument of the client.
-        :param parse_result: Whether gql will unserialize the result.
+        :param parse_result: Whether gql will deserialize the result.
             By default use the parse_results argument of the client.
         :param get_execution_result: yield the full ExecutionResult instance instead of
             only the "data" field. Necessary if you want to get the "extensions" field.
@@ -1496,7 +1474,7 @@ class AsyncClientSession:
         operation_name: Optional[str] = None,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> ExecutionResult:
         """Coroutine to execute the provided document AST asynchronously using
         the async transport, returning an ExecutionResult object.
@@ -1510,7 +1488,7 @@ class AsyncClientSession:
         :param serialize_variables: whether the variable values should be
             serialized. Used for custom scalars and/or enums.
             By default use the serialize_variables argument of the client.
-        :param parse_result: Whether gql will unserialize the result.
+        :param parse_result: Whether gql will deserialize the result.
             By default use the parse_results argument of the client.
 
         The extra arguments are passed to the transport execute method."""
@@ -1532,15 +1510,13 @@ class AsyncClientSession:
                     )
 
         # Execute the query with the transport with a timeout
-        result = await asyncio.wait_for(
-            self.transport.execute(
+        with fail_after(self.client.execute_timeout):
+            result = await self.transport.execute(
                 document,
                 variable_values=variable_values,
                 operation_name=operation_name,
                 **kwargs,
-            ),
-            self.client.execute_timeout,
-        )
+            )
 
         # Unserialize the result if requested
         if self.client.schema:
@@ -1564,9 +1540,8 @@ class AsyncClientSession:
         parse_result: Optional[bool] = ...,
         *,
         get_execution_result: Literal[False] = ...,
-        **kwargs,
-    ) -> Dict[str, Any]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Dict[str, Any]: ...  # pragma: no cover
 
     @overload
     async def execute(
@@ -1578,9 +1553,8 @@ class AsyncClientSession:
         parse_result: Optional[bool] = ...,
         *,
         get_execution_result: Literal[True],
-        **kwargs,
-    ) -> ExecutionResult:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> ExecutionResult: ...  # pragma: no cover
 
     @overload
     async def execute(
@@ -1592,9 +1566,8 @@ class AsyncClientSession:
         parse_result: Optional[bool] = ...,
         *,
         get_execution_result: bool,
-        **kwargs,
-    ) -> Union[Dict[str, Any], ExecutionResult]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Union[Dict[str, Any], ExecutionResult]: ...  # pragma: no cover
 
     async def execute(
         self,
@@ -1604,7 +1577,7 @@ class AsyncClientSession:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[Dict[str, Any], ExecutionResult]:
         """Coroutine to execute the provided document AST asynchronously using
         the async transport.
@@ -1618,7 +1591,7 @@ class AsyncClientSession:
         :param serialize_variables: whether the variable values should be
             serialized. Used for custom scalars and/or enums.
             By default use the serialize_variables argument of the client.
-        :param parse_result: Whether gql will unserialize the result.
+        :param parse_result: Whether gql will deserialize the result.
             By default use the parse_results argument of the client.
         :param get_execution_result: return the full ExecutionResult instance instead of
             only the "data" field. Necessary if you want to get the "extensions" field.
@@ -1658,8 +1631,10 @@ class AsyncClientSession:
 
         Don't use this function and instead set the fetch_schema_from_transport
         attribute to True"""
-        introspection_query = get_introspection_query(**self.client.introspection_args)
-        execution_result = await self.transport.execute(parse(introspection_query))
+        introspection_query = get_introspection_query_ast(
+            **self.client.introspection_args
+        )
+        execution_result = await self.transport.execute(introspection_query)
 
         self.client._build_schema_from_introspection(execution_result)
 
@@ -1755,6 +1730,7 @@ class ReconnectingAsyncClientSession(AsyncClientSession):
             # Then wait for the reconnect event
             self._reconnect_request_event.clear()
             await self._reconnect_request_event.wait()
+            await self.transport.close()
 
     async def start_connecting_task(self):
         """Start the task responsible to restart the connection
@@ -1780,10 +1756,10 @@ class ReconnectingAsyncClientSession(AsyncClientSession):
         operation_name: Optional[str] = None,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> ExecutionResult:
         """Same Coroutine as parent method _execute but requesting a
-        reconnection if we receive a TransportClosed exception.
+        reconnection if we receive a TransportConnectionFailed exception.
         """
 
         try:
@@ -1795,7 +1771,7 @@ class ReconnectingAsyncClientSession(AsyncClientSession):
                 parse_result=parse_result,
                 **kwargs,
             )
-        except TransportClosed:
+        except TransportConnectionFailed:
             self._reconnect_request_event.set()
             raise
 
@@ -1808,10 +1784,11 @@ class ReconnectingAsyncClientSession(AsyncClientSession):
         operation_name: Optional[str] = None,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> ExecutionResult:
         """Same Coroutine as parent, but with optional retries
-        and requesting a reconnection if we receive a TransportClosed exception.
+        and requesting a reconnection if we receive a
+        TransportConnectionFailed exception.
         """
 
         return await self._execute_with_retries(
@@ -1830,10 +1807,10 @@ class ReconnectingAsyncClientSession(AsyncClientSession):
         operation_name: Optional[str] = None,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> AsyncGenerator[ExecutionResult, None]:
         """Same Async generator as parent method _subscribe but requesting a
-        reconnection if we receive a TransportClosed exception.
+        reconnection if we receive a TransportConnectionFailed exception.
         """
 
         inner_generator: AsyncGenerator[ExecutionResult, None] = super()._subscribe(
@@ -1849,7 +1826,7 @@ class ReconnectingAsyncClientSession(AsyncClientSession):
             async for result in inner_generator:
                 yield result
 
-        except TransportClosed:
+        except TransportConnectionFailed:
             self._reconnect_request_event.set()
             raise
 

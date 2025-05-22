@@ -157,8 +157,10 @@ def get_parser(with_examples: bool = False) -> ArgumentParser:
         choices=[
             "auto",
             "aiohttp",
+            "httpx",
             "phoenix",
             "websockets",
+            "aiohttp_websockets",
             "appsync_http",
             "appsync_websockets",
         ],
@@ -286,11 +288,32 @@ def autodetect_transport(url: URL) -> str:
     """Detects which transport should be used depending on url."""
 
     if url.scheme in ["ws", "wss"]:
-        transport_name = "websockets"
+        try:
+            import websockets  # noqa: F401
+
+            transport_name = "websockets"
+        except ImportError:  # pragma: no cover
+            transport_name = "aiohttp_websockets"
 
     else:
         assert url.scheme in ["http", "https"]
-        transport_name = "aiohttp"
+
+        try:
+            from gql.transport.aiohttp import AIOHTTPTransport  # noqa: F401
+
+            transport_name = "aiohttp"
+        except ModuleNotFoundError:  # pragma: no cover
+            try:
+                from gql.transport.httpx import HTTPXAsyncTransport  # noqa: F401
+
+                transport_name = "httpx"
+            except ModuleNotFoundError:
+                raise ModuleNotFoundError(
+                    "\n\nNo suitable dependencies has been found for an http(s) backend"
+                    " (aiohttp or httpx).\n\n"
+                    "Please check the install documentation at:\n"
+                    "https://gql.readthedocs.io/en/stable/intro.html#installation\n"
+                )
 
     return transport_name
 
@@ -324,6 +347,11 @@ def get_transport(args: Namespace) -> Optional[AsyncTransport]:
 
         return AIOHTTPTransport(url=args.server, **transport_args)
 
+    elif transport_name == "httpx":
+        from gql.transport.httpx import HTTPXAsyncTransport
+
+        return HTTPXAsyncTransport(url=args.server, **transport_args)
+
     elif transport_name == "phoenix":
         from gql.transport.phoenix_channel_websockets import (
             PhoenixChannelWebsocketsTransport,
@@ -337,6 +365,11 @@ def get_transport(args: Namespace) -> Optional[AsyncTransport]:
         transport_args["ssl"] = url.scheme == "wss"
 
         return WebsocketsTransport(url=args.server, **transport_args)
+
+    elif transport_name == "aiohttp_websockets":
+        from gql.transport.aiohttp_websockets import AIOHTTPWebsocketsTransport
+
+        return AIOHTTPWebsocketsTransport(url=args.server, **transport_args)
 
     else:
 
@@ -358,8 +391,9 @@ def get_transport(args: Namespace) -> Optional[AsyncTransport]:
             auth = AppSyncJWTAuthentication(host=url.host, jwt=args.jwt)
 
         else:
-            from gql.transport.appsync_auth import AppSyncIAMAuthentication
             from botocore.exceptions import NoRegionError
+
+            from gql.transport.appsync_auth import AppSyncIAMAuthentication
 
             try:
                 auth = AppSyncIAMAuthentication(host=url.host)
@@ -445,6 +479,9 @@ async def main(args: Namespace) -> int:
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1
+    except ModuleNotFoundError as e:  # pragma: no cover
+        print(f"Error: {e}", file=sys.stderr)
+        return 2
 
     # By default, the exit_code is 0 (everything is ok)
     exit_code = 0

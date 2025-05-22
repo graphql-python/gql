@@ -1,5 +1,6 @@
+import asyncio
 from inspect import isawaitable
-from typing import AsyncGenerator, Awaitable, cast
+from typing import Any, AsyncGenerator, Awaitable, cast
 
 from graphql import DocumentNode, ExecutionResult, GraphQLSchema, execute, subscribe
 
@@ -30,8 +31,8 @@ class LocalSchemaTransport(AsyncTransport):
     async def execute(
         self,
         document: DocumentNode,
-        *args,
-        **kwargs,
+        *args: Any,
+        **kwargs: Any,
     ) -> ExecutionResult:
         """Execute the provided document AST for on a local GraphQL Schema."""
 
@@ -48,18 +49,26 @@ class LocalSchemaTransport(AsyncTransport):
 
         return execution_result
 
+    @staticmethod
+    async def _await_if_necessary(obj):
+        """This method is necessary to work with
+        graphql-core versions < and >= 3.3.0a3"""
+        return await obj if asyncio.iscoroutine(obj) else obj
+
     async def subscribe(
         self,
         document: DocumentNode,
-        *args,
-        **kwargs,
+        *args: Any,
+        **kwargs: Any,
     ) -> AsyncGenerator[ExecutionResult, None]:
         """Send a subscription and receive the results using an async generator
 
         The results are sent as an ExecutionResult object
         """
 
-        subscribe_result = subscribe(self.schema, document, *args, **kwargs)
+        subscribe_result = await self._await_if_necessary(
+            subscribe(self.schema, document, *args, **kwargs)
+        )
 
         if isinstance(subscribe_result, ExecutionResult):
             yield subscribe_result

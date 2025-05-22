@@ -1,8 +1,11 @@
 import asyncio
 import logging
+from typing import Optional
 
 from aioconsole import ainput
+
 from gql import Client, gql
+from gql.client import AsyncClientSession
 from gql.transport.aiohttp import AIOHTTPTransport
 
 logging.basicConfig(level=logging.INFO)
@@ -21,7 +24,7 @@ class GraphQLContinentClient:
         self._client = Client(
             transport=AIOHTTPTransport(url="https://countries.trevorblades.com/")
         )
-        self._session = None
+        self._session: Optional[AsyncClientSession] = None
 
         self.get_continent_name_query = gql(GET_CONTINENT_NAME)
 
@@ -34,11 +37,13 @@ class GraphQLContinentClient:
     async def get_continent_name(self, code):
         params = {"code": code}
 
+        assert self._session is not None
+
         answer = await self._session.execute(
             self.get_continent_name_query, variable_values=params
         )
 
-        return answer.get("continent").get("name")
+        return answer.get("continent").get("name")  # type: ignore
 
 
 async def main():

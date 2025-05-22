@@ -7,8 +7,10 @@ from urllib.parse import urlparse
 from graphql import DocumentNode, ExecutionResult, print_ast
 
 from .appsync_auth import AppSyncAuthentication, AppSyncIAMAuthentication
+from .common.adapters.websockets import WebSocketsAdapter
+from .common.base import SubscriptionTransportBase
 from .exceptions import TransportProtocolError, TransportServerError
-from .websockets import WebsocketsTransport, WebsocketsTransportBase
+from .websockets import WebsocketsTransport
 
 log = logging.getLogger("gql.transport.appsync")
 
@@ -19,7 +21,7 @@ except ImportError:  # pragma: no cover
     pass
 
 
-class AppSyncWebsocketsTransport(WebsocketsTransportBase):
+class AppSyncWebsocketsTransport(SubscriptionTransportBase):
     """:ref:`Async Transport <async_transports>` used to execute GraphQL subscription on
     AWS appsync realtime endpoint.
 
@@ -27,11 +29,12 @@ class AppSyncWebsocketsTransport(WebsocketsTransportBase):
     on a websocket connection.
     """
 
-    auth: Optional[AppSyncAuthentication]
+    auth: AppSyncAuthentication
 
     def __init__(
         self,
         url: str,
+        *,
         auth: Optional[AppSyncAuthentication] = None,
         session: Optional["botocore.session.Session"] = None,
         ssl: Union[SSLContext, bool] = False,
@@ -69,22 +72,30 @@ class AppSyncWebsocketsTransport(WebsocketsTransportBase):
             # May raise NoRegionError or NoCredentialsError or ImportError
             auth = AppSyncIAMAuthentication(host=host, session=session)
 
-        self.auth = auth
+        self.auth: AppSyncAuthentication = auth
+        self.ack_timeout: Optional[Union[int, float]] = ack_timeout
+        self.init_payload: Dict[str, Any] = {}
 
         url = self.auth.get_auth_url(url)
 
-        super().__init__(
-            url,
+        # Instanciate a WebSocketAdapter to indicate the use
+        # of the websockets dependency for this transport
+        self.adapter: WebSocketsAdapter = WebSocketsAdapter(
+            url=url,
             ssl=ssl,
-            connect_timeout=connect_timeout,
-            close_timeout=close_timeout,
-            ack_timeout=ack_timeout,
-            keep_alive_timeout=keep_alive_timeout,
             connect_args=connect_args,
         )
 
+        # Initialize the generic SubscriptionTransportBase parent class
+        super().__init__(
+            adapter=self.adapter,
+            connect_timeout=connect_timeout,
+            close_timeout=close_timeout,
+            keep_alive_timeout=keep_alive_timeout,
+        )
+
         # Using the same 'graphql-ws' protocol as the apollo protocol
-        self.supported_subprotocols = [
+        self.adapter.subprotocols = [
             WebsocketsTransport.APOLLO_SUBPROTOCOL,
         ]
         self.subprotocol = WebsocketsTransport.APOLLO_SUBPROTOCOL
@@ -181,7 +192,7 @@ class AppSyncWebsocketsTransport(WebsocketsTransportBase):
 
         return query_id
 
-    subscribe = WebsocketsTransportBase.subscribe
+    subscribe = SubscriptionTransportBase.subscribe  # type: ignore[assignment]
     """Send a subscription query and receive the results using
     a python async generator.
 
@@ -212,3 +223,7 @@ class AppSyncWebsocketsTransport(WebsocketsTransportBase):
         WebsocketsTransport._send_init_message_and_wait_ack
     )
     _wait_ack = WebsocketsTransport._wait_ack
+
+    @property
+    def ssl(self) -> Union[SSLContext, bool]:
+        return self.adapter.ssl

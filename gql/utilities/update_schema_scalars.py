@@ -3,7 +3,9 @@ from typing import Iterable, List
 from graphql import GraphQLScalarType, GraphQLSchema
 
 
-def update_schema_scalar(schema: GraphQLSchema, name: str, scalar: GraphQLScalarType):
+def update_schema_scalar(
+    schema: GraphQLSchema, name: str, scalar: GraphQLScalarType
+) -> None:
     """Update the scalar in a schema with the scalar provided.
 
     :param schema: the GraphQL schema
@@ -36,7 +38,9 @@ def update_schema_scalar(schema: GraphQLSchema, name: str, scalar: GraphQLScalar
     setattr(schema_scalar, "parse_literal", scalar.parse_literal)
 
 
-def update_schema_scalars(schema: GraphQLSchema, scalars: List[GraphQLScalarType]):
+def update_schema_scalars(
+    schema: GraphQLSchema, scalars: List[GraphQLScalarType]
+) -> None:
     """Update the scalars in a schema with the scalars provided.
 
     :param schema: the GraphQL schema

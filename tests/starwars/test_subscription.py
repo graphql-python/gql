@@ -1,3 +1,5 @@
+import asyncio
+
 import pytest
 from graphql import ExecutionResult, GraphQLError, subscribe
 
@@ -17,6 +19,14 @@ subscription_str = """
 """
 
 
+async def await_if_coroutine(obj):
+    """Function to make tests work for graphql-core versions before and after 3.3.0a3"""
+    if asyncio.iscoroutine(obj):
+        return await obj
+
+    return obj
+
+
 @pytest.mark.asyncio
 async def test_subscription_support():
     # reset review data for this test
@@ -30,7 +40,9 @@ async def test_subscription_support():
     params = {"ep": "JEDI"}
     expected = [{**review, "episode": "JEDI"} for review in reviews[6]]
 
-    ai = subscribe(StarWarsSchema, subs, variable_values=params)
+    ai = await await_if_coroutine(
+        subscribe(StarWarsSchema, subs, variable_values=params)
+    )
 
     result = [result.data["reviewAdded"] async for result in ai]
 
@@ -53,8 +65,8 @@ async def test_subscription_support_using_client():
     async with Client(schema=StarWarsSchema) as session:
         results = [
             result["reviewAdded"]
-            async for result in session.subscribe(
-                subs, variable_values=params, parse_result=False
+            async for result in await await_if_coroutine(
+                session.subscribe(subs, variable_values=params, parse_result=False)
             )
         ]
 
@@ -80,8 +92,8 @@ async def test_subscription_support_using_client_invalid_field():
         # We subscribe directly from the transport to avoid local validation
         results = [
             result
-            async for result in session.transport.subscribe(
-                subs, variable_values=params
+            async for result in await await_if_coroutine(
+                session.transport.subscribe(subs, variable_values=params)
             )
         ]
 

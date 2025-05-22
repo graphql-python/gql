@@ -44,7 +44,7 @@ RESULT_DOCUMENT_KEYS: Dict[str, Tuple[str, ...]] = {
 }
 
 
-def _ignore_non_null(type_: GraphQLType):
+def _ignore_non_null(type_: GraphQLType) -> GraphQLType:
     """Removes the GraphQLNonNull wrappings around types."""
     if isinstance(type_, GraphQLNonNull):
         return type_.of_type
@@ -153,6 +153,8 @@ class ParseResultVisitor(Visitor):
 
         list_level = self.inside_list_level
 
+        assert field_type is not None
+
         result_type = _ignore_non_null(field_type)
 
         if self.in_first_field(path):
@@ -193,7 +195,7 @@ class ParseResultVisitor(Visitor):
                 # Key not found in result.
                 # Should never happen in theory with a correct GraphQL backend
                 # Silently ignoring this field
-                log.debug(f"Key {name} not found in result --> REMOVE")
+                log.debug(f"  Key {name} not found in result --> REMOVE")
                 return REMOVE
 
             log.debug(f"  result_value={result_value}")
@@ -232,8 +234,11 @@ class ParseResultVisitor(Visitor):
                 )
 
                 # Get parent SelectionSet node
-                new_node = ancestors[-1]
-                assert isinstance(new_node, SelectionSetNode)
+                selection_set_node = ancestors[-1]
+                assert isinstance(selection_set_node, SelectionSetNode)
+
+                # Keep only the current node in a new selection set node
+                new_node = SelectionSetNode(selections=[node])
 
                 for item in result_value:
 

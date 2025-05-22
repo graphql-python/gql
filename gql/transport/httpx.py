@@ -7,6 +7,7 @@ from typing import (
     Callable,
     Dict,
     List,
+    NoReturn,
     Optional,
     Tuple,
     Type,
@@ -37,17 +38,21 @@ class _HTTPXTransport:
         self,
         url: Union[str, httpx.URL],
         json_serialize: Callable = json.dumps,
-        **kwargs,
+        json_deserialize: Callable = json.loads,
+        **kwargs: Any,
     ):
         """Initialize the transport with the given httpx parameters.
 
         :param url: The GraphQL server URL. Example: 'https://server.com:PORT/path'.
         :param json_serialize: Json serializer callable.
                 By default json.dumps() function.
+        :param json_deserialize: Json deserializer callable.
+                By default json.loads() function.
         :param kwargs: Extra args passed to the `httpx` client.
         """
         self.url = url
         self.json_serialize = json_serialize
+        self.json_deserialize = json_deserialize
         self.kwargs = kwargs
 
     def _prepare_request(
@@ -88,7 +93,9 @@ class _HTTPXTransport:
 
         return post_args
 
-    def _prepare_file_uploads(self, variable_values, payload) -> Dict[str, Any]:
+    def _prepare_file_uploads(
+        self, variable_values: Dict[str, Any], payload: Dict[str, Any]
+    ) -> Dict[str, Any]:
         # If we upload files, we will extract the files present in the
         # variable_values dict and replace them by null values
         nulled_variable_values, files = extract_files(
@@ -140,7 +147,7 @@ class _HTTPXTransport:
             log.debug("<<< %s", response.text)
 
         try:
-            result: Dict[str, Any] = response.json()
+            result: Dict[str, Any] = self.json_deserialize(response.content)
 
         except Exception:
             self._raise_response_error(response, "Not a JSON answer")
@@ -154,7 +161,7 @@ class _HTTPXTransport:
             extensions=result.get("extensions"),
         )
 
-    def _raise_response_error(self, response: httpx.Response, reason: str):
+    def _raise_response_error(self, response: httpx.Response, reason: str) -> NoReturn:
         # We raise a TransportServerError if the status code is 400 or higher
         # We raise a TransportProtocolError in the other cases
 

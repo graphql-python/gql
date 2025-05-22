@@ -1,7 +1,7 @@
 import pytest
 
 
-class FakeSession(object):
+class FakeSession:
     def __init__(self, credentials, region_name):
         self._credentials = credentials
         self._region_name = region_name

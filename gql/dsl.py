@@ -2,6 +2,7 @@
 .. image:: http://www.plantuml.com/plantuml/png/ZLAzJWCn3Dxz51vXw1im50ag8L4XwC1OkLTJ8gMvAd4GwEYxGuC8pTbKtUxy_TZEvsaIYfAt7e1MII9rWfsdbF1cSRzWpvtq4GT0JENduX8GXr_g7brQlf5tw-MBOx_-HlS0LV_Kzp8xr1kZav9PfCsMWvolEA_1VylHoZCExKwKv4Tg2s_VkSkca2kof2JDb0yxZYIk3qMZYUe1B1uUZOROXn96pQMugEMUdRnUUqUf6DBXQyIz2zu5RlgUQAFVNYaeRfBI79_JrUTaeg9JZFQj5MmUc69PDmNGE2iU61fDgfri3x36gxHw3gDHD6xqqQ7P4vjKqz2-602xtkO7uo17SCLhVSv25VjRjUAFcUE73Sspb8ADBl8gTT7j2cFAOPst_Wi0  # noqa
     :alt: UML diagram
 """
+
 import logging
 import re
 from abc import ABC, abstractmethod
@@ -338,7 +339,7 @@ class DSLSelector(ABC):
         self,
         *fields: "DSLSelectable",
         **fields_with_alias: "DSLSelectableWithAlias",
-    ):
+    ) -> Any:
         r"""Select the fields which should be added.
 
         :param \*fields: fields or fragments
@@ -347,7 +348,7 @@ class DSLSelector(ABC):
         :type \**fields_with_alias: DSLSelectable
 
         :raises TypeError: if an argument is not an instance of :class:`DSLSelectable`
-        :raises GraphQLError: if an argument is not a valid field
+        :raises graphql.error.GraphQLError: if an argument is not a valid field
         """
         # Concatenate fields without and with alias
         added_fields: Tuple["DSLSelectable", ...] = DSLField.get_aliased_fields(
@@ -503,6 +504,7 @@ class DSLOperation(DSLExecutable, DSLRootFieldSelector):
             selection_set=self.selection_set,
             variable_definitions=self.variable_definitions.get_ast_definitions(),
             **({"name": NameNode(value=self.name)} if self.name else {}),
+            directives=(),
         )
 
     def __repr__(self) -> str:
@@ -594,9 +596,12 @@ class DSLVariableDefinitions:
             VariableDefinitionNode(
                 type=var.ast_variable_type,
                 variable=var.ast_variable_name,
-                default_value=None
-                if var.default_value is None
-                else ast_from_value(var.default_value, var.type),
+                default_value=(
+                    None
+                    if var.default_value is None
+                    else ast_from_value(var.default_value, var.type)
+                ),
+                directives=(),
             )
             for var in self.variables.values()
             if var.type is not None  # only variables used
@@ -818,7 +823,11 @@ class DSLField(DSLSelectableWithAlias, DSLFieldSelector):
         """
         self.parent_type = parent_type
         self.field = field
-        self.ast_field = FieldNode(name=NameNode(value=name), arguments=())
+        self.ast_field = FieldNode(
+            name=NameNode(value=name),
+            arguments=(),
+            directives=(),
+        )
         self.dsl_type = dsl_type
 
         log.debug(f"Creating {self!r}")
@@ -830,10 +839,10 @@ class DSLField(DSLSelectableWithAlias, DSLFieldSelector):
         """:meta private:"""
         return self.ast_field.name.value
 
-    def __call__(self, **kwargs) -> "DSLField":
+    def __call__(self, **kwargs: Any) -> "DSLField":
         return self.args(**kwargs)
 
-    def args(self, **kwargs) -> "DSLField":
+    def args(self, **kwargs: Any) -> "DSLField":
         r"""Set the arguments of a field
 
         The arguments are parsed to be stored in the AST of this field.
@@ -950,7 +959,7 @@ class DSLInlineFragment(DSLSelectable, DSLFragmentSelector):
 
         log.debug(f"Creating {self!r}")
 
-        self.ast_field = InlineFragmentNode()
+        self.ast_field = InlineFragmentNode(directives=())
 
         DSLSelector.__init__(self, *fields, **fields_with_alias)
 
@@ -1018,7 +1027,7 @@ class DSLFragment(DSLSelectable, DSLFragmentSelector, DSLExecutable):
         `issue #4125 of mypy <https://github.com/python/mypy/issues/4125>`_.
         """
 
-        spread_node = FragmentSpreadNode()
+        spread_node = FragmentSpreadNode(directives=())
         spread_node.name = NameNode(value=self.name)
 
         return spread_node
@@ -1062,11 +1071,28 @@ class DSLFragment(DSLSelectable, DSLFragmentSelector, DSLExecutable):
                 "Missing type condition. Please use .on(type_condition) method"
             )
 
+        fragment_variable_definitions = self.variable_definitions.get_ast_definitions()
+
+        if len(fragment_variable_definitions) == 0:
+            """Fragment variable definitions are obsolete and only supported on
+            graphql-core if the Parser is initialized with:
+            allow_legacy_fragment_variables=True.
+
+            We will not provide variable_definitions instead of providing an empty
+            tuple to be coherent with how it works by default on graphql-core.
+            """
+            variable_definition_kwargs = {}
+        else:
+            variable_definition_kwargs = {
+                "variable_definitions": fragment_variable_definitions
+            }
+
         return FragmentDefinitionNode(
             type_condition=NamedTypeNode(name=NameNode(value=self._type.name)),
             selection_set=self.selection_set,
-            variable_definitions=self.variable_definitions.get_ast_definitions(),
+            **variable_definition_kwargs,
             name=NameNode(value=self.name),
+            directives=(),
         )
 
     def __repr__(self) -> str:

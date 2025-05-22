@@ -441,9 +441,9 @@ async def make_money_backend(aiohttp_server):
                 [
                     {
                         "data": result.data,
-                        "errors": [str(e) for e in result.errors]
-                        if result.errors
-                        else None,
+                        "errors": (
+                            [str(e) for e in result.errors] if result.errors else None
+                        ),
                     }
                     for result in results
                 ]
@@ -453,9 +453,9 @@ async def make_money_backend(aiohttp_server):
             return web.json_response(
                 {
                     "data": result.data,
-                    "errors": [str(e) for e in result.errors]
-                    if result.errors
-                    else None,
+                    "errors": (
+                        [str(e) for e in result.errors] if result.errors else None
+                    ),
                 }
             )
 
@@ -491,7 +491,7 @@ async def make_sync_money_transport(aiohttp_server):
 
 
 @pytest.mark.asyncio
-async def test_custom_scalar_in_output_with_transport(event_loop, aiohttp_server):
+async def test_custom_scalar_in_output_with_transport(aiohttp_server):
 
     transport = await make_money_transport(aiohttp_server)
 
@@ -509,7 +509,7 @@ async def test_custom_scalar_in_output_with_transport(event_loop, aiohttp_server
 
 
 @pytest.mark.asyncio
-async def test_custom_scalar_in_input_query_with_transport(event_loop, aiohttp_server):
+async def test_custom_scalar_in_input_query_with_transport(aiohttp_server):
 
     transport = await make_money_transport(aiohttp_server)
 
@@ -531,9 +531,7 @@ async def test_custom_scalar_in_input_query_with_transport(event_loop, aiohttp_s
 
 
 @pytest.mark.asyncio
-async def test_custom_scalar_in_input_variable_values_with_transport(
-    event_loop, aiohttp_server
-):
+async def test_custom_scalar_in_input_variable_values_with_transport(aiohttp_server):
 
     transport = await make_money_transport(aiohttp_server)
 
@@ -556,7 +554,7 @@ async def test_custom_scalar_in_input_variable_values_with_transport(
 
 @pytest.mark.asyncio
 async def test_custom_scalar_in_input_variable_values_split_with_transport(
-    event_loop, aiohttp_server
+    aiohttp_server,
 ):
 
     transport = await make_money_transport(aiohttp_server)
@@ -581,7 +579,7 @@ query myquery($amount: Float, $currency: String) {
 
 
 @pytest.mark.asyncio
-async def test_custom_scalar_serialize_variables(event_loop, aiohttp_server):
+async def test_custom_scalar_serialize_variables(aiohttp_server):
 
     transport = await make_money_transport(aiohttp_server)
 
@@ -603,7 +601,7 @@ async def test_custom_scalar_serialize_variables(event_loop, aiohttp_server):
 
 
 @pytest.mark.asyncio
-async def test_custom_scalar_serialize_variables_no_schema(event_loop, aiohttp_server):
+async def test_custom_scalar_serialize_variables_no_schema(aiohttp_server):
 
     transport = await make_money_transport(aiohttp_server)
 
@@ -623,7 +621,7 @@ async def test_custom_scalar_serialize_variables_no_schema(event_loop, aiohttp_s
 
 @pytest.mark.asyncio
 async def test_custom_scalar_serialize_variables_schema_from_introspection(
-    event_loop, aiohttp_server
+    aiohttp_server,
 ):
 
     transport = await make_money_transport(aiohttp_server)
@@ -656,7 +654,7 @@ async def test_custom_scalar_serialize_variables_schema_from_introspection(
 
 
 @pytest.mark.asyncio
-async def test_update_schema_scalars(event_loop, aiohttp_server):
+async def test_update_schema_scalars(aiohttp_server):
 
     transport = await make_money_transport(aiohttp_server)
 
@@ -682,14 +680,14 @@ async def test_update_schema_scalars(event_loop, aiohttp_server):
 def test_update_schema_scalars_invalid_scalar():
 
     with pytest.raises(TypeError) as exc_info:
-        update_schema_scalars(schema, [int])
+        update_schema_scalars(schema, [int])  # type: ignore
 
     exception = exc_info.value
 
     assert str(exception) == "Scalars should be instances of GraphQLScalarType."
 
     with pytest.raises(TypeError) as exc_info:
-        update_schema_scalar(schema, "test", int)
+        update_schema_scalar(schema, "test", int)  # type: ignore
 
     exception = exc_info.value
 
@@ -699,7 +697,7 @@ def test_update_schema_scalars_invalid_scalar():
 def test_update_schema_scalars_invalid_scalar_argument():
 
     with pytest.raises(TypeError) as exc_info:
-        update_schema_scalars(schema, MoneyScalar)
+        update_schema_scalars(schema, MoneyScalar)  # type: ignore
 
     exception = exc_info.value
 
@@ -735,7 +733,7 @@ def test_update_schema_scalars_scalar_type_is_not_a_scalar_in_schema():
 @pytest.mark.asyncio
 @pytest.mark.requests
 async def test_custom_scalar_serialize_variables_sync_transport(
-    event_loop, aiohttp_server, run_sync_test
+    aiohttp_server, run_sync_test
 ):
 
     server, transport = await make_sync_money_transport(aiohttp_server)
@@ -754,13 +752,13 @@ async def test_custom_scalar_serialize_variables_sync_transport(
             print(f"result = {result!r}")
             assert result["toEuros"] == 5
 
-    await run_sync_test(event_loop, server, test_code)
+    await run_sync_test(server, test_code)
 
 
 @pytest.mark.asyncio
 @pytest.mark.requests
 async def test_custom_scalar_serialize_variables_sync_transport_2(
-    event_loop, aiohttp_server, run_sync_test
+    aiohttp_server, run_sync_test
 ):
     server, transport = await make_sync_money_transport(aiohttp_server)
 
@@ -783,13 +781,13 @@ async def test_custom_scalar_serialize_variables_sync_transport_2(
             assert results[0]["toEuros"] == 5
             assert results[1]["toEuros"] == 5
 
-    await run_sync_test(event_loop, server, test_code)
+    await run_sync_test(server, test_code)
 
 
 def test_serialize_value_with_invalid_type():
 
     with pytest.raises(GraphQLError) as exc_info:
-        serialize_value("Not a valid type", 50)
+        serialize_value("Not a valid type", 50)  # type: ignore
 
     exception = exc_info.value
 
@@ -818,7 +816,7 @@ def test_serialize_value_with_nullable_type():
 
 
 @pytest.mark.asyncio
-async def test_gql_cli_print_schema(event_loop, aiohttp_server, capsys):
+async def test_gql_cli_print_schema(aiohttp_server, capsys):
 
     from gql.cli import get_parser, main
 

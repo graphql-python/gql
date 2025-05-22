@@ -1,13 +1,25 @@
 import io
 import json
 import logging
-from typing import Any, Collection, Dict, List, Optional, Tuple, Type, Union
+from typing import (
+    Any,
+    Callable,
+    Collection,
+    Dict,
+    List,
+    NoReturn,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+)
 
 import requests
 from graphql import DocumentNode, ExecutionResult, print_ast
 from requests.adapters import HTTPAdapter, Retry
 from requests.auth import AuthBase
 from requests.cookies import RequestsCookieJar
+from requests.structures import CaseInsensitiveDict
 from requests_toolbelt.multipart.encoder import MultipartEncoder
 
 from gql.transport import Transport
@@ -47,15 +59,17 @@ class RequestsHTTPTransport(Transport):
         method: str = "POST",
         retry_backoff_factor: float = 0.1,
         retry_status_forcelist: Collection[int] = _default_retry_codes,
+        json_serialize: Callable = json.dumps,
+        json_deserialize: Callable = json.loads,
         **kwargs: Any,
     ):
         """Initialize the transport with the given request parameters.
 
         :param url: The GraphQL server URL.
-        :param headers: Dictionary of HTTP Headers to send with the :class:`Request`
-            (Default: None).
-        :param cookies: Dict or CookieJar object to send with the :class:`Request`
-            (Default: None).
+        :param headers: Dictionary of HTTP Headers to send with
+            :meth:`requests.Session.request` (Default: None).
+        :param cookies: Dict or CookieJar object to send with
+            :meth:`requests.Session.request` (Default: None).
         :param auth: Auth tuple or callable to enable Basic/Digest/Custom HTTP Auth
             (Default: None).
         :param use_json: Send request body as JSON instead of form-urlencoded
@@ -73,6 +87,10 @@ class RequestsHTTPTransport(Transport):
             should force a retry on. A retry is initiated if the request method is
             in allowed_methods and the response status code is in status_forcelist.
             (Default: [429, 500, 502, 503, 504])
+        :param json_serialize: Json serializer callable.
+                By default json.dumps() function
+        :param json_deserialize: Json deserializer callable.
+                By default json.loads() function
         :param kwargs: Optional arguments that ``request`` takes.
             These can be seen at the `requests`_ source code or the official `docs`_
 
@@ -90,11 +108,13 @@ class RequestsHTTPTransport(Transport):
         self.method = method
         self.retry_backoff_factor = retry_backoff_factor
         self.retry_status_forcelist = retry_status_forcelist
+        self.json_serialize: Callable = json_serialize
+        self.json_deserialize: Callable = json_deserialize
         self.kwargs = kwargs
 
-        self.session = None
+        self.session: Optional[requests.Session] = None
 
-        self.response_headers = None
+        self.response_headers: Optional[CaseInsensitiveDict[str]] = None
 
     def connect(self):
         if self.session is None:
@@ -151,7 +171,7 @@ class RequestsHTTPTransport(Transport):
         if operation_name:
             payload["operationName"] = operation_name
 
-        post_args = {
+        post_args: Dict[str, Any] = {
             "headers": self.headers,
             "auth": self.auth,
             "cookies": self.cookies,
@@ -178,7 +198,7 @@ class RequestsHTTPTransport(Transport):
             payload["variables"] = nulled_variable_values
 
             # Add the payload to the operations field
-            operations_str = json.dumps(payload)
+            operations_str = self.json_serialize(payload)
             log.debug("operations %s", operations_str)
 
             # Generate the file map
@@ -192,7 +212,7 @@ class RequestsHTTPTransport(Transport):
             file_vars = {str(i): files[path] for i, path in enumerate(files)}
 
             # Add the file map field
-            file_map_str = json.dumps(file_map)
+            file_map_str = self.json_serialize(file_map)
             log.debug("file_map %s", file_map_str)
 
             fields = {"operations": operations_str, "map": file_map_str}
@@ -215,7 +235,7 @@ class RequestsHTTPTransport(Transport):
             if post_args["headers"] is None:
                 post_args["headers"] = {}
             else:
-                post_args["headers"] = {**post_args["headers"]}
+                post_args["headers"] = dict(post_args["headers"])
 
             post_args["headers"]["Content-Type"] = data.content_type
 
@@ -228,7 +248,7 @@ class RequestsHTTPTransport(Transport):
 
         # Log the payload
         if log.isEnabledFor(logging.INFO):
-            log.info(">>> %s", json.dumps(payload))
+            log.info(">>> %s", self.json_serialize(payload))
 
         # Pass kwargs to requests post method
         post_args.update(self.kwargs)
@@ -248,7 +268,7 @@ class RequestsHTTPTransport(Transport):
 
         self.response_headers = response.headers
 
-        def raise_response_error(resp: requests.Response, reason: str):
+        def raise_response_error(resp: requests.Response, reason: str) -> NoReturn:
             # We raise a TransportServerError if the status code is 400 or higher
             # We raise a TransportProtocolError in the other cases
 
@@ -256,7 +276,8 @@ class RequestsHTTPTransport(Transport):
                 # Raise a HTTPError if response status is 400 or higher
                 resp.raise_for_status()
             except requests.HTTPError as e:
-                raise TransportServerError(str(e), e.response.status_code) from e
+                status_code = e.response.status_code if e.response is not None else None
+                raise TransportServerError(str(e), status_code) from e
 
             result_text = resp.text
             raise TransportProtocolError(
@@ -266,7 +287,10 @@ class RequestsHTTPTransport(Transport):
             )
 
         try:
-            result = response.json()
+            if self.json_deserialize == json.loads:
+                result = response.json()
+            else:
+                result = self.json_deserialize(response.text)
 
             if log.isEnabledFor(logging.INFO):
                 log.info("<<< %s", response.text)
@@ -379,7 +403,9 @@ class RequestsHTTPTransport(Transport):
                 log.info("<<< %s", response.text)
 
         except requests.HTTPError as e:
-            raise TransportServerError(str(e), e.response.status_code) from e
+            raise TransportServerError(
+                str(e), e.response.status_code if e.response is not None else None
+            ) from e
 
         except Exception:
             self._raise_invalid_result(str(response.text), "Not a JSON answer")
@@ -405,7 +431,7 @@ class RequestsHTTPTransport(Transport):
 
         # Log the payload
         if log.isEnabledFor(logging.INFO):
-            log.info(">>> %s", json.dumps(post_args[data_key]))
+            log.info(">>> %s", self.json_serialize(post_args[data_key]))
 
         # Pass kwargs to requests post method
         post_args.update(self.kwargs)

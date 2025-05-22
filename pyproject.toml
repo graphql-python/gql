@@ -1,0 +1,22 @@
+[project]
+name = "gql"
+readme = "README.md"
+requires-python = ">=3.8.1"
+dynamic = ["authors", "classifiers", "dependencies", "description", "entry-points", "keywords", "license", "optional-dependencies", "scripts", "version"]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.isort]
+extra_standard_library = "ssl"
+known_first_party = "gql"
+profile = "black"
+
+[tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.mypy]
+ignore_missing_imports = true
+check_untyped_defs = true
+disallow_incomplete_defs = true

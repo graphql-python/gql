@@ -1,10 +1,19 @@
 import asyncio
-import functools
 import io
 import json
 import logging
 from ssl import SSLContext
-from typing import Any, AsyncGenerator, Callable, Dict, Optional, Tuple, Type, Union
+from typing import (
+    Any,
+    AsyncGenerator,
+    Callable,
+    Dict,
+    NoReturn,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+)
 
 import aiohttp
 from aiohttp.client_exceptions import ClientResponseError
@@ -16,6 +25,7 @@ from multidict import CIMultiDictProxy
 
 from .appsync_auth import AppSyncAuthentication
 from .async_transport import AsyncTransport
+from .common.aiohttp_closed_event import create_aiohttp_closed_event
 from .exceptions import (
     TransportAlreadyConnected,
     TransportClosed,
@@ -46,10 +56,11 @@ class AIOHTTPTransport(AsyncTransport):
         headers: Optional[LooseHeaders] = None,
         cookies: Optional[LooseCookies] = None,
         auth: Optional[Union[BasicAuth, "AppSyncAuthentication"]] = None,
-        ssl: Union[SSLContext, bool, Fingerprint] = False,
+        ssl: Union[SSLContext, bool, Fingerprint] = True,
         timeout: Optional[int] = None,
         ssl_close_timeout: Optional[Union[int, float]] = 10,
         json_serialize: Callable = json.dumps,
+        json_deserialize: Callable = json.loads,
         client_session_args: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Initialize the transport with the given aiohttp parameters.
@@ -59,11 +70,14 @@ class AIOHTTPTransport(AsyncTransport):
         :param cookies: Dict of HTTP cookies.
         :param auth: BasicAuth object to enable Basic HTTP auth if needed
                      Or Appsync Authentication class
-        :param ssl: ssl_context of the connection. Use ssl=False to disable encryption
+        :param ssl: ssl_context of the connection.
+                    Use ssl=False to not verify ssl certificates.
         :param ssl_close_timeout: Timeout in seconds to wait for the ssl connection
                                   to close properly
         :param json_serialize: Json serializer callable.
                 By default json.dumps() function
+        :param json_deserialize: Json deserializer callable.
+                By default json.loads() function
         :param client_session_args: Dict of extra args passed to
                 `aiohttp.ClientSession`_
 
@@ -81,6 +95,7 @@ class AIOHTTPTransport(AsyncTransport):
         self.session: Optional[aiohttp.ClientSession] = None
         self.response_headers: Optional[CIMultiDictProxy[str]]
         self.json_serialize: Callable = json_serialize
+        self.json_deserialize: Callable = json_deserialize
 
     async def connect(self) -> None:
         """Coroutine which will create an aiohttp ClientSession() as self.session.
@@ -97,9 +112,9 @@ class AIOHTTPTransport(AsyncTransport):
             client_session_args: Dict[str, Any] = {
                 "cookies": self.cookies,
                 "headers": self.headers,
-                "auth": None
-                if isinstance(self.auth, AppSyncAuthentication)
-                else self.auth,
+                "auth": (
+                    None if isinstance(self.auth, AppSyncAuthentication) else self.auth
+                ),
                 "json_serialize": self.json_serialize,
             }
 
@@ -118,59 +133,6 @@ class AIOHTTPTransport(AsyncTransport):
 
         else:
             raise TransportAlreadyConnected("Transport is already connected")
-
-    @staticmethod
-    def create_aiohttp_closed_event(session) -> asyncio.Event:
-        """Work around aiohttp issue that doesn't properly close transports on exit.
-
-        See https://github.com/aio-libs/aiohttp/issues/1925#issuecomment-639080209
-
-        Returns:
-           An event that will be set once all transports have been properly closed.
-        """
-
-        ssl_transports = 0
-        all_is_lost = asyncio.Event()
-
-        def connection_lost(exc, orig_lost):
-            nonlocal ssl_transports
-
-            try:
-                orig_lost(exc)
-            finally:
-                ssl_transports -= 1
-                if ssl_transports == 0:
-                    all_is_lost.set()
-
-        def eof_received(orig_eof_received):
-            try:
-                orig_eof_received()
-            except AttributeError:  # pragma: no cover
-                # It may happen that eof_received() is called after
-                # _app_protocol and _transport are set to None.
-                pass
-
-        for conn in session.connector._conns.values():
-            for handler, _ in conn:
-                proto = getattr(handler.transport, "_ssl_protocol", None)
-                if proto is None:
-                    continue
-
-                ssl_transports += 1
-                orig_lost = proto.connection_lost
-                orig_eof_received = proto.eof_received
-
-                proto.connection_lost = functools.partial(
-                    connection_lost, orig_lost=orig_lost
-                )
-                proto.eof_received = functools.partial(
-                    eof_received, orig_eof_received=orig_eof_received
-                )
-
-        if ssl_transports == 0:
-            all_is_lost.set()
-
-        return all_is_lost
 
     async def close(self) -> None:
         """Coroutine which will close the aiohttp session.
@@ -191,7 +153,7 @@ class AIOHTTPTransport(AsyncTransport):
                 log.debug("connector_owner is False -> not closing connector")
 
             else:
-                closed_event = self.create_aiohttp_closed_event(self.session)
+                closed_event = create_aiohttp_closed_event(self.session)
                 await self.session.close()
                 try:
                     await asyncio.wait_for(closed_event.wait(), self.ssl_close_timeout)
@@ -313,7 +275,9 @@ class AIOHTTPTransport(AsyncTransport):
             # Saving latest response headers in the transport
             self.response_headers = resp.headers
 
-            async def raise_response_error(resp: aiohttp.ClientResponse, reason: str):
+            async def raise_response_error(
+                resp: aiohttp.ClientResponse, reason: str
+            ) -> NoReturn:
                 # We raise a TransportServerError if the status code is 400 or higher
                 # We raise a TransportProtocolError in the other cases
 
@@ -331,7 +295,7 @@ class AIOHTTPTransport(AsyncTransport):
                 )
 
             try:
-                result = await resp.json(content_type=None)
+                result = await resp.json(loads=self.json_deserialize, content_type=None)
 
                 if log.isEnabledFor(logging.INFO):
                     result_text = await resp.text()

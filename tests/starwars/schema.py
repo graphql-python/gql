@@ -1,4 +1,5 @@
 import asyncio
+from typing import cast
 
 from graphql import (
     GraphQLArgument,
@@ -14,6 +15,7 @@ from graphql import (
     GraphQLObjectType,
     GraphQLSchema,
     GraphQLString,
+    IntrospectionQuery,
     get_introspection_query,
     graphql_sync,
     print_schema,
@@ -176,7 +178,7 @@ query_type = GraphQLObjectType(
                     "provided, returns the hero of that particular episode.",
                 )
             },
-            resolve=lambda _souce, _info, episode=None: get_hero_async(episode),
+            resolve=lambda _source, _info, episode=None: get_hero_async(episode),
         ),
         "human": GraphQLField(
             human_type,
@@ -186,7 +188,7 @@ query_type = GraphQLObjectType(
                     type_=GraphQLNonNull(GraphQLString),
                 )
             },
-            resolve=lambda _souce, _info, id: get_human(id),
+            resolve=lambda _source, _info, id: get_human(id),
         ),
         "droid": GraphQLField(
             droid_type,
@@ -271,6 +273,8 @@ StarWarsSchema = GraphQLSchema(
 )
 
 
-StarWarsIntrospection = graphql_sync(StarWarsSchema, get_introspection_query()).data
+StarWarsIntrospection = cast(
+    IntrospectionQuery, graphql_sync(StarWarsSchema, get_introspection_query()).data
+)
 
 StarWarsTypeDef = print_schema(StarWarsSchema)

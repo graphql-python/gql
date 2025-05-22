@@ -9,9 +9,10 @@ from graphql import ExecutionResult
 from parse import search
 
 from gql import Client, gql
-from gql.transport.exceptions import TransportServerError
+from gql.client import AsyncClientSession
+from gql.transport.exceptions import TransportConnectionFailed, TransportServerError
 
-from .conftest import MS, WebSocketServerHelper
+from .conftest import MS, PyPy, WebSocketServerHelper
 
 # Marking all tests in this file with the websockets marker
 pytestmark = pytest.mark.websockets
@@ -27,7 +28,7 @@ WITH_KEEPALIVE = False
 logged_messages: List[str] = []
 
 
-async def server_countdown(ws, path):
+async def server_countdown(ws):
     import websockets
 
     logged_messages.clear()
@@ -126,7 +127,7 @@ countdown_subscription_str = """
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
-async def test_websocket_subscription(event_loop, client_and_server, subscription_str):
+async def test_websocket_subscription(client_and_server, subscription_str):
 
     session, server = client_and_server
 
@@ -148,7 +149,7 @@ async def test_websocket_subscription(event_loop, client_and_server, subscriptio
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_websocket_subscription_get_execution_result(
-    event_loop, client_and_server, subscription_str
+    client_and_server, subscription_str
 ):
 
     session, server = client_and_server
@@ -160,6 +161,7 @@ async def test_websocket_subscription_get_execution_result(
 
         assert isinstance(result, ExecutionResult)
 
+        assert result.data is not None
         number = result.data["number"]
         print(f"Number received: {number}")
 
@@ -172,16 +174,15 @@ async def test_websocket_subscription_get_execution_result(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
-async def test_websocket_subscription_break(
-    event_loop, client_and_server, subscription_str
-):
+async def test_websocket_subscription_break(client_and_server, subscription_str):
 
     session, server = client_and_server
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
 
-    async for result in session.subscribe(subscription):
+    generator = session.subscribe(subscription)
+    async for result in generator:
 
         number = result["number"]
         print(f"Number received: {number}")
@@ -189,38 +190,44 @@ async def test_websocket_subscription_break(
         assert number == count
 
         if count <= 5:
-            # Note: the following line is only necessary for pypy3 v3.6.1
-            if sys.version_info < (3, 7):
-                await session._generator.aclose()
             break
 
         count -= 1
 
     assert count == 5
 
+    # Using aclose here to make it stop cleanly on pypy
+    await generator.aclose()
+
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
-async def test_websocket_subscription_task_cancel(
-    event_loop, client_and_server, subscription_str
-):
+async def test_websocket_subscription_task_cancel(client_and_server, subscription_str):
 
     session, server = client_and_server
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
 
+    task_cancelled = False
+
     async def task_coro():
         nonlocal count
-        async for result in session.subscribe(subscription):
+        nonlocal task_cancelled
 
-            number = result["number"]
-            print(f"Number received: {number}")
+        try:
+            async for result in session.subscribe(subscription):
 
-            assert number == count
+                number = result["number"]
+                print(f"Number received: {number}")
 
-            count -= 1
+                assert number == count
+
+                count -= 1
+        except asyncio.CancelledError:
+            print("Inside task cancelled")
+            task_cancelled = True
 
     task = asyncio.ensure_future(task_coro())
 
@@ -236,13 +243,14 @@ async def test_websocket_subscription_task_cancel(
     await asyncio.gather(task, cancel_task)
 
     assert count > 0
+    assert task_cancelled is True
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_websocket_subscription_close_transport(
-    event_loop, client_and_server, subscription_str
+    client_and_server, subscription_str
 ):
 
     session, server = client_and_server
@@ -277,7 +285,7 @@ async def test_websocket_subscription_close_transport(
     assert count > 0
 
 
-async def server_countdown_close_connection_in_middle(ws, path):
+async def server_countdown_close_connection_in_middle(ws):
     await WebSocketServerHelper.send_connection_ack(ws)
 
     result = await ws.recv()
@@ -307,16 +315,14 @@ async def server_countdown_close_connection_in_middle(ws, path):
 )
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_websocket_subscription_server_connection_closed(
-    event_loop, client_and_server, subscription_str
+    client_and_server, subscription_str
 ):
-    import websockets
-
     session, server = client_and_server
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
 
-    with pytest.raises(websockets.exceptions.ConnectionClosedOK):
+    with pytest.raises(TransportConnectionFailed):
 
         async for result in session.subscribe(subscription):
 
@@ -332,7 +338,7 @@ async def test_websocket_subscription_server_connection_closed(
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_websocket_subscription_slow_consumer(
-    event_loop, client_and_server, subscription_str
+    client_and_server, subscription_str
 ):
 
     session, server = client_and_server
@@ -357,7 +363,7 @@ async def test_websocket_subscription_slow_consumer(
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_websocket_subscription_with_operation_name(
-    event_loop, client_and_server, subscription_str
+    client_and_server, subscription_str
 ):
 
     session, server = client_and_server
@@ -388,7 +394,7 @@ WITH_KEEPALIVE = True
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_websocket_subscription_with_keepalive(
-    event_loop, client_and_server, subscription_str
+    client_and_server, subscription_str
 ):
 
     session, server = client_and_server
@@ -411,16 +417,21 @@ async def test_websocket_subscription_with_keepalive(
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_websocket_subscription_with_keepalive_with_timeout_ok(
-    event_loop, server, subscription_str
+    server, subscription_str
 ):
 
     from gql.transport.websockets import WebsocketsTransport
 
     path = "/graphql"
     url = f"ws://{server.hostname}:{server.port}{path}"
-    sample_transport = WebsocketsTransport(url=url, keep_alive_timeout=(20 * MS))
 
-    client = Client(transport=sample_transport)
+    keep_alive_timeout = 20 * MS
+    if PyPy:
+        keep_alive_timeout = 200 * MS
+
+    transport = WebsocketsTransport(url=url, keep_alive_timeout=keep_alive_timeout)
+
+    client = Client(transport=transport)
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
@@ -441,16 +452,16 @@ async def test_websocket_subscription_with_keepalive_with_timeout_ok(
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_websocket_subscription_with_keepalive_with_timeout_nok(
-    event_loop, server, subscription_str
+    server, subscription_str
 ):
 
     from gql.transport.websockets import WebsocketsTransport
 
     path = "/graphql"
     url = f"ws://{server.hostname}:{server.port}{path}"
-    sample_transport = WebsocketsTransport(url=url, keep_alive_timeout=(1 * MS))
+    transport = WebsocketsTransport(url=url, keep_alive_timeout=(1 * MS))
 
-    client = Client(transport=sample_transport)
+    client = Client(transport=transport)
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
@@ -476,9 +487,9 @@ def test_websocket_subscription_sync(server, subscription_str):
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    sample_transport = WebsocketsTransport(url=url)
+    transport = WebsocketsTransport(url=url)
 
-    client = Client(transport=sample_transport)
+    client = Client(transport=transport)
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
@@ -502,9 +513,9 @@ def test_websocket_subscription_sync_user_exception(server, subscription_str):
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    sample_transport = WebsocketsTransport(url=url)
+    transport = WebsocketsTransport(url=url)
 
-    client = Client(transport=sample_transport)
+    client = Client(transport=transport)
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
@@ -533,9 +544,9 @@ def test_websocket_subscription_sync_break(server, subscription_str):
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    sample_transport = WebsocketsTransport(url=url)
+    transport = WebsocketsTransport(url=url)
 
-    client = Client(transport=sample_transport)
+    client = Client(transport=transport)
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
@@ -574,9 +585,9 @@ def test_websocket_subscription_sync_graceful_shutdown(server, subscription_str)
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    sample_transport = WebsocketsTransport(url=url)
+    transport = WebsocketsTransport(url=url)
 
-    client = Client(transport=sample_transport)
+    client = Client(transport=transport)
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
@@ -598,6 +609,7 @@ def test_websocket_subscription_sync_graceful_shutdown(server, subscription_str)
                     warnings.filterwarnings(
                         "ignore", message="There is no current event loop"
                     )
+                    assert isinstance(client.session, AsyncClientSession)
                     interrupt_task = asyncio.ensure_future(
                         client.session._generator.athrow(KeyboardInterrupt)
                     )
@@ -607,6 +619,7 @@ def test_websocket_subscription_sync_graceful_shutdown(server, subscription_str)
     assert count == 4
 
     # Catch interrupt_task exception to remove warning
+    assert interrupt_task is not None
     interrupt_task.exception()
 
     # Check that the server received a connection_terminate message last
@@ -617,16 +630,16 @@ def test_websocket_subscription_sync_graceful_shutdown(server, subscription_str)
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_websocket_subscription_running_in_thread(
-    event_loop, server, subscription_str, run_sync_test
+    server, subscription_str, run_sync_test
 ):
     from gql.transport.websockets import WebsocketsTransport
 
     def test_code():
         path = "/graphql"
         url = f"ws://{server.hostname}:{server.port}{path}"
-        sample_transport = WebsocketsTransport(url=url)
+        transport = WebsocketsTransport(url=url)
 
-        client = Client(transport=sample_transport)
+        client = Client(transport=transport)
 
         count = 10
         subscription = gql(subscription_str.format(count=count))
@@ -641,4 +654,4 @@ async def test_websocket_subscription_running_in_thread(
 
         assert count == -1
 
-    await run_sync_test(event_loop, server, test_code)
+    await run_sync_test(server, test_code)

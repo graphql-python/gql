@@ -1,7 +1,7 @@
 Introduction
 ============
 
-`GQL 3`_ is a `GraphQL`_ Client for Python 3.7+ which plays nicely with other
+`GQL 3`_ is a `GraphQL`_ Client for Python 3.8+ which plays nicely with other
 graphql implementations compatible with the spec.
 
 Under the hood, it uses `GraphQL-core`_ which is a Python port of `GraphQL.js`_,
@@ -36,25 +36,27 @@ which needs the :code:`aiohttp` dependency, then you can install GQL with::
 
 The corresponding between extra dependencies required and the GQL classes is:
 
-+---------------------+----------------------------------------------------------------+
-| Extra dependencies  | Classes                                                        |
-+=====================+================================================================+
-| aiohttp             | :ref:`AIOHTTPTransport <aiohttp_transport>`                    |
-+---------------------+----------------------------------------------------------------+
-| websockets          | :ref:`WebsocketsTransport <websockets_transport>`              |
-|                     |                                                                |
-|                     | :ref:`PhoenixChannelWebsocketsTransport <phoenix_transport>`   |
-|                     |                                                                |
-|                     | :ref:`AppSyncWebsocketsTransport <appsync_transport>`          |
-+---------------------+----------------------------------------------------------------+
-| requests            | :ref:`RequestsHTTPTransport <requests_transport>`              |
-+---------------------+----------------------------------------------------------------+
-| httpx               | :ref:`HTTPTXTransport <httpx_transport>`                       |
-|                     |                                                                |
-|                     | :ref:`HTTPXAsyncTransport <httpx_async_transport>`             |
-+---------------------+----------------------------------------------------------------+
-| botocore            | :ref:`AppSyncIAMAuthentication <appsync_iam_auth>`             |
-+---------------------+----------------------------------------------------------------+
++---------------------+------------------------------------------------------------------+
+| Extra dependencies  | Classes                                                          |
++=====================+==================================================================+
+| aiohttp             | :ref:`AIOHTTPTransport <aiohttp_transport>`                      |
+|                     |                                                                  |
+|                     | :ref:`AIOHTTPWebsocketsTransport <aiohttp_websockets_transport>` |
++---------------------+------------------------------------------------------------------+
+| websockets          | :ref:`WebsocketsTransport <websockets_transport>`                |
+|                     |                                                                  |
+|                     | :ref:`PhoenixChannelWebsocketsTransport <phoenix_transport>`     |
+|                     |                                                                  |
+|                     | :ref:`AppSyncWebsocketsTransport <appsync_transport>`            |
++---------------------+------------------------------------------------------------------+
+| requests            | :ref:`RequestsHTTPTransport <requests_transport>`                |
++---------------------+------------------------------------------------------------------+
+| httpx               | :ref:`HTTPTXTransport <httpx_transport>`                         |
+|                     |                                                                  |
+|                     | :ref:`HTTPXAsyncTransport <httpx_async_transport>`               |
++---------------------+------------------------------------------------------------------+
+| botocore            | :ref:`AppSyncIAMAuthentication <appsync_iam_auth>`               |
++---------------------+------------------------------------------------------------------+
 
 .. note::
 

@@ -8,7 +8,8 @@ import pytest
 from parse import search
 
 from gql import Client, gql
-from gql.transport.exceptions import TransportServerError
+from gql.client import AsyncClientSession
+from gql.transport.exceptions import TransportConnectionFailed, TransportServerError
 
 from .conftest import MS, WebSocketServerHelper
 
@@ -30,7 +31,7 @@ logged_messages: List[str] = []
 def server_countdown_factory(
     keepalive=False, answer_pings=True, simulate_disconnect=False
 ):
-    async def server_countdown_template(ws, path):
+    async def server_countdown_template(ws):
         import websockets
 
         logged_messages.clear()
@@ -192,28 +193,28 @@ def server_countdown_factory(
     return server_countdown_template
 
 
-async def server_countdown(ws, path):
+async def server_countdown(ws):
 
     server = server_countdown_factory()
-    await server(ws, path)
+    await server(ws)
 
 
-async def server_countdown_keepalive(ws, path):
+async def server_countdown_keepalive(ws):
 
     server = server_countdown_factory(keepalive=True)
-    await server(ws, path)
+    await server(ws)
 
 
-async def server_countdown_dont_answer_pings(ws, path):
+async def server_countdown_dont_answer_pings(ws):
 
     server = server_countdown_factory(answer_pings=False)
-    await server(ws, path)
+    await server(ws)
 
 
-async def server_countdown_disconnect(ws, path):
+async def server_countdown_disconnect(ws):
 
     server = server_countdown_factory(simulate_disconnect=True)
-    await server(ws, path)
+    await server(ws)
 
 
 countdown_subscription_str = """
@@ -228,9 +229,7 @@ countdown_subscription_str = """
 @pytest.mark.asyncio
 @pytest.mark.parametrize("graphqlws_server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
-async def test_graphqlws_subscription(
-    event_loop, client_and_graphqlws_server, subscription_str
-):
+async def test_graphqlws_subscription(client_and_graphqlws_server, subscription_str):
 
     session, server = client_and_graphqlws_server
 
@@ -252,7 +251,7 @@ async def test_graphqlws_subscription(
 @pytest.mark.parametrize("graphqlws_server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_graphqlws_subscription_break(
-    event_loop, client_and_graphqlws_server, subscription_str
+    client_and_graphqlws_server, subscription_str
 ):
 
     session, server = client_and_graphqlws_server
@@ -260,7 +259,8 @@ async def test_graphqlws_subscription_break(
     count = 10
     subscription = gql(subscription_str.format(count=count))
 
-    async for result in session.subscribe(subscription):
+    generator = session.subscribe(subscription)
+    async for result in generator:
 
         number = result["number"]
         print(f"Number received: {number}")
@@ -268,21 +268,21 @@ async def test_graphqlws_subscription_break(
         assert number == count
 
         if count <= 5:
-            # Note: the following line is only necessary for pypy3 v3.6.1
-            if sys.version_info < (3, 7):
-                await session._generator.aclose()
             break
 
         count -= 1
 
     assert count == 5
 
+    # Using aclose here to make it stop cleanly on pypy
+    await generator.aclose()
+
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("graphqlws_server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_graphqlws_subscription_task_cancel(
-    event_loop, client_and_graphqlws_server, subscription_str
+    client_and_graphqlws_server, subscription_str
 ):
 
     session, server = client_and_graphqlws_server
@@ -290,16 +290,24 @@ async def test_graphqlws_subscription_task_cancel(
     count = 10
     subscription = gql(subscription_str.format(count=count))
 
+    task_cancelled = False
+
     async def task_coro():
         nonlocal count
-        async for result in session.subscribe(subscription):
+        nonlocal task_cancelled
 
-            number = result["number"]
-            print(f"Number received: {number}")
+        try:
+            async for result in session.subscribe(subscription):
 
-            assert number == count
+                number = result["number"]
+                print(f"Number received: {number}")
 
-            count -= 1
+                assert number == count
+
+                count -= 1
+        except asyncio.CancelledError:
+            print("Inside task cancelled")
+            task_cancelled = True
 
     task = asyncio.ensure_future(task_coro())
 
@@ -315,13 +323,14 @@ async def test_graphqlws_subscription_task_cancel(
     await asyncio.gather(task, cancel_task)
 
     assert count > 0
+    assert task_cancelled is True
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("graphqlws_server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_graphqlws_subscription_close_transport(
-    event_loop, client_and_graphqlws_server, subscription_str
+    client_and_graphqlws_server, subscription_str
 ):
 
     session, server = client_and_graphqlws_server
@@ -356,7 +365,7 @@ async def test_graphqlws_subscription_close_transport(
     assert count > 0
 
 
-async def server_countdown_close_connection_in_middle(ws, path):
+async def server_countdown_close_connection_in_middle(ws):
     await WebSocketServerHelper.send_connection_ack(ws)
 
     result = await ws.recv()
@@ -386,16 +395,14 @@ async def server_countdown_close_connection_in_middle(ws, path):
 )
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_graphqlws_subscription_server_connection_closed(
-    event_loop, client_and_graphqlws_server, subscription_str
+    client_and_graphqlws_server, subscription_str
 ):
-    import websockets
-
     session, server = client_and_graphqlws_server
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
 
-    with pytest.raises(websockets.exceptions.ConnectionClosedOK):
+    with pytest.raises(TransportConnectionFailed):
 
         async for result in session.subscribe(subscription):
 
@@ -411,7 +418,7 @@ async def test_graphqlws_subscription_server_connection_closed(
 @pytest.mark.parametrize("graphqlws_server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_graphqlws_subscription_with_operation_name(
-    event_loop, client_and_graphqlws_server, subscription_str
+    client_and_graphqlws_server, subscription_str
 ):
 
     session, server = client_and_graphqlws_server
@@ -441,7 +448,7 @@ async def test_graphqlws_subscription_with_operation_name(
 )
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_graphqlws_subscription_with_keepalive(
-    event_loop, client_and_graphqlws_server, subscription_str
+    client_and_graphqlws_server, subscription_str
 ):
 
     session, server = client_and_graphqlws_server
@@ -471,7 +478,7 @@ async def test_graphqlws_subscription_with_keepalive(
 )
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_graphqlws_subscription_with_keepalive_with_timeout_ok(
-    event_loop, graphqlws_server, subscription_str
+    graphqlws_server, subscription_str
 ):
 
     from gql.transport.websockets import WebsocketsTransport
@@ -503,7 +510,7 @@ async def test_graphqlws_subscription_with_keepalive_with_timeout_ok(
 )
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_graphqlws_subscription_with_keepalive_with_timeout_nok(
-    event_loop, graphqlws_server, subscription_str
+    graphqlws_server, subscription_str
 ):
 
     from gql.transport.websockets import WebsocketsTransport
@@ -536,7 +543,7 @@ async def test_graphqlws_subscription_with_keepalive_with_timeout_nok(
 )
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_graphqlws_subscription_with_ping_interval_ok(
-    event_loop, graphqlws_server, subscription_str
+    graphqlws_server, subscription_str
 ):
 
     from gql.transport.websockets import WebsocketsTransport
@@ -572,7 +579,7 @@ async def test_graphqlws_subscription_with_ping_interval_ok(
 )
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_graphqlws_subscription_with_ping_interval_nok(
-    event_loop, graphqlws_server, subscription_str
+    graphqlws_server, subscription_str
 ):
 
     from gql.transport.websockets import WebsocketsTransport
@@ -605,7 +612,7 @@ async def test_graphqlws_subscription_with_ping_interval_nok(
 )
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_graphqlws_subscription_manual_pings_with_payload(
-    event_loop, graphqlws_server, subscription_str
+    graphqlws_server, subscription_str
 ):
 
     from gql.transport.websockets import WebsocketsTransport
@@ -647,7 +654,7 @@ async def test_graphqlws_subscription_manual_pings_with_payload(
 )
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_graphqlws_subscription_manual_pong_answers_with_payload(
-    event_loop, graphqlws_server, subscription_str
+    graphqlws_server, subscription_str
 ):
 
     from gql.transport.websockets import WebsocketsTransport
@@ -760,6 +767,7 @@ def test_graphqlws_subscription_sync_graceful_shutdown(
                     warnings.filterwarnings(
                         "ignore", message="There is no current event loop"
                     )
+                    assert isinstance(client.session, AsyncClientSession)
                     asyncio.ensure_future(
                         client.session._generator.athrow(KeyboardInterrupt)
                     )
@@ -778,7 +786,7 @@ def test_graphqlws_subscription_sync_graceful_shutdown(
 )
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 async def test_graphqlws_subscription_running_in_thread(
-    event_loop, graphqlws_server, subscription_str, run_sync_test
+    graphqlws_server, subscription_str, run_sync_test
 ):
     from gql.transport.websockets import WebsocketsTransport
 
@@ -802,7 +810,7 @@ async def test_graphqlws_subscription_running_in_thread(
 
         assert count == -1
 
-    await run_sync_test(event_loop, graphqlws_server, test_code)
+    await run_sync_test(graphqlws_server, test_code)
 
 
 @pytest.mark.asyncio
@@ -812,12 +820,10 @@ async def test_graphqlws_subscription_running_in_thread(
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 @pytest.mark.parametrize("execute_instead_of_subscribe", [False, True])
 async def test_graphqlws_subscription_reconnecting_session(
-    event_loop, graphqlws_server, subscription_str, execute_instead_of_subscribe
+    graphqlws_server, subscription_str, execute_instead_of_subscribe
 ):
 
-    import websockets
     from gql.transport.websockets import WebsocketsTransport
-    from gql.transport.exceptions import TransportClosed
 
     path = "/graphql"
     url = f"ws://{graphqlws_server.hostname}:{graphqlws_server.port}{path}"
@@ -835,44 +841,62 @@ async def test_graphqlws_subscription_reconnecting_session(
         reconnecting=True, retry_connect=False, retry_execute=False
     )
 
-    # First we make a subscription which will cause a disconnect in the backend
-    # (count=8)
-    try:
-        print("\nSUBSCRIPTION_1_WITH_DISCONNECT\n")
-        async for result in session.subscribe(subscription_with_disconnect):
-            pass
-    except websockets.exceptions.ConnectionClosedOK:
-        pass
-
-    await asyncio.sleep(50 * MS)
-
-    # Then with the same session handle, we make a subscription or an execute
-    # which will detect that the transport is closed so that the client could
-    # try to reconnect
+    # First we make a query or subscription which will cause a disconnect
+    # in the backend (count=8)
     try:
         if execute_instead_of_subscribe:
-            print("\nEXECUTION_2\n")
-            await session.execute(subscription)
+            print("\nEXECUTION_1\n")
+            await session.execute(subscription_with_disconnect)
         else:
-            print("\nSUBSCRIPTION_2\n")
-            async for result in session.subscribe(subscription):
+            print("\nSUBSCRIPTION_1_WITH_DISCONNECT\n")
+            async for result in session.subscribe(subscription_with_disconnect):
                 pass
-    except TransportClosed:
+    except TransportConnectionFailed:
         pass
 
-    await asyncio.sleep(50 * MS)
+    # Wait for disconnect
+    for i in range(200):
+        await asyncio.sleep(1 * MS)
+        if not transport._connected:
+            print(f"\nDisconnected in {i+1} MS")
+            break
 
-    # And finally with the same session handle, we make a subscription
-    # which works correctly
-    print("\nSUBSCRIPTION_3\n")
-    async for result in session.subscribe(subscription):
+    # Wait for reconnect
+    for i in range(200):
+        await asyncio.sleep(1 * MS)
+        if transport._connected:
+            print(f"\nConnected again in {i+1} MS")
+            break
 
-        number = result["number"]
-        print(f"Number received: {number}")
+    assert transport._connected is True
 
-        assert number == count
-        count -= 1
+    # Then after the reconnection, we make a query or a subscription
+    if execute_instead_of_subscribe:
+        print("\nEXECUTION_2\n")
+        result = await session.execute(subscription)
+        assert result["number"] == 10
+    else:
+        print("\nSUBSCRIPTION_2\n")
+        generator = session.subscribe(subscription)
+        async for result in generator:
+            number = result["number"]
+            print(f"Number received: {number}")
 
-    assert count == -1
+            assert number == count
+            count -= 1
 
+        await generator.aclose()
+
+        assert count == -1
+
+    # Close the reconnecting session
     await client.close_async()
+
+    # Wait for disconnect
+    for i in range(200):
+        await asyncio.sleep(1 * MS)
+        if not transport._connected:
+            print(f"\nDisconnected in {i+1} MS")
+            break
+
+    assert transport._connected is False

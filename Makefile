@@ -24,7 +24,7 @@ tests_websockets:
 	pytest tests --websockets-only
 
 check:
-	isort --recursive $(SRC_PYTHON)
+	isort $(SRC_PYTHON)
 	black $(SRC_PYTHON)
 	flake8 $(SRC_PYTHON)
 	mypy $(SRC_PYTHON)

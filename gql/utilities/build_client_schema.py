@@ -1,10 +1,7 @@
-from graphql import GraphQLSchema, IntrospectionQuery
+from graphql import DirectiveLocation, GraphQLSchema, IntrospectionQuery
 from graphql import build_client_schema as build_client_schema_orig
 from graphql.pyutils import inspect
-from graphql.utilities.get_introspection_query import (
-    DirectiveLocation,
-    IntrospectionDirective,
-)
+from graphql.utilities.get_introspection_query import IntrospectionDirective
 
 __all__ = ["build_client_schema"]
 

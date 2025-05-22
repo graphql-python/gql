@@ -11,19 +11,18 @@ from gql.transport.exceptions import TransportQueryError
 @pytest.mark.aiohttp
 @pytest.mark.online
 @pytest.mark.asyncio
-@pytest.mark.parametrize("protocol", ["http", "https"])
-async def test_aiohttp_simple_query(event_loop, protocol):
+async def test_aiohttp_simple_query():
 
     from gql.transport.aiohttp import AIOHTTPTransport
 
-    # Create http or https url
-    url = f"{protocol}://countries.trevorblades.com/graphql"
+    # Create https url
+    url = "https://countries.trevorblades.com/graphql"
 
     # Get transport
-    sample_transport = AIOHTTPTransport(url=url)
+    transport = AIOHTTPTransport(url=url)
 
     # Instanciate client
-    async with Client(transport=sample_transport) as session:
+    async with Client(transport=transport) as session:
 
         query = gql(
             """
@@ -57,15 +56,13 @@ async def test_aiohttp_simple_query(event_loop, protocol):
 @pytest.mark.aiohttp
 @pytest.mark.online
 @pytest.mark.asyncio
-async def test_aiohttp_invalid_query(event_loop):
+async def test_aiohttp_invalid_query():
 
     from gql.transport.aiohttp import AIOHTTPTransport
 
-    sample_transport = AIOHTTPTransport(
-        url="https://countries.trevorblades.com/graphql"
-    )
+    transport = AIOHTTPTransport(url="https://countries.trevorblades.com/graphql")
 
-    async with Client(transport=sample_transport) as session:
+    async with Client(transport=transport) as session:
 
         query = gql(
             """
@@ -86,16 +83,16 @@ async def test_aiohttp_invalid_query(event_loop):
 @pytest.mark.online
 @pytest.mark.skipif(sys.version_info < (3, 8), reason="requires python3.8 or higher")
 @pytest.mark.asyncio
-async def test_aiohttp_two_queries_in_parallel_using_two_tasks(event_loop):
+async def test_aiohttp_two_queries_in_parallel_using_two_tasks():
 
     from gql.transport.aiohttp import AIOHTTPTransport
 
-    sample_transport = AIOHTTPTransport(
+    transport = AIOHTTPTransport(
         url="https://countries.trevorblades.com/graphql",
     )
 
     # Instanciate client
-    async with Client(transport=sample_transport) as session:
+    async with Client(transport=transport) as session:
 
         query1 = gql(
             """

@@ -1,6 +1,5 @@
 import asyncio
 import json
-import sys
 
 import pytest
 from parse import search
@@ -78,7 +77,7 @@ countdown_data_template = (
 )
 
 
-async def server_countdown(ws, path):
+async def server_countdown(ws):
     import websockets
 
     from .conftest import MS, PhoenixChannelServerHelper
@@ -174,9 +173,7 @@ countdown_subscription_str = """
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
 @pytest.mark.parametrize("end_count", [0, 5])
-async def test_phoenix_channel_subscription(
-    event_loop, server, subscription_str, end_count
-):
+async def test_phoenix_channel_subscription(server, subscription_str, end_count):
     """Parameterized test.
 
     :param end_count: Target count at which the test will 'break' to unsubscribe.
@@ -187,36 +184,36 @@ async def test_phoenix_channel_subscription(
         PhoenixChannelWebsocketsTransport,
     )
     from gql.transport.phoenix_channel_websockets import log as phoenix_logger
-    from gql.transport.websockets import log as websockets_logger
+    from gql.transport.websockets_protocol import log as websockets_logger
 
     websockets_logger.setLevel(logging.DEBUG)
     phoenix_logger.setLevel(logging.DEBUG)
 
     path = "/graphql"
     url = f"ws://{server.hostname}:{server.port}{path}"
-    sample_transport = PhoenixChannelWebsocketsTransport(
+    transport = PhoenixChannelWebsocketsTransport(
         channel_name=test_channel, url=url, close_timeout=5
     )
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
 
-    async with Client(transport=sample_transport) as session:
-        async for result in session.subscribe(subscription):
+    async with Client(transport=transport) as session:
+
+        generator = session.subscribe(subscription)
+        async for result in generator:
             number = result["countdown"]["number"]
             print(f"Number received: {number}")
 
             assert number == count
             if number == end_count:
-                # Note: we need to run generator.aclose() here or the finally block in
-                # the subscribe will not be reached in pypy3 (python version 3.6.1)
-                # In more recent versions, 'break' will trigger __aexit__.
-                if sys.version_info < (3, 7):
-                    await session._generator.aclose()
                 print("break")
                 break
 
             count -= 1
+
+        # Using aclose here to make it stop cleanly on pypy
+        await generator.aclose()
 
     assert count == end_count
 
@@ -224,16 +221,14 @@ async def test_phoenix_channel_subscription(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_countdown], indirect=True)
 @pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
-async def test_phoenix_channel_subscription_no_break(
-    event_loop, server, subscription_str
-):
+async def test_phoenix_channel_subscription_no_break(server, subscription_str):
     import logging
 
     from gql.transport.phoenix_channel_websockets import (
         PhoenixChannelWebsocketsTransport,
     )
     from gql.transport.phoenix_channel_websockets import log as phoenix_logger
-    from gql.transport.websockets import log as websockets_logger
+    from gql.transport.websockets_protocol import log as websockets_logger
 
     from .conftest import MS
 
@@ -245,14 +240,14 @@ async def test_phoenix_channel_subscription_no_break(
 
     async def testing_stopping_without_break():
 
-        sample_transport = PhoenixChannelWebsocketsTransport(
+        transport = PhoenixChannelWebsocketsTransport(
             channel_name=test_channel, url=url, close_timeout=(5000 * MS)
         )
 
         count = 10
         subscription = gql(subscription_str.format(count=count))
 
-        async with Client(transport=sample_transport) as session:
+        async with Client(transport=transport) as session:
             async for result in session.subscribe(subscription):
                 number = result["countdown"]["number"]
                 print(f"Number received: {number}")
@@ -301,7 +296,7 @@ heartbeat_data_template = (
 )
 
 
-async def phoenix_heartbeat_server(ws, path):
+async def phoenix_heartbeat_server(ws):
     import websockets
 
     from .conftest import PhoenixChannelServerHelper
@@ -370,31 +365,30 @@ heartbeat_subscription_str = """
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [phoenix_heartbeat_server], indirect=True)
 @pytest.mark.parametrize("subscription_str", [heartbeat_subscription_str])
-async def test_phoenix_channel_heartbeat(event_loop, server, subscription_str):
+async def test_phoenix_channel_heartbeat(server, subscription_str):
     from gql.transport.phoenix_channel_websockets import (
         PhoenixChannelWebsocketsTransport,
     )
 
     path = "/graphql"
     url = f"ws://{server.hostname}:{server.port}{path}"
-    sample_transport = PhoenixChannelWebsocketsTransport(
+    transport = PhoenixChannelWebsocketsTransport(
         channel_name=test_channel, url=url, heartbeat_interval=0.1
     )
 
     subscription = gql(heartbeat_subscription_str)
-    async with Client(transport=sample_transport) as session:
+    async with Client(transport=transport) as session:
         i = 0
-        async for result in session.subscribe(subscription):
+        generator = session.subscribe(subscription)
+        async for result in generator:
             heartbeat_count = result["heartbeat"]["heartbeat_count"]
             print(f"Heartbeat count received: {heartbeat_count}")
 
             assert heartbeat_count == i
             if heartbeat_count == 5:
-                # Note: we need to run generator.aclose() here or the finally block in
-                # the subscribe will not be reached in pypy3 (python version 3.6.1)
-                # In more recent versions, 'break' will trigger __aexit__.
-                if sys.version_info < (3, 7):
-                    await session._generator.aclose()
                 break
 
             i += 1
+
+        # Using aclose here to make it stop cleanly on pypy
+        await generator.aclose()
