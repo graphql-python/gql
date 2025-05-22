@@ -12,6 +12,7 @@ class FileVar:
     content_type: Optional[str] = None
     streaming: bool = False
     streaming_block_size: int = 64 * 1024
+    _file_opened: bool = False
 
 
 FILE_UPLOAD_DOCS = "https://gql.readthedocs.io/en/latest/usage/file_upload.html"
@@ -72,6 +73,7 @@ def open_files(filevars: List[FileVar]) -> None:
 
         if isinstance(filevar.f, str):
             filevar.f = open(filevar.f, "rb")
+            filevar._file_opened = True
 
 
 def close_files(filevars: List[FileVar]) -> None:
@@ -79,4 +81,6 @@ def close_files(filevars: List[FileVar]) -> None:
         assert isinstance(filevar, FileVar)
 
         if isinstance(filevar.f, io.IOBase):
-            filevar.f.close()
+            if filevar._file_opened:
+                filevar.f.close()
+                filevar._file_opened = False
