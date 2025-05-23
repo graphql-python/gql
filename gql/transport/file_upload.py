@@ -1,4 +1,5 @@
 import io
+import os
 import warnings
 from typing import Any, Dict, List, Optional, Tuple, Type
 
@@ -34,6 +35,10 @@ class FileVar:
             self._make_file_streamer()
         else:
             if isinstance(self.f, str):
+                if self.filename is None:
+                    # By default we set the filename to the basename
+                    # of the opened file
+                    self.filename = os.path.basename(self.f)
                 self.f = open(self.f, "rb")
                 self._file_opened = True
 

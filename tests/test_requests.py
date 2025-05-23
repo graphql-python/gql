@@ -1,3 +1,4 @@
+import os
 import warnings
 from typing import Any, Dict, Mapping
 
@@ -674,6 +675,55 @@ async def test_requests_file_upload_with_content_type(aiohttp_server, run_sync_t
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
+async def test_requests_file_upload_default_filename_is_basename(
+    aiohttp_server, run_sync_test
+):
+    from aiohttp import web
+
+    from gql.transport.requests import RequestsHTTPTransport
+
+    app = web.Application()
+
+    with TemporaryFile(file_1_content) as test_file:
+        file_path = test_file.filename
+        file_basename = os.path.basename(file_path)
+
+        app.router.add_route(
+            "POST",
+            "/",
+            make_upload_handler(
+                filenames=[file_basename],
+                expected_map=file_upload_mutation_1_map,
+                expected_operations=file_upload_mutation_1_operations,
+                expected_contents=[file_1_content],
+            ),
+        )
+        server = await aiohttp_server(app)
+
+        url = server.make_url("/")
+
+        def test_code():
+
+            transport = RequestsHTTPTransport(url=url)
+
+            with Client(transport=transport) as session:
+                query = gql(file_upload_mutation_1)
+
+                params = {
+                    "file": FileVar(file_path),
+                    "other_var": 42,
+                }
+                execution_result = session._execute(
+                    query, variable_values=params, upload_files=True
+                )
+
+                assert execution_result.data["success"]
+
+        await run_sync_test(server, test_code)
+
+
+@pytest.mark.aiohttp
+@pytest.mark.asyncio
 async def test_requests_file_upload_with_filename(aiohttp_server, run_sync_test):
     from aiohttp import web
 
@@ -705,9 +755,6 @@ async def test_requests_file_upload_with_filename(aiohttp_server, run_sync_test)
                 file_path = test_file.filename
 
                 with open(file_path, "rb") as f:
-
-                    # Setting the content_type
-                    f.content_type = "application/pdf"  # type: ignore
 
                     params = {
                         "file": FileVar(f, filename="filename1.txt"),

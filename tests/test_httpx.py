@@ -1,3 +1,4 @@
+import os
 from typing import Any, Dict, Mapping
 
 import pytest
@@ -666,6 +667,55 @@ async def test_httpx_file_upload_with_content_type(aiohttp_server, run_sync_test
                 assert execution_result.data["success"]
 
     await run_sync_test(server, test_code)
+
+
+@pytest.mark.aiohttp
+@pytest.mark.asyncio
+async def test_httpx_file_upload_default_filename_is_basename(
+    aiohttp_server, run_sync_test
+):
+    from aiohttp import web
+
+    from gql.transport.httpx import HTTPXTransport
+
+    app = web.Application()
+
+    with TemporaryFile(file_1_content) as test_file:
+        file_path = test_file.filename
+        file_basename = os.path.basename(file_path)
+
+        app.router.add_route(
+            "POST",
+            "/",
+            make_upload_handler(
+                filenames=[file_basename],
+                expected_map=file_upload_mutation_1_map,
+                expected_operations=file_upload_mutation_1_operations,
+                expected_contents=[file_1_content],
+            ),
+        )
+        server = await aiohttp_server(app)
+
+        url = str(server.make_url("/"))
+
+        def test_code():
+            transport = HTTPXTransport(url=url)
+
+            with Client(transport=transport) as session:
+                query = gql(file_upload_mutation_1)
+
+                # Using FileVar
+                params = {
+                    "file": FileVar(file_path),
+                    "other_var": 42,
+                }
+                execution_result = session._execute(
+                    query, variable_values=params, upload_files=True
+                )
+
+                assert execution_result.data["success"]
+
+        await run_sync_test(server, test_code)
 
 
 @pytest.mark.aiohttp

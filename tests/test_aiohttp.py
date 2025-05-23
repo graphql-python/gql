@@ -1,5 +1,6 @@
 import io
 import json
+import os
 import warnings
 from typing import Mapping
 
@@ -767,6 +768,100 @@ async def test_aiohttp_file_upload_with_content_type(aiohttp_server):
                 "file": FileVar(
                     file_path,
                     content_type="application/pdf",
+                ),
+                "other_var": 42,
+            }
+
+            result = await session.execute(
+                query, variable_values=params, upload_files=True
+            )
+
+            success = result["success"]
+            assert success
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_file_upload_default_filename_is_basename(aiohttp_server):
+    from aiohttp import web
+
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    app = web.Application()
+
+    with TemporaryFile(file_1_content) as test_file:
+        file_path = test_file.filename
+        file_basename = os.path.basename(file_path)
+
+        app.router.add_route(
+            "POST",
+            "/",
+            make_upload_handler(
+                filenames=[file_basename],
+                expected_map=file_upload_mutation_1_map,
+                expected_operations=file_upload_mutation_1_operations,
+                expected_contents=[file_1_content],
+            ),
+        )
+        server = await aiohttp_server(app)
+
+        url = server.make_url("/")
+
+        transport = AIOHTTPTransport(url=url, timeout=10)
+
+        async with Client(transport=transport) as session:
+
+            query = gql(file_upload_mutation_1)
+
+            params = {
+                "file": FileVar(
+                    file_path,
+                ),
+                "other_var": 42,
+            }
+
+            result = await session.execute(
+                query, variable_values=params, upload_files=True
+            )
+
+            success = result["success"]
+            assert success
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_file_upload_with_filename(aiohttp_server):
+    from aiohttp import web
+
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    app = web.Application()
+
+    with TemporaryFile(file_1_content) as test_file:
+        file_path = test_file.filename
+
+        app.router.add_route(
+            "POST",
+            "/",
+            make_upload_handler(
+                filenames=["filename1.txt"],
+                expected_map=file_upload_mutation_1_map,
+                expected_operations=file_upload_mutation_1_operations,
+                expected_contents=[file_1_content],
+            ),
+        )
+        server = await aiohttp_server(app)
+
+        url = server.make_url("/")
+
+        transport = AIOHTTPTransport(url=url, timeout=10)
+
+        async with Client(transport=transport) as session:
+
+            query = gql(file_upload_mutation_1)
+
+            params = {
+                "file": FileVar(
+                    file_path,
+                    filename="filename1.txt",
                 ),
                 "other_var": 42,
             }
