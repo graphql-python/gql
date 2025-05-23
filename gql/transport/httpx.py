@@ -12,13 +12,11 @@ from typing import (
     Tuple,
     Type,
     Union,
-    cast,
 )
 
 import httpx
 from graphql import DocumentNode, ExecutionResult, print_ast
 
-from ..utils import extract_files
 from . import AsyncTransport, Transport
 from .exceptions import (
     TransportAlreadyConnected,
@@ -26,6 +24,7 @@ from .exceptions import (
     TransportProtocolError,
     TransportServerError,
 )
+from .file_upload import close_files, extract_files, open_files
 
 log = logging.getLogger(__name__)
 
@@ -104,6 +103,10 @@ class _HTTPXTransport:
             file_classes=self.file_classes,
         )
 
+        # Opening the files using the FileVar parameters
+        open_files(list(files.values()))
+        self.files = files
+
         # Save the nulled variable values in the payload
         payload["variables"] = nulled_variable_values
 
@@ -112,7 +115,7 @@ class _HTTPXTransport:
         file_map: Dict[str, List[str]] = {}
         file_streams: Dict[str, Tuple[str, ...]] = {}
 
-        for i, (path, f) in enumerate(files.items()):
+        for i, (path, file_var) in enumerate(files.items()):
             key = str(i)
 
             # Generate the file map
@@ -121,16 +124,12 @@ class _HTTPXTransport:
             # Will generate something like {"0": ["variables.file"]}
             file_map[key] = [path]
 
-            # Generate the file streams
-            # Will generate something like
-            # {"0": ("variables.file", <_io.BufferedReader ...>)}
-            name = cast(str, getattr(f, "name", key))
-            content_type = getattr(f, "content_type", None)
+            name = key if file_var.filename is None else file_var.filename
 
-            if content_type is None:
-                file_streams[key] = (name, f)
+            if file_var.content_type is None:
+                file_streams[key] = (name, file_var.f)
             else:
-                file_streams[key] = (name, f, content_type)
+                file_streams[key] = (name, file_var.f, file_var.content_type)
 
         # Add the payload to the operations field
         operations_str = self.json_serialize(payload)
@@ -232,7 +231,11 @@ class HTTPXTransport(Transport, _HTTPXTransport):
             upload_files,
         )
 
-        response = self.client.post(self.url, **post_args)
+        try:
+            response = self.client.post(self.url, **post_args)
+        finally:
+            if upload_files:
+                close_files(list(self.files.values()))
 
         return self._prepare_result(response)
 
@@ -295,7 +298,11 @@ class HTTPXAsyncTransport(AsyncTransport, _HTTPXTransport):
             upload_files,
         )
 
-        response = await self.client.post(self.url, **post_args)
+        try:
+            response = await self.client.post(self.url, **post_args)
+        finally:
+            if upload_files:
+                close_files(list(self.files.values()))
 
         return self._prepare_result(response)
 

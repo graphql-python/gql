@@ -763,3 +763,62 @@ def strip_braces_spaces(s):
     strip_back = re.sub(r"([^\s]) }", r"\1}", strip_front)
 
     return strip_back
+
+
+def make_upload_handler(
+    nb_files=1,
+    filenames=None,
+    request_headers=None,
+    file_headers=None,
+    binary=False,
+    expected_contents=None,
+    expected_operations=None,
+    expected_map=None,
+    server_answer='{"data":{"success":true}}',
+):
+    assert expected_contents is not None
+    assert expected_operations is not None
+    assert expected_map is not None
+
+    async def single_upload_handler(request):
+        from aiohttp import web
+
+        reader = await request.multipart()
+
+        if request_headers is not None:
+            for k, v in request_headers.items():
+                assert request.headers[k] == v
+
+        field_0 = await reader.next()
+        assert field_0.name == "operations"
+        field_0_text = await field_0.text()
+        assert strip_braces_spaces(field_0_text) == expected_operations
+
+        field_1 = await reader.next()
+        assert field_1.name == "map"
+        field_1_text = await field_1.text()
+        assert field_1_text == expected_map
+
+        for i in range(nb_files):
+            field = await reader.next()
+            assert field.name == str(i)
+            if filenames is not None:
+                assert field.filename == filenames[i]
+
+            if binary:
+                field_content = await field.read()
+                assert field_content == expected_contents[i]
+            else:
+                field_text = await field.text()
+                assert field_text == expected_contents[i]
+
+            if file_headers is not None:
+                for k, v in file_headers[i].items():
+                    assert field.headers[k] == v
+
+        final_field = await reader.next()
+        assert final_field is None
+
+        return web.Response(text=server_answer, content_type="application/json")
+
+    return single_upload_handler

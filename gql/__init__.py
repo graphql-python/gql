@@ -11,10 +11,12 @@ from .__version__ import __version__
 from .client import Client
 from .gql import gql
 from .graphql_request import GraphQLRequest
+from .transport.file_upload import FileVar
 
 __all__ = [
     "__version__",
     "gql",
     "Client",
     "GraphQLRequest",
+    "FileVar",
 ]

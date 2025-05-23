@@ -25,13 +25,13 @@ from requests_toolbelt.multipart.encoder import MultipartEncoder
 from gql.transport import Transport
 
 from ..graphql_request import GraphQLRequest
-from ..utils import extract_files
 from .exceptions import (
     TransportAlreadyConnected,
     TransportClosed,
     TransportProtocolError,
     TransportServerError,
 )
+from .file_upload import FileVar, close_files, extract_files, open_files
 
 log = logging.getLogger(__name__)
 
@@ -190,6 +190,10 @@ class RequestsHTTPTransport(Transport):
                 file_classes=self.file_classes,
             )
 
+            # Opening the files using the FileVar parameters
+            open_files(list(files.values()))
+            self.files = files
+
             # Save the nulled variable values in the payload
             payload["variables"] = nulled_variable_values
 
@@ -204,8 +208,8 @@ class RequestsHTTPTransport(Transport):
             file_map = {str(i): [path] for i, path in enumerate(files)}
 
             # Enumerate the file streams
-            # Will generate something like {'0': <_io.BufferedReader ...>}
-            file_streams = {str(i): files[path] for i, path in enumerate(files)}
+            # Will generate something like {'0': FileVar object}
+            file_vars = {str(i): files[path] for i, path in enumerate(files)}
 
             # Add the file map field
             file_map_str = self.json_serialize(file_map)
@@ -214,14 +218,14 @@ class RequestsHTTPTransport(Transport):
             fields = {"operations": operations_str, "map": file_map_str}
 
             # Add the extracted files as remaining fields
-            for k, f in file_streams.items():
-                name = getattr(f, "name", k)
-                content_type = getattr(f, "content_type", None)
+            for k, file_var in file_vars.items():
+                assert isinstance(file_var, FileVar)
+                name = k if file_var.filename is None else file_var.filename
 
-                if content_type is None:
-                    fields[k] = (name, f)
+                if file_var.content_type is None:
+                    fields[k] = (name, file_var.f)
                 else:
-                    fields[k] = (name, f, content_type)
+                    fields[k] = (name, file_var.f, file_var.content_type)
 
             # Prepare requests http to send multipart-encoded data
             data = MultipartEncoder(fields=fields)
@@ -254,9 +258,14 @@ class RequestsHTTPTransport(Transport):
             post_args.update(extra_args)
 
         # Using the created session to perform requests
-        response = self.session.request(
-            self.method, self.url, **post_args  # type: ignore
-        )
+        try:
+            response = self.session.request(
+                self.method, self.url, **post_args  # type: ignore
+            )
+        finally:
+            if upload_files:
+                close_files(list(self.files.values()))
+
         self.response_headers = response.headers
 
         def raise_response_error(resp: requests.Response, reason: str) -> NoReturn:

@@ -23,7 +23,6 @@ from aiohttp.typedefs import LooseCookies, LooseHeaders
 from graphql import DocumentNode, ExecutionResult, print_ast
 from multidict import CIMultiDictProxy
 
-from ..utils import extract_files
 from .appsync_auth import AppSyncAuthentication
 from .async_transport import AsyncTransport
 from .common.aiohttp_closed_event import create_aiohttp_closed_event
@@ -33,6 +32,7 @@ from .exceptions import (
     TransportProtocolError,
     TransportServerError,
 )
+from .file_upload import FileVar, close_files, extract_files, open_files
 
 log = logging.getLogger(__name__)
 
@@ -207,6 +207,10 @@ class AIOHTTPTransport(AsyncTransport):
                 file_classes=self.file_classes,
             )
 
+            # Opening the files using the FileVar parameters
+            open_files(list(files.values()), transport_supports_streaming=True)
+            self.files = files
+
             # Save the nulled variable values in the payload
             payload["variables"] = nulled_variable_values
 
@@ -220,8 +224,8 @@ class AIOHTTPTransport(AsyncTransport):
             file_map = {str(i): [path] for i, path in enumerate(files)}
 
             # Enumerate the file streams
-            # Will generate something like {'0': <_io.BufferedReader ...>}
-            file_streams = {str(i): files[path] for i, path in enumerate(files)}
+            # Will generate something like {'0': FileVar object}
+            file_vars = {str(i): files[path] for i, path in enumerate(files)}
 
             # Add the payload to the operations field
             operations_str = self.json_serialize(payload)
@@ -235,12 +239,15 @@ class AIOHTTPTransport(AsyncTransport):
             log.debug("file_map %s", file_map_str)
             data.add_field("map", file_map_str, content_type="application/json")
 
-            # Add the extracted files as remaining fields
-            for k, f in file_streams.items():
-                name = getattr(f, "name", k)
-                content_type = getattr(f, "content_type", None)
+            for k, file_var in file_vars.items():
+                assert isinstance(file_var, FileVar)
 
-                data.add_field(k, f, filename=name, content_type=content_type)
+                data.add_field(
+                    k,
+                    file_var.f,
+                    filename=file_var.filename,
+                    content_type=file_var.content_type,
+                )
 
             post_args: Dict[str, Any] = {"data": data}
 
@@ -267,51 +274,59 @@ class AIOHTTPTransport(AsyncTransport):
         if self.session is None:
             raise TransportClosed("Transport is not connected")
 
-        async with self.session.post(self.url, ssl=self.ssl, **post_args) as resp:
+        try:
+            async with self.session.post(self.url, ssl=self.ssl, **post_args) as resp:
 
-            # Saving latest response headers in the transport
-            self.response_headers = resp.headers
+                # Saving latest response headers in the transport
+                self.response_headers = resp.headers
 
-            async def raise_response_error(
-                resp: aiohttp.ClientResponse, reason: str
-            ) -> NoReturn:
-                # We raise a TransportServerError if the status code is 400 or higher
-                # We raise a TransportProtocolError in the other cases
+                async def raise_response_error(
+                    resp: aiohttp.ClientResponse, reason: str
+                ) -> NoReturn:
+                    # We raise a TransportServerError if status code is 400 or higher
+                    # We raise a TransportProtocolError in the other cases
+
+                    try:
+                        # Raise ClientResponseError if response status is 400 or higher
+                        resp.raise_for_status()
+                    except ClientResponseError as e:
+                        raise TransportServerError(str(e), e.status) from e
+
+                    result_text = await resp.text()
+                    raise TransportProtocolError(
+                        f"Server did not return a GraphQL result: "
+                        f"{reason}: "
+                        f"{result_text}"
+                    )
 
                 try:
-                    # Raise a ClientResponseError if response status is 400 or higher
-                    resp.raise_for_status()
-                except ClientResponseError as e:
-                    raise TransportServerError(str(e), e.status) from e
+                    result = await resp.json(
+                        loads=self.json_deserialize, content_type=None
+                    )
 
-                result_text = await resp.text()
-                raise TransportProtocolError(
-                    f"Server did not return a GraphQL result: "
-                    f"{reason}: "
-                    f"{result_text}"
+                    if log.isEnabledFor(logging.INFO):
+                        result_text = await resp.text()
+                        log.info("<<< %s", result_text)
+
+                except Exception:
+                    await raise_response_error(resp, "Not a JSON answer")
+
+                if result is None:
+                    await raise_response_error(resp, "Not a JSON answer")
+
+                if "errors" not in result and "data" not in result:
+                    await raise_response_error(
+                        resp, 'No "data" or "errors" keys in answer'
+                    )
+
+                return ExecutionResult(
+                    errors=result.get("errors"),
+                    data=result.get("data"),
+                    extensions=result.get("extensions"),
                 )
-
-            try:
-                result = await resp.json(loads=self.json_deserialize, content_type=None)
-
-                if log.isEnabledFor(logging.INFO):
-                    result_text = await resp.text()
-                    log.info("<<< %s", result_text)
-
-            except Exception:
-                await raise_response_error(resp, "Not a JSON answer")
-
-            if result is None:
-                await raise_response_error(resp, "Not a JSON answer")
-
-            if "errors" not in result and "data" not in result:
-                await raise_response_error(resp, 'No "data" or "errors" keys in answer')
-
-            return ExecutionResult(
-                errors=result.get("errors"),
-                data=result.get("data"),
-                extensions=result.get("extensions"),
-            )
+        finally:
+            if upload_files:
+                close_files(list(self.files.values()))
 
     def subscribe(
         self,

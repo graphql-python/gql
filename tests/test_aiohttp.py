@@ -1,10 +1,12 @@
 import io
 import json
+import os
+import warnings
 from typing import Mapping
 
 import pytest
 
-from gql import Client, gql
+from gql import Client, FileVar, gql
 from gql.cli import get_parser, main
 from gql.transport.exceptions import (
     TransportAlreadyConnected,
@@ -17,7 +19,7 @@ from gql.transport.exceptions import (
 from .conftest import (
     TemporaryFile,
     get_localhost_ssl_context_client,
-    strip_braces_spaces,
+    make_upload_handler,
 )
 
 query1_str = """
@@ -600,8 +602,6 @@ async def test_aiohttp_subscribe_running_in_thread(aiohttp_server, run_sync_test
     await run_sync_test(server, test_code)
 
 
-file_upload_server_answer = '{"data":{"success":true}}'
-
 file_upload_mutation_1 = """
     mutation($file: Upload!) {
       uploadFile(input:{other_var:$other_var, file:$file}) {
@@ -624,33 +624,6 @@ This file will be sent in the GraphQL mutation
 """
 
 
-async def single_upload_handler(request):
-
-    from aiohttp import web
-
-    reader = await request.multipart()
-
-    field_0 = await reader.next()
-    assert field_0.name == "operations"
-    field_0_text = await field_0.text()
-    assert strip_braces_spaces(field_0_text) == file_upload_mutation_1_operations
-
-    field_1 = await reader.next()
-    assert field_1.name == "map"
-    field_1_text = await field_1.text()
-    assert field_1_text == file_upload_mutation_1_map
-
-    field_2 = await reader.next()
-    assert field_2.name == "0"
-    field_2_text = await field_2.text()
-    assert field_2_text == file_1_content
-
-    field_3 = await reader.next()
-    assert field_3 is None
-
-    return web.Response(text=file_upload_server_answer, content_type="application/json")
-
-
 @pytest.mark.asyncio
 async def test_aiohttp_file_upload(aiohttp_server):
     from aiohttp import web
@@ -658,7 +631,15 @@ async def test_aiohttp_file_upload(aiohttp_server):
     from gql.transport.aiohttp import AIOHTTPTransport
 
     app = web.Application()
-    app.router.add_route("POST", "/", single_upload_handler)
+    app.router.add_route(
+        "POST",
+        "/",
+        make_upload_handler(
+            expected_map=file_upload_mutation_1_map,
+            expected_operations=file_upload_mutation_1_operations,
+            expected_contents=[file_1_content],
+        ),
+    )
     server = await aiohttp_server(app)
 
     url = server.make_url("/")
@@ -673,48 +654,45 @@ async def test_aiohttp_file_upload(aiohttp_server):
 
             file_path = test_file.filename
 
+            # Using an opened file
             with open(file_path, "rb") as f:
 
                 params = {"file": f, "other_var": 42}
 
                 # Execute query asynchronously
-                result = await session.execute(
-                    query, variable_values=params, upload_files=True
-                )
+                with pytest.warns(
+                    DeprecationWarning,
+                    match="Not using FileVar for file upload is deprecated",
+                ):
+                    result = await session.execute(
+                        query, variable_values=params, upload_files=True
+                    )
 
             success = result["success"]
-
             assert success
 
+            # Using an opened file inside a FileVar object
+            with open(file_path, "rb") as f:
 
-async def single_upload_handler_with_content_type(request):
+                params = {"file": FileVar(f), "other_var": 42}
 
-    from aiohttp import web
+                with warnings.catch_warnings():
+                    warnings.simplefilter("error")  # Turn warnings into errors
+                    result = await session.execute(
+                        query, variable_values=params, upload_files=True
+                    )
 
-    reader = await request.multipart()
+            success = result["success"]
+            assert success
 
-    field_0 = await reader.next()
-    assert field_0.name == "operations"
-    field_0_text = await field_0.text()
-    assert strip_braces_spaces(field_0_text) == file_upload_mutation_1_operations
+            # Using an filename string inside a FileVar object
+            params = {"file": FileVar(file_path), "other_var": 42}
+            result = await session.execute(
+                query, variable_values=params, upload_files=True
+            )
 
-    field_1 = await reader.next()
-    assert field_1.name == "map"
-    field_1_text = await field_1.text()
-    assert field_1_text == file_upload_mutation_1_map
-
-    field_2 = await reader.next()
-    assert field_2.name == "0"
-    field_2_text = await field_2.text()
-    assert field_2_text == file_1_content
-
-    # Verifying the content_type
-    assert field_2.headers["Content-Type"] == "application/pdf"
-
-    field_3 = await reader.next()
-    assert field_3 is None
-
-    return web.Response(text=file_upload_server_answer, content_type="application/json")
+            success = result["success"]
+            assert success
 
 
 @pytest.mark.asyncio
@@ -724,7 +702,16 @@ async def test_aiohttp_file_upload_with_content_type(aiohttp_server):
     from gql.transport.aiohttp import AIOHTTPTransport
 
     app = web.Application()
-    app.router.add_route("POST", "/", single_upload_handler_with_content_type)
+    app.router.add_route(
+        "POST",
+        "/",
+        make_upload_handler(
+            file_headers=[{"Content-Type": "application/pdf"}],
+            expected_map=file_upload_mutation_1_map,
+            expected_operations=file_upload_mutation_1_operations,
+            expected_contents=[file_1_content],
+        ),
+    )
     server = await aiohttp_server(app)
 
     url = server.make_url("/")
@@ -739,6 +726,7 @@ async def test_aiohttp_file_upload_with_content_type(aiohttp_server):
 
             file_path = test_file.filename
 
+            # Using an opened file
             with open(file_path, "rb") as f:
 
                 # Setting the content_type
@@ -746,13 +734,143 @@ async def test_aiohttp_file_upload_with_content_type(aiohttp_server):
 
                 params = {"file": f, "other_var": 42}
 
-                # Execute query asynchronously
+                with pytest.warns(
+                    DeprecationWarning,
+                    match="Not using FileVar for file upload is deprecated",
+                ):
+                    result = await session.execute(
+                        query, variable_values=params, upload_files=True
+                    )
+
+            success = result["success"]
+            assert success
+
+            # Using an opened file inside a FileVar object
+            with open(file_path, "rb") as f:
+
+                params = {
+                    "file": FileVar(
+                        f,
+                        content_type="application/pdf",
+                    ),
+                    "other_var": 42,
+                }
+
                 result = await session.execute(
                     query, variable_values=params, upload_files=True
                 )
 
             success = result["success"]
+            assert success
 
+            # Using an filename string inside a FileVar object
+            params = {
+                "file": FileVar(
+                    file_path,
+                    content_type="application/pdf",
+                ),
+                "other_var": 42,
+            }
+
+            result = await session.execute(
+                query, variable_values=params, upload_files=True
+            )
+
+            success = result["success"]
+            assert success
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_file_upload_default_filename_is_basename(aiohttp_server):
+    from aiohttp import web
+
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    app = web.Application()
+
+    with TemporaryFile(file_1_content) as test_file:
+        file_path = test_file.filename
+        file_basename = os.path.basename(file_path)
+
+        app.router.add_route(
+            "POST",
+            "/",
+            make_upload_handler(
+                filenames=[file_basename],
+                expected_map=file_upload_mutation_1_map,
+                expected_operations=file_upload_mutation_1_operations,
+                expected_contents=[file_1_content],
+            ),
+        )
+        server = await aiohttp_server(app)
+
+        url = server.make_url("/")
+
+        transport = AIOHTTPTransport(url=url, timeout=10)
+
+        async with Client(transport=transport) as session:
+
+            query = gql(file_upload_mutation_1)
+
+            params = {
+                "file": FileVar(
+                    file_path,
+                ),
+                "other_var": 42,
+            }
+
+            result = await session.execute(
+                query, variable_values=params, upload_files=True
+            )
+
+            success = result["success"]
+            assert success
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_file_upload_with_filename(aiohttp_server):
+    from aiohttp import web
+
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    app = web.Application()
+
+    with TemporaryFile(file_1_content) as test_file:
+        file_path = test_file.filename
+
+        app.router.add_route(
+            "POST",
+            "/",
+            make_upload_handler(
+                filenames=["filename1.txt"],
+                expected_map=file_upload_mutation_1_map,
+                expected_operations=file_upload_mutation_1_operations,
+                expected_contents=[file_1_content],
+            ),
+        )
+        server = await aiohttp_server(app)
+
+        url = server.make_url("/")
+
+        transport = AIOHTTPTransport(url=url, timeout=10)
+
+        async with Client(transport=transport) as session:
+
+            query = gql(file_upload_mutation_1)
+
+            params = {
+                "file": FileVar(
+                    file_path,
+                    filename="filename1.txt",
+                ),
+                "other_var": 42,
+            }
+
+            result = await session.execute(
+                query, variable_values=params, upload_files=True
+            )
+
+            success = result["success"]
             assert success
 
 
@@ -763,7 +881,15 @@ async def test_aiohttp_file_upload_without_session(aiohttp_server, run_sync_test
     from gql.transport.aiohttp import AIOHTTPTransport
 
     app = web.Application()
-    app.router.add_route("POST", "/", single_upload_handler)
+    app.router.add_route(
+        "POST",
+        "/",
+        make_upload_handler(
+            expected_map=file_upload_mutation_1_map,
+            expected_operations=file_upload_mutation_1_operations,
+            expected_contents=[file_1_content],
+        ),
+    )
     server = await aiohttp_server(app)
 
     url = server.make_url("/")
@@ -779,50 +905,14 @@ async def test_aiohttp_file_upload_without_session(aiohttp_server, run_sync_test
 
             file_path = test_file.filename
 
-            with open(file_path, "rb") as f:
+            params = {"file": FileVar(file_path), "other_var": 42}
 
-                params = {"file": f, "other_var": 42}
+            result = client.execute(query, variable_values=params, upload_files=True)
 
-                result = client.execute(
-                    query, variable_values=params, upload_files=True
-                )
-
-                success = result["success"]
-
-                assert success
+            success = result["success"]
+            assert success
 
     await run_sync_test(server, test_code)
-
-
-# This is a sample binary file content containing all possible byte values
-binary_file_content = bytes(range(0, 256))
-
-
-async def binary_upload_handler(request):
-
-    from aiohttp import web
-
-    reader = await request.multipart()
-
-    field_0 = await reader.next()
-    assert field_0.name == "operations"
-    field_0_text = await field_0.text()
-    assert strip_braces_spaces(field_0_text) == file_upload_mutation_1_operations
-
-    field_1 = await reader.next()
-    assert field_1.name == "map"
-    field_1_text = await field_1.text()
-    assert field_1_text == file_upload_mutation_1_map
-
-    field_2 = await reader.next()
-    assert field_2.name == "0"
-    field_2_binary = await field_2.read()
-    assert field_2_binary == binary_file_content
-
-    field_3 = await reader.next()
-    assert field_3 is None
-
-    return web.Response(text=file_upload_server_answer, content_type="application/json")
 
 
 @pytest.mark.asyncio
@@ -831,8 +921,20 @@ async def test_aiohttp_binary_file_upload(aiohttp_server):
 
     from gql.transport.aiohttp import AIOHTTPTransport
 
+    # This is a sample binary file content containing all possible byte values
+    binary_file_content = bytes(range(0, 256))
+
     app = web.Application()
-    app.router.add_route("POST", "/", binary_upload_handler)
+    app.router.add_route(
+        "POST",
+        "/",
+        make_upload_handler(
+            binary=True,
+            expected_contents=[binary_file_content],
+            expected_map=file_upload_mutation_1_map,
+            expected_operations=file_upload_mutation_1_operations,
+        ),
+    )
     server = await aiohttp_server(app)
 
     url = server.make_url("/")
@@ -847,14 +949,12 @@ async def test_aiohttp_binary_file_upload(aiohttp_server):
 
             file_path = test_file.filename
 
-            with open(file_path, "rb") as f:
+            params = {"file": FileVar(file_path), "other_var": 42}
 
-                params = {"file": f, "other_var": 42}
-
-                # Execute query asynchronously
-                result = await session.execute(
-                    query, variable_values=params, upload_files=True
-                )
+            # Execute query asynchronously
+            result = await session.execute(
+                query, variable_values=params, upload_files=True
+            )
 
             success = result["success"]
 
@@ -867,13 +967,25 @@ async def test_aiohttp_stream_reader_upload(aiohttp_server):
 
     from gql.transport.aiohttp import AIOHTTPTransport
 
+    # This is a sample binary file content containing all possible byte values
+    binary_file_content = bytes(range(0, 256))
+
     async def binary_data_handler(request):
         return web.Response(
             body=binary_file_content, content_type="binary/octet-stream"
         )
 
     app = web.Application()
-    app.router.add_route("POST", "/", binary_upload_handler)
+    app.router.add_route(
+        "POST",
+        "/",
+        make_upload_handler(
+            binary=True,
+            expected_contents=[binary_file_content],
+            expected_map=file_upload_mutation_1_map,
+            expected_operations=file_upload_mutation_1_operations,
+        ),
+    )
     app.router.add_route("GET", "/binary_data", binary_data_handler)
 
     server = await aiohttp_server(app)
@@ -883,19 +995,36 @@ async def test_aiohttp_stream_reader_upload(aiohttp_server):
 
     transport = AIOHTTPTransport(url=url, timeout=10)
 
+    # Not using FileVar
     async with Client(transport=transport) as session:
         query = gql(file_upload_mutation_1)
         async with ClientSession() as client:
             async with client.get(binary_data_url) as resp:
                 params = {"file": resp.content, "other_var": 42}
 
-                # Execute query asynchronously
+                with pytest.warns(
+                    DeprecationWarning,
+                    match="Not using FileVar for file upload is deprecated",
+                ):
+                    result = await session.execute(
+                        query, variable_values=params, upload_files=True
+                    )
+
+    success = result["success"]
+    assert success
+
+    # Using FileVar
+    async with Client(transport=transport) as session:
+        query = gql(file_upload_mutation_1)
+        async with ClientSession() as client:
+            async with client.get(binary_data_url) as resp:
+                params = {"file": FileVar(resp.content), "other_var": 42}
+
                 result = await session.execute(
                     query, variable_values=params, upload_files=True
                 )
 
     success = result["success"]
-
     assert success
 
 
@@ -906,30 +1035,59 @@ async def test_aiohttp_async_generator_upload(aiohttp_server):
 
     from gql.transport.aiohttp import AIOHTTPTransport
 
+    # This is a sample binary file content containing all possible byte values
+    binary_file_content = bytes(range(0, 256))
+
     app = web.Application()
-    app.router.add_route("POST", "/", binary_upload_handler)
+    app.router.add_route(
+        "POST",
+        "/",
+        make_upload_handler(
+            binary=True,
+            expected_contents=[binary_file_content],
+            expected_map=file_upload_mutation_1_map,
+            expected_operations=file_upload_mutation_1_operations,
+        ),
+    )
     server = await aiohttp_server(app)
 
     url = server.make_url("/")
 
     transport = AIOHTTPTransport(url=url, timeout=10)
 
+    query = gql(file_upload_mutation_1)
+
     with TemporaryFile(binary_file_content) as test_file:
 
+        file_path = test_file.filename
+
+        async def file_sender(file_name):
+            async with aiofiles.open(file_name, "rb") as f:
+                chunk = await f.read(64 * 1024)
+                while chunk:
+                    yield chunk
+                    chunk = await f.read(64 * 1024)
+
+        # Not using FileVar
         async with Client(transport=transport) as session:
 
-            query = gql(file_upload_mutation_1)
-
-            file_path = test_file.filename
-
-            async def file_sender(file_name):
-                async with aiofiles.open(file_name, "rb") as f:
-                    chunk = await f.read(64 * 1024)
-                    while chunk:
-                        yield chunk
-                        chunk = await f.read(64 * 1024)
-
             params = {"file": file_sender(file_path), "other_var": 42}
+
+            with pytest.warns(
+                DeprecationWarning,
+                match="Not using FileVar for file upload is deprecated",
+            ):
+                result = await session.execute(
+                    query, variable_values=params, upload_files=True
+                )
+
+            success = result["success"]
+            assert success
+
+        # Using FileVar
+        async with Client(transport=transport) as session:
+
+            params = {"file": FileVar(file_sender(file_path)), "other_var": 42}
 
             # Execute query asynchronously
             result = await session.execute(
@@ -937,30 +1095,23 @@ async def test_aiohttp_async_generator_upload(aiohttp_server):
             )
 
             success = result["success"]
-
             assert success
 
+        # Using FileVar with new streaming support
+        async with Client(transport=transport) as session:
 
-file_upload_mutation_2 = """
-    mutation($file1: Upload!, $file2: Upload!) {
-      uploadFile(input:{file1:$file, file2:$file}) {
-        success
-      }
-    }
-"""
+            params = {
+                "file": FileVar(file_path, streaming=True),
+                "other_var": 42,
+            }
 
-file_upload_mutation_2_operations = (
-    '{"query": "mutation ($file1: Upload!, $file2: Upload!) {\\n  '
-    'uploadFile(input: {file1: $file, file2: $file}) {\\n    success\\n  }\\n}", '
-    '"variables": {"file1": null, "file2": null}}'
-)
+            # Execute query asynchronously
+            result = await session.execute(
+                query, variable_values=params, upload_files=True
+            )
 
-file_upload_mutation_2_map = '{"0": ["variables.file1"], "1": ["variables.file2"]}'
-
-file_2_content = """
-This is a second test file
-This file will also be sent in the GraphQL mutation
-"""
+            success = result["success"]
+            assert success
 
 
 @pytest.mark.asyncio
@@ -969,39 +1120,38 @@ async def test_aiohttp_file_upload_two_files(aiohttp_server):
 
     from gql.transport.aiohttp import AIOHTTPTransport
 
-    async def handler(request):
+    file_upload_mutation_2 = """
+    mutation($file1: Upload!, $file2: Upload!) {
+      uploadFile(input:{file1:$file, file2:$file}) {
+        success
+      }
+    }
+    """
 
-        reader = await request.multipart()
+    file_upload_mutation_2_operations = (
+        '{"query": "mutation ($file1: Upload!, $file2: Upload!) {\\n  '
+        'uploadFile(input: {file1: $file, file2: $file}) {\\n    success\\n  }\\n}", '
+        '"variables": {"file1": null, "file2": null}}'
+    )
 
-        field_0 = await reader.next()
-        assert field_0.name == "operations"
-        field_0_text = await field_0.text()
-        assert strip_braces_spaces(field_0_text) == file_upload_mutation_2_operations
+    file_upload_mutation_2_map = '{"0": ["variables.file1"], "1": ["variables.file2"]}'
 
-        field_1 = await reader.next()
-        assert field_1.name == "map"
-        field_1_text = await field_1.text()
-        assert field_1_text == file_upload_mutation_2_map
-
-        field_2 = await reader.next()
-        assert field_2.name == "0"
-        field_2_text = await field_2.text()
-        assert field_2_text == file_1_content
-
-        field_3 = await reader.next()
-        assert field_3.name == "1"
-        field_3_text = await field_3.text()
-        assert field_3_text == file_2_content
-
-        field_4 = await reader.next()
-        assert field_4 is None
-
-        return web.Response(
-            text=file_upload_server_answer, content_type="application/json"
-        )
+    file_2_content = """
+    This is a second test file
+    This file will also be sent in the GraphQL mutation
+    """
 
     app = web.Application()
-    app.router.add_route("POST", "/", handler)
+    app.router.add_route(
+        "POST",
+        "/",
+        make_upload_handler(
+            nb_files=2,
+            expected_map=file_upload_mutation_2_map,
+            expected_operations=file_upload_mutation_2_operations,
+            expected_contents=[file_1_content, file_2_content],
+        ),
+    )
     server = await aiohttp_server(app)
 
     url = server.make_url("/")
@@ -1018,41 +1168,18 @@ async def test_aiohttp_file_upload_two_files(aiohttp_server):
                 file_path_1 = test_file_1.filename
                 file_path_2 = test_file_2.filename
 
-                f1 = open(file_path_1, "rb")
-                f2 = open(file_path_2, "rb")
-
                 params = {
-                    "file1": f1,
-                    "file2": f2,
+                    "file1": FileVar(file_path_1),
+                    "file2": FileVar(file_path_2),
                 }
 
                 result = await session.execute(
                     query, variable_values=params, upload_files=True
                 )
 
-                f1.close()
-                f2.close()
-
                 success = result["success"]
 
                 assert success
-
-
-file_upload_mutation_3 = """
-    mutation($files: [Upload!]!) {
-      uploadFiles(input:{files:$files}) {
-        success
-      }
-    }
-"""
-
-file_upload_mutation_3_operations = (
-    '{"query": "mutation ($files: [Upload!]!) {\\n  uploadFiles('
-    "input: {files: $files})"
-    ' {\\n    success\\n  }\\n}", "variables": {"files": [null, null]}}'
-)
-
-file_upload_mutation_3_map = '{"0": ["variables.files.0"], "1": ["variables.files.1"]}'
 
 
 @pytest.mark.asyncio
@@ -1061,39 +1188,40 @@ async def test_aiohttp_file_upload_list_of_two_files(aiohttp_server):
 
     from gql.transport.aiohttp import AIOHTTPTransport
 
-    async def handler(request):
+    file_upload_mutation_3 = """
+    mutation($files: [Upload!]!) {
+      uploadFiles(input:{files:$files}) {
+        success
+      }
+    }
+    """
 
-        reader = await request.multipart()
+    file_upload_mutation_3_operations = (
+        '{"query": "mutation ($files: [Upload!]!) {\\n  uploadFiles'
+        "(input: {files: $files})"
+        ' {\\n    success\\n  }\\n}", "variables": {"files": [null, null]}}'
+    )
 
-        field_0 = await reader.next()
-        assert field_0.name == "operations"
-        field_0_text = await field_0.text()
-        assert strip_braces_spaces(field_0_text) == file_upload_mutation_3_operations
+    file_upload_mutation_3_map = (
+        '{"0": ["variables.files.0"], "1": ["variables.files.1"]}'
+    )
 
-        field_1 = await reader.next()
-        assert field_1.name == "map"
-        field_1_text = await field_1.text()
-        assert field_1_text == file_upload_mutation_3_map
-
-        field_2 = await reader.next()
-        assert field_2.name == "0"
-        field_2_text = await field_2.text()
-        assert field_2_text == file_1_content
-
-        field_3 = await reader.next()
-        assert field_3.name == "1"
-        field_3_text = await field_3.text()
-        assert field_3_text == file_2_content
-
-        field_4 = await reader.next()
-        assert field_4 is None
-
-        return web.Response(
-            text=file_upload_server_answer, content_type="application/json"
-        )
+    file_2_content = """
+    This is a second test file
+    This file will also be sent in the GraphQL mutation
+    """
 
     app = web.Application()
-    app.router.add_route("POST", "/", handler)
+    app.router.add_route(
+        "POST",
+        "/",
+        make_upload_handler(
+            nb_files=2,
+            expected_map=file_upload_mutation_3_map,
+            expected_operations=file_upload_mutation_3_operations,
+            expected_contents=[file_1_content, file_2_content],
+        ),
+    )
     server = await aiohttp_server(app)
 
     url = server.make_url("/")
@@ -1110,18 +1238,17 @@ async def test_aiohttp_file_upload_list_of_two_files(aiohttp_server):
                 file_path_1 = test_file_1.filename
                 file_path_2 = test_file_2.filename
 
-                f1 = open(file_path_1, "rb")
-                f2 = open(file_path_2, "rb")
-
-                params = {"files": [f1, f2]}
+                params = {
+                    "files": [
+                        FileVar(file_path_1),
+                        FileVar(file_path_2),
+                    ],
+                }
 
                 # Execute query asynchronously
                 result = await session.execute(
                     query, variable_values=params, upload_files=True
                 )
-
-                f1.close()
-                f2.close()
 
                 success = result["success"]
 
