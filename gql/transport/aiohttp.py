@@ -348,22 +348,7 @@ class AIOHTTPTransport(AsyncTransport):
 
         answers = await self._get_json_result(response)
 
-        execution_result_list = get_batch_execution_result_list(answers)
-
-        self._validate_num_of_answers_same_as_requests(reqs, answers)
-
-        return execution_result_list
-
-    def _validate_num_of_answers_same_as_requests(
-        self,
-        reqs: List[GraphQLRequest],
-        results: List[Dict[str, Any]],
-    ) -> None:
-        if len(reqs) != len(results):
-            self._raise_invalid_result(
-                str(results),
-                "Invalid answer length",
-            )
+        return get_batch_execution_result_list(reqs, answers)
 
     def _raise_invalid_result(self, result_text: str, reason: str) -> None:
         raise TransportProtocolError(

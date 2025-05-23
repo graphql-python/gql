@@ -17,7 +17,9 @@ from typing import (
 import httpx
 from graphql import DocumentNode, ExecutionResult, print_ast
 
+from ..graphql_request import GraphQLRequest
 from . import AsyncTransport, Transport
+from .common.batch import get_batch_execution_result_list
 from .exceptions import (
     TransportAlreadyConnected,
     TransportClosed,
@@ -55,32 +57,30 @@ class _HTTPXTransport:
         self.json_deserialize = json_deserialize
         self.kwargs = kwargs
 
+    def _build_payload(self, req: GraphQLRequest) -> Dict[str, Any]:
+        query_str = print_ast(req.document)
+        payload: Dict[str, Any] = {"query": query_str}
+
+        if req.operation_name:
+            payload["operationName"] = req.operation_name
+
+        if req.variable_values:
+            payload["variables"] = req.variable_values
+
+        return payload
+
     def _prepare_request(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
+        req: GraphQLRequest,
         extra_args: Optional[Dict[str, Any]] = None,
         upload_files: bool = False,
     ) -> Dict[str, Any]:
-        query_str = print_ast(document)
 
-        payload: Dict[str, Any] = {
-            "query": query_str,
-        }
-
-        if operation_name:
-            payload["operationName"] = operation_name
+        payload = self._build_payload(req)
 
         if upload_files:
-            # If the upload_files flag is set, then we need variable_values
-            assert variable_values is not None
-
-            post_args = self._prepare_file_uploads(variable_values, payload)
+            post_args = self._prepare_file_uploads(req, payload)
         else:
-            if variable_values:
-                payload["variables"] = variable_values
-
             post_args = {"json": payload}
 
         # Log the payload
@@ -93,9 +93,37 @@ class _HTTPXTransport:
 
         return post_args
 
-    def _prepare_file_uploads(
-        self, variable_values: Dict[str, Any], payload: Dict[str, Any]
+    def _prepare_batch_request(
+        self,
+        reqs: List[GraphQLRequest],
+        extra_args: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
+
+        payload = [self._build_payload(req) for req in reqs]
+
+        post_args = {"json": payload}
+
+        # Log the payload
+        if log.isEnabledFor(logging.INFO):
+            log.debug(">>> %s", self.json_serialize(payload))
+
+        # Pass post_args to aiohttp post method
+        if extra_args:
+            post_args.update(extra_args)
+
+        return post_args
+
+    def _prepare_file_uploads(
+        self,
+        request: GraphQLRequest,
+        payload: Dict[str, Any],
+    ) -> Dict[str, Any]:
+
+        variable_values = request.variable_values
+
+        # If the upload_files flag is set, then we need variable_values
+        assert variable_values is not None
+
         # If we upload files, we will extract the files present in the
         # variable_values dict and replace them by null values
         nulled_variable_values, files = extract_files(
@@ -143,8 +171,9 @@ class _HTTPXTransport:
 
         return {"data": data, "files": file_streams}
 
-    def _prepare_result(self, response: httpx.Response) -> ExecutionResult:
-        # Save latest response headers in transport
+    def _get_json_result(self, response: httpx.Response) -> Any:
+
+        # Saving latest response headers in the transport
         self.response_headers = response.headers
 
         if log.isEnabledFor(logging.DEBUG):
@@ -152,9 +181,17 @@ class _HTTPXTransport:
 
         try:
             result: Dict[str, Any] = self.json_deserialize(response.content)
-
         except Exception:
             self._raise_response_error(response, "Not a JSON answer")
+
+        if result is None:
+            self._raise_response_error(response, "Not a JSON answer")
+
+        return result
+
+    def _prepare_result(self, response: httpx.Response) -> ExecutionResult:
+
+        result = self._get_json_result(response)
 
         if "errors" not in result and "data" not in result:
             self._raise_response_error(response, 'No "data" or "errors" keys in answer')
@@ -164,6 +201,16 @@ class _HTTPXTransport:
             data=result.get("data"),
             extensions=result.get("extensions"),
         )
+
+    def _prepare_batch_result(
+        self,
+        reqs: List[GraphQLRequest],
+        response: httpx.Response,
+    ) -> List[ExecutionResult]:
+
+        answers = self._get_json_result(response)
+
+        return get_batch_execution_result_list(reqs, answers)
 
     def _raise_response_error(self, response: httpx.Response, reason: str) -> NoReturn:
         # We raise a TransportServerError if the status code is 400 or higher
@@ -223,10 +270,14 @@ class HTTPXTransport(Transport, _HTTPXTransport):
         if not self.client:
             raise TransportClosed("Transport is not connected")
 
+        request = GraphQLRequest(
+            document=document,
+            variable_values=variable_values,
+            operation_name=operation_name,
+        )
+
         post_args = self._prepare_request(
-            document,
-            variable_values,
-            operation_name,
+            request,
             extra_args,
             upload_files,
         )
@@ -238,6 +289,36 @@ class HTTPXTransport(Transport, _HTTPXTransport):
                 close_files(list(self.files.values()))
 
         return self._prepare_result(response)
+
+    def execute_batch(
+        self,
+        reqs: List[GraphQLRequest],
+        extra_args: Optional[Dict[str, Any]] = None,
+    ) -> List[ExecutionResult]:
+        """Execute multiple GraphQL requests in a batch.
+
+        Don't call this coroutine directly on the transport, instead use
+        :code:`execute_batch` on a client or a session.
+
+        :param reqs: GraphQL requests as a list of GraphQLRequest objects.
+        :param extra_args: additional arguments to send to the aiohttp post method
+        :return: A list of results of execution.
+            For every result `data` is the result of executing the query,
+            `errors` is null if no errors occurred, and is a non-empty array
+            if an error occurred.
+        """
+
+        if not self.client:
+            raise TransportClosed("Transport is not connected")
+
+        post_args = self._prepare_batch_request(
+            reqs,
+            extra_args,
+        )
+
+        response = self.client.post(self.url, **post_args)
+
+        return self._prepare_batch_result(reqs, response)
 
     def close(self):
         """Closing the transport by closing the inner session"""
@@ -290,10 +371,14 @@ class HTTPXAsyncTransport(AsyncTransport, _HTTPXTransport):
         if not self.client:
             raise TransportClosed("Transport is not connected")
 
+        request = GraphQLRequest(
+            document=document,
+            variable_values=variable_values,
+            operation_name=operation_name,
+        )
+
         post_args = self._prepare_request(
-            document,
-            variable_values,
-            operation_name,
+            request,
             extra_args,
             upload_files,
         )
@@ -306,11 +391,35 @@ class HTTPXAsyncTransport(AsyncTransport, _HTTPXTransport):
 
         return self._prepare_result(response)
 
-    async def close(self):
-        """Closing the transport by closing the inner session"""
-        if self.client:
-            await self.client.aclose()
-            self.client = None
+    async def execute_batch(
+        self,
+        reqs: List[GraphQLRequest],
+        extra_args: Optional[Dict[str, Any]] = None,
+    ) -> List[ExecutionResult]:
+        """Execute multiple GraphQL requests in a batch.
+
+        Don't call this coroutine directly on the transport, instead use
+        :code:`execute_batch` on a client or a session.
+
+        :param reqs: GraphQL requests as a list of GraphQLRequest objects.
+        :param extra_args: additional arguments to send to the aiohttp post method
+        :return: A list of results of execution.
+            For every result `data` is the result of executing the query,
+            `errors` is null if no errors occurred, and is a non-empty array
+            if an error occurred.
+        """
+
+        if not self.client:
+            raise TransportClosed("Transport is not connected")
+
+        post_args = self._prepare_batch_request(
+            reqs,
+            extra_args,
+        )
+
+        response = await self.client.post(self.url, **post_args)
+
+        return self._prepare_batch_result(reqs, response)
 
     def subscribe(
         self,
@@ -323,3 +432,9 @@ class HTTPXAsyncTransport(AsyncTransport, _HTTPXTransport):
         :meta private:
         """
         raise NotImplementedError("The HTTP transport does not support subscriptions")
+
+    async def close(self):
+        """Closing the transport by closing the inner session"""
+        if self.client:
+            await self.client.aclose()
+            self.client = None

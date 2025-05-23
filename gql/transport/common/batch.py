@@ -6,6 +6,7 @@ from typing import (
 
 from graphql import ExecutionResult
 
+from ...graphql_request import GraphQLRequest
 from ..exceptions import (
     TransportProtocolError,
 )
@@ -40,6 +41,20 @@ def _validate_every_answer_is_a_dict(results: List[Dict[str, Any]]) -> None:
             _raise_protocol_error(str(results), "Not every answer is dict")
 
 
+def _validate_num_of_answers_same_as_requests(
+    reqs: List[GraphQLRequest],
+    results: List[Dict[str, Any]],
+) -> None:
+    if len(reqs) != len(results):
+        _raise_protocol_error(
+            str(results),
+            (
+                "Invalid number of answers: "
+                f"{len(results)} answers received for {len(reqs)} requests"
+            ),
+        )
+
+
 def _answer_to_execution_result(result: Dict[str, Any]) -> ExecutionResult:
     return ExecutionResult(
         errors=result.get("errors"),
@@ -49,10 +64,12 @@ def _answer_to_execution_result(result: Dict[str, Any]) -> ExecutionResult:
 
 
 def get_batch_execution_result_list(
+    reqs: List[GraphQLRequest],
     answers: List,
 ) -> List[ExecutionResult]:
 
     _validate_answer_is_a_list(answers)
+    _validate_num_of_answers_same_as_requests(reqs, answers)
     _validate_every_answer_is_a_dict(answers)
     _validate_data_and_errors_keys_in_answers(answers)
 
