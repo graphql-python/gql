@@ -184,6 +184,24 @@ class Client:
         self.introspection = cast(IntrospectionQuery, execution_result.data)
         self.schema = build_client_schema(self.introspection)
 
+    @staticmethod
+    def _get_event_loop() -> asyncio.AbstractEventLoop:
+        """Get the current asyncio event loop.
+
+        Or create a new event loop if there isn't one (in a new Thread).
+        """
+        try:
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore", message="There is no current event loop"
+                )
+                loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+        return loop
+
     @overload
     def execute_sync(
         self,
@@ -430,17 +448,7 @@ class Client:
         """
 
         if isinstance(self.transport, AsyncTransport):
-            # Get the current asyncio event loop
-            # Or create a new event loop if there isn't one (in a new Thread)
-            try:
-                with warnings.catch_warnings():
-                    warnings.filterwarnings(
-                        "ignore", message="There is no current event loop"
-                    )
-                    loop = asyncio.get_event_loop()
-            except RuntimeError:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
+            loop = self._get_event_loop()
 
             assert not loop.is_running(), (
                 "Cannot run client.execute(query) if an asyncio loop is running."
@@ -675,17 +683,12 @@ class Client:
         We need an async transport for this functionality.
         """
 
-        # Get the current asyncio event loop
-        # Or create a new event loop if there isn't one (in a new Thread)
-        try:
-            with warnings.catch_warnings():
-                warnings.filterwarnings(
-                    "ignore", message="There is no current event loop"
-                )
-                loop = asyncio.get_event_loop()
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+        loop = self._get_event_loop()
+
+        assert not loop.is_running(), (
+            "Cannot run client.subscribe(query) if an asyncio loop is running."
+            " Use 'await client.subscribe_async(query)' instead."
+        )
 
         async_generator: Union[
             AsyncGenerator[Dict[str, Any], None], AsyncGenerator[ExecutionResult, None]
@@ -697,11 +700,6 @@ class Client:
             parse_result=parse_result,
             get_execution_result=get_execution_result,
             **kwargs,
-        )
-
-        assert not loop.is_running(), (
-            "Cannot run client.subscribe(query) if an asyncio loop is running."
-            " Use 'await client.subscribe_async(query)' instead."
         )
 
         try:
