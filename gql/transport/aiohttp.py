@@ -8,7 +8,7 @@ from typing import (
     AsyncGenerator,
     Callable,
     Dict,
-    NoReturn,
+    List,
     Optional,
     Tuple,
     Type,
@@ -23,9 +23,11 @@ from aiohttp.typedefs import LooseCookies, LooseHeaders
 from graphql import DocumentNode, ExecutionResult, print_ast
 from multidict import CIMultiDictProxy
 
+from ..graphql_request import GraphQLRequest
 from .appsync_auth import AppSyncAuthentication
 from .async_transport import AsyncTransport
 from .common.aiohttp_closed_event import create_aiohttp_closed_event
+from .common.batch import get_batch_execution_result_list
 from .exceptions import (
     TransportAlreadyConnected,
     TransportClosed,
@@ -162,6 +164,199 @@ class AIOHTTPTransport(AsyncTransport):
 
         self.session = None
 
+    def _build_payload(self, req: GraphQLRequest) -> Dict[str, Any]:
+        query_str = print_ast(req.document)
+        payload: Dict[str, Any] = {"query": query_str}
+
+        if req.operation_name:
+            payload["operationName"] = req.operation_name
+
+        if req.variable_values:
+            payload["variables"] = req.variable_values
+
+        return payload
+
+    def _prepare_batch_request(
+        self,
+        reqs: List[GraphQLRequest],
+        extra_args: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+
+        payload = [self._build_payload(req) for req in reqs]
+
+        post_args = {"json": payload}
+
+        # Log the payload
+        if log.isEnabledFor(logging.INFO):
+            log.info(">>> %s", self.json_serialize(post_args["json"]))
+
+        # Pass post_args to aiohttp post method
+        if extra_args:
+            post_args.update(extra_args)
+
+        return post_args
+
+    def _prepare_request(
+        self,
+        req: GraphQLRequest,
+        extra_args: Optional[Dict[str, Any]] = None,
+        upload_files: bool = False,
+    ) -> Dict[str, Any]:
+
+        payload = self._build_payload(req)
+
+        if upload_files:
+            post_args = self._prepare_file_uploads(req, payload)
+        else:
+            post_args = {"json": payload}
+
+        # Log the payload
+        if log.isEnabledFor(logging.INFO):
+            log.info(">>> %s", self.json_serialize(payload))
+
+        # Pass post_args to aiohttp post method
+        if extra_args:
+            post_args.update(extra_args)
+
+        # Add headers for AppSync if requested
+        if isinstance(self.auth, AppSyncAuthentication):
+            post_args["headers"] = self.auth.get_headers(
+                self.json_serialize(payload),
+                {"content-type": "application/json"},
+            )
+
+        return post_args
+
+    def _prepare_file_uploads(
+        self, req: GraphQLRequest, payload: Dict[str, Any]
+    ) -> Dict[str, Any]:
+
+        # If the upload_files flag is set, then we need variable_values
+        variable_values = req.variable_values
+        assert variable_values is not None
+
+        # If we upload files, we will extract the files present in the
+        # variable_values dict and replace them by null values
+        nulled_variable_values, files = extract_files(
+            variables=variable_values,
+            file_classes=self.file_classes,
+        )
+
+        # Opening the files using the FileVar parameters
+        open_files(list(files.values()), transport_supports_streaming=True)
+        self.files = files
+
+        # Save the nulled variable values in the payload
+        payload["variables"] = nulled_variable_values
+
+        # Prepare aiohttp to send multipart-encoded data
+        data = aiohttp.FormData()
+
+        # Generate the file map
+        # path is nested in a list because the spec allows multiple pointers
+        # to the same file. But we don't support that.
+        # Will generate something like {"0": ["variables.file"]}
+        file_map = {str(i): [path] for i, path in enumerate(files)}
+
+        # Enumerate the file streams
+        # Will generate something like {'0': FileVar object}
+        file_vars = {str(i): files[path] for i, path in enumerate(files)}
+
+        # Add the payload to the operations field
+        operations_str = self.json_serialize(payload)
+        log.debug("operations %s", operations_str)
+        data.add_field("operations", operations_str, content_type="application/json")
+
+        # Add the file map field
+        file_map_str = self.json_serialize(file_map)
+        log.debug("file_map %s", file_map_str)
+        data.add_field("map", file_map_str, content_type="application/json")
+
+        for k, file_var in file_vars.items():
+            assert isinstance(file_var, FileVar)
+
+            data.add_field(
+                k,
+                file_var.f,
+                filename=file_var.filename,
+                content_type=file_var.content_type,
+            )
+
+        post_args: Dict[str, Any] = {"data": data}
+
+        return post_args
+
+    async def raise_response_error(
+        self,
+        resp: aiohttp.ClientResponse,
+        reason: str,
+    ) -> None:
+        # We raise a TransportServerError if status code is 400 or higher
+        # We raise a TransportProtocolError in the other cases
+
+        try:
+            # Raise ClientResponseError if response status is 400 or higher
+            resp.raise_for_status()
+        except ClientResponseError as e:
+            raise TransportServerError(str(e), e.status) from e
+
+        result_text = await resp.text()
+        self._raise_invalid_result(result_text, reason)
+
+    async def _get_json_result(self, response: aiohttp.ClientResponse) -> Any:
+
+        # Saving latest response headers in the transport
+        self.response_headers = response.headers
+
+        try:
+            result = await response.json(loads=self.json_deserialize, content_type=None)
+
+            if log.isEnabledFor(logging.INFO):
+                result_text = await response.text()
+                log.info("<<< %s", result_text)
+
+        except Exception:
+            await self.raise_response_error(response, "Not a JSON answer")
+
+        if result is None:
+            await self.raise_response_error(response, "Not a JSON answer")
+
+        return result
+
+    async def _prepare_result(
+        self, response: aiohttp.ClientResponse
+    ) -> ExecutionResult:
+
+        result = await self._get_json_result(response)
+
+        if "errors" not in result and "data" not in result:
+            await self.raise_response_error(
+                response, 'No "data" or "errors" keys in answer'
+            )
+
+        return ExecutionResult(
+            errors=result.get("errors"),
+            data=result.get("data"),
+            extensions=result.get("extensions"),
+        )
+
+    async def _prepare_batch_result(
+        self,
+        reqs: List[GraphQLRequest],
+        response: aiohttp.ClientResponse,
+    ) -> List[ExecutionResult]:
+
+        answers = await self._get_json_result(response)
+
+        return get_batch_execution_result_list(reqs, answers)
+
+    def _raise_invalid_result(self, result_text: str, reason: str) -> None:
+        raise TransportProtocolError(
+            f"Server did not return a valid GraphQL result: "
+            f"{reason}: "
+            f"{result_text}"
+        )
+
     async def execute(
         self,
         document: DocumentNode,
@@ -186,147 +381,56 @@ class AIOHTTPTransport(AsyncTransport):
         :returns: an ExecutionResult object.
         """
 
-        query_str = print_ast(document)
+        req = GraphQLRequest(
+            document=document,
+            variable_values=variable_values,
+            operation_name=operation_name,
+        )
 
-        payload: Dict[str, Any] = {
-            "query": query_str,
-        }
-
-        if operation_name:
-            payload["operationName"] = operation_name
-
-        if upload_files:
-
-            # If the upload_files flag is set, then we need variable_values
-            assert variable_values is not None
-
-            # If we upload files, we will extract the files present in the
-            # variable_values dict and replace them by null values
-            nulled_variable_values, files = extract_files(
-                variables=variable_values,
-                file_classes=self.file_classes,
-            )
-
-            # Opening the files using the FileVar parameters
-            open_files(list(files.values()), transport_supports_streaming=True)
-            self.files = files
-
-            # Save the nulled variable values in the payload
-            payload["variables"] = nulled_variable_values
-
-            # Prepare aiohttp to send multipart-encoded data
-            data = aiohttp.FormData()
-
-            # Generate the file map
-            # path is nested in a list because the spec allows multiple pointers
-            # to the same file. But we don't support that.
-            # Will generate something like {"0": ["variables.file"]}
-            file_map = {str(i): [path] for i, path in enumerate(files)}
-
-            # Enumerate the file streams
-            # Will generate something like {'0': FileVar object}
-            file_vars = {str(i): files[path] for i, path in enumerate(files)}
-
-            # Add the payload to the operations field
-            operations_str = self.json_serialize(payload)
-            log.debug("operations %s", operations_str)
-            data.add_field(
-                "operations", operations_str, content_type="application/json"
-            )
-
-            # Add the file map field
-            file_map_str = self.json_serialize(file_map)
-            log.debug("file_map %s", file_map_str)
-            data.add_field("map", file_map_str, content_type="application/json")
-
-            for k, file_var in file_vars.items():
-                assert isinstance(file_var, FileVar)
-
-                data.add_field(
-                    k,
-                    file_var.f,
-                    filename=file_var.filename,
-                    content_type=file_var.content_type,
-                )
-
-            post_args: Dict[str, Any] = {"data": data}
-
-        else:
-            if variable_values:
-                payload["variables"] = variable_values
-
-            if log.isEnabledFor(logging.INFO):
-                log.info(">>> %s", self.json_serialize(payload))
-
-            post_args = {"json": payload}
-
-        # Pass post_args to aiohttp post method
-        if extra_args:
-            post_args.update(extra_args)
-
-        # Add headers for AppSync if requested
-        if isinstance(self.auth, AppSyncAuthentication):
-            post_args["headers"] = self.auth.get_headers(
-                self.json_serialize(payload),
-                {"content-type": "application/json"},
-            )
+        post_args = self._prepare_request(
+            req,
+            extra_args,
+            upload_files,
+        )
 
         if self.session is None:
             raise TransportClosed("Transport is not connected")
 
         try:
             async with self.session.post(self.url, ssl=self.ssl, **post_args) as resp:
-
-                # Saving latest response headers in the transport
-                self.response_headers = resp.headers
-
-                async def raise_response_error(
-                    resp: aiohttp.ClientResponse, reason: str
-                ) -> NoReturn:
-                    # We raise a TransportServerError if status code is 400 or higher
-                    # We raise a TransportProtocolError in the other cases
-
-                    try:
-                        # Raise ClientResponseError if response status is 400 or higher
-                        resp.raise_for_status()
-                    except ClientResponseError as e:
-                        raise TransportServerError(str(e), e.status) from e
-
-                    result_text = await resp.text()
-                    raise TransportProtocolError(
-                        f"Server did not return a GraphQL result: "
-                        f"{reason}: "
-                        f"{result_text}"
-                    )
-
-                try:
-                    result = await resp.json(
-                        loads=self.json_deserialize, content_type=None
-                    )
-
-                    if log.isEnabledFor(logging.INFO):
-                        result_text = await resp.text()
-                        log.info("<<< %s", result_text)
-
-                except Exception:
-                    await raise_response_error(resp, "Not a JSON answer")
-
-                if result is None:
-                    await raise_response_error(resp, "Not a JSON answer")
-
-                if "errors" not in result and "data" not in result:
-                    await raise_response_error(
-                        resp, 'No "data" or "errors" keys in answer'
-                    )
-
-                return ExecutionResult(
-                    errors=result.get("errors"),
-                    data=result.get("data"),
-                    extensions=result.get("extensions"),
-                )
+                return await self._prepare_result(resp)
         finally:
             if upload_files:
                 close_files(list(self.files.values()))
+
+    async def execute_batch(
+        self,
+        reqs: List[GraphQLRequest],
+        extra_args: Optional[Dict[str, Any]] = None,
+    ) -> List[ExecutionResult]:
+        """Execute multiple GraphQL requests in a batch.
+
+        Don't call this coroutine directly on the transport, instead use
+        :code:`execute_batch` on a client or a session.
+
+        :param reqs: GraphQL requests as a list of GraphQLRequest objects.
+        :param extra_args: additional arguments to send to the aiohttp post method
+        :return: A list of results of execution.
+            For every result `data` is the result of executing the query,
+            `errors` is null if no errors occurred, and is a non-empty array
+            if an error occurred.
+        """
+
+        post_args = self._prepare_batch_request(
+            reqs,
+            extra_args,
+        )
+
+        if self.session is None:
+            raise TransportClosed("Transport is not connected")
+
+        async with self.session.post(self.url, ssl=self.ssl, **post_args) as resp:
+            return await self._prepare_batch_result(reqs, resp)
 
     def subscribe(
         self,

@@ -295,27 +295,28 @@ invalid_protocol_responses = [
     {
         "response": "{}",
         "expected_exception": (
-            "Server did not return a GraphQL result: "
+            "Server did not return a valid GraphQL result: "
             'No "data" or "errors" keys in answer: {}'
         ),
     },
     {
         "response": "qlsjfqsdlkj",
         "expected_exception": (
-            "Server did not return a GraphQL result: Not a JSON answer: qlsjfqsdlkj"
+            "Server did not return a valid GraphQL result: "
+            "Not a JSON answer: qlsjfqsdlkj"
         ),
     },
     {
         "response": '{"not_data_or_errors": 35}',
         "expected_exception": (
-            "Server did not return a GraphQL result: "
+            "Server did not return a valid GraphQL result: "
             'No "data" or "errors" keys in answer: {"not_data_or_errors": 35}'
         ),
     },
     {
         "response": "",
         "expected_exception": (
-            "Server did not return a GraphQL result: Not a JSON answer: "
+            "Server did not return a valid GraphQL result: Not a JSON answer: "
         ),
     },
 ]

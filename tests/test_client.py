@@ -54,19 +54,6 @@ def test_request_transport_not_implemented(http_transport_query):
     )
 
 
-@pytest.mark.aiohttp
-def test_request_async_execute_batch_not_implemented_yet():
-    from gql.transport.aiohttp import AIOHTTPTransport
-
-    transport = AIOHTTPTransport(url="http://localhost/")
-    client = Client(transport=transport)
-
-    with pytest.raises(NotImplementedError) as exc_info:
-        client.execute_batch([GraphQLRequest(document=gql("{dummy}"))])
-
-    assert "Batching is not implemented for async yet." == str(exc_info.value)
-
-
 @pytest.mark.requests
 @mock.patch("urllib3.connection.HTTPConnection._new_conn")
 def test_retries_on_transport(execute_mock):

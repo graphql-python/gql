@@ -387,6 +387,7 @@ invalid_protocol_responses = [
     "{}",
     "qlsjfqsdlkj",
     '{"not_data_or_errors": 35}',
+    "",
 ]
 
 

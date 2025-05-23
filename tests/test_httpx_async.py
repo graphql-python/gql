@@ -457,7 +457,7 @@ async def test_httpx_extra_args(aiohttp_server):
 
         query = gql(query1_str)
 
-        # Passing extra arguments to the post method of aiohttp
+        # Passing extra arguments to the post method
         result = await session.execute(query, extra_args={"follow_redirects": True})
 
         continents = result["continents"]
