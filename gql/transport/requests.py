@@ -427,7 +427,7 @@ class RequestsHTTPTransport(Transport):
         }
 
         data_key = "json" if self.use_json else "data"
-        post_args[data_key] = [self._build_data(req) for req in reqs]
+        post_args[data_key] = [self._build_payload(req) for req in reqs]
 
         # Log the payload
         if log.isEnabledFor(logging.INFO):
@@ -442,7 +442,7 @@ class RequestsHTTPTransport(Transport):
 
         return post_args
 
-    def _build_data(self, req: GraphQLRequest) -> Dict[str, Any]:
+    def _build_payload(self, req: GraphQLRequest) -> Dict[str, Any]:
         query_str = print_ast(req.document)
         payload: Dict[str, Any] = {"query": query_str}
 
