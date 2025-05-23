@@ -27,6 +27,7 @@ from ..graphql_request import GraphQLRequest
 from .appsync_auth import AppSyncAuthentication
 from .async_transport import AsyncTransport
 from .common.aiohttp_closed_event import create_aiohttp_closed_event
+from .common.batch import get_batch_execution_result_list
 from .exceptions import (
     TransportAlreadyConnected,
     TransportClosed,
@@ -347,41 +348,11 @@ class AIOHTTPTransport(AsyncTransport):
 
         answers = await self._get_json_result(response)
 
-        self._validate_answer_is_a_list(answers)
+        execution_result_list = get_batch_execution_result_list(answers)
+
         self._validate_num_of_answers_same_as_requests(reqs, answers)
-        self._validate_every_answer_is_a_dict(answers)
-        self._validate_data_and_errors_keys_in_answers(answers)
 
-        return [self._answer_to_execution_result(answer) for answer in answers]
-
-    def _answer_to_execution_result(self, result: Dict[str, Any]) -> ExecutionResult:
-        return ExecutionResult(
-            errors=result.get("errors"),
-            data=result.get("data"),
-            extensions=result.get("extensions"),
-        )
-
-    def _validate_answer_is_a_list(self, results: Any) -> None:
-        if not isinstance(results, list):
-            self._raise_invalid_result(
-                str(results),
-                "Answer is not a list",
-            )
-
-    def _validate_data_and_errors_keys_in_answers(
-        self, results: List[Dict[str, Any]]
-    ) -> None:
-        for result in results:
-            if "errors" not in result and "data" not in result:
-                self._raise_invalid_result(
-                    str(results),
-                    'No "data" or "errors" keys in answer',
-                )
-
-    def _validate_every_answer_is_a_dict(self, results: List[Dict[str, Any]]) -> None:
-        for result in results:
-            if not isinstance(result, dict):
-                self._raise_invalid_result(str(results), "Not every answer is dict")
+        return execution_result_list
 
     def _validate_num_of_answers_same_as_requests(
         self,
