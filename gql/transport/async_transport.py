@@ -49,7 +49,7 @@ class AsyncTransport(abc.ABC):
         """
         raise NotImplementedError(
             "This Transport has not implemented the execute_batch method"
-        )
+        )  # pragma: no cover
 
     @abc.abstractmethod
     def subscribe(
