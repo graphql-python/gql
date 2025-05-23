@@ -307,7 +307,7 @@ class RequestsHTTPTransport(Transport):
             extensions=result.get("extensions"),
         )
 
-    def execute_batch(  # type: ignore
+    def execute_batch(
         self,
         reqs: List[GraphQLRequest],
         timeout: Optional[int] = None,

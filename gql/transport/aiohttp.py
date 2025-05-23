@@ -162,6 +162,154 @@ class AIOHTTPTransport(AsyncTransport):
 
         self.session = None
 
+    def _prepare_request(
+        self,
+        document: DocumentNode,
+        variable_values: Optional[Dict[str, Any]] = None,
+        operation_name: Optional[str] = None,
+        extra_args: Optional[Dict[str, Any]] = None,
+        upload_files: bool = False,
+    ) -> Dict[str, Any]:
+
+        query_str = print_ast(document)
+
+        payload: Dict[str, Any] = {
+            "query": query_str,
+        }
+
+        if operation_name:
+            payload["operationName"] = operation_name
+
+        if upload_files:
+            # If the upload_files flag is set, then we need variable_values
+            assert variable_values is not None
+
+            post_args = self._prepare_file_uploads(variable_values, payload)
+        else:
+            if variable_values:
+                payload["variables"] = variable_values
+
+            post_args = {"json": payload}
+
+        # Log the payload
+        if log.isEnabledFor(logging.INFO):
+            log.info(">>> %s", self.json_serialize(payload))
+
+        # Pass post_args to aiohttp post method
+        if extra_args:
+            post_args.update(extra_args)
+
+        # Add headers for AppSync if requested
+        if isinstance(self.auth, AppSyncAuthentication):
+            post_args["headers"] = self.auth.get_headers(
+                self.json_serialize(payload),
+                {"content-type": "application/json"},
+            )
+
+        return post_args
+
+    def _prepare_file_uploads(
+        self, variable_values: Dict[str, Any], payload: Dict[str, Any]
+    ) -> Dict[str, Any]:
+
+        # If we upload files, we will extract the files present in the
+        # variable_values dict and replace them by null values
+        nulled_variable_values, files = extract_files(
+            variables=variable_values,
+            file_classes=self.file_classes,
+        )
+
+        # Opening the files using the FileVar parameters
+        open_files(list(files.values()), transport_supports_streaming=True)
+        self.files = files
+
+        # Save the nulled variable values in the payload
+        payload["variables"] = nulled_variable_values
+
+        # Prepare aiohttp to send multipart-encoded data
+        data = aiohttp.FormData()
+
+        # Generate the file map
+        # path is nested in a list because the spec allows multiple pointers
+        # to the same file. But we don't support that.
+        # Will generate something like {"0": ["variables.file"]}
+        file_map = {str(i): [path] for i, path in enumerate(files)}
+
+        # Enumerate the file streams
+        # Will generate something like {'0': FileVar object}
+        file_vars = {str(i): files[path] for i, path in enumerate(files)}
+
+        # Add the payload to the operations field
+        operations_str = self.json_serialize(payload)
+        log.debug("operations %s", operations_str)
+        data.add_field("operations", operations_str, content_type="application/json")
+
+        # Add the file map field
+        file_map_str = self.json_serialize(file_map)
+        log.debug("file_map %s", file_map_str)
+        data.add_field("map", file_map_str, content_type="application/json")
+
+        for k, file_var in file_vars.items():
+            assert isinstance(file_var, FileVar)
+
+            data.add_field(
+                k,
+                file_var.f,
+                filename=file_var.filename,
+                content_type=file_var.content_type,
+            )
+
+        post_args: Dict[str, Any] = {"data": data}
+
+        return post_args
+
+    async def _prepare_result(
+        self, response: aiohttp.ClientResponse
+    ) -> ExecutionResult:
+        # Saving latest response headers in the transport
+        self.response_headers = response.headers
+
+        async def raise_response_error(
+            resp: aiohttp.ClientResponse, reason: str
+        ) -> NoReturn:
+            # We raise a TransportServerError if status code is 400 or higher
+            # We raise a TransportProtocolError in the other cases
+
+            try:
+                # Raise ClientResponseError if response status is 400 or higher
+                resp.raise_for_status()
+            except ClientResponseError as e:
+                raise TransportServerError(str(e), e.status) from e
+
+            result_text = await resp.text()
+            raise TransportProtocolError(
+                f"Server did not return a GraphQL result: "
+                f"{reason}: "
+                f"{result_text}"
+            )
+
+        try:
+            result = await response.json(loads=self.json_deserialize, content_type=None)
+
+            if log.isEnabledFor(logging.INFO):
+                result_text = await response.text()
+                log.info("<<< %s", result_text)
+
+        except Exception:
+            await raise_response_error(response, "Not a JSON answer")
+
+        if result is None:
+            await raise_response_error(response, "Not a JSON answer")
+
+        if "errors" not in result and "data" not in result:
+            await raise_response_error(response, 'No "data" or "errors" keys in answer')
+
+        return ExecutionResult(
+            errors=result.get("errors"),
+            data=result.get("data"),
+            extensions=result.get("extensions"),
+        )
+
     async def execute(
         self,
         document: DocumentNode,
@@ -186,144 +334,20 @@ class AIOHTTPTransport(AsyncTransport):
         :returns: an ExecutionResult object.
         """
 
-        query_str = print_ast(document)
-
-        payload: Dict[str, Any] = {
-            "query": query_str,
-        }
-
-        if operation_name:
-            payload["operationName"] = operation_name
-
-        if upload_files:
-
-            # If the upload_files flag is set, then we need variable_values
-            assert variable_values is not None
-
-            # If we upload files, we will extract the files present in the
-            # variable_values dict and replace them by null values
-            nulled_variable_values, files = extract_files(
-                variables=variable_values,
-                file_classes=self.file_classes,
-            )
-
-            # Opening the files using the FileVar parameters
-            open_files(list(files.values()), transport_supports_streaming=True)
-            self.files = files
-
-            # Save the nulled variable values in the payload
-            payload["variables"] = nulled_variable_values
-
-            # Prepare aiohttp to send multipart-encoded data
-            data = aiohttp.FormData()
-
-            # Generate the file map
-            # path is nested in a list because the spec allows multiple pointers
-            # to the same file. But we don't support that.
-            # Will generate something like {"0": ["variables.file"]}
-            file_map = {str(i): [path] for i, path in enumerate(files)}
-
-            # Enumerate the file streams
-            # Will generate something like {'0': FileVar object}
-            file_vars = {str(i): files[path] for i, path in enumerate(files)}
-
-            # Add the payload to the operations field
-            operations_str = self.json_serialize(payload)
-            log.debug("operations %s", operations_str)
-            data.add_field(
-                "operations", operations_str, content_type="application/json"
-            )
-
-            # Add the file map field
-            file_map_str = self.json_serialize(file_map)
-            log.debug("file_map %s", file_map_str)
-            data.add_field("map", file_map_str, content_type="application/json")
-
-            for k, file_var in file_vars.items():
-                assert isinstance(file_var, FileVar)
-
-                data.add_field(
-                    k,
-                    file_var.f,
-                    filename=file_var.filename,
-                    content_type=file_var.content_type,
-                )
-
-            post_args: Dict[str, Any] = {"data": data}
-
-        else:
-            if variable_values:
-                payload["variables"] = variable_values
-
-            if log.isEnabledFor(logging.INFO):
-                log.info(">>> %s", self.json_serialize(payload))
-
-            post_args = {"json": payload}
-
-        # Pass post_args to aiohttp post method
-        if extra_args:
-            post_args.update(extra_args)
-
-        # Add headers for AppSync if requested
-        if isinstance(self.auth, AppSyncAuthentication):
-            post_args["headers"] = self.auth.get_headers(
-                self.json_serialize(payload),
-                {"content-type": "application/json"},
-            )
+        post_args = self._prepare_request(
+            document,
+            variable_values,
+            operation_name,
+            extra_args,
+            upload_files,
+        )
 
         if self.session is None:
             raise TransportClosed("Transport is not connected")
 
         try:
             async with self.session.post(self.url, ssl=self.ssl, **post_args) as resp:
-
-                # Saving latest response headers in the transport
-                self.response_headers = resp.headers
-
-                async def raise_response_error(
-                    resp: aiohttp.ClientResponse, reason: str
-                ) -> NoReturn:
-                    # We raise a TransportServerError if status code is 400 or higher
-                    # We raise a TransportProtocolError in the other cases
-
-                    try:
-                        # Raise ClientResponseError if response status is 400 or higher
-                        resp.raise_for_status()
-                    except ClientResponseError as e:
-                        raise TransportServerError(str(e), e.status) from e
-
-                    result_text = await resp.text()
-                    raise TransportProtocolError(
-                        f"Server did not return a GraphQL result: "
-                        f"{reason}: "
-                        f"{result_text}"
-                    )
-
-                try:
-                    result = await resp.json(
-                        loads=self.json_deserialize, content_type=None
-                    )
-
-                    if log.isEnabledFor(logging.INFO):
-                        result_text = await resp.text()
-                        log.info("<<< %s", result_text)
-
-                except Exception:
-                    await raise_response_error(resp, "Not a JSON answer")
-
-                if result is None:
-                    await raise_response_error(resp, "Not a JSON answer")
-
-                if "errors" not in result and "data" not in result:
-                    await raise_response_error(
-                        resp, 'No "data" or "errors" keys in answer'
-                    )
-
-                return ExecutionResult(
-                    errors=result.get("errors"),
-                    data=result.get("data"),
-                    extensions=result.get("extensions"),
-                )
+                return await self._prepare_result(resp)
         finally:
             if upload_files:
                 close_files(list(self.files.values()))
