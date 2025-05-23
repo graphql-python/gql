@@ -184,9 +184,6 @@ class _HTTPXTransport:
         except Exception:
             self._raise_response_error(response, "Not a JSON answer")
 
-        if result is None:
-            self._raise_response_error(response, "Not a JSON answer")
-
         return result
 
     def _prepare_result(self, response: httpx.Response) -> ExecutionResult:
