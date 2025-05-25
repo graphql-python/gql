@@ -136,7 +136,7 @@ class SubscriptionTransportBase(AsyncTransport):
         try:
             # Can raise TransportConnectionFailed
             await self.adapter.send(message)
-            log.info(">>> %s", message)
+            log.debug(">>> %s", message)
         except TransportConnectionFailed as e:
             await self._fail(e, clean_close=False)
             raise e
@@ -152,7 +152,7 @@ class SubscriptionTransportBase(AsyncTransport):
         # Can raise TransportConnectionFailed or TransportProtocolError
         answer: str = await self.adapter.receive()
 
-        log.info("<<< %s", answer)
+        log.debug("<<< %s", answer)
 
         return answer
 

@@ -92,7 +92,7 @@ class _HTTPXTransport:
         post_args = {"json": payload}
 
         # Log the payload
-        if log.isEnabledFor(logging.INFO):
+        if log.isEnabledFor(logging.DEBUG):
             log.debug(">>> %s", self.json_serialize(payload))
 
         # Pass post_args to aiohttp post method

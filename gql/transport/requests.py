@@ -237,8 +237,8 @@ class RequestsHTTPTransport(Transport):
             post_args[data_key] = payload
 
         # Log the payload
-        if log.isEnabledFor(logging.INFO):
-            log.info(">>> %s", self.json_serialize(payload))
+        if log.isEnabledFor(logging.DEBUG):
+            log.debug(">>> %s", self.json_serialize(payload))
 
         # Pass kwargs to requests post method
         post_args.update(self.kwargs)
@@ -282,8 +282,8 @@ class RequestsHTTPTransport(Transport):
             else:
                 result = self.json_deserialize(response.text)
 
-            if log.isEnabledFor(logging.INFO):
-                log.info("<<< %s", response.text)
+            if log.isEnabledFor(logging.DEBUG):
+                log.debug("<<< %s", response.text)
 
         except Exception:
             raise_response_error(response, "Not a JSON answer")
@@ -344,8 +344,8 @@ class RequestsHTTPTransport(Transport):
             response.raise_for_status()
             result = response.json()
 
-            if log.isEnabledFor(logging.INFO):
-                log.info("<<< %s", response.text)
+            if log.isEnabledFor(logging.DEBUG):
+                log.debug("<<< %s", response.text)
 
         except requests.HTTPError as e:
             raise TransportServerError(
@@ -375,8 +375,8 @@ class RequestsHTTPTransport(Transport):
         post_args[data_key] = [req.payload for req in reqs]
 
         # Log the payload
-        if log.isEnabledFor(logging.INFO):
-            log.info(">>> %s", self.json_serialize(post_args[data_key]))
+        if log.isEnabledFor(logging.DEBUG):
+            log.debug(">>> %s", self.json_serialize(post_args[data_key]))
 
         # Pass kwargs to requests post method
         post_args.update(self.kwargs)
