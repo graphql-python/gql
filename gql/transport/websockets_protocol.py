@@ -4,8 +4,9 @@ import logging
 from contextlib import suppress
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from graphql import DocumentNode, ExecutionResult, print_ast
+from graphql import ExecutionResult
 
+from ..graphql_request import GraphQLRequest
 from .common.adapters.connection import AdapterConnection
 from .common.base import SubscriptionTransportBase
 from .exceptions import (
@@ -224,9 +225,7 @@ class WebsocketsProtocolTransportBase(SubscriptionTransportBase):
 
     async def _send_query(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
+        request: GraphQLRequest,
     ) -> int:
         """Send a query to the provided websocket connection.
 
@@ -238,11 +237,7 @@ class WebsocketsProtocolTransportBase(SubscriptionTransportBase):
         query_id = self.next_query_id
         self.next_query_id += 1
 
-        payload: Dict[str, Any] = {"query": print_ast(document)}
-        if variable_values:
-            payload["variables"] = variable_values
-        if operation_name:
-            payload["operationName"] = operation_name
+        payload: Dict[str, Any] = request.payload
 
         query_type = "start"
 

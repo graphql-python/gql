@@ -3,7 +3,7 @@ import asyncio
 import pytest
 from graphql import ExecutionResult, GraphQLError, subscribe
 
-from gql import Client, gql
+from gql import Client, GraphQLRequest, gql
 
 from .fixtures import reviews
 from .schema import StarWarsSchema
@@ -93,7 +93,9 @@ async def test_subscription_support_using_client_invalid_field():
         results = [
             result
             async for result in await await_if_coroutine(
-                session.transport.subscribe(subs, variable_values=params)
+                session.transport.subscribe(
+                    GraphQLRequest(subs, variable_values=params)
+                )
             )
         ]
 

@@ -6,7 +6,7 @@ from typing import Mapping
 
 import pytest
 
-from gql import Client, FileVar, gql
+from gql import Client, FileVar, GraphQLRequest, gql
 from gql.cli import get_parser, main
 from gql.transport.exceptions import (
     TransportAlreadyConnected,
@@ -421,7 +421,7 @@ async def test_aiohttp_cannot_execute_if_not_connected(aiohttp_server):
     query = gql(query1_str)
 
     with pytest.raises(TransportClosed):
-        await transport.execute(query)
+        await transport.execute(GraphQLRequest(query))
 
 
 @pytest.mark.asyncio
@@ -533,7 +533,9 @@ async def test_aiohttp_query_variable_values_fix_issue_292(aiohttp_server):
         query = gql(query2_str)
 
         # Execute query asynchronously
-        result = await session.execute(query, params, operation_name="getEurope")
+        result = await session.execute(
+            query, variable_values=params, operation_name="getEurope"
+        )
 
         continent = result["continent"]
 

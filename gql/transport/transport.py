@@ -1,7 +1,7 @@
 import abc
 from typing import Any, List
 
-from graphql import DocumentNode, ExecutionResult
+from graphql import ExecutionResult
 
 from ..graphql_request import GraphQLRequest
 
@@ -9,13 +9,16 @@ from ..graphql_request import GraphQLRequest
 class Transport(abc.ABC):
     @abc.abstractmethod
     def execute(
-        self, document: DocumentNode, *args: Any, **kwargs: Any
+        self,
+        request: GraphQLRequest,
+        *args: Any,
+        **kwargs: Any,
     ) -> ExecutionResult:
         """Execute GraphQL query.
 
-        Execute the provided document AST for either a remote or local GraphQL Schema.
+        Execute the provided request for either a remote or local GraphQL Schema.
 
-        :param document: GraphQL query as AST Node or Document object.
+        :param request: GraphQL request as a GraphQLRequest object.
         :return: ExecutionResult
         """
         raise NotImplementedError(

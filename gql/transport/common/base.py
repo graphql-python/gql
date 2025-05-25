@@ -5,8 +5,9 @@ from abc import abstractmethod
 from contextlib import suppress
 from typing import Any, AsyncGenerator, Dict, Optional, Tuple, Union
 
-from graphql import DocumentNode, ExecutionResult
+from graphql import ExecutionResult
 
+from ...graphql_request import GraphQLRequest
 from ..async_transport import AsyncTransport
 from ..exceptions import (
     TransportAlreadyConnected,
@@ -158,9 +159,7 @@ class SubscriptionTransportBase(AsyncTransport):
     @abstractmethod
     async def _send_query(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
+        request: GraphQLRequest,
     ) -> int:
         raise NotImplementedError  # pragma: no cover
 
@@ -267,9 +266,8 @@ class SubscriptionTransportBase(AsyncTransport):
 
     async def subscribe(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
+        request: GraphQLRequest,
+        *,
         send_stop: Optional[bool] = True,
     ) -> AsyncGenerator[ExecutionResult, None]:
         """Send a query and receive the results using a python async generator.
@@ -281,7 +279,7 @@ class SubscriptionTransportBase(AsyncTransport):
 
         # Send the query and receive the id
         query_id: int = await self._send_query(
-            document, variable_values, operation_name
+            request,
         )
 
         # Create a queue to receive the answers for this query_id
@@ -325,11 +323,9 @@ class SubscriptionTransportBase(AsyncTransport):
 
     async def execute(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
+        request: GraphQLRequest,
     ) -> ExecutionResult:
-        """Execute the provided document AST against the configured remote server
+        """Execute the provided request against the configured remote server
         using the current session.
 
         Send a query but close the async generator as soon as we have the first answer.
@@ -339,7 +335,8 @@ class SubscriptionTransportBase(AsyncTransport):
         first_result = None
 
         generator = self.subscribe(
-            document, variable_values, operation_name, send_stop=False
+            request,
+            send_stop=False,
         )
 
         async for result in generator:

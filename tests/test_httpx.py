@@ -3,7 +3,7 @@ from typing import Any, Dict, Mapping
 
 import pytest
 
-from gql import Client, FileVar, gql
+from gql import Client, FileVar, GraphQLRequest, gql
 from gql.transport.exceptions import (
     TransportAlreadyConnected,
     TransportClosed,
@@ -470,7 +470,7 @@ async def test_httpx_cannot_execute_if_not_connected(aiohttp_server, run_sync_te
         query = gql(query1_str)
 
         with pytest.raises(TransportClosed):
-            transport.execute(query)
+            transport.execute(GraphQLRequest(query))
 
     await run_sync_test(server, test_code)
 
@@ -578,32 +578,32 @@ async def test_httpx_file_upload(aiohttp_server, run_sync_test):
                         DeprecationWarning,
                         match="Not using FileVar for file upload is deprecated",
                     ):
-                        execution_result = session._execute(
+                        execution_result = session.execute(
                             query, variable_values=params, upload_files=True
                         )
 
-                    assert execution_result.data["success"]
+                    assert execution_result["success"]
 
                 # Using an opened file inside a FileVar object
                 with open(file_path, "rb") as f:
 
                     params = {"file": FileVar(f), "other_var": 42}
-                    execution_result = session._execute(
+                    execution_result = session.execute(
                         query, variable_values=params, upload_files=True
                     )
 
-                    assert execution_result.data["success"]
+                    assert execution_result["success"]
 
                 # Using an filename string inside a FileVar object
                 params = {
                     "file": FileVar(file_path),
                     "other_var": 42,
                 }
-                execution_result = session._execute(
+                execution_result = session.execute(
                     query, variable_values=params, upload_files=True
                 )
 
-                assert execution_result.data["success"]
+                assert execution_result["success"]
 
     await run_sync_test(server, test_code)
 
@@ -650,22 +650,22 @@ async def test_httpx_file_upload_with_content_type(aiohttp_server, run_sync_test
                         DeprecationWarning,
                         match="Not using FileVar for file upload is deprecated",
                     ):
-                        execution_result = session._execute(
+                        execution_result = session.execute(
                             query, variable_values=params, upload_files=True
                         )
 
-                    assert execution_result.data["success"]
+                    assert execution_result["success"]
 
                 # Using FileVar
                 params = {
                     "file": FileVar(file_path, content_type="application/pdf"),
                     "other_var": 42,
                 }
-                execution_result = session._execute(
+                execution_result = session.execute(
                     query, variable_values=params, upload_files=True
                 )
 
-                assert execution_result.data["success"]
+                assert execution_result["success"]
 
     await run_sync_test(server, test_code)
 
@@ -710,11 +710,11 @@ async def test_httpx_file_upload_default_filename_is_basename(
                     "file": FileVar(file_path),
                     "other_var": 42,
                 }
-                execution_result = session._execute(
+                execution_result = session.execute(
                     query, variable_values=params, upload_files=True
                 )
 
-                assert execution_result.data["success"]
+                assert execution_result["success"]
 
         await run_sync_test(server, test_code)
 
@@ -751,11 +751,11 @@ async def test_httpx_file_upload_additional_headers(aiohttp_server, run_sync_tes
                 file_path = test_file.filename
 
                 params = {"file": FileVar(file_path), "other_var": 42}
-                execution_result = session._execute(
+                execution_result = session.execute(
                     query, variable_values=params, upload_files=True
                 )
 
-                assert execution_result.data["success"]
+                assert execution_result["success"]
 
     await run_sync_test(server, test_code)
 
@@ -797,11 +797,11 @@ async def test_httpx_binary_file_upload(aiohttp_server, run_sync_test):
 
                 params = {"file": FileVar(file_path), "other_var": 42}
 
-                execution_result = session._execute(
+                execution_result = session.execute(
                     query, variable_values=params, upload_files=True
                 )
 
-                assert execution_result.data["success"]
+                assert execution_result["success"]
 
     await run_sync_test(server, test_code)
 
@@ -867,11 +867,11 @@ async def test_httpx_file_upload_two_files(aiohttp_server, run_sync_test):
                         "file2": FileVar(file_path_2),
                     }
 
-                    execution_result = session._execute(
+                    execution_result = session.execute(
                         query, variable_values=params, upload_files=True
                     )
 
-                    assert execution_result.data["success"]
+                    assert execution_result["success"]
 
     await run_sync_test(server, test_code)
 
@@ -940,11 +940,11 @@ async def test_httpx_file_upload_list_of_two_files(aiohttp_server, run_sync_test
                         ],
                     }
 
-                    execution_result = session._execute(
+                    execution_result = session.execute(
                         query, variable_values=params, upload_files=True
                     )
 
-                    assert execution_result.data["success"]
+                    assert execution_result["success"]
 
     await run_sync_test(server, test_code)
 

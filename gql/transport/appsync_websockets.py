@@ -4,8 +4,9 @@ from ssl import SSLContext
 from typing import Any, Dict, Optional, Tuple, Union, cast
 from urllib.parse import urlparse
 
-from graphql import DocumentNode, ExecutionResult, print_ast
+from graphql import ExecutionResult
 
+from ..graphql_request import GraphQLRequest
 from .appsync_auth import AppSyncAuthentication, AppSyncIAMAuthentication
 from .common.adapters.websockets import WebSocketsAdapter
 from .common.base import SubscriptionTransportBase
@@ -150,22 +151,14 @@ class AppSyncWebsocketsTransport(SubscriptionTransportBase):
 
     async def _send_query(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
+        request: GraphQLRequest,
     ) -> int:
 
         query_id = self.next_query_id
 
         self.next_query_id += 1
 
-        data: Dict = {"query": print_ast(document)}
-
-        if variable_values:
-            data["variables"] = variable_values
-
-        if operation_name:
-            data["operationName"] = operation_name
+        data: Dict[str, Any] = request.payload
 
         serialized_data = json.dumps(data, separators=(",", ":"))
 
@@ -203,9 +196,7 @@ class AppSyncWebsocketsTransport(SubscriptionTransportBase):
 
     async def execute(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
+        request: GraphQLRequest,
     ) -> ExecutionResult:
         """This method is not available.
 
