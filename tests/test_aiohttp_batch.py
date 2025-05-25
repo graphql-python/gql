@@ -299,3 +299,37 @@ async def test_aiohttp_batch_query_with_extensions(aiohttp_server):
         )
 
         assert execution_results[0].extensions["key1"] == "val1"
+
+
+ONLINE_URL = "https://countries.trevorblades.workers.dev/graphql"
+
+
+@pytest.mark.online
+@pytest.mark.asyncio
+async def test_aiohttp_batch_online_manual():
+
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    client = Client(
+        transport=AIOHTTPTransport(url=ONLINE_URL, timeout=10),
+    )
+
+    query = gql(
+        """
+        query getContinentName($continent_code: ID!) {
+          continent(code: $continent_code) {
+            name
+          }
+        }
+        """
+    )
+
+    async with client as session:
+
+        request_eu = GraphQLRequest(query, variable_values={"continent_code": "EU"})
+        request_af = GraphQLRequest(query, variable_values={"continent_code": "AF"})
+
+        result_eu, result_af = await session.execute_batch([request_eu, request_af])
+
+        assert result_eu["continent"]["name"] == "Europe"
+        assert result_af["continent"]["name"] == "Africa"

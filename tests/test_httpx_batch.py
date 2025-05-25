@@ -373,3 +373,68 @@ async def test_httpx_async_batch_query_with_extensions(aiohttp_server):
         )
 
         assert execution_results[0].extensions["key1"] == "val1"
+
+
+ONLINE_URL = "https://countries.trevorblades.workers.dev/graphql"
+
+
+@pytest.mark.online
+@pytest.mark.asyncio
+async def test_httpx_batch_online_async_manual():
+
+    from gql.transport.httpx import HTTPXAsyncTransport
+
+    client = Client(
+        transport=HTTPXAsyncTransport(url=ONLINE_URL),
+    )
+
+    query = gql(
+        """
+        query getContinentName($continent_code: ID!) {
+          continent(code: $continent_code) {
+            name
+          }
+        }
+        """
+    )
+
+    async with client as session:
+
+        request_eu = GraphQLRequest(query, variable_values={"continent_code": "EU"})
+        request_af = GraphQLRequest(query, variable_values={"continent_code": "AF"})
+
+        result_eu, result_af = await session.execute_batch([request_eu, request_af])
+
+        assert result_eu["continent"]["name"] == "Europe"
+        assert result_af["continent"]["name"] == "Africa"
+
+
+@pytest.mark.online
+@pytest.mark.asyncio
+async def test_httpx_batch_online_sync_manual():
+
+    from gql.transport.httpx import HTTPXTransport
+
+    client = Client(
+        transport=HTTPXTransport(url=ONLINE_URL),
+    )
+
+    query = gql(
+        """
+        query getContinentName($continent_code: ID!) {
+          continent(code: $continent_code) {
+            name
+          }
+        }
+        """
+    )
+
+    with client as session:
+
+        request_eu = GraphQLRequest(query, variable_values={"continent_code": "EU"})
+        request_af = GraphQLRequest(query, variable_values={"continent_code": "AF"})
+
+        result_eu, result_af = session.execute_batch([request_eu, request_af])
+
+        assert result_eu["continent"]["name"] == "Europe"
+        assert result_af["continent"]["name"] == "Africa"
