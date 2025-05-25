@@ -1,7 +1,9 @@
 import abc
-from typing import Any, AsyncGenerator, Dict, Optional
+from typing import Any, AsyncGenerator, Dict, List, Optional
 
 from graphql import DocumentNode, ExecutionResult
+
+from ..graphql_request import GraphQLRequest
 
 
 class AsyncTransport(abc.ABC):
@@ -30,6 +32,23 @@ class AsyncTransport(abc.ABC):
         Schema."""
         raise NotImplementedError(
             "Any AsyncTransport subclass must implement execute method"
+        )  # pragma: no cover
+
+    async def execute_batch(
+        self,
+        reqs: List[GraphQLRequest],
+        *args: Any,
+        **kwargs: Any,
+    ) -> List[ExecutionResult]:
+        """Execute multiple GraphQL requests in a batch.
+
+        Execute the provided requests for either a remote or local GraphQL Schema.
+
+        :param reqs: GraphQL requests as a list of GraphQLRequest objects.
+        :return: a list of ExecutionResult objects
+        """
+        raise NotImplementedError(
+            "This Transport has not implemented the execute_batch method"
         )  # pragma: no cover
 
     @abc.abstractmethod

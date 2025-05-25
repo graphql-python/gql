@@ -545,14 +545,11 @@ async def test_requests_query_with_extensions(aiohttp_server, run_sync_test):
     await run_sync_test(server, test_code)
 
 
-ONLINE_URL = "https://countries.trevorblades.com/"
-
-skip_reason = "backend does not support batching anymore..."
+ONLINE_URL = "https://countries.trevorblades.workers.dev/graphql"
 
 
 @pytest.mark.online
 @pytest.mark.requests
-@pytest.mark.skip(reason=skip_reason)
 def test_requests_sync_batch_auto():
 
     from threading import Thread
@@ -619,7 +616,6 @@ def test_requests_sync_batch_auto():
 
 @pytest.mark.online
 @pytest.mark.requests
-@pytest.mark.skip(reason=skip_reason)
 def test_requests_sync_batch_auto_execute_future():
 
     from gql.transport.requests import RequestsHTTPTransport
@@ -657,7 +653,6 @@ def test_requests_sync_batch_auto_execute_future():
 
 @pytest.mark.online
 @pytest.mark.requests
-@pytest.mark.skip(reason=skip_reason)
 def test_requests_sync_batch_manual():
 
     from gql.transport.requests import RequestsHTTPTransport

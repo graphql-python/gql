@@ -784,6 +784,32 @@ async def test_custom_scalar_serialize_variables_sync_transport_2(
     await run_sync_test(server, test_code)
 
 
+@pytest.mark.asyncio
+@pytest.mark.aiohttp
+async def test_custom_scalar_serialize_variables_async_transport(aiohttp_server):
+    transport = await make_money_transport(aiohttp_server)
+
+    async with Client(
+        schema=schema, transport=transport, parse_results=True
+    ) as session:
+
+        query = gql("query myquery($money: Money) {toEuros(money: $money)}")
+
+        variable_values = {"money": Money(10, "DM")}
+
+        results = await session.execute_batch(
+            [
+                GraphQLRequest(document=query, variable_values=variable_values),
+                GraphQLRequest(document=query, variable_values=variable_values),
+            ],
+            serialize_variables=True,
+        )
+
+        print(f"result = {results!r}")
+        assert results[0]["toEuros"] == 5
+        assert results[1]["toEuros"] == 5
+
+
 def test_serialize_value_with_invalid_type():
 
     with pytest.raises(GraphQLError) as exc_info:
