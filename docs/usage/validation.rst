@@ -24,7 +24,7 @@ The schema can be provided as a String (which is usually stored in a .graphql fi
 .. note::
     You can download a schema from a server by using :ref:`gql-cli <gql_cli>`
 
-    :code:`$ gql-cli https://SERVER_URL/graphql --print-schema --schema-download input_value_deprecation:true > schema.graphql`
+    :code:`$ gql-cli https://SERVER_URL/graphql --print-schema > schema.graphql`
 
 OR can be created using python classes:
 

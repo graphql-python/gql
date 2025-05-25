@@ -10,7 +10,7 @@ def get_introspection_query_ast(
     specified_by_url: bool = False,
     directive_is_repeatable: bool = False,
     schema_description: bool = False,
-    input_value_deprecation: bool = False,
+    input_value_deprecation: bool = True,
     type_recursion_level: int = 7,
 ) -> DocumentNode:
     """Get a query for introspection as a document using the DSL module.
