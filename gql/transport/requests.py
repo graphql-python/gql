@@ -162,7 +162,7 @@ class RequestsHTTPTransport(Transport):
         if not self.session:
             raise TransportClosed("Transport is not connected")
 
-        payload = self._build_payload(request)
+        payload = request.payload
 
         post_args: Dict[str, Any] = {
             "headers": self.headers,
@@ -372,7 +372,7 @@ class RequestsHTTPTransport(Transport):
         }
 
         data_key = "json" if self.use_json else "data"
-        post_args[data_key] = [self._build_payload(req) for req in reqs]
+        post_args[data_key] = [req.payload for req in reqs]
 
         # Log the payload
         if log.isEnabledFor(logging.INFO):

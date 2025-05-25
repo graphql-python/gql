@@ -1,4 +1,3 @@
-import abc
 import io
 import json
 import logging
@@ -58,11 +57,6 @@ class _HTTPXTransport:
         self.json_deserialize = json_deserialize
         self.kwargs = kwargs
 
-    @abc.abstractmethod
-    def _build_payload(self, req: GraphQLRequest) -> Dict[str, Any]:
-        """This is Implemented in Transport and AsyncTransport"""
-        raise NotImplementedError()  # pragma: no cover
-
     def _prepare_request(
         self,
         req: GraphQLRequest,
@@ -70,7 +64,7 @@ class _HTTPXTransport:
         upload_files: bool = False,
     ) -> Dict[str, Any]:
 
-        payload = self._build_payload(req)
+        payload = req.payload
 
         if upload_files:
             post_args = self._prepare_file_uploads(req, payload)
@@ -93,7 +87,7 @@ class _HTTPXTransport:
         extra_args: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
 
-        payload = [self._build_payload(req) for req in reqs]
+        payload = [req.payload for req in reqs]
 
         post_args = {"json": payload}
 

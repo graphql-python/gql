@@ -170,7 +170,7 @@ class AIOHTTPTransport(AsyncTransport):
         extra_args: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
 
-        payload = [self._build_payload(req) for req in reqs]
+        payload = [req.payload for req in reqs]
 
         post_args = {"json": payload}
 
@@ -186,15 +186,15 @@ class AIOHTTPTransport(AsyncTransport):
 
     def _prepare_request(
         self,
-        req: GraphQLRequest,
+        request: GraphQLRequest,
         extra_args: Optional[Dict[str, Any]] = None,
         upload_files: bool = False,
     ) -> Dict[str, Any]:
 
-        payload = self._build_payload(req)
+        payload = request.payload
 
         if upload_files:
-            post_args = self._prepare_file_uploads(req, payload)
+            post_args = self._prepare_file_uploads(request, payload)
         else:
             post_args = {"json": payload}
 
@@ -216,11 +216,11 @@ class AIOHTTPTransport(AsyncTransport):
         return post_args
 
     def _prepare_file_uploads(
-        self, req: GraphQLRequest, payload: Dict[str, Any]
+        self, request: GraphQLRequest, payload: Dict[str, Any]
     ) -> Dict[str, Any]:
 
         # If the upload_files flag is set, then we need variable_values
-        variable_values = req.variable_values
+        variable_values = request.variable_values
         assert variable_values is not None
 
         # If we upload files, we will extract the files present in the

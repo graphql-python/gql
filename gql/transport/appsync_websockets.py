@@ -158,7 +158,7 @@ class AppSyncWebsocketsTransport(SubscriptionTransportBase):
 
         self.next_query_id += 1
 
-        data: Dict[str, Any] = self._build_payload(request)
+        data: Dict[str, Any] = request.payload
 
         serialized_data = json.dumps(data, separators=(",", ":"))
 

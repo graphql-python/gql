@@ -237,7 +237,7 @@ class WebsocketsProtocolTransportBase(SubscriptionTransportBase):
         query_id = self.next_query_id
         self.next_query_id += 1
 
-        payload: Dict[str, Any] = self._build_payload(request)
+        payload: Dict[str, Any] = request.payload
 
         query_type = "start"
 
