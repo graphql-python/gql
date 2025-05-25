@@ -4,7 +4,7 @@ from typing import Any
 from unittest import mock
 
 import pytest
-from graphql import DocumentNode, ExecutionResult, build_ast_schema, parse
+from graphql import ExecutionResult, build_ast_schema, parse
 
 from gql import Client, GraphQLRequest, gql
 from gql.transport import Transport
@@ -40,7 +40,7 @@ def test_request_transport_not_implemented(http_transport_query):
     class RandomTransport2(Transport):
         def execute(
             self,
-            document: DocumentNode,
+            request: GraphQLRequest,
             *args: Any,
             **kwargs: Any,
         ) -> ExecutionResult:

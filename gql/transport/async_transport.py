@@ -1,7 +1,7 @@
 import abc
-from typing import Any, AsyncGenerator, Dict, List, Optional
+from typing import Any, AsyncGenerator, Dict, List
 
-from graphql import DocumentNode, ExecutionResult
+from graphql import ExecutionResult, print_ast
 
 from ..graphql_request import GraphQLRequest
 
@@ -24,11 +24,9 @@ class AsyncTransport(abc.ABC):
     @abc.abstractmethod
     async def execute(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
+        request: GraphQLRequest,
     ) -> ExecutionResult:
-        """Execute the provided document AST for either a remote or local GraphQL
+        """Execute the provided request for either a remote or local GraphQL
         Schema."""
         raise NotImplementedError(
             "Any AsyncTransport subclass must implement execute method"
@@ -54,9 +52,7 @@ class AsyncTransport(abc.ABC):
     @abc.abstractmethod
     def subscribe(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
+        request: GraphQLRequest,
     ) -> AsyncGenerator[ExecutionResult, None]:
         """Send a query and receive the results using an async generator
 
@@ -67,3 +63,15 @@ class AsyncTransport(abc.ABC):
         raise NotImplementedError(
             "Any AsyncTransport subclass must implement subscribe method"
         )  # pragma: no cover
+
+    def _build_payload(self, req: GraphQLRequest) -> Dict[str, Any]:
+        query_str = print_ast(req.document)
+        payload: Dict[str, Any] = {"query": query_str}
+
+        if req.operation_name:
+            payload["operationName"] = req.operation_name
+
+        if req.variable_values:
+            payload["variables"] = req.variable_values
+
+        return payload

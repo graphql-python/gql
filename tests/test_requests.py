@@ -4,7 +4,7 @@ from typing import Any, Dict, Mapping
 
 import pytest
 
-from gql import Client, FileVar, gql
+from gql import Client, FileVar, GraphQLRequest, gql
 from gql.transport.exceptions import (
     TransportAlreadyConnected,
     TransportClosed,
@@ -471,7 +471,7 @@ async def test_requests_cannot_execute_if_not_connected(aiohttp_server, run_sync
         query = gql(query1_str)
 
         with pytest.raises(TransportClosed):
-            transport.execute(query)
+            transport.execute(GraphQLRequest(query))
 
     await run_sync_test(server, test_code)
 
@@ -580,11 +580,11 @@ async def test_requests_file_upload(aiohttp_server, run_sync_test):
                         DeprecationWarning,
                         match="Not using FileVar for file upload is deprecated",
                     ):
-                        execution_result = session._execute(
+                        execution_result = session.execute(
                             query, variable_values=params, upload_files=True
                         )
 
-                    assert execution_result.data["success"]
+                    assert execution_result["success"]
 
                 # Using an opened file inside a FileVar object
                 with open(file_path, "rb") as f:
@@ -592,19 +592,19 @@ async def test_requests_file_upload(aiohttp_server, run_sync_test):
                     params = {"file": FileVar(f), "other_var": 42}
                     with warnings.catch_warnings():
                         warnings.simplefilter("error")  # Turn warnings into errors
-                        execution_result = session._execute(
+                        execution_result = session.execute(
                             query, variable_values=params, upload_files=True
                         )
 
-                    assert execution_result.data["success"]
+                    assert execution_result["success"]
 
                 # Using an filename string inside a FileVar object
                 params = {"file": FileVar(file_path), "other_var": 42}
-                execution_result = session._execute(
+                execution_result = session.execute(
                     query, variable_values=params, upload_files=True
                 )
 
-                assert execution_result.data["success"]
+                assert execution_result["success"]
 
     await run_sync_test(server, test_code)
 
@@ -651,11 +651,11 @@ async def test_requests_file_upload_with_content_type(aiohttp_server, run_sync_t
                         DeprecationWarning,
                         match="Not using FileVar for file upload is deprecated",
                     ):
-                        execution_result = session._execute(
+                        execution_result = session.execute(
                             query, variable_values=params, upload_files=True
                         )
 
-                    assert execution_result.data["success"]
+                    assert execution_result["success"]
 
                 # Using an opened file inside a FileVar object
                 with open(file_path, "rb") as f:
@@ -664,11 +664,11 @@ async def test_requests_file_upload_with_content_type(aiohttp_server, run_sync_t
                         "file": FileVar(f, content_type="application/pdf"),
                         "other_var": 42,
                     }
-                    execution_result = session._execute(
+                    execution_result = session.execute(
                         query, variable_values=params, upload_files=True
                     )
 
-                    assert execution_result.data["success"]
+                    assert execution_result["success"]
 
     await run_sync_test(server, test_code)
 
@@ -713,11 +713,11 @@ async def test_requests_file_upload_default_filename_is_basename(
                     "file": FileVar(file_path),
                     "other_var": 42,
                 }
-                execution_result = session._execute(
+                execution_result = session.execute(
                     query, variable_values=params, upload_files=True
                 )
 
-                assert execution_result.data["success"]
+                assert execution_result["success"]
 
         await run_sync_test(server, test_code)
 
@@ -760,11 +760,11 @@ async def test_requests_file_upload_with_filename(aiohttp_server, run_sync_test)
                         "file": FileVar(f, filename="filename1.txt"),
                         "other_var": 42,
                     }
-                    execution_result = session._execute(
+                    execution_result = session.execute(
                         query, variable_values=params, upload_files=True
                     )
 
-                    assert execution_result.data["success"]
+                    assert execution_result["success"]
 
     await run_sync_test(server, test_code)
 
@@ -807,11 +807,11 @@ async def test_requests_file_upload_additional_headers(aiohttp_server, run_sync_
                         DeprecationWarning,
                         match="Not using FileVar for file upload is deprecated",
                     ):
-                        execution_result = session._execute(
+                        execution_result = session.execute(
                             query, variable_values=params, upload_files=True
                         )
 
-                    assert execution_result.data["success"]
+                    assert execution_result["success"]
 
     await run_sync_test(server, test_code)
 
@@ -859,11 +859,11 @@ async def test_requests_binary_file_upload(aiohttp_server, run_sync_test):
                         DeprecationWarning,
                         match="Not using FileVar for file upload is deprecated",
                     ):
-                        execution_result = session._execute(
+                        execution_result = session.execute(
                             query, variable_values=params, upload_files=True
                         )
 
-                    assert execution_result.data["success"]
+                    assert execution_result["success"]
 
     await run_sync_test(server, test_code)
 
@@ -937,11 +937,11 @@ async def test_requests_file_upload_two_files(aiohttp_server, run_sync_test):
                         DeprecationWarning,
                         match="Not using FileVar for file upload is deprecated",
                     ):
-                        execution_result = session._execute(
+                        execution_result = session.execute(
                             query, variable_values=params_1, upload_files=True
                         )
 
-                    assert execution_result.data["success"]
+                    assert execution_result["success"]
 
                     f1.close()
                     f2.close()
@@ -958,11 +958,11 @@ async def test_requests_file_upload_two_files(aiohttp_server, run_sync_test):
                         "file2": FileVar(f2),
                     }
 
-                    execution_result = session._execute(
+                    execution_result = session.execute(
                         query, variable_values=params_2, upload_files=True
                     )
 
-                    assert execution_result.data["success"]
+                    assert execution_result["success"]
 
                     f1.close()
                     f2.close()
@@ -1037,11 +1037,11 @@ async def test_requests_file_upload_list_of_two_files(aiohttp_server, run_sync_t
                         DeprecationWarning,
                         match="Not using FileVar for file upload is deprecated",
                     ):
-                        execution_result = session._execute(
+                        execution_result = session.execute(
                             query, variable_values=params, upload_files=True
                         )
 
-                    assert execution_result.data["success"]
+                    assert execution_result["success"]
 
                     f1.close()
                     f2.close()
@@ -1055,11 +1055,11 @@ async def test_requests_file_upload_list_of_two_files(aiohttp_server, run_sync_t
 
                     params_2 = {"files": [FileVar(f1), FileVar(f2)]}
 
-                    execution_result = session._execute(
+                    execution_result = session.execute(
                         query, variable_values=params_2, upload_files=True
                     )
 
-                    assert execution_result.data["success"]
+                    assert execution_result["success"]
 
                     f1.close()
                     f2.close()

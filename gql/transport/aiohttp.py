@@ -20,7 +20,7 @@ from aiohttp.client_exceptions import ClientResponseError
 from aiohttp.client_reqrep import Fingerprint
 from aiohttp.helpers import BasicAuth
 from aiohttp.typedefs import LooseCookies, LooseHeaders
-from graphql import DocumentNode, ExecutionResult, print_ast
+from graphql import ExecutionResult
 from multidict import CIMultiDictProxy
 
 from ..graphql_request import GraphQLRequest
@@ -163,18 +163,6 @@ class AIOHTTPTransport(AsyncTransport):
                     pass
 
         self.session = None
-
-    def _build_payload(self, req: GraphQLRequest) -> Dict[str, Any]:
-        query_str = print_ast(req.document)
-        payload: Dict[str, Any] = {"query": query_str}
-
-        if req.operation_name:
-            payload["operationName"] = req.operation_name
-
-        if req.variable_values:
-            payload["variables"] = req.variable_values
-
-        return payload
 
     def _prepare_batch_request(
         self,
@@ -359,13 +347,12 @@ class AIOHTTPTransport(AsyncTransport):
 
     async def execute(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
+        request: GraphQLRequest,
+        *,
         extra_args: Optional[Dict[str, Any]] = None,
         upload_files: bool = False,
     ) -> ExecutionResult:
-        """Execute the provided document AST against the configured remote server
+        """Execute the provided request against the configured remote server
         using the current session.
         This uses the aiohttp library to perform a HTTP POST request asynchronously
         to the remote server.
@@ -373,22 +360,15 @@ class AIOHTTPTransport(AsyncTransport):
         Don't call this coroutine directly on the transport, instead use
         :code:`execute` on a client or a session.
 
-        :param document: the parsed GraphQL request
-        :param variable_values: An optional Dict of variable values
-        :param operation_name: An optional Operation name for the request
+        :param request: GraphQL request as a
+                        :class:`GraphQLRequest <gql.GraphQLRequest>` object.
         :param extra_args: additional arguments to send to the aiohttp post method
         :param upload_files: Set to True if you want to put files in the variable values
         :returns: an ExecutionResult object.
         """
 
-        req = GraphQLRequest(
-            document=document,
-            variable_values=variable_values,
-            operation_name=operation_name,
-        )
-
         post_args = self._prepare_request(
-            req,
+            request,
             extra_args,
             upload_files,
         )
@@ -434,9 +414,7 @@ class AIOHTTPTransport(AsyncTransport):
 
     def subscribe(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
+        request: GraphQLRequest,
     ) -> AsyncGenerator[ExecutionResult, None]:
         """Subscribe is not supported on HTTP.
 

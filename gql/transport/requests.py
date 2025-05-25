@@ -15,7 +15,7 @@ from typing import (
 )
 
 import requests
-from graphql import DocumentNode, ExecutionResult, print_ast
+from graphql import ExecutionResult
 from requests.adapters import HTTPAdapter, Retry
 from requests.auth import AuthBase
 from requests.cookies import RequestsCookieJar
@@ -139,22 +139,18 @@ class RequestsHTTPTransport(Transport):
 
     def execute(  # type: ignore
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
+        request: GraphQLRequest,
         timeout: Optional[int] = None,
         extra_args: Optional[Dict[str, Any]] = None,
         upload_files: bool = False,
     ) -> ExecutionResult:
         """Execute GraphQL query.
 
-        Execute the provided document AST against the configured remote server. This
+        Execute the provided request against the configured remote server. This
         uses the requests library to perform a HTTP POST request to the remote server.
 
-        :param document: GraphQL query as AST Node object.
-        :param variable_values: Dictionary of input parameters (Default: None).
-        :param operation_name: Name of the operation that shall be executed.
-            Only required in multi-operation documents (Default: None).
+        :param request: GraphQL request as a
+                        :class:`GraphQLRequest <gql.GraphQLRequest>` object.
         :param timeout: Specifies a default timeout for requests (Default: None).
         :param extra_args: additional arguments to send to the requests post method
         :param upload_files: Set to True if you want to put files in the variable values
@@ -166,11 +162,7 @@ class RequestsHTTPTransport(Transport):
         if not self.session:
             raise TransportClosed("Transport is not connected")
 
-        query_str = print_ast(document)
-        payload: Dict[str, Any] = {"query": query_str}
-
-        if operation_name:
-            payload["operationName"] = operation_name
+        payload = self._build_payload(request)
 
         post_args: Dict[str, Any] = {
             "headers": self.headers,
@@ -182,12 +174,12 @@ class RequestsHTTPTransport(Transport):
 
         if upload_files:
             # If the upload_files flag is set, then we need variable_values
-            assert variable_values is not None
+            assert request.variable_values is not None
 
             # If we upload files, we will extract the files present in the
             # variable_values dict and replace them by null values
             nulled_variable_values, files = extract_files(
-                variables=variable_values,
+                variables=request.variable_values,
                 file_classes=self.file_classes,
             )
 
@@ -241,9 +233,6 @@ class RequestsHTTPTransport(Transport):
             post_args["headers"]["Content-Type"] = data.content_type
 
         else:
-            if variable_values:
-                payload["variables"] = variable_values
-
             data_key = "json" if self.use_json else "data"
             post_args[data_key] = payload
 
@@ -397,18 +386,6 @@ class RequestsHTTPTransport(Transport):
             post_args.update(extra_args)
 
         return post_args
-
-    def _build_payload(self, req: GraphQLRequest) -> Dict[str, Any]:
-        query_str = print_ast(req.document)
-        payload: Dict[str, Any] = {"query": query_str}
-
-        if req.operation_name:
-            payload["operationName"] = req.operation_name
-
-        if req.variable_values:
-            payload["variables"] = req.variable_values
-
-        return payload
 
     def close(self):
         """Closing the transport by closing the inner session"""

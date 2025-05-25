@@ -1,3 +1,4 @@
+import abc
 import io
 import json
 import logging
@@ -15,7 +16,7 @@ from typing import (
 )
 
 import httpx
-from graphql import DocumentNode, ExecutionResult, print_ast
+from graphql import ExecutionResult
 
 from ..graphql_request import GraphQLRequest
 from . import AsyncTransport, Transport
@@ -57,17 +58,10 @@ class _HTTPXTransport:
         self.json_deserialize = json_deserialize
         self.kwargs = kwargs
 
+    @abc.abstractmethod
     def _build_payload(self, req: GraphQLRequest) -> Dict[str, Any]:
-        query_str = print_ast(req.document)
-        payload: Dict[str, Any] = {"query": query_str}
-
-        if req.operation_name:
-            payload["operationName"] = req.operation_name
-
-        if req.variable_values:
-            payload["variables"] = req.variable_values
-
-        return payload
+        """This is Implemented in Transport and AsyncTransport"""
+        raise NotImplementedError()  # pragma: no cover
 
     def _prepare_request(
         self,
@@ -243,21 +237,18 @@ class HTTPXTransport(Transport, _HTTPXTransport):
 
     def execute(  # type: ignore
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
+        request: GraphQLRequest,
+        *,
         extra_args: Optional[Dict[str, Any]] = None,
         upload_files: bool = False,
     ) -> ExecutionResult:
         """Execute GraphQL query.
 
-        Execute the provided document AST against the configured remote server. This
+        Execute the provided request against the configured remote server. This
         uses the httpx library to perform a HTTP POST request to the remote server.
 
-        :param document: GraphQL query as AST Node object.
-        :param variable_values: Dictionary of input parameters (Default: None).
-        :param operation_name: Name of the operation that shall be executed.
-            Only required in multi-operation documents (Default: None).
+        :param request: GraphQL request as a
+                        :class:`GraphQLRequest <gql.GraphQLRequest>` object.
         :param extra_args: additional arguments to send to the httpx post method
         :param upload_files: Set to True if you want to put files in the variable values
         :return: The result of execution.
@@ -266,12 +257,6 @@ class HTTPXTransport(Transport, _HTTPXTransport):
         """
         if not self.client:
             raise TransportClosed("Transport is not connected")
-
-        request = GraphQLRequest(
-            document=document,
-            variable_values=variable_values,
-            operation_name=operation_name,
-        )
 
         post_args = self._prepare_request(
             request,
@@ -343,22 +328,19 @@ class HTTPXAsyncTransport(AsyncTransport, _HTTPXTransport):
 
     async def execute(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
+        request: GraphQLRequest,
+        *,
         extra_args: Optional[Dict[str, Any]] = None,
         upload_files: bool = False,
     ) -> ExecutionResult:
         """Execute GraphQL query.
 
-        Execute the provided document AST against the configured remote server. This
+        Execute the provided request against the configured remote server. This
         uses the httpx library to perform a HTTP POST request asynchronously to the
         remote server.
 
-        :param document: GraphQL query as AST Node object.
-        :param variable_values: Dictionary of input parameters (Default: None).
-        :param operation_name: Name of the operation that shall be executed.
-            Only required in multi-operation documents (Default: None).
+        :param request: GraphQL request as a
+                        :class:`GraphQLRequest <gql.GraphQLRequest>` object.
         :param extra_args: additional arguments to send to the httpx post method
         :param upload_files: Set to True if you want to put files in the variable values
         :return: The result of execution.
@@ -367,12 +349,6 @@ class HTTPXAsyncTransport(AsyncTransport, _HTTPXTransport):
         """
         if not self.client:
             raise TransportClosed("Transport is not connected")
-
-        request = GraphQLRequest(
-            document=document,
-            variable_values=variable_values,
-            operation_name=operation_name,
-        )
 
         post_args = self._prepare_request(
             request,
@@ -420,9 +396,7 @@ class HTTPXAsyncTransport(AsyncTransport, _HTTPXTransport):
 
     def subscribe(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
+        request: GraphQLRequest,
     ) -> AsyncGenerator[ExecutionResult, None]:
         """Subscribe is not supported on HTTP.
 

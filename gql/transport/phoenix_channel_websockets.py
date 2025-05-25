@@ -3,8 +3,9 @@ import json
 import logging
 from typing import Any, Dict, Optional, Tuple, Union
 
-from graphql import DocumentNode, ExecutionResult, print_ast
+from graphql import ExecutionResult, print_ast
 
+from ..graphql_request import GraphQLRequest
 from .common.adapters.websockets import WebSocketsAdapter
 from .common.base import SubscriptionTransportBase
 from .exceptions import (
@@ -182,9 +183,7 @@ class PhoenixChannelWebsocketsTransport(SubscriptionTransportBase):
 
     async def _send_query(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
+        request: GraphQLRequest,
     ) -> int:
         """Send a query to the provided websocket connection.
 
@@ -201,8 +200,8 @@ class PhoenixChannelWebsocketsTransport(SubscriptionTransportBase):
                 "topic": self.channel_name,
                 "event": "doc",
                 "payload": {
-                    "query": print_ast(document),
-                    "variables": variable_values or {},
+                    "query": print_ast(request.document),
+                    "variables": request.variable_values or {},
                 },
                 "ref": query_id,
             }
