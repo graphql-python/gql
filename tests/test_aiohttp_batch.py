@@ -1,3 +1,4 @@
+import asyncio
 from typing import Mapping
 
 import pytest
@@ -7,6 +8,7 @@ from gql.transport.exceptions import (
     TransportClosed,
     TransportProtocolError,
     TransportQueryError,
+    TransportServerError,
 )
 
 # Marking all tests in this file with the aiohttp marker
@@ -27,6 +29,21 @@ query1_server_answer_list = (
     '{"code":"AS","name":"Asia"},{"code":"EU","name":"Europe"},'
     '{"code":"NA","name":"North America"},{"code":"OC","name":"Oceania"},'
     '{"code":"SA","name":"South America"}]}}]'
+)
+
+query1_server_answer_twice_list = (
+    "["
+    '{"data":{"continents":['
+    '{"code":"AF","name":"Africa"},{"code":"AN","name":"Antarctica"},'
+    '{"code":"AS","name":"Asia"},{"code":"EU","name":"Europe"},'
+    '{"code":"NA","name":"North America"},{"code":"OC","name":"Oceania"},'
+    '{"code":"SA","name":"South America"}]}},'
+    '{"data":{"continents":['
+    '{"code":"AF","name":"Africa"},{"code":"AN","name":"Antarctica"},'
+    '{"code":"AS","name":"Asia"},{"code":"EU","name":"Europe"},'
+    '{"code":"NA","name":"North America"},{"code":"OC","name":"Oceania"},'
+    '{"code":"SA","name":"South America"}]}}'
+    "]"
 )
 
 
@@ -70,6 +87,179 @@ async def test_aiohttp_batch_query(aiohttp_server):
         assert hasattr(transport, "response_headers")
         assert isinstance(transport.response_headers, Mapping)
         assert transport.response_headers["dummy"] == "test1234"
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_batch_query_auto_batch_enabled(aiohttp_server, run_sync_test):
+    from aiohttp import web
+
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    async def handler(request):
+        return web.Response(
+            text=query1_server_answer_list,
+            content_type="application/json",
+            headers={"dummy": "test1234"},
+        )
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    transport = AIOHTTPTransport(url=url, timeout=10)
+
+    async with Client(
+        transport=transport,
+        batch_interval=0.01,  # 10ms batch interval
+    ) as session:
+
+        query = gql(query1_str)
+
+        result = await session.execute(query)
+
+        continents = result["continents"]
+
+        africa = continents[0]
+
+        assert africa["code"] == "AF"
+
+        # Checking response headers are saved in the transport
+        assert hasattr(transport, "response_headers")
+        assert isinstance(transport.response_headers, Mapping)
+        assert transport.response_headers["dummy"] == "test1234"
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_batch_auto_two_requests(aiohttp_server):
+    from aiohttp import web
+
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    async def handler(request):
+        return web.Response(
+            text=query1_server_answer_twice_list,
+            content_type="application/json",
+            headers={"dummy": "test1234"},
+        )
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+    transport = AIOHTTPTransport(url=url, timeout=10)
+
+    async with Client(
+        transport=transport,
+        batch_interval=0.01,
+    ) as session:
+
+        async def test_coroutine():
+            query = gql(query1_str)
+
+            # Execute query asynchronously
+            result = await session.execute(query)
+
+            continents = result["continents"]
+
+            africa = continents[0]
+
+            assert africa["code"] == "AF"
+
+        # Create two concurrent tasks that will be batched together
+        tasks = []
+        for _ in range(2):
+            task = asyncio.create_task(test_coroutine())
+            tasks.append(task)
+
+        # Wait for all tasks to complete
+        await asyncio.gather(*tasks)
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_batch_auto_two_requests_close_session_directly(aiohttp_server):
+    from aiohttp import web
+
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    async def handler(request):
+        return web.Response(
+            text=query1_server_answer_twice_list,
+            content_type="application/json",
+            headers={"dummy": "test1234"},
+        )
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+    transport = AIOHTTPTransport(url=url, timeout=10)
+
+    async with Client(
+        transport=transport,
+        batch_interval=0.1,
+    ) as session:
+
+        async def test_coroutine():
+            query = gql(query1_str)
+
+            # Execute query asynchronously
+            result = await session.execute(query)
+
+            continents = result["continents"]
+
+            africa = continents[0]
+
+            assert africa["code"] == "AF"
+
+        # Create two concurrent tasks that will be batched together
+        tasks = []
+        for _ in range(2):
+            task = asyncio.create_task(test_coroutine())
+            tasks.append(task)
+
+        await asyncio.sleep(0.01)
+
+    # Wait for all tasks to complete
+    await asyncio.gather(*tasks)
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_batch_error_code_401(aiohttp_server):
+    from aiohttp import web
+
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    async def handler(request):
+        # Will generate http error code 401
+        return web.Response(
+            text='{"error":"Unauthorized","message":"401 Client Error: Unauthorized"}',
+            content_type="application/json",
+            status=401,
+        )
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    transport = AIOHTTPTransport(url=url, timeout=10)
+
+    async with Client(
+        transport=transport,
+        batch_interval=0.01,  # 10ms batch interval
+    ) as session:
+
+        query = gql(query1_str)
+
+        with pytest.raises(TransportServerError) as exc_info:
+            await session.execute(query)
+
+        assert "401, message='Unauthorized'" in str(exc_info.value)
 
 
 @pytest.mark.asyncio
