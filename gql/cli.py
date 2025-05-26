@@ -132,12 +132,12 @@ def get_parser(with_examples: bool = False) -> ArgumentParser:
             By default, it will:
 
              - request field descriptions
-             - not request deprecated input fields
+             - request deprecated input fields
 
             Possible options:
 
              - descriptions:false             for a compact schema without comments
-             - input_value_deprecation:true   to download deprecated input fields
+             - input_value_deprecation:false  to omit deprecated input fields
              - specified_by_url:true
              - schema_description:true
              - directive_is_repeatable:true"""

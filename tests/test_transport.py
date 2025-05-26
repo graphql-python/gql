@@ -43,6 +43,9 @@ def client():
                 url=URL, cookies={"csrftoken": csrf}, headers={"x-csrftoken": csrf}
             ),
             fetch_schema_from_transport=True,
+            introspection_args={
+                "input_value_deprecation": False,
+            },
         )
 
 

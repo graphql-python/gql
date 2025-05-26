@@ -81,10 +81,12 @@ Print the GraphQL schema in a file
 
 .. note::
 
-    By default, deprecated input fields are not requested from the backend.
-    You can add :code:`--schema-download input_value_deprecation:true` to request them.
-
-.. note::
-
     You can add :code:`--schema-download descriptions:false` to request a compact schema
     without comments.
+
+.. warning::
+
+    By default, from gql version 4.0, deprecated input fields are requested from the backend.
+    It is possible that some old backends do not support this feature. In that case
+    you can add :code:`--schema-download input_value_deprecation:false` to go back
+    to the previous behavior.
