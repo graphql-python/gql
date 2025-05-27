@@ -4,7 +4,7 @@ from typing import Any, Dict, Mapping
 
 import pytest
 
-from gql import Client, FileVar, GraphQLRequest, gql
+from gql import Client, FileVar, gql
 from gql.transport.exceptions import (
     TransportAlreadyConnected,
     TransportClosed,
@@ -471,7 +471,7 @@ async def test_requests_cannot_execute_if_not_connected(aiohttp_server, run_sync
         query = gql(query1_str)
 
         with pytest.raises(TransportClosed):
-            transport.execute(GraphQLRequest(query))
+            transport.execute(query)
 
     await run_sync_test(server, test_code)
 
@@ -574,35 +574,29 @@ async def test_requests_file_upload(aiohttp_server, run_sync_test):
                 # Using an opened file
                 with open(file_path, "rb") as f:
 
-                    params = {"file": f, "other_var": 42}
+                    query.variable_values = {"file": f, "other_var": 42}
 
                     with pytest.warns(
                         DeprecationWarning,
                         match="Not using FileVar for file upload is deprecated",
                     ):
-                        execution_result = session.execute(
-                            query, variable_values=params, upload_files=True
-                        )
+                        execution_result = session.execute(query, upload_files=True)
 
                     assert execution_result["success"]
 
                 # Using an opened file inside a FileVar object
                 with open(file_path, "rb") as f:
 
-                    params = {"file": FileVar(f), "other_var": 42}
+                    query.variable_values = {"file": FileVar(f), "other_var": 42}
                     with warnings.catch_warnings():
                         warnings.simplefilter("error")  # Turn warnings into errors
-                        execution_result = session.execute(
-                            query, variable_values=params, upload_files=True
-                        )
+                        execution_result = session.execute(query, upload_files=True)
 
                     assert execution_result["success"]
 
                 # Using an filename string inside a FileVar object
-                params = {"file": FileVar(file_path), "other_var": 42}
-                execution_result = session.execute(
-                    query, variable_values=params, upload_files=True
-                )
+                query.variable_values = {"file": FileVar(file_path), "other_var": 42}
+                execution_result = session.execute(query, upload_files=True)
 
                 assert execution_result["success"]
 

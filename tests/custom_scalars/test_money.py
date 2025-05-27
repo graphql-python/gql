@@ -765,14 +765,14 @@ async def test_custom_scalar_serialize_variables_sync_transport_2(
     def test_code():
         with Client(schema=schema, transport=transport, parse_results=True) as session:
 
-            query = gql("query myquery($money: Money) {toEuros(money: $money)}")
+            query = "query myquery($money: Money) {toEuros(money: $money)}"
 
             variable_values = {"money": Money(10, "DM")}
 
             results = session.execute_batch(
                 [
-                    GraphQLRequest(document=query, variable_values=variable_values),
-                    GraphQLRequest(document=query, variable_values=variable_values),
+                    GraphQLRequest(query, variable_values=variable_values),
+                    GraphQLRequest(query, variable_values=variable_values),
                 ],
                 serialize_variables=True,
             )
@@ -793,14 +793,14 @@ async def test_custom_scalar_serialize_variables_async_transport(aiohttp_server)
         schema=schema, transport=transport, parse_results=True
     ) as session:
 
-        query = gql("query myquery($money: Money) {toEuros(money: $money)}")
+        query = "query myquery($money: Money) {toEuros(money: $money)}"
 
         variable_values = {"money": Money(10, "DM")}
 
         results = await session.execute_batch(
             [
-                GraphQLRequest(document=query, variable_values=variable_values),
-                GraphQLRequest(document=query, variable_values=variable_values),
+                GraphQLRequest(query, variable_values=variable_values),
+                GraphQLRequest(query, variable_values=variable_values),
             ],
             serialize_variables=True,
         )

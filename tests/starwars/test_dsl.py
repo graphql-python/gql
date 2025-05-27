@@ -143,7 +143,7 @@ def test_use_variable_definition_multiple_times(ds):
     query = dsl_gql(op)
 
     assert (
-        print_ast(query)
+        print_ast(query.document)
         == """mutation \
 ($badReview: ReviewInput, $episode: Episode, $goodReview: ReviewInput) {
   badReview: createReview(review: $badReview, episode: $episode) {
@@ -157,7 +157,9 @@ def test_use_variable_definition_multiple_times(ds):
 }"""
     )
 
-    assert node_tree(query) == node_tree(gql(print_ast(query)))
+    assert node_tree(query.document) == node_tree(
+        gql(print_ast(query.document)).document
+    )
 
 
 def test_add_variable_definitions(ds):
@@ -171,7 +173,7 @@ def test_add_variable_definitions(ds):
     query = dsl_gql(op)
 
     assert (
-        print_ast(query)
+        print_ast(query.document)
         == """mutation ($review: ReviewInput, $episode: Episode) {
   createReview(review: $review, episode: $episode) {
     stars
@@ -180,7 +182,9 @@ def test_add_variable_definitions(ds):
 }"""
     )
 
-    assert node_tree(query) == node_tree(gql(print_ast(query)))
+    assert node_tree(query.document) == node_tree(
+        gql(print_ast(query.document)).document
+    )
 
 
 def test_add_variable_definitions_with_default_value_enum(ds):
@@ -194,7 +198,7 @@ def test_add_variable_definitions_with_default_value_enum(ds):
     query = dsl_gql(op)
 
     assert (
-        print_ast(query)
+        print_ast(query.document)
         == """mutation ($review: ReviewInput, $episode: Episode = NEWHOPE) {
   createReview(review: $review, episode: $episode) {
     stars
@@ -216,7 +220,7 @@ def test_add_variable_definitions_with_default_value_input_object(ds):
     query = dsl_gql(op)
 
     assert (
-        strip_braces_spaces(print_ast(query))
+        strip_braces_spaces(print_ast(query.document))
         == """
 mutation ($review: ReviewInput = {stars: 5, commentary: "Wow!"}, $episode: Episode) {
   createReview(review: $review, episode: $episode) {
@@ -226,7 +230,9 @@ mutation ($review: ReviewInput = {stars: 5, commentary: "Wow!"}, $episode: Episo
 }""".strip()
     )
 
-    assert node_tree(query) == node_tree(gql(print_ast(query)))
+    assert node_tree(query.document) == node_tree(
+        gql(print_ast(query.document)).document
+    )
 
 
 def test_add_variable_definitions_in_input_object(ds):
@@ -241,7 +247,7 @@ def test_add_variable_definitions_in_input_object(ds):
     query = dsl_gql(op)
 
     assert (
-        strip_braces_spaces(print_ast(query))
+        strip_braces_spaces(print_ast(query.document))
         == """mutation ($stars: Int, $commentary: String, $episode: Episode) {
   createReview(
     review: {stars: $stars, commentary: $commentary}
@@ -253,7 +259,9 @@ def test_add_variable_definitions_in_input_object(ds):
 }"""
     )
 
-    assert node_tree(query) == node_tree(gql(print_ast(query)))
+    assert node_tree(query.document) == node_tree(
+        gql(print_ast(query.document)).document
+    )
 
 
 def test_invalid_field_on_type_query(ds):
@@ -416,7 +424,9 @@ def test_hero_name_query_result(ds, client):
     result = client.execute(query)
     expected = {"hero": {"name": "R2-D2"}}
     assert result == expected
-    assert node_tree(query) == node_tree(gql(print_ast(query)))
+    assert node_tree(query.document) == node_tree(
+        gql(print_ast(query.document)).document
+    )
 
 
 def test_arg_serializer_list(ds, client):
@@ -436,7 +446,9 @@ def test_arg_serializer_list(ds, client):
         ]
     }
     assert result == expected
-    assert node_tree(query) == node_tree(gql(print_ast(query)))
+    assert node_tree(query.document) == node_tree(
+        gql(print_ast(query.document)).document
+    )
 
 
 def test_arg_serializer_enum(ds, client):
@@ -444,7 +456,9 @@ def test_arg_serializer_enum(ds, client):
     result = client.execute(query)
     expected = {"hero": {"name": "Luke Skywalker"}}
     assert result == expected
-    assert node_tree(query) == node_tree(gql(print_ast(query)))
+    assert node_tree(query.document) == node_tree(
+        gql(print_ast(query.document)).document
+    )
 
 
 def test_create_review_mutation_result(ds, client):
@@ -459,7 +473,9 @@ def test_create_review_mutation_result(ds, client):
     result = client.execute(query)
     expected = {"createReview": {"stars": 5, "commentary": "This is a great movie!"}}
     assert result == expected
-    assert node_tree(query) == node_tree(gql(print_ast(query)))
+    assert node_tree(query.document) == node_tree(
+        gql(print_ast(query.document)).document
+    )
 
 
 def test_subscription(ds):
@@ -472,7 +488,7 @@ def test_subscription(ds):
         )
     )
     assert (
-        print_ast(query)
+        print_ast(query.document)
         == """subscription {
   reviewAdded(episode: JEDI) {
     stars
@@ -481,7 +497,9 @@ def test_subscription(ds):
 }"""
     )
 
-    assert node_tree(query) == node_tree(gql(print_ast(query)))
+    assert node_tree(query.document) == node_tree(
+        gql(print_ast(query.document)).document
+    )
 
 
 def test_field_does_not_exit_in_type(ds):
@@ -522,7 +540,9 @@ def test_multiple_root_fields(ds, client):
         "hero_of_episode_5": {"name": "Luke Skywalker"},
     }
     assert result == expected
-    assert node_tree(query) == node_tree(gql(print_ast(query)))
+    assert node_tree(query.document) == node_tree(
+        gql(print_ast(query.document)).document
+    )
 
 
 def test_root_fields_aliased(ds, client):
@@ -538,7 +558,9 @@ def test_root_fields_aliased(ds, client):
         "hero_of_episode_5": {"name": "Luke Skywalker"},
     }
     assert result == expected
-    assert node_tree(query) == node_tree(gql(print_ast(query)))
+    assert node_tree(query.document) == node_tree(
+        gql(print_ast(query.document)).document
+    )
 
 
 def test_operation_name(ds):
@@ -549,7 +571,7 @@ def test_operation_name(ds):
     )
 
     assert (
-        print_ast(query)
+        print_ast(query.document)
         == """query GetHeroName {
   hero {
     name
@@ -557,7 +579,9 @@ def test_operation_name(ds):
 }"""
     )
 
-    assert node_tree(query) == node_tree(gql(print_ast(query)))
+    assert node_tree(query.document) == node_tree(
+        gql(print_ast(query.document)).document
+    )
 
 
 def test_multiple_operations(ds):
@@ -571,7 +595,7 @@ def test_multiple_operations(ds):
     )
 
     assert (
-        strip_braces_spaces(print_ast(query))
+        strip_braces_spaces(print_ast(query.document))
         == """query GetHeroName {
   hero {
     name
@@ -589,7 +613,9 @@ mutation CreateReviewMutation {
 }"""
     )
 
-    assert node_tree(query) == node_tree(gql(print_ast(query)))
+    assert node_tree(query.document) == node_tree(
+        gql(print_ast(query.document)).document
+    )
 
 
 def test_inline_fragments(ds):
@@ -656,12 +682,14 @@ def test_fragments(ds):
 
     query_dsl = DSLQuery(ds.Query.hero.select(name_and_appearances))
 
-    document = dsl_gql(name_and_appearances, query_dsl)
+    request = dsl_gql(name_and_appearances, query_dsl)
+
+    document = request.document
 
     print(print_ast(document))
 
     assert query == print_ast(document)
-    assert node_tree(document) == node_tree(gql(print_ast(document)))
+    assert node_tree(document) == node_tree(gql(print_ast(document)).document)
 
 
 def test_fragment_without_type_condition_error(ds):
@@ -753,12 +781,14 @@ query NestedQueryWithFragment {
         )
     )
 
-    document = dsl_gql(name_and_appearances, NestedQueryWithFragment=query_dsl)
+    request = dsl_gql(name_and_appearances, NestedQueryWithFragment=query_dsl)
+
+    document = request.document
 
     print(print_ast(document))
 
     assert query == print_ast(document)
-    assert node_tree(document) == node_tree(gql(print_ast(document)))
+    assert node_tree(document) == node_tree(gql(print_ast(document)).document)
 
     # Same thing, but incrementaly
 
@@ -779,12 +809,14 @@ query NestedQueryWithFragment {
 
     query_dsl = DSLQuery(hero)
 
-    document = dsl_gql(name_and_appearances, NestedQueryWithFragment=query_dsl)
+    request = dsl_gql(name_and_appearances, NestedQueryWithFragment=query_dsl)
+
+    document = request.document
 
     print(print_ast(document))
 
     assert query == print_ast(document)
-    assert node_tree(document) == node_tree(gql(print_ast(document)))
+    assert node_tree(document) == node_tree(gql(print_ast(document)).document)
 
 
 def test_dsl_query_all_fields_should_be_instances_of_DSLField():
@@ -828,7 +860,7 @@ type QueryNotDefault {
   version
 }
 """
-    assert print_ast(query) == expected_query.strip()
+    assert print_ast(query.document) == expected_query.strip()
 
     with pytest.raises(GraphQLError) as excinfo:
         DSLSubscription(ds.QueryNotDefault.version)
@@ -837,7 +869,9 @@ type QueryNotDefault {
         "Invalid field for <DSLSubscription>: <DSLField QueryNotDefault::version>"
     ) in str(excinfo.value)
 
-    assert node_tree(query) == node_tree(gql(print_ast(query)))
+    assert node_tree(query.document) == node_tree(
+        gql(print_ast(query.document)).document
+    )
 
 
 def test_dsl_gql_all_arguments_should_be_operations_or_fragments():
@@ -925,7 +959,7 @@ def test_type_hero_query(ds):
     )
     query_dsl = DSLQuery(type_hero)
 
-    assert query == str(print_ast(dsl_gql(query_dsl))).strip()
+    assert query == str(print_ast(dsl_gql(query_dsl).document)).strip()
 
 
 def test_invalid_meta_field_selection(ds):
@@ -1000,9 +1034,11 @@ def test_get_introspection_query_ast(option):
     )
 
     try:
-        assert print_ast(gql(introspection_query)) == print_ast(dsl_introspection_query)
+        assert print_ast(gql(introspection_query).document) == print_ast(
+            dsl_introspection_query
+        )
         assert node_tree(dsl_introspection_query) == node_tree(
-            gql(print_ast(dsl_introspection_query))
+            gql(print_ast(dsl_introspection_query)).document
         )
     except AssertionError:
 
@@ -1015,9 +1051,11 @@ def test_get_introspection_query_ast(option):
             input_value_deprecation=option,
             type_recursion_level=9,
         )
-        assert print_ast(gql(introspection_query)) == print_ast(dsl_introspection_query)
+        assert print_ast(gql(introspection_query).document) == print_ast(
+            dsl_introspection_query
+        )
         assert node_tree(dsl_introspection_query) == node_tree(
-            gql(print_ast(dsl_introspection_query))
+            gql(print_ast(dsl_introspection_query)).document
         )
 
 
@@ -1047,7 +1085,7 @@ def test_node_tree_with_loc(ds):
   }
 }""".strip()
 
-    document = gql(query)
+    document = gql(query).document
 
     node_tree_result = """
 DocumentNode
@@ -1232,4 +1270,4 @@ fragment heroFragment($episode: Episode) on Query {
   }
 }
 """.strip()
-    assert print_ast(query) == expected
+    assert print_ast(query.document) == expected

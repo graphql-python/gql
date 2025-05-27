@@ -64,6 +64,7 @@ from graphql import (
 )
 from graphql.pyutils import inspect
 
+from .graphql_request import GraphQLRequest
 from .utils import to_camel_case
 
 log = logging.getLogger(__name__)
@@ -214,7 +215,7 @@ def ast_from_value(value: Any, type_: GraphQLInputType) -> Optional[ValueNode]:
 
 def dsl_gql(
     *operations: "DSLExecutable", **operations_with_name: "DSLExecutable"
-) -> DocumentNode:
+) -> GraphQLRequest:
     r"""Given arguments instances of :class:`DSLExecutable`
     containing GraphQL operations or fragments,
     generate a Document which can be executed later in a
@@ -231,7 +232,8 @@ def dsl_gql(
     :param \**operations_with_name: the GraphQL operations with an operation name
     :type \**operations_with_name: DSLQuery, DSLMutation, DSLSubscription
 
-    :return: a Document which can be later executed or subscribed by a
+    :return: a :class:`GraphQLRequest <gql.GraphQLRequest>`
+        which can be later executed or subscribed by a
         :class:`Client <gql.client.Client>`, by an
         :class:`async session <gql.client.AsyncClientSession>` or by a
         :class:`sync session <gql.client.SyncClientSession>`
@@ -259,9 +261,11 @@ def dsl_gql(
                 f"Received: {type(operation)}."
             )
 
-    return DocumentNode(
+    document = DocumentNode(
         definitions=[operation.executable_ast for operation in all_operations]
     )
+
+    return GraphQLRequest(document)
 
 
 class DSLSchema:

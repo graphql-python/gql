@@ -41,7 +41,7 @@ async def test_subscription_support():
     expected = [{**review, "episode": "JEDI"} for review in reviews[6]]
 
     ai = await await_if_coroutine(
-        subscribe(StarWarsSchema, subs, variable_values=params)
+        subscribe(StarWarsSchema, subs.document, variable_values=params)
     )
 
     result = [result.data["reviewAdded"] async for result in ai]
@@ -83,7 +83,7 @@ subscription_invalid_str = """
 @pytest.mark.asyncio
 async def test_subscription_support_using_client_invalid_field():
 
-    subs = gql(subscription_invalid_str)
+    subs = subscription_invalid_str
 
     params = {"ep": "JEDI"}
 

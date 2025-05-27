@@ -6,7 +6,7 @@ from typing import Mapping
 
 import pytest
 
-from gql import Client, FileVar, GraphQLRequest, gql
+from gql import Client, FileVar, gql
 from gql.cli import get_parser, main
 from gql.transport.exceptions import (
     TransportAlreadyConnected,
@@ -421,7 +421,7 @@ async def test_aiohttp_cannot_execute_if_not_connected(aiohttp_server):
     query = gql(query1_str)
 
     with pytest.raises(TransportClosed):
-        await transport.execute(GraphQLRequest(query))
+        await transport.execute(query)
 
 
 @pytest.mark.asyncio
@@ -660,16 +660,14 @@ async def test_aiohttp_file_upload(aiohttp_server):
             # Using an opened file
             with open(file_path, "rb") as f:
 
-                params = {"file": f, "other_var": 42}
+                query.variable_values = {"file": f, "other_var": 42}
 
                 # Execute query asynchronously
                 with pytest.warns(
                     DeprecationWarning,
                     match="Not using FileVar for file upload is deprecated",
                 ):
-                    result = await session.execute(
-                        query, variable_values=params, upload_files=True
-                    )
+                    result = await session.execute(query, upload_files=True)
 
             success = result["success"]
             assert success
@@ -677,22 +675,19 @@ async def test_aiohttp_file_upload(aiohttp_server):
             # Using an opened file inside a FileVar object
             with open(file_path, "rb") as f:
 
-                params = {"file": FileVar(f), "other_var": 42}
+                query.variable_values = {"file": FileVar(f), "other_var": 42}
 
                 with warnings.catch_warnings():
                     warnings.simplefilter("error")  # Turn warnings into errors
-                    result = await session.execute(
-                        query, variable_values=params, upload_files=True
-                    )
+                    result = await session.execute(query, upload_files=True)
 
             success = result["success"]
             assert success
 
             # Using an filename string inside a FileVar object
-            params = {"file": FileVar(file_path), "other_var": 42}
-            result = await session.execute(
-                query, variable_values=params, upload_files=True
-            )
+            query.variable_values = {"file": FileVar(file_path), "other_var": 42}
+
+            result = await session.execute(query, upload_files=True)
 
             success = result["success"]
             assert success

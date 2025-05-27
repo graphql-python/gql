@@ -3,7 +3,7 @@ from typing import Any, Dict, Mapping
 
 import pytest
 
-from gql import Client, FileVar, GraphQLRequest, gql
+from gql import Client, FileVar, gql
 from gql.transport.exceptions import (
     TransportAlreadyConnected,
     TransportClosed,
@@ -470,7 +470,7 @@ async def test_httpx_cannot_execute_if_not_connected(aiohttp_server, run_sync_te
         query = gql(query1_str)
 
         with pytest.raises(TransportClosed):
-            transport.execute(GraphQLRequest(query))
+            transport.execute(query)
 
     await run_sync_test(server, test_code)
 

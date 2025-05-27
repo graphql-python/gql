@@ -2,7 +2,7 @@ from typing import Mapping
 
 import pytest
 
-from gql import Client, GraphQLRequest, gql
+from gql import Client, GraphQLRequest
 from gql.transport.exceptions import (
     TransportClosed,
     TransportProtocolError,
@@ -54,7 +54,7 @@ async def test_httpx_async_batch_query(aiohttp_server):
 
     async with Client(transport=transport) as session:
 
-        query = [GraphQLRequest(document=gql(query1_str))]
+        query = [GraphQLRequest(query1_str)]
 
         # Execute query asynchronously
         results = await session.execute_batch(query)
@@ -98,7 +98,7 @@ async def test_httpx_sync_batch_query(aiohttp_server, run_sync_test):
     def test_code():
         with Client(transport=transport) as session:
 
-            query = [GraphQLRequest(document=gql(query1_str))]
+            query = [GraphQLRequest(query1_str)]
 
             results = session.execute_batch(query)
 
@@ -143,7 +143,7 @@ async def test_httpx_async_batch_query_without_session(aiohttp_server, run_sync_
 
         client = Client(transport=transport)
 
-        query = [GraphQLRequest(document=gql(query1_str))]
+        query = [GraphQLRequest(query1_str)]
 
         results = client.execute_batch(query)
 
@@ -188,7 +188,7 @@ async def test_httpx_async_batch_error_code(aiohttp_server):
 
     async with Client(transport=transport) as session:
 
-        query = [GraphQLRequest(document=gql(query1_str))]
+        query = [GraphQLRequest(query1_str)]
 
         with pytest.raises(TransportQueryError):
             await session.execute_batch(query)
@@ -227,7 +227,7 @@ async def test_httpx_async_batch_invalid_protocol(aiohttp_server, response):
 
     async with Client(transport=transport) as session:
 
-        query = [GraphQLRequest(document=gql(query1_str))]
+        query = [GraphQLRequest(query1_str)]
 
         with pytest.raises(TransportProtocolError):
             await session.execute_batch(query)
@@ -255,7 +255,7 @@ async def test_httpx_async_batch_cannot_execute_if_not_connected(aiohttp_server)
 
     transport = HTTPXAsyncTransport(url=url, timeout=10)
 
-    query = [GraphQLRequest(document=gql(query1_str))]
+    query = [GraphQLRequest(query1_str)]
 
     with pytest.raises(TransportClosed):
         await transport.execute_batch(query)
@@ -283,7 +283,7 @@ async def test_httpx_sync_batch_cannot_execute_if_not_connected(aiohttp_server):
 
     transport = HTTPXTransport(url=url, timeout=10)
 
-    query = [GraphQLRequest(document=gql(query1_str))]
+    query = [GraphQLRequest(query1_str)]
 
     with pytest.raises(TransportClosed):
         transport.execute_batch(query)
@@ -316,7 +316,7 @@ async def test_httpx_async_batch_extra_args(aiohttp_server):
 
     async with Client(transport=transport) as session:
 
-        query = [GraphQLRequest(document=gql(query1_str))]
+        query = [GraphQLRequest(query1_str)]
 
         # Passing extra arguments to the post method
         results = await session.execute_batch(
@@ -364,7 +364,7 @@ async def test_httpx_async_batch_query_with_extensions(aiohttp_server):
 
     transport = HTTPXAsyncTransport(url=url)
 
-    query = [GraphQLRequest(document=gql(query1_str))]
+    query = [GraphQLRequest(query1_str)]
 
     async with Client(transport=transport) as session:
 
@@ -388,15 +388,13 @@ async def test_httpx_batch_online_async_manual():
         transport=HTTPXAsyncTransport(url=ONLINE_URL),
     )
 
-    query = gql(
-        """
+    query = """
         query getContinentName($continent_code: ID!) {
           continent(code: $continent_code) {
             name
           }
         }
-        """
-    )
+    """
 
     async with client as session:
 
@@ -419,15 +417,13 @@ async def test_httpx_batch_online_sync_manual():
         transport=HTTPXTransport(url=ONLINE_URL),
     )
 
-    query = gql(
-        """
+    query = """
         query getContinentName($continent_code: ID!) {
           continent(code: $continent_code) {
             name
           }
         }
-        """
-    )
+    """
 
     with client as session:
 

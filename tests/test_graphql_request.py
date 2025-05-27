@@ -18,7 +18,7 @@ from graphql.type import (
 )
 from graphql.utilities import value_from_ast_untyped
 
-from gql import GraphQLRequest, gql
+from gql import GraphQLRequest
 
 from .conftest import MS, strip_braces_spaces
 
@@ -188,12 +188,12 @@ schema = GraphQLSchema(
 
 
 def test_serialize_variables_using_money_example():
-    req = GraphQLRequest(document=gql("{balance}"))
+    req = GraphQLRequest("{balance}")
 
     money_value = Money(10, "DM")
 
     req = GraphQLRequest(
-        document=gql("query myquery($money: Money) {toEuros(money: $money)}"),
+        "query myquery($money: Money) {toEuros(money: $money)}",
         variable_values={"money": money_value},
     )
 

@@ -71,7 +71,7 @@ async def test_requests_query(aiohttp_server, run_sync_test):
 
         with Client(transport=transport) as session:
 
-            query = [GraphQLRequest(document=gql(query1_str))]
+            query = [GraphQLRequest(query1_str)]
 
             # Execute query synchronously
             results = session.execute_batch(query)
@@ -225,7 +225,7 @@ async def test_requests_cookies(aiohttp_server, run_sync_test):
 
         with Client(transport=transport) as session:
 
-            query = [GraphQLRequest(document=gql(query1_str))]
+            query = [GraphQLRequest(query1_str)]
 
             # Execute query synchronously
             results = session.execute_batch(query)
@@ -265,7 +265,7 @@ async def test_requests_error_code_401(aiohttp_server, run_sync_test):
 
         with Client(transport=transport) as session:
 
-            query = [GraphQLRequest(document=gql(query1_str))]
+            query = [GraphQLRequest(query1_str)]
 
             with pytest.raises(TransportServerError) as exc_info:
                 session.execute_batch(query)
@@ -353,7 +353,7 @@ async def test_requests_error_code_429(aiohttp_server, run_sync_test):
 
         with Client(transport=transport) as session:
 
-            query = [GraphQLRequest(document=gql(query1_str))]
+            query = [GraphQLRequest(query1_str)]
 
             with pytest.raises(TransportServerError) as exc_info:
                 session.execute_batch(query)
@@ -388,7 +388,7 @@ async def test_requests_error_code_500(aiohttp_server, run_sync_test):
 
         with Client(transport=transport) as session:
 
-            query = [GraphQLRequest(document=gql(query1_str))]
+            query = [GraphQLRequest(query1_str)]
 
             with pytest.raises(TransportServerError):
                 session.execute_batch(query)
@@ -422,7 +422,7 @@ async def test_requests_error_code(aiohttp_server, run_sync_test):
 
         with Client(transport=transport) as session:
 
-            query = [GraphQLRequest(document=gql(query1_str))]
+            query = [GraphQLRequest(query1_str)]
 
             with pytest.raises(TransportQueryError):
                 session.execute_batch(query)
@@ -464,7 +464,7 @@ async def test_requests_invalid_protocol(aiohttp_server, response, run_sync_test
 
         with Client(transport=transport) as session:
 
-            query = [GraphQLRequest(document=gql(query1_str))]
+            query = [GraphQLRequest(query1_str)]
 
             with pytest.raises(TransportProtocolError):
                 session.execute_batch(query)
@@ -493,7 +493,7 @@ async def test_requests_cannot_execute_if_not_connected(aiohttp_server, run_sync
     def test_code():
         transport = RequestsHTTPTransport(url=url)
 
-        query = [GraphQLRequest(document=gql(query1_str))]
+        query = [GraphQLRequest(query1_str)]
 
         with pytest.raises(TransportClosed):
             transport.execute_batch(query)
@@ -536,7 +536,7 @@ async def test_requests_query_with_extensions(aiohttp_server, run_sync_test):
 
         with Client(transport=transport) as session:
 
-            query = [GraphQLRequest(document=gql(query1_str))]
+            query = [GraphQLRequest(query1_str)]
 
             execution_results = session.execute_batch(query, get_execution_result=True)
 
@@ -626,15 +626,13 @@ def test_requests_sync_batch_auto_execute_future():
         batch_max=3,
     )
 
-    query = gql(
-        """
+    query = """
         query getContinentName($continent_code: ID!) {
           continent(code: $continent_code) {
             name
           }
         }
-        """
-    )
+    """
 
     with client as session:
 
@@ -661,15 +659,13 @@ def test_requests_sync_batch_manual():
         transport=RequestsHTTPTransport(url=ONLINE_URL),
     )
 
-    query = gql(
-        """
+    query = """
         query getContinentName($continent_code: ID!) {
           continent(code: $continent_code) {
             name
           }
         }
-        """
-    )
+    """
 
     with client as session:
 

@@ -65,10 +65,10 @@ def test_issue_447():
     client.validate(q)
 
     # Creating a tree from the DocumentNode created by dsl_gql
-    dsl_tree = node_tree(q)
+    dsl_tree = node_tree(q.document)
 
     # Creating a tree from the DocumentNode created by gql
-    gql_tree = node_tree(gql(print_ast(q)))
+    gql_tree = node_tree(gql(print_ast(q.document)).document)
 
     print("=======")
     print(dsl_tree)
