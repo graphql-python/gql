@@ -40,6 +40,7 @@ The complete documentation for GQL can be found at
 * Supports [sync or async usage](https://gql.readthedocs.io/en/latest/async/index.html), [allowing concurrent requests](https://gql.readthedocs.io/en/latest/advanced/async_advanced_usage.html#async-advanced-usage)
 * Supports [File uploads](https://gql.readthedocs.io/en/latest/usage/file_upload.html)
 * Supports [Custom scalars / Enums](https://gql.readthedocs.io/en/latest/usage/custom_scalars_and_enums.html)
+* Supports [Batching requests](https://gql.readthedocs.io/en/latest/advanced/batching_requests.html)
 * [gql-cli script](https://gql.readthedocs.io/en/latest/gql-cli/intro.html) to execute GraphQL queries or download schemas from the command line
 * [DSL module](https://gql.readthedocs.io/en/latest/advanced/dsl_module.html) to compose GraphQL queries dynamically
 
