@@ -35,12 +35,12 @@ class GraphQLContinentClient:
         await self._client.close_async()
 
     async def get_continent_name(self, code):
-        params = {"code": code}
+        self.get_continent_name_query.variable_values = {"code": code}
 
         assert self._session is not None
 
         answer = await self._session.execute(
-            self.get_continent_name_query, variable_values=params
+            self.get_continent_name_query
         )
 
         return answer.get("continent").get("name")  # type: ignore

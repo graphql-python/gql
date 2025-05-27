@@ -33,10 +33,10 @@ async def main():
         # Execute single query
         query = gql("mutation ($message: String!) {sendMessage(message: $message)}")
 
-        params = {"message": f"test {num}"}
+        query.variable_values = {"message": f"test {num}"}
 
         try:
-            result = await session.execute(query, variable_values=params)
+            result = await session.execute(query)
             print(result)
         except Exception as e:
             print(f"Received exception {e}")

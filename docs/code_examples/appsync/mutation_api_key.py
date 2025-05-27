@@ -46,9 +46,9 @@ mutation createMessage($message: String!) {
 }"""
         )
 
-        variable_values = {"message": "Hello world!"}
+        query.variable_values = {"message": "Hello world!"}
 
-        result = await session.execute(query, variable_values=variable_values)
+        result = await session.execute(query)
         print(result)
 
 
