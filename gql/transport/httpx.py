@@ -195,17 +195,32 @@ class _HTTPXTransport:
 
         answers = self._get_json_result(response)
 
-        return get_batch_execution_result_list(reqs, answers)
-
-    def _raise_response_error(self, response: httpx.Response, reason: str) -> NoReturn:
-        # We raise a TransportServerError if the status code is 400 or higher
-        # We raise a TransportProtocolError in the other cases
-
         try:
-            # Raise a HTTPError if response status is 400 or higher
+            return get_batch_execution_result_list(reqs, answers)
+        except TransportProtocolError:
+            # Raise a TransportServerError if status > 400
+            self._raise_transport_server_error_if_status_more_than_400(response)
+            # In other cases, raise a TransportProtocolError
+            raise
+
+    @staticmethod
+    def _raise_transport_server_error_if_status_more_than_400(
+        response: httpx.Response,
+    ) -> None:
+        # If the status is >400,
+        # then we need to raise a TransportServerError
+        try:
+            # Raise a HTTPStatusError if response status is 400 or higher
             response.raise_for_status()
         except httpx.HTTPStatusError as e:
             raise TransportServerError(str(e), e.response.status_code) from e
+
+    @classmethod
+    def _raise_response_error(cls, response: httpx.Response, reason: str) -> NoReturn:
+        # We raise a TransportServerError if the status code is 400 or higher
+        # We raise a TransportProtocolError in the other cases
+
+        cls._raise_transport_server_error_if_status_more_than_400(response)
 
         raise TransportProtocolError(
             f"Server did not return a GraphQL result: " f"{reason}: " f"{response.text}"

@@ -274,22 +274,35 @@ class AIOHTTPTransport(AsyncTransport):
 
         return post_args
 
-    async def raise_response_error(
-        self,
+    @staticmethod
+    def _raise_transport_server_error_if_status_more_than_400(
         resp: aiohttp.ClientResponse,
-        reason: str,
     ) -> None:
-        # We raise a TransportServerError if status code is 400 or higher
-        # We raise a TransportProtocolError in the other cases
-
+        # If the status is >400,
+        # then we need to raise a TransportServerError
         try:
             # Raise ClientResponseError if response status is 400 or higher
             resp.raise_for_status()
         except ClientResponseError as e:
             raise TransportServerError(str(e), e.status) from e
 
+    @classmethod
+    async def _raise_response_error(
+        cls,
+        resp: aiohttp.ClientResponse,
+        reason: str,
+    ) -> None:
+        # We raise a TransportServerError if status code is 400 or higher
+        # We raise a TransportProtocolError in the other cases
+
+        cls._raise_transport_server_error_if_status_more_than_400(resp)
+
         result_text = await resp.text()
-        self._raise_invalid_result(result_text, reason)
+        raise TransportProtocolError(
+            f"Server did not return a valid GraphQL result: "
+            f"{reason}: "
+            f"{result_text}"
+        )
 
     async def _get_json_result(self, response: aiohttp.ClientResponse) -> Any:
 
@@ -304,10 +317,10 @@ class AIOHTTPTransport(AsyncTransport):
                 log.debug("<<< %s", result_text)
 
         except Exception:
-            await self.raise_response_error(response, "Not a JSON answer")
+            await self._raise_response_error(response, "Not a JSON answer")
 
         if result is None:
-            await self.raise_response_error(response, "Not a JSON answer")
+            await self._raise_response_error(response, "Not a JSON answer")
 
         return result
 
@@ -318,7 +331,7 @@ class AIOHTTPTransport(AsyncTransport):
         result = await self._get_json_result(response)
 
         if "errors" not in result and "data" not in result:
-            await self.raise_response_error(
+            await self._raise_response_error(
                 response, 'No "data" or "errors" keys in answer'
             )
 
@@ -336,14 +349,13 @@ class AIOHTTPTransport(AsyncTransport):
 
         answers = await self._get_json_result(response)
 
-        return get_batch_execution_result_list(reqs, answers)
-
-    def _raise_invalid_result(self, result_text: str, reason: str) -> None:
-        raise TransportProtocolError(
-            f"Server did not return a valid GraphQL result: "
-            f"{reason}: "
-            f"{result_text}"
-        )
+        try:
+            return get_batch_execution_result_list(reqs, answers)
+        except TransportProtocolError:
+            # Raise a TransportServerError if status > 400
+            self._raise_transport_server_error_if_status_more_than_400(response)
+            # In other cases, raise a TransportProtocolError
+            raise
 
     async def execute(
         self,

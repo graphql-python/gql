@@ -258,24 +258,6 @@ class RequestsHTTPTransport(Transport):
 
         self.response_headers = response.headers
 
-        def raise_response_error(resp: requests.Response, reason: str) -> NoReturn:
-            # We raise a TransportServerError if the status code is 400 or higher
-            # We raise a TransportProtocolError in the other cases
-
-            try:
-                # Raise a HTTPError if response status is 400 or higher
-                resp.raise_for_status()
-            except requests.HTTPError as e:
-                status_code = e.response.status_code if e.response is not None else None
-                raise TransportServerError(str(e), status_code) from e
-
-            result_text = resp.text
-            raise TransportProtocolError(
-                f"Server did not return a GraphQL result: "
-                f"{reason}: "
-                f"{result_text}"
-            )
-
         try:
             if self.json_deserialize == json.loads:
                 result = response.json()
@@ -286,15 +268,40 @@ class RequestsHTTPTransport(Transport):
                 log.debug("<<< %s", response.text)
 
         except Exception:
-            raise_response_error(response, "Not a JSON answer")
+            self._raise_response_error(response, "Not a JSON answer")
 
         if "errors" not in result and "data" not in result:
-            raise_response_error(response, 'No "data" or "errors" keys in answer')
+            self._raise_response_error(response, 'No "data" or "errors" keys in answer')
 
         return ExecutionResult(
             errors=result.get("errors"),
             data=result.get("data"),
             extensions=result.get("extensions"),
+        )
+
+    @staticmethod
+    def _raise_transport_server_error_if_status_more_than_400(
+        response: requests.Response,
+    ) -> None:
+        # If the status is >400,
+        # then we need to raise a TransportServerError
+        try:
+            # Raise a HTTPError if response status is 400 or higher
+            response.raise_for_status()
+        except requests.HTTPError as e:
+            status_code = e.response.status_code if e.response is not None else None
+            raise TransportServerError(str(e), status_code) from e
+
+    @classmethod
+    def _raise_response_error(cls, resp: requests.Response, reason: str) -> NoReturn:
+        # We raise a TransportServerError if the status code is 400 or higher
+        # We raise a TransportProtocolError in the other cases
+
+        cls._raise_transport_server_error_if_status_more_than_400(resp)
+
+        result_text = resp.text
+        raise TransportProtocolError(
+            f"Server did not return a GraphQL result: " f"{reason}: " f"{result_text}"
         )
 
     def execute_batch(
@@ -330,30 +337,23 @@ class RequestsHTTPTransport(Transport):
 
         answers = self._extract_response(response)
 
-        return get_batch_execution_result_list(reqs, answers)
-
-    def _raise_invalid_result(self, result_text: str, reason: str) -> None:
-        raise TransportProtocolError(
-            f"Server did not return a valid GraphQL result: "
-            f"{reason}: "
-            f"{result_text}"
-        )
+        try:
+            return get_batch_execution_result_list(reqs, answers)
+        except TransportProtocolError:
+            # Raise a TransportServerError if status > 400
+            self._raise_transport_server_error_if_status_more_than_400(response)
+            # In other cases, raise a TransportProtocolError
+            raise
 
     def _extract_response(self, response: requests.Response) -> Any:
         try:
-            response.raise_for_status()
             result = response.json()
 
             if log.isEnabledFor(logging.DEBUG):
                 log.debug("<<< %s", response.text)
 
-        except requests.HTTPError as e:
-            raise TransportServerError(
-                str(e), e.response.status_code if e.response is not None else None
-            ) from e
-
         except Exception:
-            self._raise_invalid_result(str(response.text), "Not a JSON answer")
+            self._raise_response_error(response, "Not a JSON answer")
 
         return result
 

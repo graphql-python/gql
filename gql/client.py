@@ -829,14 +829,10 @@ class Client:
 
         if reconnecting:
             self.session = ReconnectingAsyncClientSession(client=self, **kwargs)
-            await self.session.start_connecting_task()
         else:
-            try:
-                await self.transport.connect()
-            except Exception as e:
-                await self.transport.close()
-                raise e
             self.session = AsyncClientSession(client=self)
+
+        await self.session.connect()
 
         # Get schema from transport if needed
         try:
@@ -846,7 +842,7 @@ class Client:
             # we don't know what type of exception is thrown here because it
             # depends on the underlying transport; we just make sure that the
             # transport is closed and re-raise the exception
-            await self.transport.close()
+            await self.session.close()
             raise
 
         return self.session
@@ -854,10 +850,7 @@ class Client:
     async def close_async(self):
         """Close the async transport and stop the optional reconnecting task."""
 
-        if isinstance(self.session, ReconnectingAsyncClientSession):
-            await self.session.stop_connecting_task()
-
-        await self.transport.close()
+        await self.session.close()
 
     async def __aenter__(self):
         return await self.connect_async()
@@ -1564,12 +1557,17 @@ class AsyncClientSession:
                 ):
                     request = request.serialize_variable_values(self.client.schema)
 
-        # Execute the query with the transport with a timeout
-        with fail_after(self.client.execute_timeout):
-            result = await self.transport.execute(
-                request,
-                **kwargs,
-            )
+        # Check if batching is enabled
+        if self.client.batching_enabled:
+            future_result = await self._execute_future(request)
+            result = await future_result
+        else:
+            # Execute the query with the transport with a timeout
+            with fail_after(self.client.execute_timeout):
+                result = await self.transport.execute(
+                    request,
+                    **kwargs,
+                )
 
         # Unserialize the result if requested
         if self.client.schema:
@@ -1828,6 +1826,134 @@ class AsyncClientSession:
 
         return cast(List[Dict[str, Any]], [result.data for result in results])
 
+    async def _batch_loop(self) -> None:
+        """Main loop of the task used to wait for requests
+        to execute them in a batch"""
+
+        stop_loop = False
+
+        while not stop_loop:
+            # First wait for a first request in from the batch queue
+            requests_and_futures: List[Tuple[GraphQLRequest, asyncio.Future]] = []
+
+            # Wait for the first request
+            request_and_future: Optional[Tuple[GraphQLRequest, asyncio.Future]] = (
+                await self.batch_queue.get()
+            )
+
+            if request_and_future is None:
+                # None is our sentinel value to stop the loop
+                break
+
+            requests_and_futures.append(request_and_future)
+
+            # Then wait the requested batch interval except if we already
+            # have the maximum number of requests in the queue
+            if self.batch_queue.qsize() < self.client.batch_max - 1:
+                # Wait for the batch interval
+                await asyncio.sleep(self.client.batch_interval)
+
+            # Then get the requests which had been made during that wait interval
+            for _ in range(self.client.batch_max - 1):
+                try:
+                    # Use get_nowait since we don't want to wait here
+                    request_and_future = self.batch_queue.get_nowait()
+
+                    if request_and_future is None:
+                        # Sentinel value - stop after processing current batch
+                        stop_loop = True
+                        break
+
+                    requests_and_futures.append(request_and_future)
+
+                except asyncio.QueueEmpty:
+                    # No more requests in queue, that's fine
+                    break
+
+            # Extract requests and futures
+            requests = [request for request, _ in requests_and_futures]
+            futures = [future for _, future in requests_and_futures]
+
+            # Execute the batch
+            try:
+                results: List[ExecutionResult] = await self._execute_batch(
+                    requests,
+                    serialize_variables=False,  # already done
+                    parse_result=False,  # will be done later
+                    validate_document=False,  # already validated
+                )
+
+                # Set the result for each future
+                for result, future in zip(results, futures):
+                    if not future.cancelled():
+                        future.set_result(result)
+
+            except Exception as exc:
+                # If batch execution fails, propagate the error to all futures
+                for future in futures:
+                    if not future.cancelled():
+                        future.set_exception(exc)
+
+        # Signal that the task has stopped
+        self._batch_task_stopped_event.set()
+
+    async def _execute_future(
+        self,
+        request: GraphQLRequest,
+    ) -> asyncio.Future:
+        """If batching is enabled, this method will put a request in the batching queue
+        instead of executing it directly so that the requests could be put in a batch.
+        """
+
+        assert hasattr(self, "batch_queue"), "Batching is not enabled"
+        assert not self._batch_task_stop_requested, "Batching task has been stopped"
+
+        future: asyncio.Future = asyncio.Future()
+        await self.batch_queue.put((request, future))
+
+        return future
+
+    async def _batch_init(self):
+        """Initialize the batch task loop if batching is enabled."""
+        if self.client.batching_enabled:
+            self.batch_queue: asyncio.Queue = asyncio.Queue()
+            self._batch_task_stop_requested = False
+            self._batch_task_stopped_event = asyncio.Event()
+            self._batch_task = asyncio.create_task(self._batch_loop())
+
+    async def _batch_cleanup(self):
+        """Cleanup the batching task if batching is enabled."""
+        if hasattr(self, "_batch_task_stopped_event"):
+            # Send a None in the queue to indicate that the batching task must stop
+            # after having processed the remaining requests in the queue
+            self._batch_task_stop_requested = True
+            await self.batch_queue.put(None)
+
+            # Wait for the task to process remaining requests and stop
+            await self._batch_task_stopped_event.wait()
+
+    async def connect(self):
+        """Connect the transport and initialize the batch task loop if batching
+        is enabled."""
+
+        await self._batch_init()
+
+        try:
+            await self.transport.connect()
+        except Exception as e:
+            await self.transport.close()
+            raise e
+
+    async def close(self):
+        """Close the transport and cleanup the batching task if batching is enabled.
+
+        Will wait until all the remaining requests in the batch processing queue
+        have been executed.
+        """
+        await self._batch_cleanup()
+
+        await self.transport.close()
+
     async def fetch_schema(self) -> None:
         """Fetch the GraphQL schema explicitly using introspection.
 
@@ -1953,6 +2079,23 @@ class ReconnectingAsyncClientSession(AsyncClientSession):
         if self._connect_task is not None:
             self._connect_task.cancel()
             self._connect_task = None
+
+    async def connect(self):
+        """Start the connect task and initialize the batch task loop if batching
+        is enabled."""
+
+        await self._batch_init()
+
+        await self.start_connecting_task()
+
+    async def close(self):
+        """Stop the connect task and cleanup the batching task
+        if batching is enabled."""
+        await self._batch_cleanup()
+
+        await self.stop_connecting_task()
+
+        await self.transport.close()
 
     async def _execute_once(
         self,
