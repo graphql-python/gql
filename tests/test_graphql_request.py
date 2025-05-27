@@ -20,7 +20,7 @@ from graphql.utilities import value_from_ast_untyped
 
 from gql import GraphQLRequest, gql
 
-from .conftest import MS
+from .conftest import MS, strip_braces_spaces
 
 # Marking all tests in this file with the aiohttp marker
 pytestmark = pytest.mark.aiohttp
@@ -200,3 +200,13 @@ def test_serialize_variables_using_money_example():
     req = req.serialize_variable_values(schema)
 
     assert req.variable_values == {"money": {"amount": 10, "currency": "DM"}}
+
+
+def test_graphql_request_using_string_instead_of_document():
+    request = GraphQLRequest("{balance}")
+
+    expected_payload = "{'query': '{\\n  balance\\n}'}"
+
+    print(request)
+
+    assert str(request) == strip_braces_spaces(expected_payload)

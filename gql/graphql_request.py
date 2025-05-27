@@ -1,26 +1,38 @@
-from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
 from graphql import DocumentNode, GraphQLSchema, print_ast
 
+from .gql import gql
 from .utilities import serialize_variable_values
 
 
-@dataclass(frozen=True)
 class GraphQLRequest:
     """GraphQL Request to be executed."""
 
-    document: DocumentNode
-    """GraphQL query as AST Node object."""
+    def __init__(
+        self,
+        document: Union[DocumentNode, str],
+        *,
+        variable_values: Optional[Dict[str, Any]] = None,
+        operation_name: Optional[str] = None,
+    ):
+        """
+        Initialize a GraphQL request.
 
-    variable_values: Optional[Dict[str, Any]] = None
-    """Dictionary of input parameters (Default: None)."""
+        Args:
+            document: GraphQL query as AST Node object or as a string.
+                     If string, it will be converted to DocumentNode using gql().
+            variable_values: Dictionary of input parameters (Default: None).
+            operation_name: Name of the operation that shall be executed.
+                          Only required in multi-operation documents (Default: None).
+        """
+        if isinstance(document, str):
+            self.document = gql(document)
+        else:
+            self.document = document
 
-    operation_name: Optional[str] = None
-    """
-    Name of the operation that shall be executed.
-    Only required in multi-operation documents (Default: None).
-    """
+        self.variable_values = variable_values
+        self.operation_name = operation_name
 
     def serialize_variable_values(self, schema: GraphQLSchema) -> "GraphQLRequest":
         assert self.variable_values
@@ -48,3 +60,6 @@ class GraphQLRequest:
             payload["variables"] = self.variable_values
 
         return payload
+
+    def __str__(self):
+        return str(self.payload)
