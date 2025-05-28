@@ -1824,3 +1824,108 @@ async def test_aiohttp_connector_owner_false(aiohttp_server):
             assert africa["code"] == "AF"
 
     await connector.close()
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_deprecation_warning_using_document_node_execute(aiohttp_server):
+    from aiohttp import web
+
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    async def handler(request):
+        return web.Response(
+            text=query1_server_answer,
+            content_type="application/json",
+        )
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    transport = AIOHTTPTransport(url=url, timeout=10)
+
+    async with Client(transport=transport) as session:
+
+        query = gql(query1_str)
+
+        with pytest.warns(
+            DeprecationWarning,
+            match="Using a DocumentNode is deprecated",
+        ):
+            result = await session.execute(query.document)
+
+        continents = result["continents"]
+
+        africa = continents[0]
+
+        assert africa["code"] == "AF"
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_deprecation_warning_execute_variable_values(aiohttp_server):
+    from aiohttp import web
+
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    async def handler(request):
+        return web.Response(text=query2_server_answer, content_type="application/json")
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    transport = AIOHTTPTransport(url=url, timeout=10)
+
+    async with Client(transport=transport) as session:
+
+        params = {"code": "EU"}
+
+        query = gql(query2_str)
+
+        with pytest.warns(
+            DeprecationWarning,
+            match=(
+                "Using variable_values and operation_name arguments of "
+                "execute and subscribe methods is deprecated"
+            ),
+        ):
+            result = await session.execute(
+                query, variable_values=params, operation_name="getEurope"
+            )
+
+        continent = result["continent"]
+
+        assert continent["name"] == "Europe"
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_type_error_execute(aiohttp_server):
+    from aiohttp import web
+
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    async def handler(request):
+        return web.Response(text=query2_server_answer, content_type="application/json")
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    transport = AIOHTTPTransport(url=url, timeout=10)
+
+    async with Client(transport=transport) as session:
+
+        params = {"code": "EU"}
+
+        query = gql(query2_str)
+
+        with pytest.raises(TypeError) as exc_info:
+            await session.execute("qmlsdkfj")
+
+        assert "request should be a GraphQLRequest object" in str(exc_info.value)

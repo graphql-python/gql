@@ -41,19 +41,13 @@ class GraphQLRequest:
 
         if isinstance(request, GraphQLRequest):
             self.document = request.document
-            self.variable_values: Optional[Dict[str, Any]] = (
-                request.variable_values
-                if request.variable_values is not None
-                else variable_values
-            )
-            self.operation_name: Optional[str] = (
-                request.operation_name
-                if request.operation_name is not None
-                else operation_name
-            )
-        else:
-            self.variable_values = variable_values
-            self.operation_name = operation_name
+            if variable_values is None:
+                variable_values = request.variable_values
+            if operation_name is None:
+                operation_name = request.operation_name
+
+        self.variable_values: Optional[Dict[str, Any]] = variable_values
+        self.operation_name: Optional[str] = operation_name
 
     def serialize_variable_values(self, schema: GraphQLSchema) -> "GraphQLRequest":
 
