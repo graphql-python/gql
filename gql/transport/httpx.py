@@ -23,6 +23,7 @@ from .common.batch import get_batch_execution_result_list
 from .exceptions import (
     TransportAlreadyConnected,
     TransportClosed,
+    TransportConnectionFailed,
     TransportProtocolError,
     TransportServerError,
 )
@@ -262,6 +263,8 @@ class HTTPXTransport(Transport, _HTTPXTransport):
 
         try:
             response = self.client.post(self.url, **post_args)
+        except Exception as e:
+            raise TransportConnectionFailed(str(e)) from e
         finally:
             if upload_files:
                 close_files(list(self.files.values()))
@@ -294,7 +297,10 @@ class HTTPXTransport(Transport, _HTTPXTransport):
             extra_args=extra_args,
         )
 
-        response = self.client.post(self.url, **post_args)
+        try:
+            response = self.client.post(self.url, **post_args)
+        except Exception as e:
+            raise TransportConnectionFailed(str(e)) from e
 
         return self._prepare_batch_result(reqs, response)
 
@@ -354,6 +360,8 @@ class HTTPXAsyncTransport(AsyncTransport, _HTTPXTransport):
 
         try:
             response = await self.client.post(self.url, **post_args)
+        except Exception as e:
+            raise TransportConnectionFailed(str(e)) from e
         finally:
             if upload_files:
                 close_files(list(self.files.values()))
@@ -386,7 +394,10 @@ class HTTPXAsyncTransport(AsyncTransport, _HTTPXTransport):
             extra_args=extra_args,
         )
 
-        response = await self.client.post(self.url, **post_args)
+        try:
+            response = await self.client.post(self.url, **post_args)
+        except Exception as e:
+            raise TransportConnectionFailed(str(e)) from e
 
         return self._prepare_batch_result(reqs, response)
 
