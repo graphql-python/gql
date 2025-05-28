@@ -31,6 +31,8 @@ from .common.batch import get_batch_execution_result_list
 from .exceptions import (
     TransportAlreadyConnected,
     TransportClosed,
+    TransportConnectionFailed,
+    TransportError,
     TransportProtocolError,
     TransportServerError,
 )
@@ -377,6 +379,10 @@ class AIOHTTPTransport(AsyncTransport):
         try:
             async with self.session.post(self.url, ssl=self.ssl, **post_args) as resp:
                 return await self._prepare_result(resp)
+        except TransportError:
+            raise
+        except Exception as e:
+            raise TransportConnectionFailed(str(e)) from e
         finally:
             if upload_files:
                 close_files(list(self.files.values()))
@@ -407,8 +413,13 @@ class AIOHTTPTransport(AsyncTransport):
             extra_args,
         )
 
-        async with self.session.post(self.url, ssl=self.ssl, **post_args) as resp:
-            return await self._prepare_batch_result(reqs, resp)
+        try:
+            async with self.session.post(self.url, ssl=self.ssl, **post_args) as resp:
+                return await self._prepare_batch_result(reqs, resp)
+        except TransportError:
+            raise
+        except Exception as e:
+            raise TransportConnectionFailed(str(e)) from e
 
     def subscribe(
         self,

@@ -62,9 +62,10 @@ class TransportClosed(TransportError):
 
 
 class TransportConnectionFailed(TransportError):
-    """Transport adapter connection closed.
+    """Transport connection failed.
 
-    This exception is by the connection adapter code when a connection closed.
+    This exception is by the connection adapter code when a connection closed
+    or if an unexpected Exception was received when trying to send a request.
     """
 
 

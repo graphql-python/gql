@@ -11,6 +11,7 @@ from gql.cli import get_parser, main
 from gql.transport.exceptions import (
     TransportAlreadyConnected,
     TransportClosed,
+    TransportConnectionFailed,
     TransportProtocolError,
     TransportQueryError,
     TransportServerError,
@@ -1455,7 +1456,6 @@ async def test_aiohttp_query_https(ssl_aiohttp_server, ssl_close_timeout, verify
 async def test_aiohttp_query_https_self_cert_fail(ssl_aiohttp_server):
     """By default, we should verify the ssl certificate"""
     from aiohttp import web
-    from aiohttp.client_exceptions import ClientConnectorCertificateError
 
     from gql.transport.aiohttp import AIOHTTPTransport
 
@@ -1472,16 +1472,22 @@ async def test_aiohttp_query_https_self_cert_fail(ssl_aiohttp_server):
 
     transport = AIOHTTPTransport(url=url, timeout=10)
 
-    with pytest.raises(ClientConnectorCertificateError) as exc_info:
-        async with Client(transport=transport) as session:
-            query = gql(query1_str)
-
-            # Execute query asynchronously
-            await session.execute(query)
+    query = gql(query1_str)
 
     expected_error = "certificate verify failed: self-signed certificate"
 
+    with pytest.raises(TransportConnectionFailed) as exc_info:
+        async with Client(transport=transport) as session:
+            await session.execute(query)
+
     assert expected_error in str(exc_info.value)
+
+    with pytest.raises(TransportConnectionFailed) as exc_info:
+        async with Client(transport=transport) as session:
+            await session.execute_batch([query])
+
+    assert expected_error in str(exc_info.value)
+
     assert transport.session is None
 
 

@@ -7,6 +7,7 @@ from gql import Client, FileVar, gql
 from gql.transport.exceptions import (
     TransportAlreadyConnected,
     TransportClosed,
+    TransportConnectionFailed,
     TransportProtocolError,
     TransportQueryError,
     TransportServerError,
@@ -150,7 +151,6 @@ async def test_httpx_query_https_self_cert_fail(
 ):
     """By default, we should verify the ssl certificate"""
     from aiohttp import web
-    from httpx import ConnectError
 
     from gql.transport.httpx import HTTPXTransport
 
@@ -180,15 +180,19 @@ async def test_httpx_query_https_self_cert_fail(
             **extra_args,
         )
 
-        with pytest.raises(ConnectError) as exc_info:
-            with Client(transport=transport) as session:
-
-                query = gql(query1_str)
-
-                # Execute query synchronously
-                session.execute(query)
+        query = gql(query1_str)
 
         expected_error = "certificate verify failed: self-signed certificate"
+
+        with pytest.raises(TransportConnectionFailed) as exc_info:
+            with Client(transport=transport) as session:
+                session.execute(query)
+
+        assert expected_error in str(exc_info.value)
+
+        with pytest.raises(TransportConnectionFailed) as exc_info:
+            with Client(transport=transport) as session:
+                session.execute_batch([query])
 
         assert expected_error in str(exc_info.value)
 

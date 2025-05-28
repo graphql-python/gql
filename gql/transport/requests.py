@@ -29,6 +29,7 @@ from .common.batch import get_batch_execution_result_list
 from .exceptions import (
     TransportAlreadyConnected,
     TransportClosed,
+    TransportConnectionFailed,
     TransportProtocolError,
     TransportServerError,
 )
@@ -289,6 +290,8 @@ class RequestsHTTPTransport(Transport):
         # Using the created session to perform requests
         try:
             response = self.session.request(self.method, self.url, **post_args)
+        except Exception as e:
+            raise TransportConnectionFailed(str(e)) from e
         finally:
             if upload_files:
                 close_files(list(self.files.values()))
@@ -349,11 +352,14 @@ class RequestsHTTPTransport(Transport):
             extra_args=extra_args,
         )
 
-        response = self.session.request(
-            self.method,
-            self.url,
-            **post_args,
-        )
+        try:
+            response = self.session.request(
+                self.method,
+                self.url,
+                **post_args,
+            )
+        except Exception as e:
+            raise TransportConnectionFailed(str(e)) from e
 
         return self._prepare_batch_result(reqs, response)
 
