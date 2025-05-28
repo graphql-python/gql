@@ -137,6 +137,151 @@ class RequestsHTTPTransport(Transport):
         else:
             raise TransportAlreadyConnected("Transport is already connected")
 
+    def _prepare_batch_request(
+        self,
+        reqs: List[GraphQLRequest],
+        *,
+        timeout: Optional[int] = None,
+        extra_args: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+
+        payload = [req.payload for req in reqs]
+
+        post_args: Dict[str, Any] = {
+            "headers": self.headers,
+            "auth": self.auth,
+            "cookies": self.cookies,
+            "timeout": timeout or self.default_timeout,
+            "verify": self.verify,
+        }
+
+        data_key = "json" if self.use_json else "data"
+        post_args[data_key] = payload
+
+        # Log the payload
+        if log.isEnabledFor(logging.DEBUG):
+            log.debug(">>> %s", self.json_serialize(payload))
+
+        # Pass kwargs to requests post method
+        post_args.update(self.kwargs)
+
+        # Pass post_args to requests post method
+        if extra_args:
+            post_args.update(extra_args)
+
+        return post_args
+
+    def _prepare_request(
+        self,
+        request: GraphQLRequest,
+        *,
+        timeout: Optional[int] = None,
+        extra_args: Optional[Dict[str, Any]] = None,
+        upload_files: bool = False,
+    ) -> Dict[str, Any]:
+
+        payload = request.payload
+
+        post_args: Dict[str, Any] = {
+            "headers": self.headers,
+            "auth": self.auth,
+            "cookies": self.cookies,
+            "timeout": timeout or self.default_timeout,
+            "verify": self.verify,
+        }
+
+        if upload_files:
+            post_args = self._prepare_file_uploads(
+                request=request,
+                payload=payload,
+                post_args=post_args,
+            )
+
+        else:
+            data_key = "json" if self.use_json else "data"
+            post_args[data_key] = payload
+
+        # Log the payload
+        if log.isEnabledFor(logging.DEBUG):
+            log.debug(">>> %s", self.json_serialize(payload))
+
+        # Pass kwargs to requests post method
+        post_args.update(self.kwargs)
+
+        # Pass post_args to requests post method
+        if extra_args:
+            post_args.update(extra_args)
+
+        return post_args
+
+    def _prepare_file_uploads(
+        self,
+        request: GraphQLRequest,
+        *,
+        payload: Dict[str, Any],
+        post_args: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        # If the upload_files flag is set, then we need variable_values
+        assert request.variable_values is not None
+
+        # If we upload files, we will extract the files present in the
+        # variable_values dict and replace them by null values
+        nulled_variable_values, files = extract_files(
+            variables=request.variable_values,
+            file_classes=self.file_classes,
+        )
+
+        # Opening the files using the FileVar parameters
+        open_files(list(files.values()))
+        self.files = files
+
+        # Save the nulled variable values in the payload
+        payload["variables"] = nulled_variable_values
+
+        # Add the payload to the operations field
+        operations_str = self.json_serialize(payload)
+        log.debug("operations %s", operations_str)
+
+        # Generate the file map
+        # path is nested in a list because the spec allows multiple pointers
+        # to the same file. But we don't support that.
+        # Will generate something like {"0": ["variables.file"]}
+        file_map = {str(i): [path] for i, path in enumerate(files)}
+
+        # Enumerate the file streams
+        # Will generate something like {'0': FileVar object}
+        file_vars = {str(i): files[path] for i, path in enumerate(files)}
+
+        # Add the file map field
+        file_map_str = self.json_serialize(file_map)
+        log.debug("file_map %s", file_map_str)
+
+        fields = {"operations": operations_str, "map": file_map_str}
+
+        # Add the extracted files as remaining fields
+        for k, file_var in file_vars.items():
+            assert isinstance(file_var, FileVar)
+            name = k if file_var.filename is None else file_var.filename
+
+            if file_var.content_type is None:
+                fields[k] = (name, file_var.f)
+            else:
+                fields[k] = (name, file_var.f, file_var.content_type)
+
+        # Prepare requests http to send multipart-encoded data
+        data = MultipartEncoder(fields=fields)
+
+        post_args["data"] = data
+
+        if post_args["headers"] is None:
+            post_args["headers"] = {}
+        else:
+            post_args["headers"] = dict(post_args["headers"])
+
+        post_args["headers"]["Content-Type"] = data.content_type
+
+        return post_args
+
     def execute(  # type: ignore
         self,
         request: GraphQLRequest,
@@ -162,90 +307,12 @@ class RequestsHTTPTransport(Transport):
         if not self.session:
             raise TransportClosed("Transport is not connected")
 
-        payload = request.payload
-
-        post_args: Dict[str, Any] = {
-            "headers": self.headers,
-            "auth": self.auth,
-            "cookies": self.cookies,
-            "timeout": timeout or self.default_timeout,
-            "verify": self.verify,
-        }
-
-        if upload_files:
-            # If the upload_files flag is set, then we need variable_values
-            assert request.variable_values is not None
-
-            # If we upload files, we will extract the files present in the
-            # variable_values dict and replace them by null values
-            nulled_variable_values, files = extract_files(
-                variables=request.variable_values,
-                file_classes=self.file_classes,
-            )
-
-            # Opening the files using the FileVar parameters
-            open_files(list(files.values()))
-            self.files = files
-
-            # Save the nulled variable values in the payload
-            payload["variables"] = nulled_variable_values
-
-            # Add the payload to the operations field
-            operations_str = self.json_serialize(payload)
-            log.debug("operations %s", operations_str)
-
-            # Generate the file map
-            # path is nested in a list because the spec allows multiple pointers
-            # to the same file. But we don't support that.
-            # Will generate something like {"0": ["variables.file"]}
-            file_map = {str(i): [path] for i, path in enumerate(files)}
-
-            # Enumerate the file streams
-            # Will generate something like {'0': FileVar object}
-            file_vars = {str(i): files[path] for i, path in enumerate(files)}
-
-            # Add the file map field
-            file_map_str = self.json_serialize(file_map)
-            log.debug("file_map %s", file_map_str)
-
-            fields = {"operations": operations_str, "map": file_map_str}
-
-            # Add the extracted files as remaining fields
-            for k, file_var in file_vars.items():
-                assert isinstance(file_var, FileVar)
-                name = k if file_var.filename is None else file_var.filename
-
-                if file_var.content_type is None:
-                    fields[k] = (name, file_var.f)
-                else:
-                    fields[k] = (name, file_var.f, file_var.content_type)
-
-            # Prepare requests http to send multipart-encoded data
-            data = MultipartEncoder(fields=fields)
-
-            post_args["data"] = data
-
-            if post_args["headers"] is None:
-                post_args["headers"] = {}
-            else:
-                post_args["headers"] = dict(post_args["headers"])
-
-            post_args["headers"]["Content-Type"] = data.content_type
-
-        else:
-            data_key = "json" if self.use_json else "data"
-            post_args[data_key] = payload
-
-        # Log the payload
-        if log.isEnabledFor(logging.DEBUG):
-            log.debug(">>> %s", self.json_serialize(payload))
-
-        # Pass kwargs to requests post method
-        post_args.update(self.kwargs)
-
-        # Pass post_args to requests post method
-        if extra_args:
-            post_args.update(extra_args)
+        post_args = self._prepare_request(
+            request,
+            timeout=timeout,
+            extra_args=extra_args,
+            upload_files=upload_files,
+        )
 
         # Using the created session to perform requests
         try:
@@ -256,28 +323,7 @@ class RequestsHTTPTransport(Transport):
             if upload_files:
                 close_files(list(self.files.values()))
 
-        self.response_headers = response.headers
-
-        try:
-            if self.json_deserialize == json.loads:
-                result = response.json()
-            else:
-                result = self.json_deserialize(response.text)
-
-            if log.isEnabledFor(logging.DEBUG):
-                log.debug("<<< %s", response.text)
-
-        except Exception:
-            self._raise_response_error(response, "Not a JSON answer")
-
-        if "errors" not in result and "data" not in result:
-            self._raise_response_error(response, 'No "data" or "errors" keys in answer')
-
-        return ExecutionResult(
-            errors=result.get("errors"),
-            data=result.get("data"),
-            extensions=result.get("extensions"),
-        )
+        return self._prepare_result(response)
 
     @staticmethod
     def _raise_transport_server_error_if_status_more_than_400(
@@ -327,27 +373,27 @@ class RequestsHTTPTransport(Transport):
         if not self.session:
             raise TransportClosed("Transport is not connected")
 
-        # Using the created session to perform requests
+        post_args = self._prepare_batch_request(
+            reqs,
+            timeout=timeout,
+            extra_args=extra_args,
+        )
+
         response = self.session.request(
             self.method,
             self.url,
-            **self._build_batch_post_args(reqs, timeout, extra_args),
+            **post_args,
         )
+
+        return self._prepare_batch_result(reqs, response)
+
+    def _get_json_result(self, response: requests.Response) -> Any:
+
+        # Saving latest response headers in the transport
         self.response_headers = response.headers
 
-        answers = self._extract_response(response)
-
         try:
-            return get_batch_execution_result_list(reqs, answers)
-        except TransportProtocolError:
-            # Raise a TransportServerError if status > 400
-            self._raise_transport_server_error_if_status_more_than_400(response)
-            # In other cases, raise a TransportProtocolError
-            raise
-
-    def _extract_response(self, response: requests.Response) -> Any:
-        try:
-            result = response.json()
+            result = self.json_deserialize(response.text)
 
             if log.isEnabledFor(logging.DEBUG):
                 log.debug("<<< %s", response.text)
@@ -357,35 +403,34 @@ class RequestsHTTPTransport(Transport):
 
         return result
 
-    def _build_batch_post_args(
+    def _prepare_result(self, response: requests.Response) -> ExecutionResult:
+
+        result = self._get_json_result(response)
+
+        if "errors" not in result and "data" not in result:
+            self._raise_response_error(response, 'No "data" or "errors" keys in answer')
+
+        return ExecutionResult(
+            errors=result.get("errors"),
+            data=result.get("data"),
+            extensions=result.get("extensions"),
+        )
+
+    def _prepare_batch_result(
         self,
         reqs: List[GraphQLRequest],
-        timeout: Optional[int] = None,
-        extra_args: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
-        post_args: Dict[str, Any] = {
-            "headers": self.headers,
-            "auth": self.auth,
-            "cookies": self.cookies,
-            "timeout": timeout or self.default_timeout,
-            "verify": self.verify,
-        }
+        response: requests.Response,
+    ) -> List[ExecutionResult]:
 
-        data_key = "json" if self.use_json else "data"
-        post_args[data_key] = [req.payload for req in reqs]
+        answers = self._get_json_result(response)
 
-        # Log the payload
-        if log.isEnabledFor(logging.DEBUG):
-            log.debug(">>> %s", self.json_serialize(post_args[data_key]))
-
-        # Pass kwargs to requests post method
-        post_args.update(self.kwargs)
-
-        # Pass post_args to requests post method
-        if extra_args:
-            post_args.update(extra_args)
-
-        return post_args
+        try:
+            return get_batch_execution_result_list(reqs, answers)
+        except TransportProtocolError:
+            # Raise a TransportServerError if status > 400
+            self._raise_transport_server_error_if_status_more_than_400(response)
+            # In other cases, raise a TransportProtocolError
+            raise
 
     def close(self):
         """Closing the transport by closing the inner session"""

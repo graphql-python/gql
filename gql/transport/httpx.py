@@ -95,7 +95,7 @@ class _HTTPXTransport:
         if log.isEnabledFor(logging.DEBUG):
             log.debug(">>> %s", self.json_serialize(payload))
 
-        # Pass post_args to aiohttp post method
+        # Pass post_args to httpx post method
         if extra_args:
             post_args.update(extra_args)
 
@@ -292,7 +292,7 @@ class HTTPXTransport(Transport, _HTTPXTransport):
         :code:`execute_batch` on a client or a session.
 
         :param reqs: GraphQL requests as a list of GraphQLRequest objects.
-        :param extra_args: additional arguments to send to the aiohttp post method
+        :param extra_args: additional arguments to send to the httpx post method
         :return: A list of results of execution.
             For every result `data` is the result of executing the query,
             `errors` is null if no errors occurred, and is a non-empty array
@@ -384,7 +384,7 @@ class HTTPXAsyncTransport(AsyncTransport, _HTTPXTransport):
         :code:`execute_batch` on a client or a session.
 
         :param reqs: GraphQL requests as a list of GraphQLRequest objects.
-        :param extra_args: additional arguments to send to the aiohttp post method
+        :param extra_args: additional arguments to send to the httpx post method
         :return: A list of results of execution.
             For every result `data` is the result of executing the query,
             `errors` is null if no errors occurred, and is a non-empty array

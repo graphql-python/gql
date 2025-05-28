@@ -176,7 +176,7 @@ class AIOHTTPTransport(AsyncTransport):
 
         # Log the payload
         if log.isEnabledFor(logging.DEBUG):
-            log.debug(">>> %s", self.json_serialize(post_args["json"]))
+            log.debug(">>> %s", self.json_serialize(payload))
 
         # Pass post_args to aiohttp post method
         if extra_args:
@@ -379,14 +379,14 @@ class AIOHTTPTransport(AsyncTransport):
         :returns: an ExecutionResult object.
         """
 
+        if self.session is None:
+            raise TransportClosed("Transport is not connected")
+
         post_args = self._prepare_request(
             request,
             extra_args,
             upload_files,
         )
-
-        if self.session is None:
-            raise TransportClosed("Transport is not connected")
 
         try:
             async with self.session.post(self.url, ssl=self.ssl, **post_args) as resp:
@@ -413,13 +413,13 @@ class AIOHTTPTransport(AsyncTransport):
             if an error occurred.
         """
 
+        if self.session is None:
+            raise TransportClosed("Transport is not connected")
+
         post_args = self._prepare_batch_request(
             reqs,
             extra_args,
         )
-
-        if self.session is None:
-            raise TransportClosed("Transport is not connected")
 
         async with self.session.post(self.url, ssl=self.ssl, **post_args) as resp:
             return await self._prepare_batch_result(reqs, resp)
