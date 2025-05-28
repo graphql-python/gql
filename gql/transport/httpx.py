@@ -59,15 +59,22 @@ class _HTTPXTransport:
 
     def _prepare_request(
         self,
-        req: GraphQLRequest,
+        request: Union[GraphQLRequest, List[GraphQLRequest]],
+        *,
         extra_args: Optional[Dict[str, Any]] = None,
         upload_files: bool = False,
     ) -> Dict[str, Any]:
 
-        payload = req.payload
+        payload: Dict | List
+        if isinstance(request, GraphQLRequest):
+            payload = request.payload
+        else:
+            payload = [req.payload for req in request]
 
         if upload_files:
-            post_args = self._prepare_file_uploads(req, payload)
+            assert isinstance(payload, Dict)
+            assert isinstance(request, GraphQLRequest)
+            post_args = self._prepare_file_uploads(request, payload)
         else:
             post_args = {"json": payload}
 
@@ -76,26 +83,6 @@ class _HTTPXTransport:
             log.debug(">>> %s", self.json_serialize(payload))
 
         # Pass post_args to httpx post method
-        if extra_args:
-            post_args.update(extra_args)
-
-        return post_args
-
-    def _prepare_batch_request(
-        self,
-        reqs: List[GraphQLRequest],
-        extra_args: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
-
-        payload = [req.payload for req in reqs]
-
-        post_args = {"json": payload}
-
-        # Log the payload
-        if log.isEnabledFor(logging.DEBUG):
-            log.debug(">>> %s", self.json_serialize(payload))
-
-        # Pass post_args to aiohttp post method
         if extra_args:
             post_args.update(extra_args)
 
@@ -244,7 +231,7 @@ class HTTPXTransport(Transport, _HTTPXTransport):
 
         self.client = httpx.Client(**self.kwargs)
 
-    def execute(  # type: ignore
+    def execute(
         self,
         request: GraphQLRequest,
         *,
@@ -269,8 +256,8 @@ class HTTPXTransport(Transport, _HTTPXTransport):
 
         post_args = self._prepare_request(
             request,
-            extra_args,
-            upload_files,
+            extra_args=extra_args,
+            upload_files=upload_files,
         )
 
         try:
@@ -292,7 +279,7 @@ class HTTPXTransport(Transport, _HTTPXTransport):
         :code:`execute_batch` on a client or a session.
 
         :param reqs: GraphQL requests as a list of GraphQLRequest objects.
-        :param extra_args: additional arguments to send to the aiohttp post method
+        :param extra_args: additional arguments to send to the httpx post method
         :return: A list of results of execution.
             For every result `data` is the result of executing the query,
             `errors` is null if no errors occurred, and is a non-empty array
@@ -302,9 +289,9 @@ class HTTPXTransport(Transport, _HTTPXTransport):
         if not self.client:
             raise TransportClosed("Transport is not connected")
 
-        post_args = self._prepare_batch_request(
+        post_args = self._prepare_request(
             reqs,
-            extra_args,
+            extra_args=extra_args,
         )
 
         response = self.client.post(self.url, **post_args)
@@ -361,8 +348,8 @@ class HTTPXAsyncTransport(AsyncTransport, _HTTPXTransport):
 
         post_args = self._prepare_request(
             request,
-            extra_args,
-            upload_files,
+            extra_args=extra_args,
+            upload_files=upload_files,
         )
 
         try:
@@ -384,7 +371,7 @@ class HTTPXAsyncTransport(AsyncTransport, _HTTPXTransport):
         :code:`execute_batch` on a client or a session.
 
         :param reqs: GraphQL requests as a list of GraphQLRequest objects.
-        :param extra_args: additional arguments to send to the aiohttp post method
+        :param extra_args: additional arguments to send to the httpx post method
         :return: A list of results of execution.
             For every result `data` is the result of executing the query,
             `errors` is null if no errors occurred, and is a non-empty array
@@ -394,9 +381,9 @@ class HTTPXAsyncTransport(AsyncTransport, _HTTPXTransport):
         if not self.client:
             raise TransportClosed("Transport is not connected")
 
-        post_args = self._prepare_batch_request(
+        post_args = self._prepare_request(
             reqs,
-            extra_args,
+            extra_args=extra_args,
         )
 
         response = await self.client.post(self.url, **post_args)

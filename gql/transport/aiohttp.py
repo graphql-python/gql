@@ -127,7 +127,7 @@ class AIOHTTPTransport(AsyncTransport):
 
             # Adding custom parameters passed from init
             if self.client_session_args:
-                client_session_args.update(self.client_session_args)  # type: ignore
+                client_session_args.update(self.client_session_args)
 
             log.debug("Connecting transport")
 
@@ -164,36 +164,22 @@ class AIOHTTPTransport(AsyncTransport):
 
         self.session = None
 
-    def _prepare_batch_request(
-        self,
-        reqs: List[GraphQLRequest],
-        extra_args: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
-
-        payload = [req.payload for req in reqs]
-
-        post_args = {"json": payload}
-
-        # Log the payload
-        if log.isEnabledFor(logging.DEBUG):
-            log.debug(">>> %s", self.json_serialize(post_args["json"]))
-
-        # Pass post_args to aiohttp post method
-        if extra_args:
-            post_args.update(extra_args)
-
-        return post_args
-
     def _prepare_request(
         self,
-        request: GraphQLRequest,
+        request: Union[GraphQLRequest, List[GraphQLRequest]],
         extra_args: Optional[Dict[str, Any]] = None,
         upload_files: bool = False,
     ) -> Dict[str, Any]:
 
-        payload = request.payload
+        payload: Dict | List
+        if isinstance(request, GraphQLRequest):
+            payload = request.payload
+        else:
+            payload = [req.payload for req in request]
 
         if upload_files:
+            assert isinstance(payload, Dict)
+            assert isinstance(request, GraphQLRequest)
             post_args = self._prepare_file_uploads(request, payload)
         else:
             post_args = {"json": payload}
@@ -379,14 +365,14 @@ class AIOHTTPTransport(AsyncTransport):
         :returns: an ExecutionResult object.
         """
 
+        if self.session is None:
+            raise TransportClosed("Transport is not connected")
+
         post_args = self._prepare_request(
             request,
             extra_args,
             upload_files,
         )
-
-        if self.session is None:
-            raise TransportClosed("Transport is not connected")
 
         try:
             async with self.session.post(self.url, ssl=self.ssl, **post_args) as resp:
@@ -413,13 +399,13 @@ class AIOHTTPTransport(AsyncTransport):
             if an error occurred.
         """
 
-        post_args = self._prepare_batch_request(
+        if self.session is None:
+            raise TransportClosed("Transport is not connected")
+
+        post_args = self._prepare_request(
             reqs,
             extra_args,
         )
-
-        if self.session is None:
-            raise TransportClosed("Transport is not connected")
 
         async with self.session.post(self.url, ssl=self.ssl, **post_args) as resp:
             return await self._prepare_batch_result(reqs, resp)
