@@ -46,6 +46,11 @@ Here are the possible Transport Errors:
   If you don't need the schema, you can try to create the client with
   :code:`fetch_schema_from_transport=False`
 
+- :class:`TransportConnectionFailed <gql.transport.exceptions.TransportConnectionFailed>`:
+  This exception is generated when an unexpected Exception is received from the
+  transport dependency when trying to connect or to send the request.
+  For example in case of an SSL error, or if a websocket connection suddenly fails.
+
 - :class:`TransportClosed <gql.transport.exceptions.TransportClosed>`:
   This exception is generated when the client is trying to use the transport
   while the transport was previously closed.

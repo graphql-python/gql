@@ -14,22 +14,19 @@ class GraphQLRequest:
         variable_values: Optional[Dict[str, Any]] = None,
         operation_name: Optional[str] = None,
     ):
-        """
-        Initialize a GraphQL request.
+        """Initialize a GraphQL request.
 
         :param request: GraphQL request as DocumentNode object or as a string.
              If string, it will be converted to DocumentNode.
         :param variable_values: Dictionary of input parameters (Default: None).
         :param operation_name: Name of the operation that shall be executed.
             Only required in multi-operation documents (Default: None).
-
         :return: a :class:`GraphQLRequest <gql.GraphQLRequest>`
                  which can be later executed or subscribed by a
-            :class:`Client <gql.client.Client>`, by an
-            :class:`async session <gql.client.AsyncClientSession>` or by a
-            :class:`sync session <gql.client.SyncClientSession>`
+                 :class:`Client <gql.client.Client>`, by an
+                 :class:`async session <gql.client.AsyncClientSession>` or by a
+                 :class:`sync session <gql.client.SyncClientSession>`
         :raises graphql.error.GraphQLError: if a syntax error is encountered.
-
         """
         if isinstance(request, str):
             source = Source(request, "GraphQL request")
