@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-from gql import Client, GraphQLRequest, gql
+from gql import Client, gql
 
 # We serve https://github.com/graphql-python/swapi-graphene locally:
 URL = "http://127.0.0.1:8000/graphql"
@@ -87,7 +87,7 @@ def test_hero_name_query(client):
         }
     ]
     with use_cassette("queries_batch"):
-        results = client.execute_batch([GraphQLRequest(document=query)])
+        results = client.execute_batch([query])
     assert results == expected
 
 
@@ -102,11 +102,10 @@ def test_query_with_variable(client):
         }
         """
     )
+    query.variable_values = {"id": "UGxhbmV0OjEw"}
     expected = [{"planet": {"id": "UGxhbmV0OjEw", "name": "Kamino"}}]
     with use_cassette("queries_batch"):
-        results = client.execute_batch(
-            [GraphQLRequest(document=query, variable_values={"id": "UGxhbmV0OjEw"})]
-        )
+        results = client.execute_batch([query])
     assert results == expected
 
 
@@ -127,11 +126,10 @@ def test_named_query(client):
         }
         """
     )
+    query.operation_name = "Planet2"
     expected = [{"planet": {"id": "UGxhbmV0OjEx", "name": "Geonosis"}}]
     with use_cassette("queries_batch"):
-        results = client.execute_batch(
-            [GraphQLRequest(document=query, operation_name="Planet2")]
-        )
+        results = client.execute_batch([query])
     assert results == expected
 
 
@@ -149,7 +147,7 @@ def test_header_query(client):
     expected = [{"planet": {"id": "UGxhbmV0OjEx", "name": "Geonosis"}}]
     with use_cassette("queries_batch"):
         results = client.execute_batch(
-            [GraphQLRequest(document=query)],
+            [query],
             extra_args={"headers": {"authorization": "xxx-123"}},
         )
     assert results == expected

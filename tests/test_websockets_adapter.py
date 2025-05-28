@@ -39,7 +39,7 @@ async def test_websockets_adapter_simple_query(server):
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
 
-    query = print_ast(gql(query1_str))
+    query = print_ast(gql(query1_str).document)
     print("query=", query)
 
     adapter = WebSocketsAdapter(url)
@@ -71,7 +71,7 @@ async def test_websockets_adapter_edge_cases(server):
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
 
-    query = print_ast(gql(query1_str))
+    query = print_ast(gql(query1_str).document)
     print("query=", query)
 
     adapter = WebSocketsAdapter(url, headers={"a": "r1"}, ssl=False, connect_args={})

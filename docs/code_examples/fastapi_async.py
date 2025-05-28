@@ -93,9 +93,8 @@ async def get_continent(continent_code):
 
     try:
         assert isinstance(client.session, ReconnectingAsyncClientSession)
-        result = await client.session.execute(
-            query, variable_values={"code": continent_code}
-        )
+        query.variable_values = {"code": continent_code}
+        result = await client.session.execute(query)
     except Exception as e:
         log.debug(f"get_continent Error: {e}")
         raise HTTPException(status_code=503, detail="GraphQL backend unavailable")

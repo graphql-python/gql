@@ -94,7 +94,7 @@ def test_retries_on_transport(execute_mock):
     assert execute_mock.call_count == expected_retries + 1
 
     execute_mock.reset_mock()
-    queries = map(lambda d: GraphQLRequest(document=d), [query, query, query])
+    queries = [query, query, query]
 
     with client as session:  # We're using the client as context manager
         with pytest.raises(Exception):
@@ -143,7 +143,7 @@ def test_execute_result_error():
     Batching is not supported anymore on countries backend
 
     with pytest.raises(TransportQueryError) as exc_info:
-        client.execute_batch([GraphQLRequest(document=failing_query)])
+        client.execute_batch([GraphQLRequest(failing_query)])
     assert 'Cannot query field "id" on type "Continent".' in str(exc_info.value)
     """
 
@@ -171,7 +171,7 @@ def test_http_transport_verify_error(http_transport_query):
         Batching is not supported anymore on countries backend
 
         with pytest.warns(Warning) as record:
-            client.execute_batch([GraphQLRequest(document=http_transport_query)])
+            client.execute_batch([GraphQLRequest(http_transport_query)])
 
         assert len(record) == 1
         assert "Unverified HTTPS request is being made to host" in str(
@@ -197,7 +197,7 @@ def test_http_transport_specify_method_valid(http_transport_query):
         """
         Batching is not supported anymore on countries backend
 
-        result = client.execute_batch([GraphQLRequest(document=http_transport_query)])
+        result = client.execute_batch([GraphQLRequest(http_transport_query)])
         assert result is not None
         """
 

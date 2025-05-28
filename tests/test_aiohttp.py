@@ -6,7 +6,7 @@ from typing import Mapping
 
 import pytest
 
-from gql import Client, FileVar, GraphQLRequest, gql
+from gql import Client, FileVar, gql
 from gql.cli import get_parser, main
 from gql.transport.exceptions import (
     TransportAlreadyConnected,
@@ -421,7 +421,7 @@ async def test_aiohttp_cannot_execute_if_not_connected(aiohttp_server):
     query = gql(query1_str)
 
     with pytest.raises(TransportClosed):
-        await transport.execute(GraphQLRequest(query))
+        await transport.execute(query)
 
 
 @pytest.mark.asyncio
@@ -491,14 +491,13 @@ async def test_aiohttp_query_variable_values(aiohttp_server):
 
     async with Client(transport=transport) as session:
 
-        params = {"code": "EU"}
-
         query = gql(query2_str)
 
+        query.variable_values = {"code": "EU"}
+        query.operation_name = "getEurope"
+
         # Execute query asynchronously
-        result = await session.execute(
-            query, variable_values=params, operation_name="getEurope"
-        )
+        result = await session.execute(query)
 
         continent = result["continent"]
 
@@ -528,14 +527,13 @@ async def test_aiohttp_query_variable_values_fix_issue_292(aiohttp_server):
 
     async with Client(transport=transport) as session:
 
-        params = {"code": "EU"}
-
         query = gql(query2_str)
 
+        query.variable_values = {"code": "EU"}
+        query.operation_name = "getEurope"
+
         # Execute query asynchronously
-        result = await session.execute(
-            query, variable_values=params, operation_name="getEurope"
-        )
+        result = await session.execute(query)
 
         continent = result["continent"]
 
@@ -660,16 +658,14 @@ async def test_aiohttp_file_upload(aiohttp_server):
             # Using an opened file
             with open(file_path, "rb") as f:
 
-                params = {"file": f, "other_var": 42}
+                query.variable_values = {"file": f, "other_var": 42}
 
                 # Execute query asynchronously
                 with pytest.warns(
                     DeprecationWarning,
                     match="Not using FileVar for file upload is deprecated",
                 ):
-                    result = await session.execute(
-                        query, variable_values=params, upload_files=True
-                    )
+                    result = await session.execute(query, upload_files=True)
 
             success = result["success"]
             assert success
@@ -677,22 +673,19 @@ async def test_aiohttp_file_upload(aiohttp_server):
             # Using an opened file inside a FileVar object
             with open(file_path, "rb") as f:
 
-                params = {"file": FileVar(f), "other_var": 42}
+                query.variable_values = {"file": FileVar(f), "other_var": 42}
 
                 with warnings.catch_warnings():
                     warnings.simplefilter("error")  # Turn warnings into errors
-                    result = await session.execute(
-                        query, variable_values=params, upload_files=True
-                    )
+                    result = await session.execute(query, upload_files=True)
 
             success = result["success"]
             assert success
 
             # Using an filename string inside a FileVar object
-            params = {"file": FileVar(file_path), "other_var": 42}
-            result = await session.execute(
-                query, variable_values=params, upload_files=True
-            )
+            query.variable_values = {"file": FileVar(file_path), "other_var": 42}
+
+            result = await session.execute(query, upload_files=True)
 
             success = result["success"]
             assert success
@@ -735,15 +728,13 @@ async def test_aiohttp_file_upload_with_content_type(aiohttp_server):
                 # Setting the content_type
                 f.content_type = "application/pdf"  # type: ignore
 
-                params = {"file": f, "other_var": 42}
+                query.variable_values = {"file": f, "other_var": 42}
 
                 with pytest.warns(
                     DeprecationWarning,
                     match="Not using FileVar for file upload is deprecated",
                 ):
-                    result = await session.execute(
-                        query, variable_values=params, upload_files=True
-                    )
+                    result = await session.execute(query, upload_files=True)
 
             success = result["success"]
             assert success
@@ -751,7 +742,7 @@ async def test_aiohttp_file_upload_with_content_type(aiohttp_server):
             # Using an opened file inside a FileVar object
             with open(file_path, "rb") as f:
 
-                params = {
+                query.variable_values = {
                     "file": FileVar(
                         f,
                         content_type="application/pdf",
@@ -759,15 +750,13 @@ async def test_aiohttp_file_upload_with_content_type(aiohttp_server):
                     "other_var": 42,
                 }
 
-                result = await session.execute(
-                    query, variable_values=params, upload_files=True
-                )
+                result = await session.execute(query, upload_files=True)
 
             success = result["success"]
             assert success
 
             # Using an filename string inside a FileVar object
-            params = {
+            query.variable_values = {
                 "file": FileVar(
                     file_path,
                     content_type="application/pdf",
@@ -775,9 +764,7 @@ async def test_aiohttp_file_upload_with_content_type(aiohttp_server):
                 "other_var": 42,
             }
 
-            result = await session.execute(
-                query, variable_values=params, upload_files=True
-            )
+            result = await session.execute(query, upload_files=True)
 
             success = result["success"]
             assert success
@@ -815,16 +802,14 @@ async def test_aiohttp_file_upload_default_filename_is_basename(aiohttp_server):
 
             query = gql(file_upload_mutation_1)
 
-            params = {
+            query.variable_values = {
                 "file": FileVar(
                     file_path,
                 ),
                 "other_var": 42,
             }
 
-            result = await session.execute(
-                query, variable_values=params, upload_files=True
-            )
+            result = await session.execute(query, upload_files=True)
 
             success = result["success"]
             assert success
@@ -861,7 +846,7 @@ async def test_aiohttp_file_upload_with_filename(aiohttp_server):
 
             query = gql(file_upload_mutation_1)
 
-            params = {
+            query.variable_values = {
                 "file": FileVar(
                     file_path,
                     filename="filename1.txt",
@@ -869,9 +854,7 @@ async def test_aiohttp_file_upload_with_filename(aiohttp_server):
                 "other_var": 42,
             }
 
-            result = await session.execute(
-                query, variable_values=params, upload_files=True
-            )
+            result = await session.execute(query, upload_files=True)
 
             success = result["success"]
             assert success
@@ -908,9 +891,9 @@ async def test_aiohttp_file_upload_without_session(aiohttp_server, run_sync_test
 
             file_path = test_file.filename
 
-            params = {"file": FileVar(file_path), "other_var": 42}
+            query.variable_values = {"file": FileVar(file_path), "other_var": 42}
 
-            result = client.execute(query, variable_values=params, upload_files=True)
+            result = client.execute(query, upload_files=True)
 
             success = result["success"]
             assert success
@@ -952,12 +935,10 @@ async def test_aiohttp_binary_file_upload(aiohttp_server):
 
             file_path = test_file.filename
 
-            params = {"file": FileVar(file_path), "other_var": 42}
+            query.variable_values = {"file": FileVar(file_path), "other_var": 42}
 
             # Execute query asynchronously
-            result = await session.execute(
-                query, variable_values=params, upload_files=True
-            )
+            result = await session.execute(query, upload_files=True)
 
             success = result["success"]
 
@@ -1003,15 +984,13 @@ async def test_aiohttp_stream_reader_upload(aiohttp_server):
         query = gql(file_upload_mutation_1)
         async with ClientSession() as client:
             async with client.get(binary_data_url) as resp:
-                params = {"file": resp.content, "other_var": 42}
+                query.variable_values = {"file": resp.content, "other_var": 42}
 
                 with pytest.warns(
                     DeprecationWarning,
                     match="Not using FileVar for file upload is deprecated",
                 ):
-                    result = await session.execute(
-                        query, variable_values=params, upload_files=True
-                    )
+                    result = await session.execute(query, upload_files=True)
 
     success = result["success"]
     assert success
@@ -1021,11 +1000,9 @@ async def test_aiohttp_stream_reader_upload(aiohttp_server):
         query = gql(file_upload_mutation_1)
         async with ClientSession() as client:
             async with client.get(binary_data_url) as resp:
-                params = {"file": FileVar(resp.content), "other_var": 42}
+                query.variable_values = {"file": FileVar(resp.content), "other_var": 42}
 
-                result = await session.execute(
-                    query, variable_values=params, upload_files=True
-                )
+                result = await session.execute(query, upload_files=True)
 
     success = result["success"]
     assert success
@@ -1074,15 +1051,13 @@ async def test_aiohttp_async_generator_upload(aiohttp_server):
         # Not using FileVar
         async with Client(transport=transport) as session:
 
-            params = {"file": file_sender(file_path), "other_var": 42}
+            query.variable_values = {"file": file_sender(file_path), "other_var": 42}
 
             with pytest.warns(
                 DeprecationWarning,
                 match="Not using FileVar for file upload is deprecated",
             ):
-                result = await session.execute(
-                    query, variable_values=params, upload_files=True
-                )
+                result = await session.execute(query, upload_files=True)
 
             success = result["success"]
             assert success
@@ -1090,12 +1065,13 @@ async def test_aiohttp_async_generator_upload(aiohttp_server):
         # Using FileVar
         async with Client(transport=transport) as session:
 
-            params = {"file": FileVar(file_sender(file_path)), "other_var": 42}
+            query.variable_values = {
+                "file": FileVar(file_sender(file_path)),
+                "other_var": 42,
+            }
 
             # Execute query asynchronously
-            result = await session.execute(
-                query, variable_values=params, upload_files=True
-            )
+            result = await session.execute(query, upload_files=True)
 
             success = result["success"]
             assert success
@@ -1103,15 +1079,13 @@ async def test_aiohttp_async_generator_upload(aiohttp_server):
         # Using FileVar with new streaming support
         async with Client(transport=transport) as session:
 
-            params = {
+            query.variable_values = {
                 "file": FileVar(file_path, streaming=True),
                 "other_var": 42,
             }
 
             # Execute query asynchronously
-            result = await session.execute(
-                query, variable_values=params, upload_files=True
-            )
+            result = await session.execute(query, upload_files=True)
 
             success = result["success"]
             assert success
@@ -1171,14 +1145,12 @@ async def test_aiohttp_file_upload_two_files(aiohttp_server):
                 file_path_1 = test_file_1.filename
                 file_path_2 = test_file_2.filename
 
-                params = {
+                query.variable_values = {
                     "file1": FileVar(file_path_1),
                     "file2": FileVar(file_path_2),
                 }
 
-                result = await session.execute(
-                    query, variable_values=params, upload_files=True
-                )
+                result = await session.execute(query, upload_files=True)
 
                 success = result["success"]
 
@@ -1241,7 +1213,7 @@ async def test_aiohttp_file_upload_list_of_two_files(aiohttp_server):
                 file_path_1 = test_file_1.filename
                 file_path_2 = test_file_2.filename
 
-                params = {
+                query.variable_values = {
                     "files": [
                         FileVar(file_path_1),
                         FileVar(file_path_2),
@@ -1249,9 +1221,7 @@ async def test_aiohttp_file_upload_list_of_two_files(aiohttp_server):
                 }
 
                 # Execute query asynchronously
-                result = await session.execute(
-                    query, variable_values=params, upload_files=True
-                )
+                result = await session.execute(query, upload_files=True)
 
                 success = result["success"]
 
@@ -1829,3 +1799,104 @@ async def test_aiohttp_connector_owner_false(aiohttp_server):
             assert africa["code"] == "AF"
 
     await connector.close()
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_deprecation_warning_using_document_node_execute(aiohttp_server):
+    from aiohttp import web
+
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    async def handler(request):
+        return web.Response(
+            text=query1_server_answer,
+            content_type="application/json",
+        )
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    transport = AIOHTTPTransport(url=url, timeout=10)
+
+    async with Client(transport=transport) as session:
+
+        query = gql(query1_str)
+
+        with pytest.warns(
+            DeprecationWarning,
+            match="Using a DocumentNode is deprecated",
+        ):
+            result = await session.execute(query.document)
+
+        continents = result["continents"]
+
+        africa = continents[0]
+
+        assert africa["code"] == "AF"
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_deprecation_warning_execute_variable_values(aiohttp_server):
+    from aiohttp import web
+
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    async def handler(request):
+        return web.Response(text=query2_server_answer, content_type="application/json")
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    transport = AIOHTTPTransport(url=url, timeout=10)
+
+    async with Client(transport=transport) as session:
+
+        query = gql(query2_str)
+
+        with pytest.warns(
+            DeprecationWarning,
+            match=(
+                "Using variable_values and operation_name arguments of "
+                "execute and subscribe methods is deprecated"
+            ),
+        ):
+            result = await session.execute(
+                query,
+                variable_values={"code": "EU"},
+                operation_name="getEurope",
+            )
+
+        continent = result["continent"]
+
+        assert continent["name"] == "Europe"
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_type_error_execute(aiohttp_server):
+    from aiohttp import web
+
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    async def handler(request):
+        return web.Response(text=query2_server_answer, content_type="application/json")
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    transport = AIOHTTPTransport(url=url, timeout=10)
+
+    async with Client(transport=transport) as session:
+
+        with pytest.raises(TypeError) as exc_info:
+            await session.execute("qmlsdkfj")
+
+        assert "request should be a GraphQLRequest object" in str(exc_info.value)

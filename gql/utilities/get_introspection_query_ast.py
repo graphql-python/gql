@@ -139,4 +139,4 @@ def get_introspection_query_ast(
 
     dsl_query = dsl_gql(query, fragment_FullType, fragment_InputValue, fragment_TypeRef)
 
-    return dsl_query
+    return dsl_query.document

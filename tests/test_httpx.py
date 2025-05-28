@@ -3,7 +3,7 @@ from typing import Any, Dict, Mapping
 
 import pytest
 
-from gql import Client, FileVar, GraphQLRequest, gql
+from gql import Client, FileVar, gql
 from gql.transport.exceptions import (
     TransportAlreadyConnected,
     TransportClosed,
@@ -470,7 +470,7 @@ async def test_httpx_cannot_execute_if_not_connected(aiohttp_server, run_sync_te
         query = gql(query1_str)
 
         with pytest.raises(TransportClosed):
-            transport.execute(GraphQLRequest(query))
+            transport.execute(query)
 
     await run_sync_test(server, test_code)
 
@@ -573,35 +573,29 @@ async def test_httpx_file_upload(aiohttp_server, run_sync_test):
                 # Using an opened file
                 with open(file_path, "rb") as f:
 
-                    params = {"file": f, "other_var": 42}
+                    query.variable_values = {"file": f, "other_var": 42}
                     with pytest.warns(
                         DeprecationWarning,
                         match="Not using FileVar for file upload is deprecated",
                     ):
-                        execution_result = session.execute(
-                            query, variable_values=params, upload_files=True
-                        )
+                        execution_result = session.execute(query, upload_files=True)
 
                     assert execution_result["success"]
 
                 # Using an opened file inside a FileVar object
                 with open(file_path, "rb") as f:
 
-                    params = {"file": FileVar(f), "other_var": 42}
-                    execution_result = session.execute(
-                        query, variable_values=params, upload_files=True
-                    )
+                    query.variable_values = {"file": FileVar(f), "other_var": 42}
+                    execution_result = session.execute(query, upload_files=True)
 
                     assert execution_result["success"]
 
                 # Using an filename string inside a FileVar object
-                params = {
+                query.variable_values = {
                     "file": FileVar(file_path),
                     "other_var": 42,
                 }
-                execution_result = session.execute(
-                    query, variable_values=params, upload_files=True
-                )
+                execution_result = session.execute(query, upload_files=True)
 
                 assert execution_result["success"]
 
@@ -645,25 +639,21 @@ async def test_httpx_file_upload_with_content_type(aiohttp_server, run_sync_test
                     # Setting the content_type
                     f.content_type = "application/pdf"  # type: ignore
 
-                    params = {"file": f, "other_var": 42}
+                    query.variable_values = {"file": f, "other_var": 42}
                     with pytest.warns(
                         DeprecationWarning,
                         match="Not using FileVar for file upload is deprecated",
                     ):
-                        execution_result = session.execute(
-                            query, variable_values=params, upload_files=True
-                        )
+                        execution_result = session.execute(query, upload_files=True)
 
                     assert execution_result["success"]
 
                 # Using FileVar
-                params = {
+                query.variable_values = {
                     "file": FileVar(file_path, content_type="application/pdf"),
                     "other_var": 42,
                 }
-                execution_result = session.execute(
-                    query, variable_values=params, upload_files=True
-                )
+                execution_result = session.execute(query, upload_files=True)
 
                 assert execution_result["success"]
 
@@ -706,13 +696,11 @@ async def test_httpx_file_upload_default_filename_is_basename(
                 query = gql(file_upload_mutation_1)
 
                 # Using FileVar
-                params = {
+                query.variable_values = {
                     "file": FileVar(file_path),
                     "other_var": 42,
                 }
-                execution_result = session.execute(
-                    query, variable_values=params, upload_files=True
-                )
+                execution_result = session.execute(query, upload_files=True)
 
                 assert execution_result["success"]
 
@@ -750,10 +738,8 @@ async def test_httpx_file_upload_additional_headers(aiohttp_server, run_sync_tes
 
                 file_path = test_file.filename
 
-                params = {"file": FileVar(file_path), "other_var": 42}
-                execution_result = session.execute(
-                    query, variable_values=params, upload_files=True
-                )
+                query.variable_values = {"file": FileVar(file_path), "other_var": 42}
+                execution_result = session.execute(query, upload_files=True)
 
                 assert execution_result["success"]
 
@@ -795,11 +781,9 @@ async def test_httpx_binary_file_upload(aiohttp_server, run_sync_test):
 
                 file_path = test_file.filename
 
-                params = {"file": FileVar(file_path), "other_var": 42}
+                query.variable_values = {"file": FileVar(file_path), "other_var": 42}
 
-                execution_result = session.execute(
-                    query, variable_values=params, upload_files=True
-                )
+                execution_result = session.execute(query, upload_files=True)
 
                 assert execution_result["success"]
 
@@ -862,14 +846,12 @@ async def test_httpx_file_upload_two_files(aiohttp_server, run_sync_test):
                     file_path_1 = test_file_1.filename
                     file_path_2 = test_file_2.filename
 
-                    params = {
+                    query.variable_values = {
                         "file1": FileVar(file_path_1),
                         "file2": FileVar(file_path_2),
                     }
 
-                    execution_result = session.execute(
-                        query, variable_values=params, upload_files=True
-                    )
+                    execution_result = session.execute(query, upload_files=True)
 
                     assert execution_result["success"]
 
@@ -933,16 +915,14 @@ async def test_httpx_file_upload_list_of_two_files(aiohttp_server, run_sync_test
                     file_path_1 = test_file_1.filename
                     file_path_2 = test_file_2.filename
 
-                    params = {
+                    query.variable_values = {
                         "files": [
                             FileVar(file_path_1),
                             FileVar(file_path_2),
                         ],
                     }
 
-                    execution_result = session.execute(
-                        query, variable_values=params, upload_files=True
-                    )
+                    execution_result = session.execute(query, upload_files=True)
 
                     assert execution_result["success"]
 

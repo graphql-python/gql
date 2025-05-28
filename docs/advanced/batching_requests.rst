@@ -24,7 +24,7 @@ To execute a batch of requests manually:
 
 .. code-block:: python
 
-    request1 = GraphQLRequest("""
+    request1 = gql("""
         query getContinents {
           continents {
             code

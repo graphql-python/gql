@@ -117,11 +117,11 @@ def test_shift_days():
 
     query = gql("query shift5days($time: Datetime) {shiftDays(time: $time, days: 5)}")
 
-    variable_values = {
+    query.variable_values = {
         "time": now,
     }
 
-    result = client.execute(query, variable_values=variable_values)
+    result = client.execute(query)
 
     print(result)
 
@@ -151,11 +151,11 @@ def test_shift_days_serialized_manually_in_variables():
 
     query = gql("query shift5days($time: Datetime) {shiftDays(time: $time, days: 5)}")
 
-    variable_values = {
+    query.variable_values = {
         "time": "2021-11-12T11:58:13.461161",
     }
 
-    result = client.execute(query, variable_values=variable_values)
+    result = client.execute(query)
 
     print(result)
 
@@ -171,13 +171,11 @@ def test_latest():
 
     query = gql("query latest($times: [Datetime!]!) {latest(times: $times)}")
 
-    variable_values = {
+    query.variable_values = {
         "times": [now, in_five_days],
     }
 
-    result = client.execute(
-        query, variable_values=variable_values, serialize_variables=True
-    )
+    result = client.execute(query, serialize_variables=True)
 
     print(result)
 
@@ -194,11 +192,9 @@ def test_seconds():
         "query seconds($interval: IntervalInput) {seconds(interval: $interval)}"
     )
 
-    variable_values = {"interval": {"start": now, "end": in_five_days}}
+    query.variable_values = {"interval": {"start": now, "end": in_five_days}}
 
-    result = client.execute(
-        query, variable_values=variable_values, serialize_variables=True
-    )
+    result = client.execute(query, serialize_variables=True)
 
     print(result)
 
@@ -214,11 +210,9 @@ def test_seconds_omit_optional_start_argument():
         "query seconds($interval: IntervalInput) {seconds(interval: $interval)}"
     )
 
-    variable_values = {"interval": {"end": in_five_days}}
+    query.variable_values = {"interval": {"end": in_five_days}}
 
-    result = client.execute(
-        query, variable_values=variable_values, serialize_variables=True
-    )
+    result = client.execute(query, serialize_variables=True)
 
     print(result)
 

@@ -514,10 +514,10 @@ mutation createMessage($message: String!) {
 }"""
         )
 
-        variable_values = {"message": "Hello world!"}
+        query.variable_values = {"message": "Hello world!"}
 
         with pytest.raises(AssertionError) as exc_info:
-            await session.execute(query, variable_values=variable_values)
+            await session.execute(query)
 
         assert (
             "execute method is not allowed for AppSyncWebsocketsTransport "
@@ -693,10 +693,11 @@ async def test_appsync_subscription_variable_values_and_operation_name(server):
     async with client as session:
         subscription = gql(on_create_message_subscription_str)
 
+        subscription.variable_values = {"key1": "val1"}
+        subscription.operation_name = "onCreateMessage"
+
         async for execution_result in session.subscribe(
             subscription,
-            operation_name="onCreateMessage",
-            variable_values={"key1": "val1"},
             get_execution_result=True,
         ):
 

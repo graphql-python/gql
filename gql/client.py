@@ -24,7 +24,6 @@ from typing import (
 import backoff
 from anyio import fail_after
 from graphql import (
-    DocumentNode,
     ExecutionResult,
     GraphQLSchema,
     IntrospectionQuery,
@@ -33,7 +32,7 @@ from graphql import (
     validate,
 )
 
-from .graphql_request import GraphQLRequest
+from .graphql_request import GraphQLRequest, support_deprecated_request
 from .transport.async_transport import AsyncTransport
 from .transport.exceptions import TransportConnectionFailed, TransportQueryError
 from .transport.local_schema import LocalSchemaTransport
@@ -155,13 +154,13 @@ class Client:
     def batching_enabled(self) -> bool:
         return self.batch_interval != 0
 
-    def validate(self, document: DocumentNode) -> None:
+    def validate(self, request: GraphQLRequest) -> None:
         """:meta private:"""
         assert (
             self.schema
         ), "Cannot validate the document locally, you need to pass a schema."
 
-        validation_errors = validate(self.schema, document)
+        validation_errors = validate(self.schema, request.document)
         if validation_errors:
             raise validation_errors[0]
 
@@ -205,10 +204,8 @@ class Client:
     @overload
     def execute_sync(
         self,
-        document: DocumentNode,
-        *,  # https://github.com/python/mypy/issues/7333#issuecomment-788255229
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
+        request: GraphQLRequest,
+        *,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
         get_execution_result: Literal[False] = ...,
@@ -218,10 +215,8 @@ class Client:
     @overload
     def execute_sync(
         self,
-        document: DocumentNode,
+        request: GraphQLRequest,
         *,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
         get_execution_result: Literal[True],
@@ -231,10 +226,8 @@ class Client:
     @overload
     def execute_sync(
         self,
-        document: DocumentNode,
+        request: GraphQLRequest,
         *,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
         get_execution_result: bool,
@@ -243,10 +236,8 @@ class Client:
 
     def execute_sync(
         self,
-        document: DocumentNode,
+        request: GraphQLRequest,
         *,
-        variable_values: Optional[Dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
@@ -255,9 +246,7 @@ class Client:
         """:meta private:"""
         with self as session:
             return session.execute(
-                document,
-                variable_values=variable_values,
-                operation_name=operation_name,
+                request,
                 serialize_variables=serialize_variables,
                 parse_result=parse_result,
                 get_execution_result=get_execution_result,
@@ -319,10 +308,8 @@ class Client:
     @overload
     async def execute_async(
         self,
-        document: DocumentNode,
-        *,  # https://github.com/python/mypy/issues/7333#issuecomment-788255229
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
+        request: GraphQLRequest,
+        *,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
         get_execution_result: Literal[False] = ...,
@@ -332,10 +319,8 @@ class Client:
     @overload
     async def execute_async(
         self,
-        document: DocumentNode,
+        request: GraphQLRequest,
         *,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
         get_execution_result: Literal[True],
@@ -345,10 +330,8 @@ class Client:
     @overload
     async def execute_async(
         self,
-        document: DocumentNode,
+        request: GraphQLRequest,
         *,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
         get_execution_result: bool,
@@ -357,10 +340,8 @@ class Client:
 
     async def execute_async(
         self,
-        document: DocumentNode,
+        request: GraphQLRequest,
         *,
-        variable_values: Optional[Dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
@@ -369,9 +350,7 @@ class Client:
         """:meta private:"""
         async with self as session:
             return await session.execute(
-                document,
-                variable_values=variable_values,
-                operation_name=operation_name,
+                request,
                 serialize_variables=serialize_variables,
                 parse_result=parse_result,
                 get_execution_result=get_execution_result,
@@ -433,10 +412,8 @@ class Client:
     @overload
     def execute(
         self,
-        document: DocumentNode,
-        *,  # https://github.com/python/mypy/issues/7333#issuecomment-788255229
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
+        request: GraphQLRequest,
+        *,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
         get_execution_result: Literal[False] = ...,
@@ -446,10 +423,8 @@ class Client:
     @overload
     def execute(
         self,
-        document: DocumentNode,
+        request: GraphQLRequest,
         *,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
         get_execution_result: Literal[True],
@@ -459,10 +434,8 @@ class Client:
     @overload
     def execute(
         self,
-        document: DocumentNode,
+        request: GraphQLRequest,
         *,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
         get_execution_result: bool,
@@ -471,16 +444,14 @@ class Client:
 
     def execute(
         self,
-        document: DocumentNode,
+        request: GraphQLRequest,
         *,
-        variable_values: Optional[Dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
         **kwargs: Any,
     ) -> Union[Dict[str, Any], ExecutionResult]:
-        """Execute the provided document AST against the remote server using
+        """Execute the provided request against the remote server using
         the transport provided during init.
 
         This function **WILL BLOCK** until the result is received from the server.
@@ -512,9 +483,7 @@ class Client:
 
             data = loop.run_until_complete(
                 self.execute_async(
-                    document,
-                    variable_values=variable_values,
-                    operation_name=operation_name,
+                    request,
                     serialize_variables=serialize_variables,
                     parse_result=parse_result,
                     get_execution_result=get_execution_result,
@@ -526,9 +495,7 @@ class Client:
 
         else:  # Sync transports
             return self.execute_sync(
-                document,
-                variable_values=variable_values,
-                operation_name=operation_name,
+                request,
                 serialize_variables=serialize_variables,
                 parse_result=parse_result,
                 get_execution_result=get_execution_result,
@@ -631,10 +598,8 @@ class Client:
     @overload
     def subscribe_async(
         self,
-        document: DocumentNode,
+        request: GraphQLRequest,
         *,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
         get_execution_result: Literal[False] = ...,
@@ -644,10 +609,8 @@ class Client:
     @overload
     def subscribe_async(
         self,
-        document: DocumentNode,
+        request: GraphQLRequest,
         *,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
         get_execution_result: Literal[True],
@@ -657,10 +620,8 @@ class Client:
     @overload
     def subscribe_async(
         self,
-        document: DocumentNode,
+        request: GraphQLRequest,
         *,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
         get_execution_result: bool,
@@ -671,10 +632,8 @@ class Client:
 
     async def subscribe_async(
         self,
-        document: DocumentNode,
+        request: GraphQLRequest,
         *,
-        variable_values: Optional[Dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
@@ -685,9 +644,7 @@ class Client:
         """:meta private:"""
         async with self as session:
             generator = session.subscribe(
-                document,
-                variable_values=variable_values,
-                operation_name=operation_name,
+                request,
                 serialize_variables=serialize_variables,
                 parse_result=parse_result,
                 get_execution_result=get_execution_result,
@@ -700,10 +657,8 @@ class Client:
     @overload
     def subscribe(
         self,
-        document: DocumentNode,
+        request: GraphQLRequest,
         *,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
         get_execution_result: Literal[False] = ...,
@@ -713,10 +668,8 @@ class Client:
     @overload
     def subscribe(
         self,
-        document: DocumentNode,
+        request: GraphQLRequest,
         *,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
         get_execution_result: Literal[True],
@@ -726,10 +679,8 @@ class Client:
     @overload
     def subscribe(
         self,
-        document: DocumentNode,
+        request: GraphQLRequest,
         *,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
         get_execution_result: bool,
@@ -740,10 +691,8 @@ class Client:
 
     def subscribe(
         self,
-        document: DocumentNode,
+        request: GraphQLRequest,
         *,
-        variable_values: Optional[Dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
@@ -766,9 +715,7 @@ class Client:
         async_generator: Union[
             AsyncGenerator[Dict[str, Any], None], AsyncGenerator[ExecutionResult, None]
         ] = self.subscribe_async(
-            document,
-            variable_values=variable_values,
-            operation_name=operation_name,
+            request,
             serialize_variables=serialize_variables,
             parse_result=parse_result,
             get_execution_result=get_execution_result,
@@ -941,9 +888,13 @@ class SyncClientSession:
 
         The extra arguments are passed to the transport execute method."""
 
+        # Still supporting for now old method of providing
+        # variable_values and operation_name
+        request = support_deprecated_request(request, kwargs)
+
         # Validate document
         if self.client.schema:
-            self.client.validate(request.document)
+            self.client.validate(request)
 
             # Parse variable values for custom scalars if requested
             if request.variable_values is not None:
@@ -977,10 +928,8 @@ class SyncClientSession:
     @overload
     def execute(
         self,
-        document: DocumentNode,
+        request: GraphQLRequest,
         *,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
         get_execution_result: Literal[False] = ...,
@@ -990,10 +939,8 @@ class SyncClientSession:
     @overload
     def execute(
         self,
-        document: DocumentNode,
+        request: GraphQLRequest,
         *,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
         get_execution_result: Literal[True],
@@ -1003,10 +950,8 @@ class SyncClientSession:
     @overload
     def execute(
         self,
-        document: DocumentNode,
+        request: GraphQLRequest,
         *,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
         get_execution_result: bool,
@@ -1015,24 +960,20 @@ class SyncClientSession:
 
     def execute(
         self,
-        document: DocumentNode,
+        request: GraphQLRequest,
         *,
-        variable_values: Optional[Dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
         **kwargs: Any,
     ) -> Union[Dict[str, Any], ExecutionResult]:
-        """Execute the provided document AST synchronously using
+        """Execute the provided request synchronously using
         the sync transport.
 
         Raises a TransportQueryError if an error has been returned in
             the ExecutionResult.
 
-        :param document: GraphQL query as AST Node object.
-        :param variable_values: Dictionary of input parameters.
-        :param operation_name: Name of the operation that shall be executed.
+        :param request: GraphQL query as :class:`GraphQLRequest <gql.GraphQLRequest>`.
         :param serialize_variables: whether the variable values should be
             serialized. Used for custom scalars and/or enums.
             By default use the serialize_variables argument of the client.
@@ -1042,13 +983,6 @@ class SyncClientSession:
             only the "data" field. Necessary if you want to get the "extensions" field.
 
         The extra arguments are passed to the transport execute method."""
-
-        # Make GraphQLRequest object
-        request = GraphQLRequest(
-            document=document,
-            variable_values=variable_values,
-            operation_name=operation_name,
-        )
 
         # Validate and execute on the transport
         result = self._execute(
@@ -1103,7 +1037,7 @@ class SyncClientSession:
 
             if validate_document:
                 for req in requests:
-                    self.client.validate(req.document)
+                    self.client.validate(req)
 
             # Parse variable values for custom scalars if requested
             if serialize_variables or (
@@ -1326,9 +1260,7 @@ class SyncClientSession:
         introspection_query = get_introspection_query_ast(
             **self.client.introspection_args
         )
-        execution_result = self.transport.execute(
-            GraphQLRequest(document=introspection_query)
-        )
+        execution_result = self.transport.execute(GraphQLRequest(introspection_query))
 
         self.client._build_schema_from_introspection(execution_result)
 
@@ -1374,9 +1306,13 @@ class AsyncClientSession:
 
         The extra arguments are passed to the transport subscribe method."""
 
+        # Still supporting for now old method of providing
+        # variable_values and operation_name
+        request = support_deprecated_request(request, kwargs)
+
         # Validate document
         if self.client.schema:
-            self.client.validate(request.document)
+            self.client.validate(request)
 
             # Parse variable values for custom scalars if requested
             if request.variable_values is not None:
@@ -1418,10 +1354,8 @@ class AsyncClientSession:
     @overload
     def subscribe(
         self,
-        document: DocumentNode,
+        request: GraphQLRequest,
         *,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
         get_execution_result: Literal[False] = ...,
@@ -1431,10 +1365,8 @@ class AsyncClientSession:
     @overload
     def subscribe(
         self,
-        document: DocumentNode,
+        request: GraphQLRequest,
         *,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
         get_execution_result: Literal[True],
@@ -1444,10 +1376,8 @@ class AsyncClientSession:
     @overload
     def subscribe(
         self,
-        document: DocumentNode,
+        request: GraphQLRequest,
         *,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
         get_execution_result: bool,
@@ -1458,10 +1388,8 @@ class AsyncClientSession:
 
     async def subscribe(
         self,
-        document: DocumentNode,
+        request: GraphQLRequest,
         *,
-        variable_values: Optional[Dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
@@ -1469,15 +1397,13 @@ class AsyncClientSession:
     ) -> Union[
         AsyncGenerator[Dict[str, Any], None], AsyncGenerator[ExecutionResult, None]
     ]:
-        """Coroutine to subscribe asynchronously to the provided document AST
+        """Coroutine to subscribe asynchronously to the provided request
         asynchronously using the async transport.
 
         Raises a TransportQueryError if an error has been returned in
             the ExecutionResult.
 
-        :param document: GraphQL query as AST Node object.
-        :param variable_values: Dictionary of input parameters.
-        :param operation_name: Name of the operation that shall be executed.
+        :param request: GraphQL query as :class:`GraphQLRequest <gql.GraphQLRequest>`.
         :param serialize_variables: whether the variable values should be
             serialized. Used for custom scalars and/or enums.
             By default use the serialize_variables argument of the client.
@@ -1487,13 +1413,6 @@ class AsyncClientSession:
             only the "data" field. Necessary if you want to get the "extensions" field.
 
         The extra arguments are passed to the transport subscribe method."""
-
-        # Make GraphQLRequest object
-        request = GraphQLRequest(
-            document=document,
-            variable_values=variable_values,
-            operation_name=operation_name,
-        )
 
         inner_generator: AsyncGenerator[ExecutionResult, None] = self._subscribe(
             request,
@@ -1536,8 +1455,8 @@ class AsyncClientSession:
         * Validate the query with the schema if provided.
         * Serialize the variable_values if requested.
 
-        :param request: graphql request as a
-                        :class:`graphqlrequest <gql.graphqlrequest>` object.
+        :param request: GraphQL request as a
+                        :class:`GraphQLRequest <gql.GraphQLRequest>` object.
         :param serialize_variables: whether the variable values should be
             serialized. Used for custom scalars and/or enums.
             By default use the serialize_variables argument of the client.
@@ -1546,9 +1465,13 @@ class AsyncClientSession:
 
         The extra arguments are passed to the transport execute method."""
 
+        # Still supporting for now old method of providing
+        # variable_values and operation_name
+        request = support_deprecated_request(request, kwargs)
+
         # Validate document
         if self.client.schema:
-            self.client.validate(request.document)
+            self.client.validate(request)
 
             # Parse variable values for custom scalars if requested
             if request.variable_values is not None:
@@ -1584,10 +1507,8 @@ class AsyncClientSession:
     @overload
     async def execute(
         self,
-        document: DocumentNode,
+        request: GraphQLRequest,
         *,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
         get_execution_result: Literal[False] = ...,
@@ -1597,10 +1518,8 @@ class AsyncClientSession:
     @overload
     async def execute(
         self,
-        document: DocumentNode,
+        request: GraphQLRequest,
         *,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
         get_execution_result: Literal[True],
@@ -1610,10 +1529,8 @@ class AsyncClientSession:
     @overload
     async def execute(
         self,
-        document: DocumentNode,
+        request: GraphQLRequest,
         *,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
         get_execution_result: bool,
@@ -1622,24 +1539,20 @@ class AsyncClientSession:
 
     async def execute(
         self,
-        document: DocumentNode,
+        request: GraphQLRequest,
         *,
-        variable_values: Optional[Dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
         **kwargs: Any,
     ) -> Union[Dict[str, Any], ExecutionResult]:
-        """Coroutine to execute the provided document AST asynchronously using
+        """Coroutine to execute the provided request asynchronously using
         the async transport.
 
         Raises a TransportQueryError if an error has been returned in
             the ExecutionResult.
 
-        :param document: GraphQL query as AST Node object.
-        :param variable_values: Dictionary of input parameters.
-        :param operation_name: Name of the operation that shall be executed.
+        :param request: GraphQL query as :class:`GraphQLRequest <gql.GraphQLRequest>`.
         :param serialize_variables: whether the variable values should be
             serialized. Used for custom scalars and/or enums.
             By default use the serialize_variables argument of the client.
@@ -1649,13 +1562,6 @@ class AsyncClientSession:
             only the "data" field. Necessary if you want to get the "extensions" field.
 
         The extra arguments are passed to the transport execute method."""
-
-        # Make GraphQLRequest object
-        request = GraphQLRequest(
-            document=document,
-            variable_values=variable_values,
-            operation_name=operation_name,
-        )
 
         # Validate and execute on the transport
         result = await self._execute(
@@ -1710,7 +1616,7 @@ class AsyncClientSession:
 
             if validate_document:
                 for req in requests:
-                    self.client.validate(req.document)
+                    self.client.validate(req)
 
             # Parse variable values for custom scalars if requested
             if serialize_variables or (

@@ -444,10 +444,9 @@ async def test_aiohttp_websocket_subscription_with_operation_name(
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
+    subscription.operation_name = "CountdownSubscription"
 
-    async for result in session.subscribe(
-        subscription, operation_name="CountdownSubscription"
-    ):
+    async for result in session.subscribe(subscription):
 
         number = result["number"]
         print(f"Number received: {number}")
@@ -751,15 +750,13 @@ async def test_async_aiohttp_client_validation(server, subscription_str, client_
 
     async with client as session:
 
-        variable_values = {"ep": "JEDI"}
-
         subscription = gql(subscription_str)
+
+        subscription.variable_values = {"ep": "JEDI"}
 
         expected = []
 
-        async for result in session.subscribe(
-            subscription, variable_values=variable_values, parse_result=False
-        ):
+        async for result in session.subscribe(subscription, parse_result=False):
 
             review = result["reviewAdded"]
             expected.append(review)

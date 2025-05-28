@@ -20,7 +20,7 @@ from graphql.type import (
 )
 from graphql.utilities import value_from_ast_untyped
 
-from gql import Client, GraphQLRequest, gql
+from gql import Client, gql
 from gql.transport.exceptions import TransportQueryError
 from gql.utilities import serialize_value, update_schema_scalar, update_schema_scalars
 
@@ -275,11 +275,9 @@ def test_custom_scalar_in_input_variable_values():
 
     money_value = {"amount": 10, "currency": "DM"}
 
-    variable_values = {"money": money_value}
+    query.variable_values = {"money": money_value}
 
-    result = client.execute(
-        query, variable_values=variable_values, root_value=root_value
-    )
+    result = client.execute(query, root_value=root_value)
 
     assert result["toEuros"] == 5
 
@@ -292,11 +290,10 @@ def test_custom_scalar_in_input_variable_values_serialized():
 
     money_value = Money(10, "DM")
 
-    variable_values = {"money": money_value}
+    query.variable_values = {"money": money_value}
 
     result = client.execute(
         query,
-        variable_values=variable_values,
         root_value=root_value,
         serialize_variables=True,
     )
@@ -312,14 +309,13 @@ def test_custom_scalar_in_input_variable_values_serialized_with_operation_name()
 
     money_value = Money(10, "DM")
 
-    variable_values = {"money": money_value}
+    query.variable_values = {"money": money_value}
+    query.operation_name = "myquery"
 
     result = client.execute(
         query,
-        variable_values=variable_values,
         root_value=root_value,
         serialize_variables=True,
-        operation_name="myquery",
     )
 
     assert result["toEuros"] == 5
@@ -342,12 +338,11 @@ def test_serialize_variable_values_exception_multiple_ops_without_operation_name
 
     money_value = Money(10, "DM")
 
-    variable_values = {"money": money_value}
+    query.variable_values = {"money": money_value}
 
     with pytest.raises(GraphQLError) as exc_info:
         client.execute(
             query,
-            variable_values=variable_values,
             root_value=root_value,
             serialize_variables=True,
         )
@@ -374,15 +369,14 @@ def test_serialize_variable_values_exception_operation_name_not_found():
 
     money_value = Money(10, "DM")
 
-    variable_values = {"money": money_value}
+    query.variable_values = {"money": money_value}
+    query.operation_name = "invalid_operation_name"
 
     with pytest.raises(GraphQLError) as exc_info:
         client.execute(
             query,
-            variable_values=variable_values,
             root_value=root_value,
             serialize_variables=True,
-            operation_name="invalid_operation_name",
         )
 
     exception = exc_info.value
@@ -398,13 +392,12 @@ def test_custom_scalar_subscribe_in_input_variable_values_serialized():
 
     money_value = Money(10, "DM")
 
-    variable_values = {"money": money_value}
+    query.variable_values = {"money": money_value}
 
     expected_result = {"spend": Money(10, "DM")}
 
     for result in client.subscribe(
         query,
-        variable_values=variable_values,
         root_value=root_value,
         serialize_variables=True,
         parse_result=True,
@@ -544,9 +537,9 @@ async def test_custom_scalar_in_input_variable_values_with_transport(aiohttp_ser
         money_value = {"amount": 10, "currency": "DM"}
         # money_value = Money(10, "DM")
 
-        variable_values = {"money": money_value}
+        query.variable_values = {"money": money_value}
 
-        result = await session.execute(query, variable_values=variable_values)
+        result = await session.execute(query)
 
         print(f"result = {result!r}")
         assert result["toEuros"] == 5
@@ -570,9 +563,9 @@ query myquery($amount: Float, $currency: String) {
 }"""
         )
 
-        variable_values = {"amount": 10, "currency": "DM"}
+        query.variable_values = {"amount": 10, "currency": "DM"}
 
-        result = await session.execute(query, variable_values=variable_values)
+        result = await session.execute(query)
 
         print(f"result = {result!r}")
         assert result["toEuros"] == 5
@@ -590,11 +583,9 @@ async def test_custom_scalar_serialize_variables(aiohttp_server):
 
         query = gql("query myquery($money: Money) {toEuros(money: $money)}")
 
-        variable_values = {"money": Money(10, "DM")}
+        query.variable_values = {"money": Money(10, "DM")}
 
-        result = await session.execute(
-            query, variable_values=variable_values, serialize_variables=True
-        )
+        result = await session.execute(query, serialize_variables=True)
 
         print(f"result = {result!r}")
         assert result["toEuros"] == 5
@@ -611,12 +602,10 @@ async def test_custom_scalar_serialize_variables_no_schema(aiohttp_server):
 
         query = gql("query myquery($money: Money) {toEuros(money: $money)}")
 
-        variable_values = {"money": Money(10, "DM")}
+        query.variable_values = {"money": Money(10, "DM")}
 
         with pytest.raises(TransportQueryError):
-            await session.execute(
-                query, variable_values=variable_values, serialize_variables=True
-            )
+            await session.execute(query, serialize_variables=True)
 
 
 @pytest.mark.asyncio
@@ -643,11 +632,9 @@ async def test_custom_scalar_serialize_variables_schema_from_introspection(
 
         query = gql("query myquery($money: Money) {toEuros(money: $money)}")
 
-        variable_values = {"money": Money(10, "DM")}
+        query.variable_values = {"money": Money(10, "DM")}
 
-        result = await session.execute(
-            query, variable_values=variable_values, serialize_variables=True
-        )
+        result = await session.execute(query, serialize_variables=True)
 
         print(f"result = {result!r}")
         assert result["toEuros"] == 5
@@ -667,11 +654,9 @@ async def test_update_schema_scalars(aiohttp_server):
 
         query = gql("query myquery($money: Money) {toEuros(money: $money)}")
 
-        variable_values = {"money": Money(10, "DM")}
+        query.variable_values = {"money": Money(10, "DM")}
 
-        result = await session.execute(
-            query, variable_values=variable_values, serialize_variables=True
-        )
+        result = await session.execute(query, serialize_variables=True)
 
         print(f"result = {result!r}")
         assert result["toEuros"] == 5
@@ -743,11 +728,9 @@ async def test_custom_scalar_serialize_variables_sync_transport(
 
             query = gql("query myquery($money: Money) {toEuros(money: $money)}")
 
-            variable_values = {"money": Money(10, "DM")}
+            query.variable_values = {"money": Money(10, "DM")}
 
-            result = session.execute(
-                query, variable_values=variable_values, serialize_variables=True
-            )
+            result = session.execute(query, serialize_variables=True)
 
             print(f"result = {result!r}")
             assert result["toEuros"] == 5
@@ -767,12 +750,12 @@ async def test_custom_scalar_serialize_variables_sync_transport_2(
 
             query = gql("query myquery($money: Money) {toEuros(money: $money)}")
 
-            variable_values = {"money": Money(10, "DM")}
+            query.variable_values = {"money": Money(10, "DM")}
 
             results = session.execute_batch(
                 [
-                    GraphQLRequest(document=query, variable_values=variable_values),
-                    GraphQLRequest(document=query, variable_values=variable_values),
+                    query,
+                    query,
                 ],
                 serialize_variables=True,
             )
@@ -795,12 +778,12 @@ async def test_custom_scalar_serialize_variables_async_transport(aiohttp_server)
 
         query = gql("query myquery($money: Money) {toEuros(money: $money)}")
 
-        variable_values = {"money": Money(10, "DM")}
+        query.variable_values = {"money": Money(10, "DM")}
 
         results = await session.execute_batch(
             [
-                GraphQLRequest(document=query, variable_values=variable_values),
-                GraphQLRequest(document=query, variable_values=variable_values),
+                query,
+                query,
             ],
             serialize_variables=True,
         )

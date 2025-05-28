@@ -93,6 +93,5 @@ def test_parse_results_null_mapping():
     } }"""
     )
 
-    assert client.execute(query, variable_values={"count": 2}) == {
-        "test": static_result
-    }
+    query.variable_values = {"count": 2}
+    assert client.execute(query) == {"test": static_result}

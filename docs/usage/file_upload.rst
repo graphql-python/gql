@@ -15,7 +15,7 @@ In order to upload a single file, you need to:
 
 * set the file as a variable value in the mutation
 * create a :class:`FileVar <gql.FileVar>` object with your file path
-* provide the `FileVar` instance to the `variable_values` argument of `execute`
+* provide the `FileVar` instance to the `variable_values` attribute of your query
 * set the `upload_files` argument to True
 
 .. code-block:: python
@@ -37,11 +37,9 @@ In order to upload a single file, you need to:
       }
     ''')
 
-    params = {"file": FileVar("YOUR_FILE_PATH")}
+    query.variable_values = {"file": FileVar("YOUR_FILE_PATH")}
 
-    result = client.execute(
-        query, variable_values=params, upload_files=True
-    )
+    result = client.execute(query, upload_files=True)
 
 Setting the content-type
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -97,11 +95,9 @@ It is also possible to upload multiple files using a list.
     f1 = FileVar("YOUR_FILE_PATH_1")
     f2 = FileVar("YOUR_FILE_PATH_2")
 
-    params = {"files": [f1, f2]}
+    query.variable_values = {"files": [f1, f2]}
 
-    result = client.execute(
-        query, variable_values=params, upload_files=True
-    )
+    result = client.execute(query, upload_files=True)
 
 
 Streaming
@@ -150,11 +146,9 @@ setting the `streaming` argument of :class:`FileVar <gql.FileVar>` to `True`
         streaming=True,
     )
 
-    params = {"file": f1}
+    query.variable_values = {"file": f1}
 
-    result = client.execute(
-        query, variable_values=params, upload_files=True
-    )
+    result = client.execute(query, upload_files=True)
 
 Another option is to use an async generator to provide parts of the file.
 
@@ -172,11 +166,9 @@ to read the files in chunks and create this asynchronous generator.
                 yield chunk
 
     f1 = FileVar(file_sender(file_name='YOUR_FILE_PATH'))
-    params = {"file": f1}
+    query.variable_values = {"file": f1}
 
-    result = client.execute(
-        query, variable_values=params, upload_files=True
-    )
+    result = client.execute(query, upload_files=True)
 
 Streaming downloaded files
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -193,7 +185,7 @@ In order to do that, you need to:
 
 * get the response from an aiohttp request and then get the StreamReader instance
   from `resp.content`
-* provide the StreamReader instance to the `variable_values` argument of `execute`
+* provide the StreamReader instance to the `variable_values` attribute of your query
 
 Example:
 
@@ -204,7 +196,7 @@ Example:
         async with http_client.get('YOUR_DOWNLOAD_URL') as resp:
 
             # We now have a StreamReader instance in resp.content
-            # and we provide it to the variable_values argument of execute
+            # and we provide it to the variable_values attribute of the query
 
             transport = AIOHTTPTransport(url='YOUR_GRAPHQL_URL')
 
@@ -218,8 +210,6 @@ Example:
               }
             ''')
 
-            params = {"file": FileVar(resp.content)}
+            query.variable_values = {"file": FileVar(resp.content)}
 
-            result = client.execute(
-                query, variable_values=params, upload_files=True
-            )
+            result = client.execute(query, upload_files=True)
