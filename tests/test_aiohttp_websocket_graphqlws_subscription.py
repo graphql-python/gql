@@ -425,10 +425,9 @@ async def test_aiohttp_websocket_graphqlws_subscription_with_operation_name(
 
     count = 10
     subscription = gql(subscription_str.format(count=count))
+    subscription.operation_name = "CountdownSubscription"
 
-    async for result in session.subscribe(
-        subscription, operation_name="CountdownSubscription"
-    ):
+    async for result in session.subscribe(subscription):
 
         number = result["number"]
         print(f"Number received: {number}")

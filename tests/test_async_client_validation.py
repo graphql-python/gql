@@ -97,15 +97,13 @@ async def test_async_client_validation(server, subscription_str, client_params):
 
     async with client as session:
 
-        variable_values = {"ep": "JEDI"}
-
         subscription = gql(subscription_str)
+
+        subscription.variable_values = {"ep": "JEDI"}
 
         expected = []
 
-        async for result in session.subscribe(
-            subscription, variable_values=variable_values, parse_result=False
-        ):
+        async for result in session.subscribe(subscription, parse_result=False):
 
             review = result["reviewAdded"]
             expected.append(review)
@@ -144,14 +142,12 @@ async def test_async_client_validation_invalid_query(
 
     async with client as session:
 
-        variable_values = {"ep": "JEDI"}
-
         subscription = gql(subscription_str)
 
+        subscription.variable_values = {"ep": "JEDI"}
+
         with pytest.raises(graphql.error.GraphQLError):
-            async for _result in session.subscribe(
-                subscription, variable_values=variable_values
-            ):
+            async for _result in session.subscribe(subscription):
                 pass
 
 

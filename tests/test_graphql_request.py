@@ -230,6 +230,9 @@ def test_graphql_request_init_with_graphql_request():
 
     assert request_1.document == request_2.document
     assert request_2.document == request_3.document
+    assert isinstance(request_1.variable_values, Dict)
+    assert isinstance(request_2.variable_values, Dict)
+    assert isinstance(request_3.variable_values, Dict)
     assert request_1.variable_values["money"] == money_value_1
     assert request_2.variable_values["money"] == money_value_1
     assert request_3.variable_values["money"] == money_value_2

@@ -498,14 +498,13 @@ async def test_httpx_query_variable_values(aiohttp_server):
 
     async with Client(transport=transport) as session:
 
-        params = {"code": "EU"}
-
         query = gql(query2_str)
 
+        query.variable_values = {"code": "EU"}
+        query.operation_name = "getEurope"
+
         # Execute query asynchronously
-        result = await session.execute(
-            query, variable_values=params, operation_name="getEurope"
-        )
+        result = await session.execute(query)
 
         continent = result["continent"]
 
@@ -536,14 +535,13 @@ async def test_httpx_query_variable_values_fix_issue_292(aiohttp_server):
 
     async with Client(transport=transport) as session:
 
-        params = {"code": "EU"}
-
         query = gql(query2_str)
 
+        query.variable_values = {"code": "EU"}
+        query.operation_name = "getEurope"
+
         # Execute query asynchronously
-        result = await session.execute(
-            query, variable_values=params, operation_name="getEurope"
-        )
+        result = await session.execute(query)
 
         continent = result["continent"]
 
@@ -671,16 +669,14 @@ async def test_httpx_file_upload(aiohttp_server):
             # Using an opened file
             with open(file_path, "rb") as f:
 
-                params = {"file": f, "other_var": 42}
+                query.variable_values = {"file": f, "other_var": 42}
 
                 # Execute query asynchronously
                 with pytest.warns(
                     DeprecationWarning,
                     match="Not using FileVar for file upload is deprecated",
                 ):
-                    result = await session.execute(
-                        query, variable_values=params, upload_files=True
-                    )
+                    result = await session.execute(query, upload_files=True)
 
             success = result["success"]
             assert success
@@ -688,23 +684,19 @@ async def test_httpx_file_upload(aiohttp_server):
             # Using an opened file inside a FileVar object
             with open(file_path, "rb") as f:
 
-                params = {"file": FileVar(f), "other_var": 42}
+                query.variable_values = {"file": FileVar(f), "other_var": 42}
 
                 # Execute query asynchronously
-                result = await session.execute(
-                    query, variable_values=params, upload_files=True
-                )
+                result = await session.execute(query, upload_files=True)
 
             success = result["success"]
             assert success
 
             # Using an filename string inside a FileVar object
-            params = {"file": FileVar(file_path), "other_var": 42}
+            query.variable_values = {"file": FileVar(file_path), "other_var": 42}
 
             # Execute query asynchronously
-            result = await session.execute(
-                query, variable_values=params, upload_files=True
-            )
+            result = await session.execute(query, upload_files=True)
 
             success = result["success"]
             assert success
@@ -742,9 +734,9 @@ async def test_httpx_file_upload_without_session(aiohttp_server, run_sync_test):
 
             file_path = test_file.filename
 
-            params = {"file": FileVar(file_path), "other_var": 42}
+            query.variable_values = {"file": FileVar(file_path), "other_var": 42}
 
-            result = client.execute(query, variable_values=params, upload_files=True)
+            result = client.execute(query, upload_files=True)
 
             success = result["success"]
 
@@ -788,12 +780,10 @@ async def test_httpx_binary_file_upload(aiohttp_server):
 
             file_path = test_file.filename
 
-            params = {"file": FileVar(file_path), "other_var": 42}
+            query.variable_values = {"file": FileVar(file_path), "other_var": 42}
 
             # Execute query asynchronously
-            result = await session.execute(
-                query, variable_values=params, upload_files=True
-            )
+            result = await session.execute(query, upload_files=True)
 
             success = result["success"]
 
@@ -855,14 +845,12 @@ async def test_httpx_file_upload_two_files(aiohttp_server):
                 file_path_1 = test_file_1.filename
                 file_path_2 = test_file_2.filename
 
-                params = {
+                query.variable_values = {
                     "file1": FileVar(file_path_1),
                     "file2": FileVar(file_path_2),
                 }
 
-                result = await session.execute(
-                    query, variable_values=params, upload_files=True
-                )
+                result = await session.execute(query, upload_files=True)
 
                 success = result["success"]
                 assert success
@@ -925,7 +913,7 @@ async def test_httpx_file_upload_list_of_two_files(aiohttp_server):
                 file_path_1 = test_file_1.filename
                 file_path_2 = test_file_2.filename
 
-                params = {
+                query.variable_values = {
                     "files": [
                         FileVar(file_path_1),
                         FileVar(file_path_2),
@@ -933,9 +921,7 @@ async def test_httpx_file_upload_list_of_two_files(aiohttp_server):
                 }
 
                 # Execute query asynchronously
-                result = await session.execute(
-                    query, variable_values=params, upload_files=True
-                )
+                result = await session.execute(query, upload_files=True)
 
                 success = result["success"]
                 assert success

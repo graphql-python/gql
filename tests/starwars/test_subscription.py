@@ -3,7 +3,7 @@ import asyncio
 import pytest
 from graphql import ExecutionResult, GraphQLError, subscribe
 
-from gql import Client, GraphQLRequest, gql
+from gql import Client, gql
 
 from .fixtures import reviews
 from .schema import StarWarsSchema
@@ -59,14 +59,14 @@ async def test_subscription_support_using_client():
 
     subs = gql(subscription_str)
 
-    params = {"ep": "JEDI"}
+    subs.variable_values = {"ep": "JEDI"}
     expected = [{**review, "episode": "JEDI"} for review in reviews[6]]
 
     async with Client(schema=StarWarsSchema) as session:
         results = [
             result["reviewAdded"]
             async for result in await await_if_coroutine(
-                session.subscribe(subs, variable_values=params, parse_result=False)
+                session.subscribe(subs, parse_result=False)
             )
         ]
 
@@ -83,9 +83,9 @@ subscription_invalid_str = """
 @pytest.mark.asyncio
 async def test_subscription_support_using_client_invalid_field():
 
-    subs = subscription_invalid_str
+    subs = gql(subscription_invalid_str)
 
-    params = {"ep": "JEDI"}
+    subs.variable_values = {"ep": "JEDI"}
 
     async with Client(schema=StarWarsSchema) as session:
 
@@ -93,9 +93,7 @@ async def test_subscription_support_using_client_invalid_field():
         results = [
             result
             async for result in await await_if_coroutine(
-                session.transport.subscribe(
-                    GraphQLRequest(subs, variable_values=params)
-                )
+                session.transport.subscribe(subs)
             )
         ]
 

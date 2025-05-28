@@ -39,9 +39,7 @@ class GraphQLContinentClient:
 
         assert self._session is not None
 
-        answer = await self._session.execute(
-            self.get_continent_name_query
-        )
+        answer = await self._session.execute(self.get_continent_name_query)
 
         return answer.get("continent").get("name")  # type: ignore
 

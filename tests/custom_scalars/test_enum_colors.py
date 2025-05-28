@@ -165,11 +165,11 @@ def test_opposite_color_variable_serialized_manually():
         }"""
     )
 
-    variable_values = {
+    query.variable_values = {
         "color": "RED",
     }
 
-    result = client.execute(query, variable_values=variable_values)
+    result = client.execute(query)
 
     print(result)
 
@@ -190,13 +190,11 @@ def test_opposite_color_variable_serialized_by_gql():
         }"""
     )
 
-    variable_values = {
+    query.variable_values = {
         "color": RED,
     }
 
-    result = client.execute(
-        query, variable_values=variable_values, serialize_variables=True
-    )
+    result = client.execute(query, serialize_variables=True)
 
     print(result)
 
@@ -328,13 +326,12 @@ def test_parse_results_with_operation_type():
         """
     )
 
-    variable_values = {
+    query.variable_values = {
         "color": "RED",
     }
+    query.operation_name = "GetOppositeColor"
 
-    result = client.execute(
-        query, variable_values=variable_values, operation_name="GetOppositeColor"
-    )
+    result = client.execute(query)
 
     print(result)
 

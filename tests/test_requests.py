@@ -640,27 +640,23 @@ async def test_requests_file_upload_with_content_type(aiohttp_server, run_sync_t
                     # Setting the content_type
                     f.content_type = "application/pdf"  # type: ignore
 
-                    params = {"file": f, "other_var": 42}
+                    query.variable_values = {"file": f, "other_var": 42}
                     with pytest.warns(
                         DeprecationWarning,
                         match="Not using FileVar for file upload is deprecated",
                     ):
-                        execution_result = session.execute(
-                            query, variable_values=params, upload_files=True
-                        )
+                        execution_result = session.execute(query, upload_files=True)
 
                     assert execution_result["success"]
 
                 # Using an opened file inside a FileVar object
                 with open(file_path, "rb") as f:
 
-                    params = {
+                    query.variable_values = {
                         "file": FileVar(f, content_type="application/pdf"),
                         "other_var": 42,
                     }
-                    execution_result = session.execute(
-                        query, variable_values=params, upload_files=True
-                    )
+                    execution_result = session.execute(query, upload_files=True)
 
                     assert execution_result["success"]
 
@@ -703,13 +699,11 @@ async def test_requests_file_upload_default_filename_is_basename(
             with Client(transport=transport) as session:
                 query = gql(file_upload_mutation_1)
 
-                params = {
+                query.variable_values = {
                     "file": FileVar(file_path),
                     "other_var": 42,
                 }
-                execution_result = session.execute(
-                    query, variable_values=params, upload_files=True
-                )
+                execution_result = session.execute(query, upload_files=True)
 
                 assert execution_result["success"]
 
@@ -750,13 +744,11 @@ async def test_requests_file_upload_with_filename(aiohttp_server, run_sync_test)
 
                 with open(file_path, "rb") as f:
 
-                    params = {
+                    query.variable_values = {
                         "file": FileVar(f, filename="filename1.txt"),
                         "other_var": 42,
                     }
-                    execution_result = session.execute(
-                        query, variable_values=params, upload_files=True
-                    )
+                    execution_result = session.execute(query, upload_files=True)
 
                     assert execution_result["success"]
 
@@ -796,14 +788,12 @@ async def test_requests_file_upload_additional_headers(aiohttp_server, run_sync_
 
                 with open(file_path, "rb") as f:
 
-                    params = {"file": f, "other_var": 42}
+                    query.variable_values = {"file": f, "other_var": 42}
                     with pytest.warns(
                         DeprecationWarning,
                         match="Not using FileVar for file upload is deprecated",
                     ):
-                        execution_result = session.execute(
-                            query, variable_values=params, upload_files=True
-                        )
+                        execution_result = session.execute(query, upload_files=True)
 
                     assert execution_result["success"]
 
@@ -847,15 +837,13 @@ async def test_requests_binary_file_upload(aiohttp_server, run_sync_test):
 
                 with open(file_path, "rb") as f:
 
-                    params = {"file": f, "other_var": 42}
+                    query.variable_values = {"file": f, "other_var": 42}
 
                     with pytest.warns(
                         DeprecationWarning,
                         match="Not using FileVar for file upload is deprecated",
                     ):
-                        execution_result = session.execute(
-                            query, variable_values=params, upload_files=True
-                        )
+                        execution_result = session.execute(query, upload_files=True)
 
                     assert execution_result["success"]
 
@@ -922,7 +910,7 @@ async def test_requests_file_upload_two_files(aiohttp_server, run_sync_test):
                     f1 = open(file_path_1, "rb")
                     f2 = open(file_path_2, "rb")
 
-                    params_1 = {
+                    query.variable_values = {
                         "file1": f1,
                         "file2": f2,
                     }
@@ -931,9 +919,7 @@ async def test_requests_file_upload_two_files(aiohttp_server, run_sync_test):
                         DeprecationWarning,
                         match="Not using FileVar for file upload is deprecated",
                     ):
-                        execution_result = session.execute(
-                            query, variable_values=params_1, upload_files=True
-                        )
+                        execution_result = session.execute(query, upload_files=True)
 
                     assert execution_result["success"]
 
@@ -947,14 +933,12 @@ async def test_requests_file_upload_two_files(aiohttp_server, run_sync_test):
                     f1 = open(file_path_1, "rb")
                     f2 = open(file_path_2, "rb")
 
-                    params_2 = {
+                    query.variable_values = {
                         "file1": FileVar(f1),
                         "file2": FileVar(f2),
                     }
 
-                    execution_result = session.execute(
-                        query, variable_values=params_2, upload_files=True
-                    )
+                    execution_result = session.execute(query, upload_files=True)
 
                     assert execution_result["success"]
 
@@ -1025,15 +1009,13 @@ async def test_requests_file_upload_list_of_two_files(aiohttp_server, run_sync_t
                     f1 = open(file_path_1, "rb")
                     f2 = open(file_path_2, "rb")
 
-                    params = {"files": [f1, f2]}
+                    query.variable_values = {"files": [f1, f2]}
 
                     with pytest.warns(
                         DeprecationWarning,
                         match="Not using FileVar for file upload is deprecated",
                     ):
-                        execution_result = session.execute(
-                            query, variable_values=params, upload_files=True
-                        )
+                        execution_result = session.execute(query, upload_files=True)
 
                     assert execution_result["success"]
 
@@ -1047,11 +1029,9 @@ async def test_requests_file_upload_list_of_two_files(aiohttp_server, run_sync_t
                     f1 = open(file_path_1, "rb")
                     f2 = open(file_path_2, "rb")
 
-                    params_2 = {"files": [FileVar(f1), FileVar(f2)]}
+                    query.variable_values = {"files": [FileVar(f1), FileVar(f2)]}
 
-                    execution_result = session.execute(
-                        query, variable_values=params_2, upload_files=True
-                    )
+                    execution_result = session.execute(query, upload_files=True)
 
                     assert execution_result["success"]
 
