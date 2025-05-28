@@ -137,50 +137,20 @@ class RequestsHTTPTransport(Transport):
         else:
             raise TransportAlreadyConnected("Transport is already connected")
 
-    def _prepare_batch_request(
-        self,
-        reqs: List[GraphQLRequest],
-        *,
-        timeout: Optional[int] = None,
-        extra_args: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
-
-        payload = [req.payload for req in reqs]
-
-        post_args: Dict[str, Any] = {
-            "headers": self.headers,
-            "auth": self.auth,
-            "cookies": self.cookies,
-            "timeout": timeout or self.default_timeout,
-            "verify": self.verify,
-        }
-
-        data_key = "json" if self.use_json else "data"
-        post_args[data_key] = payload
-
-        # Log the payload
-        if log.isEnabledFor(logging.DEBUG):
-            log.debug(">>> %s", self.json_serialize(payload))
-
-        # Pass kwargs to requests post method
-        post_args.update(self.kwargs)
-
-        # Pass post_args to requests post method
-        if extra_args:
-            post_args.update(extra_args)
-
-        return post_args
-
     def _prepare_request(
         self,
-        request: GraphQLRequest,
+        request: Union[GraphQLRequest, List[GraphQLRequest]],
         *,
         timeout: Optional[int] = None,
         extra_args: Optional[Dict[str, Any]] = None,
         upload_files: bool = False,
     ) -> Dict[str, Any]:
 
-        payload = request.payload
+        payload: Dict | List
+        if isinstance(request, GraphQLRequest):
+            payload = request.payload
+        else:
+            payload = [req.payload for req in request]
 
         post_args: Dict[str, Any] = {
             "headers": self.headers,
@@ -191,6 +161,8 @@ class RequestsHTTPTransport(Transport):
         }
 
         if upload_files:
+            assert isinstance(payload, Dict)
+            assert isinstance(request, GraphQLRequest)
             post_args = self._prepare_file_uploads(
                 request=request,
                 payload=payload,
@@ -282,7 +254,7 @@ class RequestsHTTPTransport(Transport):
 
         return post_args
 
-    def execute(  # type: ignore
+    def execute(
         self,
         request: GraphQLRequest,
         timeout: Optional[int] = None,
@@ -316,9 +288,7 @@ class RequestsHTTPTransport(Transport):
 
         # Using the created session to perform requests
         try:
-            response = self.session.request(
-                self.method, self.url, **post_args  # type: ignore
-            )
+            response = self.session.request(self.method, self.url, **post_args)
         finally:
             if upload_files:
                 close_files(list(self.files.values()))
@@ -373,7 +343,7 @@ class RequestsHTTPTransport(Transport):
         if not self.session:
             raise TransportClosed("Transport is not connected")
 
-        post_args = self._prepare_batch_request(
+        post_args = self._prepare_request(
             reqs,
             timeout=timeout,
             extra_args=extra_args,
