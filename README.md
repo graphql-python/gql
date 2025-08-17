@@ -57,17 +57,17 @@ pip install "gql[all]"
 
 ## Usage
 
-### Basic usage
+### Sync usage
 
 ```python
-from gql import gql, Client
+from gql import Client, gql
 from gql.transport.aiohttp import AIOHTTPTransport
 
 # Select your transport with a defined url endpoint
 transport = AIOHTTPTransport(url="https://countries.trevorblades.com/")
 
 # Create a GraphQL client using the defined transport
-client = Client(transport=transport, fetch_schema_from_transport=True)
+client = Client(transport=transport)
 
 # Provide a GraphQL query
 query = gql(
@@ -96,6 +96,47 @@ $ python basic_example.py
 > **WARNING**: Please note that this basic example won't work if you have an asyncio event loop running. In some
 > python environments (as with Jupyter which uses IPython) an asyncio event loop is created for you. In that case you
 > should use instead the [async usage example](https://gql.readthedocs.io/en/latest/async/async_usage.html#async-usage).
+
+### Async usage
+
+```python
+import asyncio
+
+from gql import Client, gql
+from gql.transport.aiohttp import AIOHTTPTransport
+
+
+async def main():
+
+    # Select your transport with a defined url endpoint
+    transport = AIOHTTPTransport(url="https://countries.trevorblades.com/graphql")
+
+    # Create a GraphQL client using the defined transport
+    client = Client(transport=transport)
+
+    # Provide a GraphQL query
+    query = gql(
+        """
+        query getContinents {
+          continents {
+            code
+            name
+          }
+        }
+    """
+    )
+
+    # Using `async with` on the client will start a connection on the transport
+    # and provide a `session` variable to execute queries on this connection
+    async with client as session:
+
+        # Execute the query
+        result = await session.execute(query)
+        print(result)
+
+
+asyncio.run(main())
+```
 
 ## Contributing
 See [CONTRIBUTING.md](CONTRIBUTING.md)
