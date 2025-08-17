@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Optional
 
 import pytest
 from graphql import (
@@ -6,6 +7,7 @@ from graphql import (
     GraphQLEnumType,
     GraphQLField,
     GraphQLList,
+    GraphQLNamedType,
     GraphQLNonNull,
     GraphQLObjectType,
     GraphQLSchema,
@@ -163,11 +165,11 @@ def test_opposite_color_variable_serialized_manually():
         }"""
     )
 
-    variable_values = {
+    query.variable_values = {
         "color": "RED",
     }
 
-    result = client.execute(query, variable_values=variable_values)
+    result = client.execute(query)
 
     print(result)
 
@@ -188,13 +190,11 @@ def test_opposite_color_variable_serialized_by_gql():
         }"""
     )
 
-    variable_values = {
+    query.variable_values = {
         "color": RED,
     }
 
-    result = client.execute(
-        query, variable_values=variable_values, serialize_variables=True
-    )
+    result = client.execute(query, serialize_variables=True)
 
     print(result)
 
@@ -251,19 +251,30 @@ def test_list_of_list_of_list():
 
 def test_update_schema_enum():
 
-    assert schema.get_type("Color").parse_value("RED") == Color.RED
+    color_type: Optional[GraphQLNamedType]
+
+    color_type = schema.get_type("Color")
+    assert isinstance(color_type, GraphQLEnumType)
+    assert color_type is not None
+    assert color_type.parse_value("RED") == Color.RED
 
     # Using values
 
     update_schema_enum(schema, "Color", Color, use_enum_values=True)
 
-    assert schema.get_type("Color").parse_value("RED") == 0
-    assert schema.get_type("Color").serialize(1) == "GREEN"
+    color_type = schema.get_type("Color")
+    assert isinstance(color_type, GraphQLEnumType)
+    assert color_type is not None
+    assert color_type.parse_value("RED") == 0
+    assert color_type.serialize(1) == "GREEN"
 
     update_schema_enum(schema, "Color", Color)
 
-    assert schema.get_type("Color").parse_value("RED") == Color.RED
-    assert schema.get_type("Color").serialize(Color.RED) == "RED"
+    color_type = schema.get_type("Color")
+    assert isinstance(color_type, GraphQLEnumType)
+    assert color_type is not None
+    assert color_type.parse_value("RED") == Color.RED
+    assert color_type.serialize(Color.RED) == "RED"
 
 
 def test_update_schema_enum_errors():
@@ -273,20 +284,22 @@ def test_update_schema_enum_errors():
 
     assert "Enum Corlo not found in schema!" in str(exc_info)
 
-    with pytest.raises(TypeError) as exc_info:
-        update_schema_enum(schema, "Color", 6)
+    with pytest.raises(TypeError) as exc_info2:
+        update_schema_enum(schema, "Color", 6)  # type: ignore
 
-    assert "Invalid type for enum values: " in str(exc_info)
+    assert "Invalid type for enum values: " in str(exc_info2)
 
-    with pytest.raises(TypeError) as exc_info:
+    with pytest.raises(TypeError) as exc_info3:
         update_schema_enum(schema, "RootQueryType", Color)
 
-    assert 'The type "RootQueryType" is not a GraphQLEnumType, it is a' in str(exc_info)
+    assert 'The type "RootQueryType" is not a GraphQLEnumType, it is a' in str(
+        exc_info3
+    )
 
-    with pytest.raises(KeyError) as exc_info:
+    with pytest.raises(KeyError) as exc_info4:
         update_schema_enum(schema, "Color", {"RED": Color.RED})
 
-    assert 'Enum key "GREEN" not found in provided values!' in str(exc_info)
+    assert 'Enum key "GREEN" not found in provided values!' in str(exc_info4)
 
 
 def test_parse_results_with_operation_type():
@@ -313,13 +326,12 @@ def test_parse_results_with_operation_type():
         """
     )
 
-    variable_values = {
+    query.variable_values = {
         "color": "RED",
     }
+    query.operation_name = "GetOppositeColor"
 
-    result = client.execute(
-        query, variable_values=variable_values, operation_name="GetOppositeColor"
-    )
+    result = client.execute(query)
 
     print(result)
 

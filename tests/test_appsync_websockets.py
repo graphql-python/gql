@@ -107,7 +107,7 @@ def realtime_appsync_server_factory(
             "errorCode": 400,
         }
 
-    async def realtime_appsync_server_template(ws, path):
+    async def realtime_appsync_server_template(ws):
         import websockets
 
         logged_messages.clear()
@@ -138,6 +138,8 @@ def realtime_appsync_server_factory(
                     )
                 )
                 return
+
+            path = ws.request.path
 
             print(f"path = {path}")
 
@@ -348,28 +350,28 @@ def realtime_appsync_server_factory(
     return realtime_appsync_server_template
 
 
-async def realtime_appsync_server(ws, path):
+async def realtime_appsync_server(ws):
 
     server = realtime_appsync_server_factory()
-    await server(ws, path)
+    await server(ws)
 
 
-async def realtime_appsync_server_keepalive(ws, path):
+async def realtime_appsync_server_keepalive(ws):
 
     server = realtime_appsync_server_factory(keepalive=True)
-    await server(ws, path)
+    await server(ws)
 
 
-async def realtime_appsync_server_not_json_answer(ws, path):
+async def realtime_appsync_server_not_json_answer(ws):
 
     server = realtime_appsync_server_factory(not_json_answer=True)
-    await server(ws, path)
+    await server(ws)
 
 
-async def realtime_appsync_server_error_without_id(ws, path):
+async def realtime_appsync_server_error_without_id(ws):
 
     server = realtime_appsync_server_factory(error_without_id=True)
-    await server(ws, path)
+    await server(ws)
 
 
 on_create_message_subscription_str = """
@@ -402,7 +404,7 @@ async def default_transport_test(transport):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [realtime_appsync_server_keepalive], indirect=True)
-async def test_appsync_subscription_api_key(event_loop, server):
+async def test_appsync_subscription_api_key(server):
 
     from gql.transport.appsync_auth import AppSyncApiKeyAuthentication
     from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
@@ -422,11 +424,12 @@ async def test_appsync_subscription_api_key(event_loop, server):
 @pytest.mark.asyncio
 @pytest.mark.botocore
 @pytest.mark.parametrize("server", [realtime_appsync_server], indirect=True)
-async def test_appsync_subscription_iam_with_token(event_loop, server):
+async def test_appsync_subscription_iam_with_token(server):
+
+    from botocore.credentials import Credentials
 
     from gql.transport.appsync_auth import AppSyncIAMAuthentication
     from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
-    from botocore.credentials import Credentials
 
     path = "/graphql"
     url = f"ws://{server.hostname}:{server.port}{path}"
@@ -449,11 +452,12 @@ async def test_appsync_subscription_iam_with_token(event_loop, server):
 @pytest.mark.asyncio
 @pytest.mark.botocore
 @pytest.mark.parametrize("server", [realtime_appsync_server], indirect=True)
-async def test_appsync_subscription_iam_without_token(event_loop, server):
+async def test_appsync_subscription_iam_without_token(server):
+
+    from botocore.credentials import Credentials
 
     from gql.transport.appsync_auth import AppSyncIAMAuthentication
     from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
-    from botocore.credentials import Credentials
 
     path = "/graphql"
     url = f"ws://{server.hostname}:{server.port}{path}"
@@ -475,11 +479,12 @@ async def test_appsync_subscription_iam_without_token(event_loop, server):
 @pytest.mark.asyncio
 @pytest.mark.botocore
 @pytest.mark.parametrize("server", [realtime_appsync_server], indirect=True)
-async def test_appsync_execute_method_not_allowed(event_loop, server):
+async def test_appsync_execute_method_not_allowed(server):
+
+    from botocore.credentials import Credentials
 
     from gql.transport.appsync_auth import AppSyncIAMAuthentication
     from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
-    from botocore.credentials import Credentials
 
     path = "/graphql"
     url = f"ws://{server.hostname}:{server.port}{path}"
@@ -509,10 +514,10 @@ mutation createMessage($message: String!) {
 }"""
         )
 
-        variable_values = {"message": "Hello world!"}
+        query.variable_values = {"message": "Hello world!"}
 
         with pytest.raises(AssertionError) as exc_info:
-            await session.execute(query, variable_values=variable_values)
+            await session.execute(query)
 
         assert (
             "execute method is not allowed for AppSyncWebsocketsTransport "
@@ -522,11 +527,12 @@ mutation createMessage($message: String!) {
 
 @pytest.mark.asyncio
 @pytest.mark.botocore
-async def test_appsync_fetch_schema_from_transport_not_allowed(event_loop):
+async def test_appsync_fetch_schema_from_transport_not_allowed():
+
+    from botocore.credentials import Credentials
 
     from gql.transport.appsync_auth import AppSyncIAMAuthentication
     from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
-    from botocore.credentials import Credentials
 
     dummy_credentials = Credentials(
         access_key=DUMMY_ACCESS_KEY_ID,
@@ -550,7 +556,7 @@ async def test_appsync_fetch_schema_from_transport_not_allowed(event_loop):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [realtime_appsync_server], indirect=True)
-async def test_appsync_subscription_api_key_unauthorized(event_loop, server):
+async def test_appsync_subscription_api_key_unauthorized(server):
 
     from gql.transport.appsync_auth import AppSyncApiKeyAuthentication
     from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
@@ -575,12 +581,13 @@ async def test_appsync_subscription_api_key_unauthorized(event_loop, server):
 @pytest.mark.asyncio
 @pytest.mark.botocore
 @pytest.mark.parametrize("server", [realtime_appsync_server], indirect=True)
-async def test_appsync_subscription_iam_not_allowed(event_loop, server):
+async def test_appsync_subscription_iam_not_allowed(server):
+
+    from botocore.credentials import Credentials
 
     from gql.transport.appsync_auth import AppSyncIAMAuthentication
     from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
     from gql.transport.exceptions import TransportQueryError
-    from botocore.credentials import Credentials
 
     path = "/graphql"
     url = f"ws://{server.hostname}:{server.port}{path}"
@@ -614,9 +621,7 @@ async def test_appsync_subscription_iam_not_allowed(event_loop, server):
 @pytest.mark.parametrize(
     "server", [realtime_appsync_server_not_json_answer], indirect=True
 )
-async def test_appsync_subscription_server_sending_a_not_json_answer(
-    event_loop, server
-):
+async def test_appsync_subscription_server_sending_a_not_json_answer(server):
 
     from gql.transport.appsync_auth import AppSyncApiKeyAuthentication
     from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
@@ -642,9 +647,7 @@ async def test_appsync_subscription_server_sending_a_not_json_answer(
 @pytest.mark.parametrize(
     "server", [realtime_appsync_server_error_without_id], indirect=True
 )
-async def test_appsync_subscription_server_sending_an_error_without_an_id(
-    event_loop, server
-):
+async def test_appsync_subscription_server_sending_an_error_without_an_id(server):
 
     from gql.transport.appsync_auth import AppSyncApiKeyAuthentication
     from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
@@ -668,9 +671,7 @@ async def test_appsync_subscription_server_sending_an_error_without_an_id(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [realtime_appsync_server_keepalive], indirect=True)
-async def test_appsync_subscription_variable_values_and_operation_name(
-    event_loop, server
-):
+async def test_appsync_subscription_variable_values_and_operation_name(server):
 
     from gql.transport.appsync_auth import AppSyncApiKeyAuthentication
     from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
@@ -692,10 +693,11 @@ async def test_appsync_subscription_variable_values_and_operation_name(
     async with client as session:
         subscription = gql(on_create_message_subscription_str)
 
+        subscription.variable_values = {"key1": "val1"}
+        subscription.operation_name = "onCreateMessage"
+
         async for execution_result in session.subscribe(
             subscription,
-            operation_name="onCreateMessage",
-            variable_values={"key1": "val1"},
             get_execution_result=True,
         ):
 

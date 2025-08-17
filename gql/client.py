@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import sys
 import time
 import warnings
 from concurrent.futures import Future
@@ -13,6 +12,7 @@ from typing import (
     Dict,
     Generator,
     List,
+    Literal,
     Optional,
     Tuple,
     TypeVar,
@@ -24,7 +24,6 @@ from typing import (
 import backoff
 from anyio import fail_after
 from graphql import (
-    DocumentNode,
     ExecutionResult,
     GraphQLSchema,
     IntrospectionQuery,
@@ -33,26 +32,14 @@ from graphql import (
     validate,
 )
 
-from .graphql_request import GraphQLRequest
+from .graphql_request import GraphQLRequest, support_deprecated_request
 from .transport.async_transport import AsyncTransport
-from .transport.exceptions import TransportClosed, TransportQueryError
+from .transport.exceptions import TransportConnectionFailed, TransportQueryError
 from .transport.local_schema import LocalSchemaTransport
 from .transport.transport import Transport
 from .utilities import build_client_schema, get_introspection_query_ast
 from .utilities import parse_result as parse_result_fn
-from .utilities import serialize_variable_values
 from .utils import str_first_element
-
-"""
-Load the appropriate instance of the Literal type
-Note: we cannot use try: except ImportError because of the following mypy issue:
-https://github.com/python/mypy/issues/8520
-"""
-if sys.version_info[:2] >= (3, 8):
-    from typing import Literal
-else:
-    from typing_extensions import Literal  # pragma: no cover
-
 
 log = logging.getLogger(__name__)
 
@@ -79,6 +66,7 @@ class Client:
 
     def __init__(
         self,
+        *,
         schema: Optional[Union[str, GraphQLSchema]] = None,
         introspection: Optional[IntrospectionQuery] = None,
         transport: Optional[Union[Transport, AsyncTransport]] = None,
@@ -105,7 +93,7 @@ class Client:
         :param serialize_variables: whether the variable values should be
             serialized. Used for custom scalars and/or enums. Default: False.
         :param parse_results: Whether gql will try to parse the serialized output
-                sent by the backend. Can be used to unserialize custom scalars or enums.
+                sent by the backend. Can be used to deserialize custom scalars or enums.
         :param batch_interval: Time to wait in seconds for batching requests together.
                 Batching is disabled (by default) if 0.
         :param batch_max: Maximum number of requests in a single batch.
@@ -142,7 +130,10 @@ class Client:
         self.introspection: Optional[IntrospectionQuery] = introspection
 
         # GraphQL transport chosen
-        self.transport: Optional[Union[Transport, AsyncTransport]] = transport
+        assert (
+            transport is not None
+        ), "You need to provide either a transport or a schema to the Client."
+        self.transport: Union[Transport, AsyncTransport] = transport
 
         # Flag to indicate that we need to fetch the schema from the transport
         # On async transports, we fetch the schema before executing the first query
@@ -160,20 +151,22 @@ class Client:
         self.batch_max = batch_max
 
     @property
-    def batching_enabled(self):
+    def batching_enabled(self) -> bool:
         return self.batch_interval != 0
 
-    def validate(self, document: DocumentNode):
+    def validate(self, request: GraphQLRequest) -> None:
         """:meta private:"""
         assert (
             self.schema
         ), "Cannot validate the document locally, you need to pass a schema."
 
-        validation_errors = validate(self.schema, document)
+        validation_errors = validate(self.schema, request.document)
         if validation_errors:
             raise validation_errors[0]
 
-    def _build_schema_from_introspection(self, execution_result: ExecutionResult):
+    def _build_schema_from_introspection(
+        self, execution_result: ExecutionResult
+    ) -> None:
         if execution_result.errors:
             raise TransportQueryError(
                 (
@@ -190,64 +183,70 @@ class Client:
         self.introspection = cast(IntrospectionQuery, execution_result.data)
         self.schema = build_client_schema(self.introspection)
 
+    @staticmethod
+    def _get_event_loop() -> asyncio.AbstractEventLoop:
+        """Get the current asyncio event loop.
+
+        Or create a new event loop if there isn't one (in a new Thread).
+        """
+        try:
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore", message="There is no current event loop"
+                )
+                loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+        return loop
+
     @overload
     def execute_sync(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
+        request: GraphQLRequest,
+        *,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
-        *,  # https://github.com/python/mypy/issues/7333#issuecomment-788255229
         get_execution_result: Literal[False] = ...,
-        **kwargs,
-    ) -> Dict[str, Any]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Dict[str, Any]: ...  # pragma: no cover
 
     @overload
     def execute_sync(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
+        request: GraphQLRequest,
+        *,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
-        *,
         get_execution_result: Literal[True],
-        **kwargs,
-    ) -> ExecutionResult:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> ExecutionResult: ...  # pragma: no cover
 
     @overload
     def execute_sync(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
+        request: GraphQLRequest,
+        *,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
-        *,
         get_execution_result: bool,
-        **kwargs,
-    ) -> Union[Dict[str, Any], ExecutionResult]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Union[Dict[str, Any], ExecutionResult]: ...  # pragma: no cover
 
     def execute_sync(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
+        request: GraphQLRequest,
+        *,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[Dict[str, Any], ExecutionResult]:
         """:meta private:"""
         with self as session:
             return session.execute(
-                document,
-                variable_values=variable_values,
-                operation_name=operation_name,
+                request,
                 serialize_variables=serialize_variables,
                 parse_result=parse_result,
                 get_execution_result=get_execution_result,
@@ -261,10 +260,9 @@ class Client:
         *,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
-        get_execution_result: Literal[False],
-        **kwargs,
-    ) -> List[Dict[str, Any]]:
-        ...  # pragma: no cover
+        get_execution_result: Literal[False] = ...,
+        **kwargs: Any,
+    ) -> List[Dict[str, Any]]: ...  # pragma: no cover
 
     @overload
     def execute_batch_sync(
@@ -274,9 +272,8 @@ class Client:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: Literal[True],
-        **kwargs,
-    ) -> List[ExecutionResult]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> List[ExecutionResult]: ...  # pragma: no cover
 
     @overload
     def execute_batch_sync(
@@ -286,9 +283,8 @@ class Client:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool,
-        **kwargs,
-    ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]: ...  # pragma: no cover
 
     def execute_batch_sync(
         self,
@@ -297,7 +293,7 @@ class Client:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]:
         """:meta private:"""
         with self as session:
@@ -312,61 +308,101 @@ class Client:
     @overload
     async def execute_async(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
+        request: GraphQLRequest,
+        *,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
-        *,  # https://github.com/python/mypy/issues/7333#issuecomment-788255229
         get_execution_result: Literal[False] = ...,
-        **kwargs,
-    ) -> Dict[str, Any]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Dict[str, Any]: ...  # pragma: no cover
 
     @overload
     async def execute_async(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
+        request: GraphQLRequest,
+        *,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
-        *,
         get_execution_result: Literal[True],
-        **kwargs,
-    ) -> ExecutionResult:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> ExecutionResult: ...  # pragma: no cover
 
     @overload
     async def execute_async(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
+        request: GraphQLRequest,
+        *,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
-        *,
         get_execution_result: bool,
-        **kwargs,
-    ) -> Union[Dict[str, Any], ExecutionResult]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Union[Dict[str, Any], ExecutionResult]: ...  # pragma: no cover
 
     async def execute_async(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
+        request: GraphQLRequest,
+        *,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[Dict[str, Any], ExecutionResult]:
         """:meta private:"""
         async with self as session:
             return await session.execute(
-                document,
-                variable_values=variable_values,
-                operation_name=operation_name,
+                request,
+                serialize_variables=serialize_variables,
+                parse_result=parse_result,
+                get_execution_result=get_execution_result,
+                **kwargs,
+            )
+
+    @overload
+    async def execute_batch_async(
+        self,
+        requests: List[GraphQLRequest],
+        *,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        get_execution_result: Literal[False] = ...,
+        **kwargs: Any,
+    ) -> List[Dict[str, Any]]: ...  # pragma: no cover
+
+    @overload
+    async def execute_batch_async(
+        self,
+        requests: List[GraphQLRequest],
+        *,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        get_execution_result: Literal[True],
+        **kwargs: Any,
+    ) -> List[ExecutionResult]: ...  # pragma: no cover
+
+    @overload
+    async def execute_batch_async(
+        self,
+        requests: List[GraphQLRequest],
+        *,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        get_execution_result: bool,
+        **kwargs: Any,
+    ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]: ...  # pragma: no cover
+
+    async def execute_batch_async(
+        self,
+        requests: List[GraphQLRequest],
+        *,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        get_execution_result: bool = False,
+        **kwargs: Any,
+    ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]:
+        """:meta private:"""
+        async with self as session:
+            return await session.execute_batch(
+                requests,
                 serialize_variables=serialize_variables,
                 parse_result=parse_result,
                 get_execution_result=get_execution_result,
@@ -376,56 +412,46 @@ class Client:
     @overload
     def execute(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
+        request: GraphQLRequest,
+        *,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
-        *,  # https://github.com/python/mypy/issues/7333#issuecomment-788255229
         get_execution_result: Literal[False] = ...,
-        **kwargs,
-    ) -> Dict[str, Any]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Dict[str, Any]: ...  # pragma: no cover
 
     @overload
     def execute(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
+        request: GraphQLRequest,
+        *,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
-        *,
         get_execution_result: Literal[True],
-        **kwargs,
-    ) -> ExecutionResult:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> ExecutionResult: ...  # pragma: no cover
 
     @overload
     def execute(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
+        request: GraphQLRequest,
+        *,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
-        *,
         get_execution_result: bool,
-        **kwargs,
-    ) -> Union[Dict[str, Any], ExecutionResult]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Union[Dict[str, Any], ExecutionResult]: ...  # pragma: no cover
 
     def execute(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
+        request: GraphQLRequest,
+        *,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[Dict[str, Any], ExecutionResult]:
-        """Execute the provided document AST against the remote server using
+        """Execute the provided request against the remote server using
         the transport provided during init.
 
         This function **WILL BLOCK** until the result is received from the server.
@@ -448,17 +474,7 @@ class Client:
         """
 
         if isinstance(self.transport, AsyncTransport):
-            # Get the current asyncio event loop
-            # Or create a new event loop if there isn't one (in a new Thread)
-            try:
-                with warnings.catch_warnings():
-                    warnings.filterwarnings(
-                        "ignore", message="There is no current event loop"
-                    )
-                    loop = asyncio.get_event_loop()
-            except RuntimeError:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
+            loop = self._get_event_loop()
 
             assert not loop.is_running(), (
                 "Cannot run client.execute(query) if an asyncio loop is running."
@@ -467,9 +483,7 @@ class Client:
 
             data = loop.run_until_complete(
                 self.execute_async(
-                    document,
-                    variable_values=variable_values,
-                    operation_name=operation_name,
+                    request,
                     serialize_variables=serialize_variables,
                     parse_result=parse_result,
                     get_execution_result=get_execution_result,
@@ -481,9 +495,7 @@ class Client:
 
         else:  # Sync transports
             return self.execute_sync(
-                document,
-                variable_values=variable_values,
-                operation_name=operation_name,
+                request,
                 serialize_variables=serialize_variables,
                 parse_result=parse_result,
                 get_execution_result=get_execution_result,
@@ -497,10 +509,9 @@ class Client:
         *,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
-        get_execution_result: Literal[False],
-        **kwargs,
-    ) -> List[Dict[str, Any]]:
-        ...  # pragma: no cover
+        get_execution_result: Literal[False] = ...,
+        **kwargs: Any,
+    ) -> List[Dict[str, Any]]: ...  # pragma: no cover
 
     @overload
     def execute_batch(
@@ -510,9 +521,8 @@ class Client:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: Literal[True],
-        **kwargs,
-    ) -> List[ExecutionResult]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> List[ExecutionResult]: ...  # pragma: no cover
 
     @overload
     def execute_batch(
@@ -522,9 +532,8 @@ class Client:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool,
-        **kwargs,
-    ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]: ...  # pragma: no cover
 
     def execute_batch(
         self,
@@ -533,7 +542,7 @@ class Client:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]:
         """Execute multiple GraphQL requests in a batch against the remote server using
         the transport provided during init.
@@ -558,7 +567,24 @@ class Client:
         """
 
         if isinstance(self.transport, AsyncTransport):
-            raise NotImplementedError("Batching is not implemented for async yet.")
+            loop = self._get_event_loop()
+
+            assert not loop.is_running(), (
+                "Cannot run client.execute_batch(query) if an asyncio loop is running."
+                " Use 'await client.execute_batch(query)' instead."
+            )
+
+            data = loop.run_until_complete(
+                self.execute_batch_async(
+                    requests,
+                    serialize_variables=serialize_variables,
+                    parse_result=parse_result,
+                    get_execution_result=get_execution_result,
+                    **kwargs,
+                )
+            )
+
+            return data
 
         else:  # Sync transports
             return self.execute_batch_sync(
@@ -572,65 +598,53 @@ class Client:
     @overload
     def subscribe_async(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
+        request: GraphQLRequest,
+        *,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
-        *,
         get_execution_result: Literal[False] = ...,
-        **kwargs,
-    ) -> AsyncGenerator[Dict[str, Any], None]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> AsyncGenerator[Dict[str, Any], None]: ...  # pragma: no cover
 
     @overload
     def subscribe_async(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
+        request: GraphQLRequest,
+        *,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
-        *,
         get_execution_result: Literal[True],
-        **kwargs,
-    ) -> AsyncGenerator[ExecutionResult, None]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> AsyncGenerator[ExecutionResult, None]: ...  # pragma: no cover
 
     @overload
     def subscribe_async(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
+        request: GraphQLRequest,
+        *,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
-        *,
         get_execution_result: bool,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[
         AsyncGenerator[Dict[str, Any], None], AsyncGenerator[ExecutionResult, None]
-    ]:
-        ...  # pragma: no cover
+    ]: ...  # pragma: no cover
 
     async def subscribe_async(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
+        request: GraphQLRequest,
+        *,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[
         AsyncGenerator[Dict[str, Any], None], AsyncGenerator[ExecutionResult, None]
     ]:
         """:meta private:"""
         async with self as session:
             generator = session.subscribe(
-                document,
-                variable_values=variable_values,
-                operation_name=operation_name,
+                request,
                 serialize_variables=serialize_variables,
                 parse_result=parse_result,
                 get_execution_result=get_execution_result,
@@ -643,57 +657,46 @@ class Client:
     @overload
     def subscribe(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
+        request: GraphQLRequest,
+        *,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
-        *,
         get_execution_result: Literal[False] = ...,
-        **kwargs,
-    ) -> Generator[Dict[str, Any], None, None]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Generator[Dict[str, Any], None, None]: ...  # pragma: no cover
 
     @overload
     def subscribe(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
+        request: GraphQLRequest,
+        *,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
-        *,
         get_execution_result: Literal[True],
-        **kwargs,
-    ) -> Generator[ExecutionResult, None, None]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Generator[ExecutionResult, None, None]: ...  # pragma: no cover
 
     @overload
     def subscribe(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
+        request: GraphQLRequest,
+        *,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
-        *,
         get_execution_result: bool,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[
         Generator[Dict[str, Any], None, None], Generator[ExecutionResult, None, None]
-    ]:
-        ...  # pragma: no cover
+    ]: ...  # pragma: no cover
 
     def subscribe(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
+        request: GraphQLRequest,
+        *,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
-        *,
         get_execution_result: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[
         Generator[Dict[str, Any], None, None], Generator[ExecutionResult, None, None]
     ]:
@@ -702,33 +705,21 @@ class Client:
         We need an async transport for this functionality.
         """
 
-        # Get the current asyncio event loop
-        # Or create a new event loop if there isn't one (in a new Thread)
-        try:
-            with warnings.catch_warnings():
-                warnings.filterwarnings(
-                    "ignore", message="There is no current event loop"
-                )
-                loop = asyncio.get_event_loop()
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-
-        async_generator: Union[
-            AsyncGenerator[Dict[str, Any], None], AsyncGenerator[ExecutionResult, None]
-        ] = self.subscribe_async(
-            document,
-            variable_values=variable_values,
-            operation_name=operation_name,
-            serialize_variables=serialize_variables,
-            parse_result=parse_result,
-            get_execution_result=get_execution_result,
-            **kwargs,
-        )
+        loop = self._get_event_loop()
 
         assert not loop.is_running(), (
             "Cannot run client.subscribe(query) if an asyncio loop is running."
             " Use 'await client.subscribe_async(query)' instead."
+        )
+
+        async_generator: Union[
+            AsyncGenerator[Dict[str, Any], None], AsyncGenerator[ExecutionResult, None]
+        ] = self.subscribe_async(
+            request,
+            serialize_variables=serialize_variables,
+            parse_result=parse_result,
+            get_execution_result=get_execution_result,
+            **kwargs,
         )
 
         try:
@@ -781,12 +772,14 @@ class Client:
             self.transport, AsyncTransport
         ), "Only a transport of type AsyncTransport can be used asynchronously"
 
+        self.session: Union[AsyncClientSession, SyncClientSession]
+
         if reconnecting:
             self.session = ReconnectingAsyncClientSession(client=self, **kwargs)
-            await self.session.start_connecting_task()
         else:
-            await self.transport.connect()
             self.session = AsyncClientSession(client=self)
+
+        await self.session.connect()
 
         # Get schema from transport if needed
         try:
@@ -796,7 +789,7 @@ class Client:
             # we don't know what type of exception is thrown here because it
             # depends on the underlying transport; we just make sure that the
             # transport is closed and re-raise the exception
-            await self.transport.close()
+            await self.session.close()
             raise
 
         return self.session
@@ -804,10 +797,7 @@ class Client:
     async def close_async(self):
         """Close the async transport and stop the optional reconnecting task."""
 
-        if isinstance(self.session, ReconnectingAsyncClientSession):
-            await self.session.stop_connecting_task()
-
-        await self.transport.close()
+        await self.session.close()
 
     async def __aenter__(self):
         return await self.connect_async()
@@ -832,6 +822,8 @@ class Client:
         if not hasattr(self, "session"):
             self.session = SyncClientSession(client=self)
 
+        assert isinstance(self.session, SyncClientSession)
+
         self.session.connect()
 
         # Get schema from transport if needed
@@ -853,6 +845,8 @@ class Client:
         If batching is enabled, this will block until the remaining queries in the
         batching queue have been processed.
         """
+        assert isinstance(self.session, SyncClientSession)
+
         self.session.close()
 
     def __enter__(self):
@@ -875,57 +869,47 @@ class SyncClientSession:
 
     def _execute(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
+        request: GraphQLRequest,
+        *,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> ExecutionResult:
-        """Execute the provided document AST synchronously using
+        """Execute the provided request synchronously using
         the sync transport, returning an ExecutionResult object.
 
-        :param document: GraphQL query as AST Node object.
-        :param variable_values: Dictionary of input parameters.
-        :param operation_name: Name of the operation that shall be executed.
+        :param request: GraphQL request as a
+                        :class:`GraphQLRequest <gql.GraphQLRequest>` object.
         :param serialize_variables: whether the variable values should be
             serialized. Used for custom scalars and/or enums.
             By default use the serialize_variables argument of the client.
-        :param parse_result: Whether gql will unserialize the result.
+        :param parse_result: Whether gql will deserialize the result.
             By default use the parse_results argument of the client.
 
         The extra arguments are passed to the transport execute method."""
 
+        # Still supporting for now old method of providing
+        # variable_values and operation_name
+        request = support_deprecated_request(request, kwargs)
+
         # Validate document
         if self.client.schema:
-            self.client.validate(document)
+            self.client.validate(request)
 
             # Parse variable values for custom scalars if requested
-            if variable_values is not None:
+            if request.variable_values is not None:
                 if serialize_variables or (
                     serialize_variables is None and self.client.serialize_variables
                 ):
-                    variable_values = serialize_variable_values(
-                        self.client.schema,
-                        document,
-                        variable_values,
-                        operation_name=operation_name,
-                    )
+                    request = request.serialize_variable_values(self.client.schema)
 
         if self.client.batching_enabled:
-            request = GraphQLRequest(
-                document,
-                variable_values=variable_values,
-                operation_name=operation_name,
-            )
             future_result = self._execute_future(request)
             result = future_result.result()
 
         else:
             result = self.transport.execute(
-                document,
-                variable_values=variable_values,
-                operation_name=operation_name,
+                request,
                 **kwargs,
             )
 
@@ -934,9 +918,9 @@ class SyncClientSession:
             if parse_result or (parse_result is None and self.client.parse_results):
                 result.data = parse_result_fn(
                     self.client.schema,
-                    document,
+                    request.document,
                     result.data,
-                    operation_name=operation_name,
+                    operation_name=request.operation_name,
                 )
 
         return result
@@ -944,68 +928,56 @@ class SyncClientSession:
     @overload
     def execute(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
+        request: GraphQLRequest,
+        *,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
-        *,
         get_execution_result: Literal[False] = ...,
-        **kwargs,
-    ) -> Dict[str, Any]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Dict[str, Any]: ...  # pragma: no cover
 
     @overload
     def execute(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
+        request: GraphQLRequest,
+        *,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
-        *,
         get_execution_result: Literal[True],
-        **kwargs,
-    ) -> ExecutionResult:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> ExecutionResult: ...  # pragma: no cover
 
     @overload
     def execute(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
+        request: GraphQLRequest,
+        *,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
-        *,
         get_execution_result: bool,
-        **kwargs,
-    ) -> Union[Dict[str, Any], ExecutionResult]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Union[Dict[str, Any], ExecutionResult]: ...  # pragma: no cover
 
     def execute(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
+        request: GraphQLRequest,
+        *,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[Dict[str, Any], ExecutionResult]:
-        """Execute the provided document AST synchronously using
+        """Execute the provided request synchronously using
         the sync transport.
 
         Raises a TransportQueryError if an error has been returned in
             the ExecutionResult.
 
-        :param document: GraphQL query as AST Node object.
-        :param variable_values: Dictionary of input parameters.
-        :param operation_name: Name of the operation that shall be executed.
+        :param request: GraphQL query as :class:`GraphQLRequest <gql.GraphQLRequest>`.
         :param serialize_variables: whether the variable values should be
             serialized. Used for custom scalars and/or enums.
             By default use the serialize_variables argument of the client.
-        :param parse_result: Whether gql will unserialize the result.
+        :param parse_result: Whether gql will deserialize the result.
             By default use the parse_results argument of the client.
         :param get_execution_result: return the full ExecutionResult instance instead of
             only the "data" field. Necessary if you want to get the "extensions" field.
@@ -1014,9 +986,7 @@ class SyncClientSession:
 
         # Validate and execute on the transport
         result = self._execute(
-            document,
-            variable_values=variable_values,
-            operation_name=operation_name,
+            request,
             serialize_variables=serialize_variables,
             parse_result=parse_result,
             **kwargs,
@@ -1047,7 +1017,7 @@ class SyncClientSession:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         validate_document: Optional[bool] = True,
-        **kwargs,
+        **kwargs: Any,
     ) -> List[ExecutionResult]:
         """Execute multiple GraphQL requests in a batch, using
         the sync transport, returning a list of ExecutionResult objects.
@@ -1056,7 +1026,7 @@ class SyncClientSession:
         :param serialize_variables: whether the variable values should be
             serialized. Used for custom scalars and/or enums.
             By default use the serialize_variables argument of the client.
-        :param parse_result: Whether gql will unserialize the result.
+        :param parse_result: Whether gql will deserialize the result.
             By default use the parse_results argument of the client.
         :param validate_document: Whether we still need to validate the document.
 
@@ -1067,16 +1037,18 @@ class SyncClientSession:
 
             if validate_document:
                 for req in requests:
-                    self.client.validate(req.document)
+                    self.client.validate(req)
 
             # Parse variable values for custom scalars if requested
             if serialize_variables or (
                 serialize_variables is None and self.client.serialize_variables
             ):
                 requests = [
-                    req.serialize_variable_values(self.client.schema)
-                    if req.variable_values is not None
-                    else req
+                    (
+                        req.serialize_variable_values(self.client.schema)
+                        if req.variable_values is not None
+                        else req
+                    )
                     for req in requests
                 ]
 
@@ -1102,10 +1074,9 @@ class SyncClientSession:
         *,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
-        get_execution_result: Literal[False],
-        **kwargs,
-    ) -> List[Dict[str, Any]]:
-        ...  # pragma: no cover
+        get_execution_result: Literal[False] = ...,
+        **kwargs: Any,
+    ) -> List[Dict[str, Any]]: ...  # pragma: no cover
 
     @overload
     def execute_batch(
@@ -1115,9 +1086,8 @@ class SyncClientSession:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: Literal[True],
-        **kwargs,
-    ) -> List[ExecutionResult]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> List[ExecutionResult]: ...  # pragma: no cover
 
     @overload
     def execute_batch(
@@ -1127,9 +1097,8 @@ class SyncClientSession:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool,
-        **kwargs,
-    ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]: ...  # pragma: no cover
 
     def execute_batch(
         self,
@@ -1138,7 +1107,7 @@ class SyncClientSession:
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]:
         """Execute multiple GraphQL requests in a batch, using
         the sync transport. This method sends the requests to the server all at once.
@@ -1150,7 +1119,7 @@ class SyncClientSession:
         :param serialize_variables: whether the variable values should be
             serialized. Used for custom scalars and/or enums.
             By default use the serialize_variables argument of the client.
-        :param parse_result: Whether gql will unserialize the result.
+        :param parse_result: Whether gql will deserialize the result.
             By default use the parse_results argument of the client.
         :param get_execution_result: return the full ExecutionResult instance instead of
             only the "data" field. Necessary if you want to get the "extensions" field.
@@ -1291,7 +1260,7 @@ class SyncClientSession:
         introspection_query = get_introspection_query_ast(
             **self.client.introspection_args
         )
-        execution_result = self.transport.execute(introspection_query)
+        execution_result = self.transport.execute(GraphQLRequest(introspection_query))
 
         self.client._build_schema_from_introspection(execution_result)
 
@@ -1314,59 +1283,54 @@ class AsyncClientSession:
 
     async def _subscribe(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
+        request: GraphQLRequest,
+        *,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> AsyncGenerator[ExecutionResult, None]:
-        """Coroutine to subscribe asynchronously to the provided document AST
+        """Coroutine to subscribe asynchronously to the provided request
         asynchronously using the async transport,
         returning an async generator producing ExecutionResult objects.
 
         * Validate the query with the schema if provided.
         * Serialize the variable_values if requested.
 
-        :param document: GraphQL query as AST Node object.
-        :param variable_values: Dictionary of input parameters.
-        :param operation_name: Name of the operation that shall be executed.
+        :param request: GraphQL request as a
+                        :class:`GraphQLRequest <gql.GraphQLRequest>` object.
         :param serialize_variables: whether the variable values should be
             serialized. Used for custom scalars and/or enums.
             By default use the serialize_variables argument of the client.
-        :param parse_result: Whether gql will unserialize the result.
+        :param parse_result: Whether gql will deserialize the result.
             By default use the parse_results argument of the client.
 
         The extra arguments are passed to the transport subscribe method."""
 
+        # Still supporting for now old method of providing
+        # variable_values and operation_name
+        request = support_deprecated_request(request, kwargs)
+
         # Validate document
         if self.client.schema:
-            self.client.validate(document)
+            self.client.validate(request)
 
             # Parse variable values for custom scalars if requested
-            if variable_values is not None:
+            if request.variable_values is not None:
                 if serialize_variables or (
                     serialize_variables is None and self.client.serialize_variables
                 ):
-                    variable_values = serialize_variable_values(
-                        self.client.schema,
-                        document,
-                        variable_values,
-                        operation_name=operation_name,
-                    )
+                    request = request.serialize_variable_values(self.client.schema)
 
         # Subscribe to the transport
-        inner_generator: AsyncGenerator[
-            ExecutionResult, None
-        ] = self.transport.subscribe(
-            document,
-            variable_values=variable_values,
-            operation_name=operation_name,
-            **kwargs,
+        inner_generator: AsyncGenerator[ExecutionResult, None] = (
+            self.transport.subscribe(
+                request,
+                **kwargs,
+            )
         )
 
-        # Keep a reference to the inner generator to allow the user to call aclose()
-        # before a break if python version is too old (pypy3 py 3.6.1)
+        # Keep a reference to the inner generator
+        # This is only used for the tests to simulate a KeyboardInterrupt event
         self._generator = inner_generator
 
         try:
@@ -1377,9 +1341,9 @@ class AsyncClientSession:
                     ):
                         result.data = parse_result_fn(
                             self.client.schema,
-                            document,
+                            request.document,
                             result.data,
-                            operation_name=operation_name,
+                            operation_name=request.operation_name,
                         )
 
                 yield result
@@ -1390,72 +1354,60 @@ class AsyncClientSession:
     @overload
     def subscribe(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
+        request: GraphQLRequest,
+        *,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
-        *,
         get_execution_result: Literal[False] = ...,
-        **kwargs,
-    ) -> AsyncGenerator[Dict[str, Any], None]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> AsyncGenerator[Dict[str, Any], None]: ...  # pragma: no cover
 
     @overload
     def subscribe(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
+        request: GraphQLRequest,
+        *,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
-        *,
         get_execution_result: Literal[True],
-        **kwargs,
-    ) -> AsyncGenerator[ExecutionResult, None]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> AsyncGenerator[ExecutionResult, None]: ...  # pragma: no cover
 
     @overload
     def subscribe(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
+        request: GraphQLRequest,
+        *,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
-        *,
         get_execution_result: bool,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[
         AsyncGenerator[Dict[str, Any], None], AsyncGenerator[ExecutionResult, None]
-    ]:
-        ...  # pragma: no cover
+    ]: ...  # pragma: no cover
 
     async def subscribe(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
+        request: GraphQLRequest,
+        *,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[
         AsyncGenerator[Dict[str, Any], None], AsyncGenerator[ExecutionResult, None]
     ]:
-        """Coroutine to subscribe asynchronously to the provided document AST
+        """Coroutine to subscribe asynchronously to the provided request
         asynchronously using the async transport.
 
         Raises a TransportQueryError if an error has been returned in
             the ExecutionResult.
 
-        :param document: GraphQL query as AST Node object.
-        :param variable_values: Dictionary of input parameters.
-        :param operation_name: Name of the operation that shall be executed.
+        :param request: GraphQL query as :class:`GraphQLRequest <gql.GraphQLRequest>`.
         :param serialize_variables: whether the variable values should be
             serialized. Used for custom scalars and/or enums.
             By default use the serialize_variables argument of the client.
-        :param parse_result: Whether gql will unserialize the result.
+        :param parse_result: Whether gql will deserialize the result.
             By default use the parse_results argument of the client.
         :param get_execution_result: yield the full ExecutionResult instance instead of
             only the "data" field. Necessary if you want to get the "extensions" field.
@@ -1463,9 +1415,7 @@ class AsyncClientSession:
         The extra arguments are passed to the transport subscribe method."""
 
         inner_generator: AsyncGenerator[ExecutionResult, None] = self._subscribe(
-            document,
-            variable_values=variable_values,
-            operation_name=operation_name,
+            request,
             serialize_variables=serialize_variables,
             parse_result=parse_result,
             **kwargs,
@@ -1493,63 +1443,63 @@ class AsyncClientSession:
 
     async def _execute(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
+        request: GraphQLRequest,
+        *,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> ExecutionResult:
-        """Coroutine to execute the provided document AST asynchronously using
+        """Coroutine to execute the provided request asynchronously using
         the async transport, returning an ExecutionResult object.
 
         * Validate the query with the schema if provided.
         * Serialize the variable_values if requested.
 
-        :param document: GraphQL query as AST Node object.
-        :param variable_values: Dictionary of input parameters.
-        :param operation_name: Name of the operation that shall be executed.
+        :param request: GraphQL request as a
+                        :class:`GraphQLRequest <gql.GraphQLRequest>` object.
         :param serialize_variables: whether the variable values should be
             serialized. Used for custom scalars and/or enums.
             By default use the serialize_variables argument of the client.
-        :param parse_result: Whether gql will unserialize the result.
+        :param parse_result: Whether gql will deserialize the result.
             By default use the parse_results argument of the client.
 
         The extra arguments are passed to the transport execute method."""
 
+        # Still supporting for now old method of providing
+        # variable_values and operation_name
+        request = support_deprecated_request(request, kwargs)
+
         # Validate document
         if self.client.schema:
-            self.client.validate(document)
+            self.client.validate(request)
 
             # Parse variable values for custom scalars if requested
-            if variable_values is not None:
+            if request.variable_values is not None:
                 if serialize_variables or (
                     serialize_variables is None and self.client.serialize_variables
                 ):
-                    variable_values = serialize_variable_values(
-                        self.client.schema,
-                        document,
-                        variable_values,
-                        operation_name=operation_name,
-                    )
+                    request = request.serialize_variable_values(self.client.schema)
 
-        # Execute the query with the transport with a timeout
-        with fail_after(self.client.execute_timeout):
-            result = await self.transport.execute(
-                document,
-                variable_values=variable_values,
-                operation_name=operation_name,
-                **kwargs,
-            )
+        # Check if batching is enabled
+        if self.client.batching_enabled:
+            future_result = await self._execute_future(request)
+            result = await future_result
+        else:
+            # Execute the query with the transport with a timeout
+            with fail_after(self.client.execute_timeout):
+                result = await self.transport.execute(
+                    request,
+                    **kwargs,
+                )
 
         # Unserialize the result if requested
         if self.client.schema:
             if parse_result or (parse_result is None and self.client.parse_results):
                 result.data = parse_result_fn(
                     self.client.schema,
-                    document,
+                    request.document,
                     result.data,
-                    operation_name=operation_name,
+                    operation_name=request.operation_name,
                 )
 
         return result
@@ -1557,68 +1507,56 @@ class AsyncClientSession:
     @overload
     async def execute(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
+        request: GraphQLRequest,
+        *,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
-        *,
         get_execution_result: Literal[False] = ...,
-        **kwargs,
-    ) -> Dict[str, Any]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Dict[str, Any]: ...  # pragma: no cover
 
     @overload
     async def execute(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
+        request: GraphQLRequest,
+        *,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
-        *,
         get_execution_result: Literal[True],
-        **kwargs,
-    ) -> ExecutionResult:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> ExecutionResult: ...  # pragma: no cover
 
     @overload
     async def execute(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = ...,
-        operation_name: Optional[str] = ...,
+        request: GraphQLRequest,
+        *,
         serialize_variables: Optional[bool] = ...,
         parse_result: Optional[bool] = ...,
-        *,
         get_execution_result: bool,
-        **kwargs,
-    ) -> Union[Dict[str, Any], ExecutionResult]:
-        ...  # pragma: no cover
+        **kwargs: Any,
+    ) -> Union[Dict[str, Any], ExecutionResult]: ...  # pragma: no cover
 
     async def execute(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
+        request: GraphQLRequest,
+        *,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
         get_execution_result: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[Dict[str, Any], ExecutionResult]:
-        """Coroutine to execute the provided document AST asynchronously using
+        """Coroutine to execute the provided request asynchronously using
         the async transport.
 
         Raises a TransportQueryError if an error has been returned in
             the ExecutionResult.
 
-        :param document: GraphQL query as AST Node object.
-        :param variable_values: Dictionary of input parameters.
-        :param operation_name: Name of the operation that shall be executed.
+        :param request: GraphQL query as :class:`GraphQLRequest <gql.GraphQLRequest>`.
         :param serialize_variables: whether the variable values should be
             serialized. Used for custom scalars and/or enums.
             By default use the serialize_variables argument of the client.
-        :param parse_result: Whether gql will unserialize the result.
+        :param parse_result: Whether gql will deserialize the result.
             By default use the parse_results argument of the client.
         :param get_execution_result: return the full ExecutionResult instance instead of
             only the "data" field. Necessary if you want to get the "extensions" field.
@@ -1627,9 +1565,7 @@ class AsyncClientSession:
 
         # Validate and execute on the transport
         result = await self._execute(
-            document,
-            variable_values=variable_values,
-            operation_name=operation_name,
+            request,
             serialize_variables=serialize_variables,
             parse_result=parse_result,
             **kwargs,
@@ -1653,6 +1589,277 @@ class AsyncClientSession:
 
         return result.data
 
+    async def _execute_batch(
+        self,
+        requests: List[GraphQLRequest],
+        *,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        validate_document: Optional[bool] = True,
+        **kwargs: Any,
+    ) -> List[ExecutionResult]:
+        """Execute multiple GraphQL requests in a batch, using
+        the async transport, returning a list of ExecutionResult objects.
+
+        :param requests: List of requests that will be executed.
+        :param serialize_variables: whether the variable values should be
+            serialized. Used for custom scalars and/or enums.
+            By default use the serialize_variables argument of the client.
+        :param parse_result: Whether gql will deserialize the result.
+            By default use the parse_results argument of the client.
+        :param validate_document: Whether we still need to validate the document.
+
+        The extra arguments are passed to the transport execute_batch method."""
+
+        # Validate document
+        if self.client.schema:
+
+            if validate_document:
+                for req in requests:
+                    self.client.validate(req)
+
+            # Parse variable values for custom scalars if requested
+            if serialize_variables or (
+                serialize_variables is None and self.client.serialize_variables
+            ):
+                requests = [
+                    (
+                        req.serialize_variable_values(self.client.schema)
+                        if req.variable_values is not None
+                        else req
+                    )
+                    for req in requests
+                ]
+
+        results = await self.transport.execute_batch(requests, **kwargs)
+
+        # Unserialize the result if requested
+        if self.client.schema:
+            if parse_result or (parse_result is None and self.client.parse_results):
+                for result in results:
+                    result.data = parse_result_fn(
+                        self.client.schema,
+                        req.document,
+                        result.data,
+                        operation_name=req.operation_name,
+                    )
+
+        return results
+
+    @overload
+    async def execute_batch(
+        self,
+        requests: List[GraphQLRequest],
+        *,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        get_execution_result: Literal[False] = ...,
+        **kwargs: Any,
+    ) -> List[Dict[str, Any]]: ...  # pragma: no cover
+
+    @overload
+    async def execute_batch(
+        self,
+        requests: List[GraphQLRequest],
+        *,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        get_execution_result: Literal[True],
+        **kwargs: Any,
+    ) -> List[ExecutionResult]: ...  # pragma: no cover
+
+    @overload
+    async def execute_batch(
+        self,
+        requests: List[GraphQLRequest],
+        *,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        get_execution_result: bool,
+        **kwargs: Any,
+    ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]: ...  # pragma: no cover
+
+    async def execute_batch(
+        self,
+        requests: List[GraphQLRequest],
+        *,
+        serialize_variables: Optional[bool] = None,
+        parse_result: Optional[bool] = None,
+        get_execution_result: bool = False,
+        **kwargs: Any,
+    ) -> Union[List[Dict[str, Any]], List[ExecutionResult]]:
+        """Execute multiple GraphQL requests in a batch, using
+        the async transport. This method sends the requests to the server all at once.
+
+        Raises a TransportQueryError if an error has been returned in any
+          ExecutionResult.
+
+        :param requests: List of requests that will be executed.
+        :param serialize_variables: whether the variable values should be
+            serialized. Used for custom scalars and/or enums.
+            By default use the serialize_variables argument of the client.
+        :param parse_result: Whether gql will deserialize the result.
+            By default use the parse_results argument of the client.
+        :param get_execution_result: return the full ExecutionResult instance instead of
+            only the "data" field. Necessary if you want to get the "extensions" field.
+
+        The extra arguments are passed to the transport execute method."""
+
+        # Validate and execute on the transport
+        results = await self._execute_batch(
+            requests,
+            serialize_variables=serialize_variables,
+            parse_result=parse_result,
+            **kwargs,
+        )
+
+        for result in results:
+            # Raise an error if an error is returned in the ExecutionResult object
+            if result.errors:
+                raise TransportQueryError(
+                    str_first_element(result.errors),
+                    errors=result.errors,
+                    data=result.data,
+                    extensions=result.extensions,
+                )
+
+            assert (
+                result.data is not None
+            ), "Transport returned an ExecutionResult without data or errors"
+
+        if get_execution_result:
+            return results
+
+        return cast(List[Dict[str, Any]], [result.data for result in results])
+
+    async def _batch_loop(self) -> None:
+        """Main loop of the task used to wait for requests
+        to execute them in a batch"""
+
+        stop_loop = False
+
+        while not stop_loop:
+            # First wait for a first request in from the batch queue
+            requests_and_futures: List[Tuple[GraphQLRequest, asyncio.Future]] = []
+
+            # Wait for the first request
+            request_and_future: Optional[Tuple[GraphQLRequest, asyncio.Future]] = (
+                await self.batch_queue.get()
+            )
+
+            if request_and_future is None:
+                # None is our sentinel value to stop the loop
+                break
+
+            requests_and_futures.append(request_and_future)
+
+            # Then wait the requested batch interval except if we already
+            # have the maximum number of requests in the queue
+            if self.batch_queue.qsize() < self.client.batch_max - 1:
+                # Wait for the batch interval
+                await asyncio.sleep(self.client.batch_interval)
+
+            # Then get the requests which had been made during that wait interval
+            for _ in range(self.client.batch_max - 1):
+                try:
+                    # Use get_nowait since we don't want to wait here
+                    request_and_future = self.batch_queue.get_nowait()
+
+                    if request_and_future is None:
+                        # Sentinel value - stop after processing current batch
+                        stop_loop = True
+                        break
+
+                    requests_and_futures.append(request_and_future)
+
+                except asyncio.QueueEmpty:
+                    # No more requests in queue, that's fine
+                    break
+
+            # Extract requests and futures
+            requests = [request for request, _ in requests_and_futures]
+            futures = [future for _, future in requests_and_futures]
+
+            # Execute the batch
+            try:
+                results: List[ExecutionResult] = await self._execute_batch(
+                    requests,
+                    serialize_variables=False,  # already done
+                    parse_result=False,  # will be done later
+                    validate_document=False,  # already validated
+                )
+
+                # Set the result for each future
+                for result, future in zip(results, futures):
+                    if not future.cancelled():
+                        future.set_result(result)
+
+            except Exception as exc:
+                # If batch execution fails, propagate the error to all futures
+                for future in futures:
+                    if not future.cancelled():
+                        future.set_exception(exc)
+
+        # Signal that the task has stopped
+        self._batch_task_stopped_event.set()
+
+    async def _execute_future(
+        self,
+        request: GraphQLRequest,
+    ) -> asyncio.Future:
+        """If batching is enabled, this method will put a request in the batching queue
+        instead of executing it directly so that the requests could be put in a batch.
+        """
+
+        assert hasattr(self, "batch_queue"), "Batching is not enabled"
+        assert not self._batch_task_stop_requested, "Batching task has been stopped"
+
+        future: asyncio.Future = asyncio.Future()
+        await self.batch_queue.put((request, future))
+
+        return future
+
+    async def _batch_init(self):
+        """Initialize the batch task loop if batching is enabled."""
+        if self.client.batching_enabled:
+            self.batch_queue: asyncio.Queue = asyncio.Queue()
+            self._batch_task_stop_requested = False
+            self._batch_task_stopped_event = asyncio.Event()
+            self._batch_task = asyncio.create_task(self._batch_loop())
+
+    async def _batch_cleanup(self):
+        """Cleanup the batching task if batching is enabled."""
+        if hasattr(self, "_batch_task_stopped_event"):
+            # Send a None in the queue to indicate that the batching task must stop
+            # after having processed the remaining requests in the queue
+            self._batch_task_stop_requested = True
+            await self.batch_queue.put(None)
+
+            # Wait for the task to process remaining requests and stop
+            await self._batch_task_stopped_event.wait()
+
+    async def connect(self):
+        """Connect the transport and initialize the batch task loop if batching
+        is enabled."""
+
+        await self._batch_init()
+
+        try:
+            await self.transport.connect()
+        except Exception as e:
+            await self.transport.close()
+            raise e
+
+    async def close(self):
+        """Close the transport and cleanup the batching task if batching is enabled.
+
+        Will wait until all the remaining requests in the batch processing queue
+        have been executed.
+        """
+        await self._batch_cleanup()
+
+        await self.transport.close()
+
     async def fetch_schema(self) -> None:
         """Fetch the GraphQL schema explicitly using introspection.
 
@@ -1661,7 +1868,9 @@ class AsyncClientSession:
         introspection_query = get_introspection_query_ast(
             **self.client.introspection_args
         )
-        execution_result = await self.transport.execute(introspection_query)
+        execution_result = await self.transport.execute(
+            GraphQLRequest(introspection_query)
+        )
 
         self.client._build_schema_from_introspection(execution_result)
 
@@ -1686,6 +1895,7 @@ class ReconnectingAsyncClientSession(AsyncClientSession):
     def __init__(
         self,
         client: Client,
+        *,
         retry_connect: Union[bool, _Decorator] = True,
         retry_execute: Union[bool, _Decorator] = True,
     ):
@@ -1757,6 +1967,7 @@ class ReconnectingAsyncClientSession(AsyncClientSession):
             # Then wait for the reconnect event
             self._reconnect_request_event.clear()
             await self._reconnect_request_event.wait()
+            await self.transport.close()
 
     async def start_connecting_task(self):
         """Start the task responsible to restart the connection
@@ -1775,29 +1986,43 @@ class ReconnectingAsyncClientSession(AsyncClientSession):
             self._connect_task.cancel()
             self._connect_task = None
 
+    async def connect(self):
+        """Start the connect task and initialize the batch task loop if batching
+        is enabled."""
+
+        await self._batch_init()
+
+        await self.start_connecting_task()
+
+    async def close(self):
+        """Stop the connect task and cleanup the batching task
+        if batching is enabled."""
+        await self._batch_cleanup()
+
+        await self.stop_connecting_task()
+
+        await self.transport.close()
+
     async def _execute_once(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
+        request: GraphQLRequest,
+        *,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> ExecutionResult:
         """Same Coroutine as parent method _execute but requesting a
-        reconnection if we receive a TransportClosed exception.
+        reconnection if we receive a TransportConnectionFailed exception.
         """
 
         try:
             answer = await super()._execute(
-                document,
-                variable_values=variable_values,
-                operation_name=operation_name,
+                request,
                 serialize_variables=serialize_variables,
                 parse_result=parse_result,
                 **kwargs,
             )
-        except TransportClosed:
+        except TransportConnectionFailed:
             self._reconnect_request_event.set()
             raise
 
@@ -1805,21 +2030,19 @@ class ReconnectingAsyncClientSession(AsyncClientSession):
 
     async def _execute(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
+        request: GraphQLRequest,
+        *,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> ExecutionResult:
         """Same Coroutine as parent, but with optional retries
-        and requesting a reconnection if we receive a TransportClosed exception.
+        and requesting a reconnection if we receive a
+        TransportConnectionFailed exception.
         """
 
         return await self._execute_with_retries(
-            document,
-            variable_values=variable_values,
-            operation_name=operation_name,
+            request,
             serialize_variables=serialize_variables,
             parse_result=parse_result,
             **kwargs,
@@ -1827,21 +2050,18 @@ class ReconnectingAsyncClientSession(AsyncClientSession):
 
     async def _subscribe(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
+        request: GraphQLRequest,
+        *,
         serialize_variables: Optional[bool] = None,
         parse_result: Optional[bool] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> AsyncGenerator[ExecutionResult, None]:
         """Same Async generator as parent method _subscribe but requesting a
-        reconnection if we receive a TransportClosed exception.
+        reconnection if we receive a TransportConnectionFailed exception.
         """
 
         inner_generator: AsyncGenerator[ExecutionResult, None] = super()._subscribe(
-            document,
-            variable_values=variable_values,
-            operation_name=operation_name,
+            request,
             serialize_variables=serialize_variables,
             parse_result=parse_result,
             **kwargs,
@@ -1851,7 +2071,7 @@ class ReconnectingAsyncClientSession(AsyncClientSession):
             async for result in inner_generator:
                 yield result
 
-        except TransportClosed:
+        except TransportConnectionFailed:
             self._reconnect_request_event.set()
             raise
 

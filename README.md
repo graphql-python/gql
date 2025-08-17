@@ -1,7 +1,8 @@
 # GQL
 
-This is a GraphQL client for Python 3.7+.
-Plays nicely with `graphene`, `graphql-core`, `graphql-js` and any other GraphQL implementation compatible with the spec.
+This is a GraphQL client for Python.
+Plays nicely with `graphene`, `graphql-core`, `graphql-js` and any other GraphQL implementation
+compatible with the [GraphQL specification](https://spec.graphql.org).
 
 GQL architecture is inspired by `React-Relay` and `Apollo-Client`.
 
@@ -37,9 +38,10 @@ The complete documentation for GQL can be found at
     * AWS AppSync realtime protocol (experimental)
 * Possibility to [validate the queries locally](https://gql.readthedocs.io/en/latest/usage/validation.html) using a GraphQL schema provided locally or fetched from the backend using an instrospection query
 * Supports GraphQL queries, mutations and [subscriptions](https://gql.readthedocs.io/en/latest/usage/subscriptions.html)
-* Supports [sync or async usage](https://gql.readthedocs.io/en/latest/async/index.html), [allowing concurrent requests](https://gql.readthedocs.io/en/latest/advanced/async_advanced_usage.html#async-advanced-usage)
+* Supports [sync](https://gql.readthedocs.io/en/latest/usage/sync_usage.html) or [async](https://gql.readthedocs.io/en/latest/usage/async_usage.html) usage, [allowing concurrent requests](https://gql.readthedocs.io/en/latest/advanced/async_advanced_usage.html#async-advanced-usage)
 * Supports [File uploads](https://gql.readthedocs.io/en/latest/usage/file_upload.html)
 * Supports [Custom scalars / Enums](https://gql.readthedocs.io/en/latest/usage/custom_scalars_and_enums.html)
+* Supports [Batching requests](https://gql.readthedocs.io/en/latest/advanced/batching_requests.html)
 * [gql-cli script](https://gql.readthedocs.io/en/latest/gql-cli/intro.html) to execute GraphQL queries or download schemas from the command line
 * [DSL module](https://gql.readthedocs.io/en/latest/advanced/dsl_module.html) to compose GraphQL queries dynamically
 
@@ -56,17 +58,17 @@ pip install "gql[all]"
 
 ## Usage
 
-### Basic usage
+### Sync usage
 
 ```python
-from gql import gql, Client
+from gql import Client, gql
 from gql.transport.aiohttp import AIOHTTPTransport
 
 # Select your transport with a defined url endpoint
 transport = AIOHTTPTransport(url="https://countries.trevorblades.com/")
 
 # Create a GraphQL client using the defined transport
-client = Client(transport=transport, fetch_schema_from_transport=True)
+client = Client(transport=transport)
 
 # Provide a GraphQL query
 query = gql(
@@ -94,7 +96,48 @@ $ python basic_example.py
 
 > **WARNING**: Please note that this basic example won't work if you have an asyncio event loop running. In some
 > python environments (as with Jupyter which uses IPython) an asyncio event loop is created for you. In that case you
-> should use instead the [async usage example](https://gql.readthedocs.io/en/latest/async/async_usage.html#async-usage).
+> should use instead the [async usage example](https://gql.readthedocs.io/en/latest/usage/async_usage.html#async-usage).
+
+### Async usage
+
+```python
+import asyncio
+
+from gql import Client, gql
+from gql.transport.aiohttp import AIOHTTPTransport
+
+
+async def main():
+
+    # Select your transport with a defined url endpoint
+    transport = AIOHTTPTransport(url="https://countries.trevorblades.com/graphql")
+
+    # Create a GraphQL client using the defined transport
+    client = Client(transport=transport)
+
+    # Provide a GraphQL query
+    query = gql(
+        """
+        query getContinents {
+          continents {
+            code
+            name
+          }
+        }
+    """
+    )
+
+    # Using `async with` on the client will start a connection on the transport
+    # and provide a `session` variable to execute queries on this connection
+    async with client as session:
+
+        # Execute the query
+        result = await session.execute(query)
+        print(result)
+
+
+asyncio.run(main())
+```
 
 ## Contributing
 See [CONTRIBUTING.md](CONTRIBUTING.md)

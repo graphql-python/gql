@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import sys
 from typing import Dict
 
 import pytest
@@ -28,12 +27,10 @@ async def test_websocket_simple_query():
     from gql.transport.websockets import WebsocketsTransport
 
     # Get Websockets transport
-    sample_transport = WebsocketsTransport(
-        url="wss://countries.trevorblades.com/graphql"
-    )
+    transport = WebsocketsTransport(url="wss://countries.trevorblades.com/graphql")
 
     # Instanciate client
-    async with Client(transport=sample_transport) as session:
+    async with Client(transport=transport) as session:
 
         query = gql(
             """
@@ -69,12 +66,12 @@ async def test_websocket_invalid_query():
     from gql.transport.websockets import WebsocketsTransport
 
     # Get Websockets transport
-    sample_transport = WebsocketsTransport(
+    transport = WebsocketsTransport(
         url="wss://countries.trevorblades.com/graphql", ssl=True
     )
 
     # Instanciate client
-    async with Client(transport=sample_transport) as session:
+    async with Client(transport=transport) as session:
 
         query = gql(
             """
@@ -99,12 +96,12 @@ async def test_websocket_sending_invalid_data():
     from gql.transport.websockets import WebsocketsTransport
 
     # Get Websockets transport
-    sample_transport = WebsocketsTransport(
+    transport = WebsocketsTransport(
         url="wss://countries.trevorblades.com/graphql", ssl=True
     )
 
     # Instanciate client
-    async with Client(transport=sample_transport) as session:
+    async with Client(transport=transport) as session:
 
         query = gql(
             """
@@ -123,7 +120,8 @@ async def test_websocket_sending_invalid_data():
 
         invalid_data = "QSDF"
         print(f">>> {invalid_data}")
-        await sample_transport.websocket.send(invalid_data)
+        assert transport.adapter.websocket is not None
+        await transport.adapter.websocket.send(invalid_data)
 
         await asyncio.sleep(2)
 
@@ -135,35 +133,35 @@ async def test_websocket_sending_invalid_payload():
     from gql.transport.websockets import WebsocketsTransport
 
     # Get Websockets transport
-    sample_transport = WebsocketsTransport(
+    transport = WebsocketsTransport(
         url="wss://countries.trevorblades.com/graphql", ssl=True
     )
 
     # Instanciate client
-    async with Client(transport=sample_transport):
+    async with Client(transport=transport):
 
         invalid_payload = '{"id": "1", "type": "start", "payload": "BLAHBLAH"}'
 
         print(f">>> {invalid_payload}")
-        await sample_transport.websocket.send(invalid_payload)
+        assert transport.adapter.websocket is not None
+        await transport.adapter.websocket.send(invalid_payload)
 
         await asyncio.sleep(2)
 
 
 @pytest.mark.online
-@pytest.mark.skipif(sys.version_info < (3, 8), reason="requires python3.8 or higher")
 @pytest.mark.skip(reason=skip_reason)
 @pytest.mark.asyncio
 async def test_websocket_sending_invalid_data_while_other_query_is_running():
     from gql.transport.websockets import WebsocketsTransport
 
     # Get Websockets transport
-    sample_transport = WebsocketsTransport(
+    transport = WebsocketsTransport(
         url="wss://countries.trevorblades.com/graphql", ssl=True
     )
 
     # Instanciate client
-    async with Client(transport=sample_transport) as session:
+    async with Client(transport=transport) as session:
 
         query = gql(
             """
@@ -192,7 +190,8 @@ async def test_websocket_sending_invalid_data_while_other_query_is_running():
 
             invalid_data = "QSDF"
             print(f">>> {invalid_data}")
-            await sample_transport.websocket.send(invalid_data)
+            assert transport.adapter.websocket is not None
+            await transport.adapter.websocket.send(invalid_data)
 
         task1 = asyncio.create_task(query_task1())
         task2 = asyncio.create_task(query_task2())
@@ -203,19 +202,18 @@ async def test_websocket_sending_invalid_data_while_other_query_is_running():
 
 
 @pytest.mark.online
-@pytest.mark.skipif(sys.version_info < (3, 8), reason="requires python3.8 or higher")
 @pytest.mark.skip(reason=skip_reason)
 @pytest.mark.asyncio
 async def test_websocket_two_queries_in_parallel_using_two_tasks():
     from gql.transport.websockets import WebsocketsTransport
 
     # Get Websockets transport
-    sample_transport = WebsocketsTransport(
+    transport = WebsocketsTransport(
         url="wss://countries.trevorblades.com/graphql", ssl=True
     )
 
     # Instanciate client
-    async with Client(transport=sample_transport) as session:
+    async with Client(transport=transport) as session:
 
         query1 = gql(
             """

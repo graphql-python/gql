@@ -203,11 +203,11 @@ In a variable
 
     query = gql("query shift5days($time: Datetime) {shiftDays(time: $time, days: 5)}")
 
-    variable_values = {
+    query.variable_values = {
         "time": "2021-11-12T11:58:13.461161",
     }
 
-    result = client.execute(query, variable_values=variable_values)
+    result = client.execute(query)
 
 - enum:
 
@@ -220,11 +220,11 @@ In a variable
         }"""
     )
 
-    variable_values = {
+    query.variable_values = {
         "color": 'RED',
     }
 
-    result = client.execute(query, variable_values=variable_values)
+    result = client.execute(query)
 
 Automatically
 ^^^^^^^^^^^^^
@@ -256,12 +256,10 @@ Examples:
         query = gql("query shift5days($time: Datetime) {shiftDays(time: $time, days: 5)}")
 
         # the argument for time is a datetime instance
-        variable_values = {"time": datetime.now()}
+        query.variable_values = {"time": datetime.now()}
 
         # we execute the query with serialize_variables set to True
-        result = await session.execute(
-            query, variable_values=variable_values, serialize_variables=True
-        )
+        result = await session.execute(query, serialize_variables=True)
 
 - enums:
 
@@ -285,14 +283,12 @@ Examples:
         )
 
         # the argument for time is an instance of our Enum type
-        variable_values = {
+        query.variable_values = {
             "color": Color.RED,
         }
 
         # we execute the query with serialize_variables set to True
-        result = client.execute(
-            query, variable_values=variable_values, serialize_variables=True
-        )
+        result = client.execute(query, serialize_variables=True)
 
 Parsing output
 --------------
@@ -319,11 +315,10 @@ Same example as above, with result parsing enabled:
 
         query = gql("query shift5days($time: Datetime) {shiftDays(time: $time, days: 5)}")
 
-        variable_values = {"time": datetime.now()}
+        query.variable_values = {"time": datetime.now()}
 
         result = await session.execute(
             query,
-            variable_values=variable_values,
             serialize_variables=True,
             parse_result=True,
         )

@@ -1,5 +1,5 @@
 import pytest
-from graphql import GraphQLError, Source
+from graphql import GraphQLError
 
 from gql import Client, gql
 from tests.starwars.schema import StarWarsSchema
@@ -136,11 +136,11 @@ def test_fetch_some_id_query(client):
         }
         """
     )
-    params = {
+    query.variable_values = {
         "someId": "1000",
     }
     expected = {"human": {"name": "Luke Skywalker"}}
-    result = client.execute(query, variable_values=params)
+    result = client.execute(query)
     assert result == expected
 
 
@@ -154,11 +154,11 @@ def test_fetch_some_id_query2(client):
         }
         """
     )
-    params = {
+    query.variable_values = {
         "someId": "1002",
     }
     expected = {"human": {"name": "Han Solo"}}
-    result = client.execute(query, variable_values=params)
+    result = client.execute(query)
     assert result == expected
 
 
@@ -172,11 +172,11 @@ def test_invalid_id_query(client):
         }
         """
     )
-    params = {
+    query.variable_values = {
         "id": "not a valid id",
     }
     expected = {"human": None}
-    result = client.execute(query, variable_values=params)
+    result = client.execute(query)
     assert result == expected
 
 
@@ -316,24 +316,10 @@ def test_mutation_result(client):
         }
         """
     )
-    params = {
+    query.variable_values = {
         "ep": "JEDI",
         "review": {"stars": 5, "commentary": "This is a great movie!"},
     }
     expected = {"createReview": {"stars": 5, "commentary": "This is a great movie!"}}
-    result = client.execute(query, variable_values=params)
-    assert result == expected
-
-
-def test_query_from_source(client):
-    source = Source("{ hero { name } }")
-    query = gql(source)
-    expected = {"hero": {"name": "R2-D2"}}
     result = client.execute(query)
     assert result == expected
-
-
-def test_already_parsed_query(client):
-    query = gql("{ hero { name } }")
-    with pytest.raises(TypeError, match="must be passed as a string"):
-        gql(query)

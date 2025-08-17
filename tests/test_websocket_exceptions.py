@@ -8,7 +8,7 @@ import pytest
 from gql import Client, gql
 from gql.transport.exceptions import (
     TransportAlreadyConnected,
-    TransportClosed,
+    TransportConnectionFailed,
     TransportProtocolError,
     TransportQueryError,
 )
@@ -41,7 +41,7 @@ invalid_query1_server = [invalid_query1_server_answer]
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [invalid_query1_server], indirect=True)
 @pytest.mark.parametrize("query_str", [invalid_query_str])
-async def test_websocket_invalid_query(event_loop, client_and_server, query_str):
+async def test_websocket_invalid_query(client_and_server, query_str):
 
     session, server = client_and_server
 
@@ -69,7 +69,7 @@ invalid_subscription_str = """
 """
 
 
-async def server_invalid_subscription(ws, path):
+async def server_invalid_subscription(ws):
     await WebSocketServerHelper.send_connection_ack(ws)
     await ws.recv()
     await ws.send(invalid_query1_server_answer.format(query_id=1))
@@ -80,7 +80,7 @@ async def server_invalid_subscription(ws, path):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_invalid_subscription], indirect=True)
 @pytest.mark.parametrize("query_str", [invalid_subscription_str])
-async def test_websocket_invalid_subscription(event_loop, client_and_server, query_str):
+async def test_websocket_invalid_subscription(client_and_server, query_str):
 
     session, server = client_and_server
 
@@ -105,26 +105,26 @@ connection_error_server_answer = (
 )
 
 
-async def server_no_ack(ws, path):
+async def server_no_ack(ws):
     await ws.wait_closed()
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_no_ack], indirect=True)
 @pytest.mark.parametrize("query_str", [invalid_query_str])
-async def test_websocket_server_does_not_send_ack(event_loop, server, query_str):
+async def test_websocket_server_does_not_send_ack(server, query_str):
     from gql.transport.websockets import WebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
 
-    sample_transport = WebsocketsTransport(url=url, ack_timeout=1)
+    transport = WebsocketsTransport(url=url, ack_timeout=0.1)
 
     with pytest.raises(asyncio.TimeoutError):
-        async with Client(transport=sample_transport):
+        async with Client(transport=transport):
             pass
 
 
-async def server_connection_error(ws, path):
+async def server_connection_error(ws):
     await WebSocketServerHelper.send_connection_ack(ws)
     result = await ws.recv()
     print(f"Server received: {result}")
@@ -135,13 +135,13 @@ async def server_connection_error(ws, path):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_connection_error], indirect=True)
 @pytest.mark.parametrize("query_str", [invalid_query_str])
-async def test_websocket_sending_invalid_data(event_loop, client_and_server, query_str):
+async def test_websocket_sending_invalid_data(client_and_server, query_str):
 
     session, server = client_and_server
 
     invalid_data = "QSDF"
     print(f">>> {invalid_data}")
-    await session.transport.websocket.send(invalid_data)
+    await session.transport.adapter.websocket.send(invalid_data)
 
     await asyncio.sleep(2 * MS)
 
@@ -151,7 +151,7 @@ invalid_payload_server_answer = (
 )
 
 
-async def server_invalid_payload(ws, path):
+async def server_invalid_payload(ws):
     await WebSocketServerHelper.send_connection_ack(ws)
     result = await ws.recv()
     print(f"Server received: {result}")
@@ -163,9 +163,7 @@ async def server_invalid_payload(ws, path):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_invalid_payload], indirect=True)
 @pytest.mark.parametrize("query_str", [invalid_query_str])
-async def test_websocket_sending_invalid_payload(
-    event_loop, client_and_server, query_str
-):
+async def test_websocket_sending_invalid_payload(client_and_server, query_str):
 
     session, server = client_and_server
 
@@ -176,7 +174,7 @@ async def test_websocket_sending_invalid_payload(
         document,
         variable_values=None,
         operation_name=None,
-    ) -> int:
+    ):
         query_id = self.next_query_id
         self.next_query_id += 1
 
@@ -234,7 +232,7 @@ sending_bytes = [b"\x01\x02\x03"]
     ],
     indirect=True,
 )
-async def test_websocket_transport_protocol_errors(event_loop, client_and_server):
+async def test_websocket_transport_protocol_errors(client_and_server):
 
     session, server = client_and_server
 
@@ -244,7 +242,7 @@ async def test_websocket_transport_protocol_errors(event_loop, client_and_server
         await session.execute(query)
 
 
-async def server_without_ack(ws, path):
+async def server_without_ack(ws):
     # Sending something else than an ack
     await WebSocketServerHelper.send_complete(ws, 1)
     await ws.wait_closed()
@@ -252,64 +250,83 @@ async def server_without_ack(ws, path):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_without_ack], indirect=True)
-async def test_websocket_server_does_not_ack(event_loop, server):
+async def test_websocket_server_does_not_ack(server):
     from gql.transport.websockets import WebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    sample_transport = WebsocketsTransport(url=url)
+    transport = WebsocketsTransport(url=url)
 
     with pytest.raises(TransportProtocolError):
-        async with Client(transport=sample_transport):
+        async with Client(transport=transport):
             pass
 
 
-async def server_closing_directly(ws, path):
+async def server_closing_directly(ws):
     await ws.close()
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_closing_directly], indirect=True)
-async def test_websocket_server_closing_directly(event_loop, server):
-    import websockets
+async def test_websocket_server_closing_directly(server):
     from gql.transport.websockets import WebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    sample_transport = WebsocketsTransport(url=url)
+    transport = WebsocketsTransport(url=url)
 
-    with pytest.raises(websockets.exceptions.ConnectionClosed):
-        async with Client(transport=sample_transport):
+    with pytest.raises(TransportConnectionFailed):
+        async with Client(transport=transport):
             pass
 
 
-async def server_closing_after_ack(ws, path):
+async def server_closing_after_ack(ws):
     await WebSocketServerHelper.send_connection_ack(ws)
     await ws.close()
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_closing_after_ack], indirect=True)
-async def test_websocket_server_closing_after_ack(event_loop, client_and_server):
-
-    import websockets
+async def test_websocket_server_closing_after_ack(client_and_server):
 
     session, server = client_and_server
 
     query = gql("query { hello }")
 
-    with pytest.raises(websockets.exceptions.ConnectionClosed):
+    print("\n Trying to execute first query.\n")
+
+    with pytest.raises(TransportConnectionFailed) as exc1:
         await session.execute(query)
+
+    exc1_cause = exc1.value.__cause__
+    exc1_cause_str = f"{type(exc1_cause).__name__}:{exc1_cause!s}"
+
+    print(f"\n First query Exception cause: {exc1_cause_str}\n")
+
+    assert (
+        exc1_cause_str == "ConnectionClosedOK:received 1000 (OK); then sent 1000 (OK)"
+    )
 
     await session.transport.wait_closed()
 
-    with pytest.raises(TransportClosed):
+    print("\n Trying to execute second query.\n")
+
+    with pytest.raises(TransportConnectionFailed) as exc2:
         await session.execute(query)
 
+    exc2_cause = exc2.value.__cause__
+    exc2_cause_str = f"{type(exc2_cause).__name__}:{exc2_cause!s}"
 
-async def server_sending_invalid_query_errors(ws, path):
+    print(f" Second query Exception cause: {exc2_cause_str}\n")
+
+    assert (
+        exc2_cause_str == "ConnectionClosedOK:received 1000 (OK); then sent 1000 (OK)"
+    )
+
+
+async def server_sending_invalid_query_errors(ws):
     await WebSocketServerHelper.send_connection_ack(ws)
     invalid_error = (
         '{"type":"error","id":"404","payload":'
@@ -321,22 +338,22 @@ async def server_sending_invalid_query_errors(ws, path):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_sending_invalid_query_errors], indirect=True)
-async def test_websocket_server_sending_invalid_query_errors(event_loop, server):
+async def test_websocket_server_sending_invalid_query_errors(server):
     from gql.transport.websockets import WebsocketsTransport
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    sample_transport = WebsocketsTransport(url=url)
+    transport = WebsocketsTransport(url=url)
 
     # Invalid server message is ignored
-    async with Client(transport=sample_transport):
+    async with Client(transport=transport):
         await asyncio.sleep(2 * MS)
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [server_sending_invalid_query_errors], indirect=True)
-async def test_websocket_non_regression_bug_105(event_loop, server):
+async def test_websocket_non_regression_bug_105(server):
     from gql.transport.websockets import WebsocketsTransport
 
     # This test will check a fix to a race condition which happens if the user is trying
@@ -346,9 +363,9 @@ async def test_websocket_non_regression_bug_105(event_loop, server):
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    sample_transport = WebsocketsTransport(url=url)
+    transport = WebsocketsTransport(url=url)
 
-    client = Client(transport=sample_transport)
+    client = Client(transport=transport)
 
     # Create a coroutine which start the connection with the transport but does nothing
     async def client_connect(client):
@@ -365,15 +382,14 @@ async def test_websocket_non_regression_bug_105(event_loop, server):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [invalid_query1_server], indirect=True)
-async def test_websocket_using_cli_invalid_query(
-    event_loop, server, monkeypatch, capsys
-):
+async def test_websocket_using_cli_invalid_query(server, monkeypatch, capsys):
 
     url = f"ws://{server.hostname}:{server.port}/graphql"
     print(f"url = {url}")
 
-    from gql.cli import main, get_parser
     import io
+
+    from gql.cli import get_parser, main
 
     parser = get_parser(with_examples=True)
     args = parser.parse_args([url])

@@ -20,7 +20,7 @@ from graphql.type import (
 )
 from graphql.utilities import value_from_ast_untyped
 
-from gql import Client, GraphQLRequest, gql
+from gql import Client, gql
 from gql.transport.exceptions import TransportQueryError
 from gql.utilities import serialize_value, update_schema_scalar, update_schema_scalars
 
@@ -275,11 +275,9 @@ def test_custom_scalar_in_input_variable_values():
 
     money_value = {"amount": 10, "currency": "DM"}
 
-    variable_values = {"money": money_value}
+    query.variable_values = {"money": money_value}
 
-    result = client.execute(
-        query, variable_values=variable_values, root_value=root_value
-    )
+    result = client.execute(query, root_value=root_value)
 
     assert result["toEuros"] == 5
 
@@ -292,11 +290,10 @@ def test_custom_scalar_in_input_variable_values_serialized():
 
     money_value = Money(10, "DM")
 
-    variable_values = {"money": money_value}
+    query.variable_values = {"money": money_value}
 
     result = client.execute(
         query,
-        variable_values=variable_values,
         root_value=root_value,
         serialize_variables=True,
     )
@@ -312,14 +309,13 @@ def test_custom_scalar_in_input_variable_values_serialized_with_operation_name()
 
     money_value = Money(10, "DM")
 
-    variable_values = {"money": money_value}
+    query.variable_values = {"money": money_value}
+    query.operation_name = "myquery"
 
     result = client.execute(
         query,
-        variable_values=variable_values,
         root_value=root_value,
         serialize_variables=True,
-        operation_name="myquery",
     )
 
     assert result["toEuros"] == 5
@@ -342,12 +338,11 @@ def test_serialize_variable_values_exception_multiple_ops_without_operation_name
 
     money_value = Money(10, "DM")
 
-    variable_values = {"money": money_value}
+    query.variable_values = {"money": money_value}
 
     with pytest.raises(GraphQLError) as exc_info:
         client.execute(
             query,
-            variable_values=variable_values,
             root_value=root_value,
             serialize_variables=True,
         )
@@ -374,15 +369,14 @@ def test_serialize_variable_values_exception_operation_name_not_found():
 
     money_value = Money(10, "DM")
 
-    variable_values = {"money": money_value}
+    query.variable_values = {"money": money_value}
+    query.operation_name = "invalid_operation_name"
 
     with pytest.raises(GraphQLError) as exc_info:
         client.execute(
             query,
-            variable_values=variable_values,
             root_value=root_value,
             serialize_variables=True,
-            operation_name="invalid_operation_name",
         )
 
     exception = exc_info.value
@@ -398,13 +392,12 @@ def test_custom_scalar_subscribe_in_input_variable_values_serialized():
 
     money_value = Money(10, "DM")
 
-    variable_values = {"money": money_value}
+    query.variable_values = {"money": money_value}
 
     expected_result = {"spend": Money(10, "DM")}
 
     for result in client.subscribe(
         query,
-        variable_values=variable_values,
         root_value=root_value,
         serialize_variables=True,
         parse_result=True,
@@ -441,9 +434,9 @@ async def make_money_backend(aiohttp_server):
                 [
                     {
                         "data": result.data,
-                        "errors": [str(e) for e in result.errors]
-                        if result.errors
-                        else None,
+                        "errors": (
+                            [str(e) for e in result.errors] if result.errors else None
+                        ),
                     }
                     for result in results
                 ]
@@ -453,9 +446,9 @@ async def make_money_backend(aiohttp_server):
             return web.json_response(
                 {
                     "data": result.data,
-                    "errors": [str(e) for e in result.errors]
-                    if result.errors
-                    else None,
+                    "errors": (
+                        [str(e) for e in result.errors] if result.errors else None
+                    ),
                 }
             )
 
@@ -491,7 +484,7 @@ async def make_sync_money_transport(aiohttp_server):
 
 
 @pytest.mark.asyncio
-async def test_custom_scalar_in_output_with_transport(event_loop, aiohttp_server):
+async def test_custom_scalar_in_output_with_transport(aiohttp_server):
 
     transport = await make_money_transport(aiohttp_server)
 
@@ -509,7 +502,7 @@ async def test_custom_scalar_in_output_with_transport(event_loop, aiohttp_server
 
 
 @pytest.mark.asyncio
-async def test_custom_scalar_in_input_query_with_transport(event_loop, aiohttp_server):
+async def test_custom_scalar_in_input_query_with_transport(aiohttp_server):
 
     transport = await make_money_transport(aiohttp_server)
 
@@ -531,9 +524,7 @@ async def test_custom_scalar_in_input_query_with_transport(event_loop, aiohttp_s
 
 
 @pytest.mark.asyncio
-async def test_custom_scalar_in_input_variable_values_with_transport(
-    event_loop, aiohttp_server
-):
+async def test_custom_scalar_in_input_variable_values_with_transport(aiohttp_server):
 
     transport = await make_money_transport(aiohttp_server)
 
@@ -546,9 +537,9 @@ async def test_custom_scalar_in_input_variable_values_with_transport(
         money_value = {"amount": 10, "currency": "DM"}
         # money_value = Money(10, "DM")
 
-        variable_values = {"money": money_value}
+        query.variable_values = {"money": money_value}
 
-        result = await session.execute(query, variable_values=variable_values)
+        result = await session.execute(query)
 
         print(f"result = {result!r}")
         assert result["toEuros"] == 5
@@ -556,7 +547,7 @@ async def test_custom_scalar_in_input_variable_values_with_transport(
 
 @pytest.mark.asyncio
 async def test_custom_scalar_in_input_variable_values_split_with_transport(
-    event_loop, aiohttp_server
+    aiohttp_server,
 ):
 
     transport = await make_money_transport(aiohttp_server)
@@ -572,16 +563,16 @@ query myquery($amount: Float, $currency: String) {
 }"""
         )
 
-        variable_values = {"amount": 10, "currency": "DM"}
+        query.variable_values = {"amount": 10, "currency": "DM"}
 
-        result = await session.execute(query, variable_values=variable_values)
+        result = await session.execute(query)
 
         print(f"result = {result!r}")
         assert result["toEuros"] == 5
 
 
 @pytest.mark.asyncio
-async def test_custom_scalar_serialize_variables(event_loop, aiohttp_server):
+async def test_custom_scalar_serialize_variables(aiohttp_server):
 
     transport = await make_money_transport(aiohttp_server)
 
@@ -592,18 +583,16 @@ async def test_custom_scalar_serialize_variables(event_loop, aiohttp_server):
 
         query = gql("query myquery($money: Money) {toEuros(money: $money)}")
 
-        variable_values = {"money": Money(10, "DM")}
+        query.variable_values = {"money": Money(10, "DM")}
 
-        result = await session.execute(
-            query, variable_values=variable_values, serialize_variables=True
-        )
+        result = await session.execute(query, serialize_variables=True)
 
         print(f"result = {result!r}")
         assert result["toEuros"] == 5
 
 
 @pytest.mark.asyncio
-async def test_custom_scalar_serialize_variables_no_schema(event_loop, aiohttp_server):
+async def test_custom_scalar_serialize_variables_no_schema(aiohttp_server):
 
     transport = await make_money_transport(aiohttp_server)
 
@@ -613,17 +602,15 @@ async def test_custom_scalar_serialize_variables_no_schema(event_loop, aiohttp_s
 
         query = gql("query myquery($money: Money) {toEuros(money: $money)}")
 
-        variable_values = {"money": Money(10, "DM")}
+        query.variable_values = {"money": Money(10, "DM")}
 
         with pytest.raises(TransportQueryError):
-            await session.execute(
-                query, variable_values=variable_values, serialize_variables=True
-            )
+            await session.execute(query, serialize_variables=True)
 
 
 @pytest.mark.asyncio
 async def test_custom_scalar_serialize_variables_schema_from_introspection(
-    event_loop, aiohttp_server
+    aiohttp_server,
 ):
 
     transport = await make_money_transport(aiohttp_server)
@@ -645,18 +632,16 @@ async def test_custom_scalar_serialize_variables_schema_from_introspection(
 
         query = gql("query myquery($money: Money) {toEuros(money: $money)}")
 
-        variable_values = {"money": Money(10, "DM")}
+        query.variable_values = {"money": Money(10, "DM")}
 
-        result = await session.execute(
-            query, variable_values=variable_values, serialize_variables=True
-        )
+        result = await session.execute(query, serialize_variables=True)
 
         print(f"result = {result!r}")
         assert result["toEuros"] == 5
 
 
 @pytest.mark.asyncio
-async def test_update_schema_scalars(event_loop, aiohttp_server):
+async def test_update_schema_scalars(aiohttp_server):
 
     transport = await make_money_transport(aiohttp_server)
 
@@ -669,11 +654,9 @@ async def test_update_schema_scalars(event_loop, aiohttp_server):
 
         query = gql("query myquery($money: Money) {toEuros(money: $money)}")
 
-        variable_values = {"money": Money(10, "DM")}
+        query.variable_values = {"money": Money(10, "DM")}
 
-        result = await session.execute(
-            query, variable_values=variable_values, serialize_variables=True
-        )
+        result = await session.execute(query, serialize_variables=True)
 
         print(f"result = {result!r}")
         assert result["toEuros"] == 5
@@ -682,14 +665,14 @@ async def test_update_schema_scalars(event_loop, aiohttp_server):
 def test_update_schema_scalars_invalid_scalar():
 
     with pytest.raises(TypeError) as exc_info:
-        update_schema_scalars(schema, [int])
+        update_schema_scalars(schema, [int])  # type: ignore
 
     exception = exc_info.value
 
     assert str(exception) == "Scalars should be instances of GraphQLScalarType."
 
     with pytest.raises(TypeError) as exc_info:
-        update_schema_scalar(schema, "test", int)
+        update_schema_scalar(schema, "test", int)  # type: ignore
 
     exception = exc_info.value
 
@@ -699,7 +682,7 @@ def test_update_schema_scalars_invalid_scalar():
 def test_update_schema_scalars_invalid_scalar_argument():
 
     with pytest.raises(TypeError) as exc_info:
-        update_schema_scalars(schema, MoneyScalar)
+        update_schema_scalars(schema, MoneyScalar)  # type: ignore
 
     exception = exc_info.value
 
@@ -735,7 +718,7 @@ def test_update_schema_scalars_scalar_type_is_not_a_scalar_in_schema():
 @pytest.mark.asyncio
 @pytest.mark.requests
 async def test_custom_scalar_serialize_variables_sync_transport(
-    event_loop, aiohttp_server, run_sync_test
+    aiohttp_server, run_sync_test
 ):
 
     server, transport = await make_sync_money_transport(aiohttp_server)
@@ -745,22 +728,20 @@ async def test_custom_scalar_serialize_variables_sync_transport(
 
             query = gql("query myquery($money: Money) {toEuros(money: $money)}")
 
-            variable_values = {"money": Money(10, "DM")}
+            query.variable_values = {"money": Money(10, "DM")}
 
-            result = session.execute(
-                query, variable_values=variable_values, serialize_variables=True
-            )
+            result = session.execute(query, serialize_variables=True)
 
             print(f"result = {result!r}")
             assert result["toEuros"] == 5
 
-    await run_sync_test(event_loop, server, test_code)
+    await run_sync_test(server, test_code)
 
 
 @pytest.mark.asyncio
 @pytest.mark.requests
 async def test_custom_scalar_serialize_variables_sync_transport_2(
-    event_loop, aiohttp_server, run_sync_test
+    aiohttp_server, run_sync_test
 ):
     server, transport = await make_sync_money_transport(aiohttp_server)
 
@@ -769,12 +750,12 @@ async def test_custom_scalar_serialize_variables_sync_transport_2(
 
             query = gql("query myquery($money: Money) {toEuros(money: $money)}")
 
-            variable_values = {"money": Money(10, "DM")}
+            query.variable_values = {"money": Money(10, "DM")}
 
             results = session.execute_batch(
                 [
-                    GraphQLRequest(document=query, variable_values=variable_values),
-                    GraphQLRequest(document=query, variable_values=variable_values),
+                    query,
+                    query,
                 ],
                 serialize_variables=True,
             )
@@ -783,13 +764,39 @@ async def test_custom_scalar_serialize_variables_sync_transport_2(
             assert results[0]["toEuros"] == 5
             assert results[1]["toEuros"] == 5
 
-    await run_sync_test(event_loop, server, test_code)
+    await run_sync_test(server, test_code)
+
+
+@pytest.mark.asyncio
+@pytest.mark.aiohttp
+async def test_custom_scalar_serialize_variables_async_transport(aiohttp_server):
+    transport = await make_money_transport(aiohttp_server)
+
+    async with Client(
+        schema=schema, transport=transport, parse_results=True
+    ) as session:
+
+        query = gql("query myquery($money: Money) {toEuros(money: $money)}")
+
+        query.variable_values = {"money": Money(10, "DM")}
+
+        results = await session.execute_batch(
+            [
+                query,
+                query,
+            ],
+            serialize_variables=True,
+        )
+
+        print(f"result = {results!r}")
+        assert results[0]["toEuros"] == 5
+        assert results[1]["toEuros"] == 5
 
 
 def test_serialize_value_with_invalid_type():
 
     with pytest.raises(GraphQLError) as exc_info:
-        serialize_value("Not a valid type", 50)
+        serialize_value("Not a valid type", 50)  # type: ignore
 
     exception = exc_info.value
 
@@ -818,7 +825,7 @@ def test_serialize_value_with_nullable_type():
 
 
 @pytest.mark.asyncio
-async def test_gql_cli_print_schema(event_loop, aiohttp_server, capsys):
+async def test_gql_cli_print_schema(aiohttp_server, capsys):
 
     from gql.cli import get_parser, main
 

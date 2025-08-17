@@ -2,6 +2,7 @@
 .. image:: http://www.plantuml.com/plantuml/png/ZLAzJWCn3Dxz51vXw1im50ag8L4XwC1OkLTJ8gMvAd4GwEYxGuC8pTbKtUxy_TZEvsaIYfAt7e1MII9rWfsdbF1cSRzWpvtq4GT0JENduX8GXr_g7brQlf5tw-MBOx_-HlS0LV_Kzp8xr1kZav9PfCsMWvolEA_1VylHoZCExKwKv4Tg2s_VkSkca2kof2JDb0yxZYIk3qMZYUe1B1uUZOROXn96pQMugEMUdRnUUqUf6DBXQyIz2zu5RlgUQAFVNYaeRfBI79_JrUTaeg9JZFQj5MmUc69PDmNGE2iU61fDgfri3x36gxHw3gDHD6xqqQ7P4vjKqz2-602xtkO7uo17SCLhVSv25VjRjUAFcUE73Sspb8ADBl8gTT7j2cFAOPst_Wi0  # noqa
     :alt: UML diagram
 """
+
 import logging
 import re
 from abc import ABC, abstractmethod
@@ -63,6 +64,7 @@ from graphql import (
 )
 from graphql.pyutils import inspect
 
+from .graphql_request import GraphQLRequest
 from .utils import to_camel_case
 
 log = logging.getLogger(__name__)
@@ -213,7 +215,7 @@ def ast_from_value(value: Any, type_: GraphQLInputType) -> Optional[ValueNode]:
 
 def dsl_gql(
     *operations: "DSLExecutable", **operations_with_name: "DSLExecutable"
-) -> DocumentNode:
+) -> GraphQLRequest:
     r"""Given arguments instances of :class:`DSLExecutable`
     containing GraphQL operations or fragments,
     generate a Document which can be executed later in a
@@ -230,7 +232,8 @@ def dsl_gql(
     :param \**operations_with_name: the GraphQL operations with an operation name
     :type \**operations_with_name: DSLQuery, DSLMutation, DSLSubscription
 
-    :return: a Document which can be later executed or subscribed by a
+    :return: a :class:`GraphQLRequest <gql.GraphQLRequest>`
+        which can be later executed or subscribed by a
         :class:`Client <gql.client.Client>`, by an
         :class:`async session <gql.client.AsyncClientSession>` or by a
         :class:`sync session <gql.client.SyncClientSession>`
@@ -258,9 +261,11 @@ def dsl_gql(
                 f"Received: {type(operation)}."
             )
 
-    return DocumentNode(
+    document = DocumentNode(
         definitions=[operation.executable_ast for operation in all_operations]
     )
+
+    return GraphQLRequest(document)
 
 
 class DSLSchema:
@@ -338,7 +343,7 @@ class DSLSelector(ABC):
         self,
         *fields: "DSLSelectable",
         **fields_with_alias: "DSLSelectableWithAlias",
-    ):
+    ) -> Any:
         r"""Select the fields which should be added.
 
         :param \*fields: fields or fragments
@@ -347,7 +352,7 @@ class DSLSelector(ABC):
         :type \**fields_with_alias: DSLSelectable
 
         :raises TypeError: if an argument is not an instance of :class:`DSLSelectable`
-        :raises GraphQLError: if an argument is not a valid field
+        :raises graphql.error.GraphQLError: if an argument is not a valid field
         """
         # Concatenate fields without and with alias
         added_fields: Tuple["DSLSelectable", ...] = DSLField.get_aliased_fields(
@@ -595,9 +600,11 @@ class DSLVariableDefinitions:
             VariableDefinitionNode(
                 type=var.ast_variable_type,
                 variable=var.ast_variable_name,
-                default_value=None
-                if var.default_value is None
-                else ast_from_value(var.default_value, var.type),
+                default_value=(
+                    None
+                    if var.default_value is None
+                    else ast_from_value(var.default_value, var.type)
+                ),
                 directives=(),
             )
             for var in self.variables.values()
@@ -836,10 +843,10 @@ class DSLField(DSLSelectableWithAlias, DSLFieldSelector):
         """:meta private:"""
         return self.ast_field.name.value
 
-    def __call__(self, **kwargs) -> "DSLField":
+    def __call__(self, **kwargs: Any) -> "DSLField":
         return self.args(**kwargs)
 
-    def args(self, **kwargs) -> "DSLField":
+    def args(self, **kwargs: Any) -> "DSLField":
         r"""Set the arguments of a field
 
         The arguments are parsed to be stored in the AST of this field.

@@ -18,9 +18,9 @@ from graphql.type import (
 )
 from graphql.utilities import value_from_ast_untyped
 
-from gql import GraphQLRequest, gql
+from gql import GraphQLRequest
 
-from .conftest import MS
+from .conftest import MS, strip_braces_spaces
 
 # Marking all tests in this file with the aiohttp marker
 pytestmark = pytest.mark.aiohttp
@@ -188,15 +188,51 @@ schema = GraphQLSchema(
 
 
 def test_serialize_variables_using_money_example():
-    req = GraphQLRequest(document=gql("{balance}"))
+    req = GraphQLRequest("{balance}")
 
     money_value = Money(10, "DM")
 
     req = GraphQLRequest(
-        document=gql("query myquery($money: Money) {toEuros(money: $money)}"),
+        "query myquery($money: Money) {toEuros(money: $money)}",
         variable_values={"money": money_value},
     )
 
     req = req.serialize_variable_values(schema)
 
     assert req.variable_values == {"money": {"amount": 10, "currency": "DM"}}
+
+
+def test_graphql_request_using_string_instead_of_document():
+    request = GraphQLRequest("{balance}")
+
+    expected_payload = "{'query': '{\\n  balance\\n}'}"
+
+    print(request)
+
+    assert str(request) == strip_braces_spaces(expected_payload)
+
+
+def test_graphql_request_init_with_graphql_request():
+    money_value_1 = Money(10, "DM")
+    money_value_2 = Money(20, "DM")
+
+    request_1 = GraphQLRequest(
+        "query myquery($money: Money) {toEuros(money: $money)}",
+        variable_values={"money": money_value_1},
+    )
+    request_2 = GraphQLRequest(
+        request_1,
+    )
+    request_3 = GraphQLRequest(
+        request_1,
+        variable_values={"money": money_value_2},
+    )
+
+    assert request_1.document == request_2.document
+    assert request_2.document == request_3.document
+    assert isinstance(request_1.variable_values, Dict)
+    assert isinstance(request_2.variable_values, Dict)
+    assert isinstance(request_3.variable_values, Dict)
+    assert request_1.variable_values["money"] == money_value_1
+    assert request_2.variable_values["money"] == money_value_1
+    assert request_3.variable_values["money"] == money_value_2

@@ -23,7 +23,7 @@ class TransportServerError(TransportError):
     code: Optional[int]
 
     def __init__(self, message: str, code: Optional[int] = None):
-        super(TransportServerError, self).__init__(message)
+        super().__init__(message)
         self.code = code
 
 
@@ -58,6 +58,14 @@ class TransportClosed(TransportError):
 
     This exception is generated when the client is trying to use the transport
     while the transport was previously closed.
+    """
+
+
+class TransportConnectionFailed(TransportError):
+    """Transport connection failed.
+
+    This exception is by the connection adapter code when a connection closed
+    or if an unexpected Exception was received when trying to send a request.
     """
 
 

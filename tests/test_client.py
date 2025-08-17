@@ -1,9 +1,10 @@
 import os
 from contextlib import suppress
+from typing import Any
+from unittest import mock
 
-import mock
 import pytest
-from graphql import build_ast_schema, parse
+from graphql import ExecutionResult, build_ast_schema, parse
 
 from gql import Client, GraphQLRequest, gql
 from gql.transport import Transport
@@ -29,33 +30,28 @@ def http_transport_query():
 
 def test_request_transport_not_implemented(http_transport_query):
     class RandomTransport(Transport):
-        def execute(self):
-            super(RandomTransport, self).execute(http_transport_query)
+        pass
 
-    with pytest.raises(NotImplementedError) as exc_info:
-        RandomTransport().execute()
+    with pytest.raises(TypeError) as exc_info:
+        RandomTransport()  # type: ignore
 
-    assert "Any Transport subclass must implement execute method" == str(exc_info.value)
+    assert "Can't instantiate abstract class RandomTransport" in str(exc_info.value)
 
-    with pytest.raises(NotImplementedError) as exc_info:
-        RandomTransport().execute_batch([])
+    class RandomTransport2(Transport):
+        def execute(
+            self,
+            request: GraphQLRequest,
+            *args: Any,
+            **kwargs: Any,
+        ) -> ExecutionResult:
+            return ExecutionResult()
+
+    with pytest.raises(NotImplementedError) as exc_info2:
+        RandomTransport2().execute_batch([])
 
     assert "This Transport has not implemented the execute_batch method" == str(
-        exc_info.value
+        exc_info2.value
     )
-
-
-@pytest.mark.aiohttp
-def test_request_async_execute_batch_not_implemented_yet():
-    from gql.transport.aiohttp import AIOHTTPTransport
-
-    transport = AIOHTTPTransport(url="http://localhost/")
-    client = Client(transport=transport)
-
-    with pytest.raises(NotImplementedError) as exc_info:
-        client.execute_batch([GraphQLRequest(document=gql("{dummy}"))])
-
-    assert "Batching is not implemented for async yet." == str(exc_info.value)
 
 
 @pytest.mark.requests
@@ -70,7 +66,7 @@ def test_retries_on_transport(execute_mock):
 
     expected_retries = 3
     execute_mock.side_effect = NewConnectionError(
-        "Should be HTTPConnection", "Fake connection error"
+        "Should be HTTPConnection", "Fake connection error"  # type: ignore
     )
     transport = RequestsHTTPTransport(
         url="http://127.0.0.1:8000/graphql",
@@ -98,7 +94,7 @@ def test_retries_on_transport(execute_mock):
     assert execute_mock.call_count == expected_retries + 1
 
     execute_mock.reset_mock()
-    queries = map(lambda d: GraphQLRequest(document=d), [query, query, query])
+    queries = [query, query, query]
 
     with client as session:  # We're using the client as context manager
         with pytest.raises(Exception):
@@ -109,11 +105,10 @@ def test_retries_on_transport(execute_mock):
     assert execute_mock.call_count == expected_retries + 1
 
 
-def test_no_schema_exception():
+def test_no_schema_no_transport_exception():
     with pytest.raises(AssertionError) as exc_info:
-        client = Client()
-        client.validate("")
-    assert "Cannot validate the document locally, you need to pass a schema." in str(
+        Client()
+    assert "You need to provide either a transport or a schema to the Client." in str(
         exc_info.value
     )
 
@@ -148,7 +143,7 @@ def test_execute_result_error():
     Batching is not supported anymore on countries backend
 
     with pytest.raises(TransportQueryError) as exc_info:
-        client.execute_batch([GraphQLRequest(document=failing_query)])
+        client.execute_batch([GraphQLRequest(failing_query)])
     assert 'Cannot query field "id" on type "Continent".' in str(exc_info.value)
     """
 
@@ -176,7 +171,7 @@ def test_http_transport_verify_error(http_transport_query):
         Batching is not supported anymore on countries backend
 
         with pytest.warns(Warning) as record:
-            client.execute_batch([GraphQLRequest(document=http_transport_query)])
+            client.execute_batch([GraphQLRequest(http_transport_query)])
 
         assert len(record) == 1
         assert "Unverified HTTPS request is being made to host" in str(
@@ -202,7 +197,7 @@ def test_http_transport_specify_method_valid(http_transport_query):
         """
         Batching is not supported anymore on countries backend
 
-        result = client.execute_batch([GraphQLRequest(document=http_transport_query)])
+        result = client.execute_batch([GraphQLRequest(http_transport_query)])
         assert result is not None
         """
 
@@ -255,6 +250,7 @@ def test_sync_transport_close_on_schema_retrieval_failure():
         # transport is closed afterwards
         pass
 
+    assert isinstance(client.transport, RequestsHTTPTransport)
     assert client.transport.session is None
 
 
@@ -279,4 +275,9 @@ async def test_async_transport_close_on_schema_retrieval_failure():
         # transport is closed afterwards
         pass
 
+    assert isinstance(client.transport, AIOHTTPTransport)
     assert client.transport.session is None
+
+    import asyncio
+
+    await asyncio.sleep(1)

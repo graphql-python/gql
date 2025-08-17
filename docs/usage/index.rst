@@ -4,7 +4,8 @@ Usage
 .. toctree::
    :maxdepth: 2
 
-   basic_usage
+   sync_usage
+   async_usage
    validation
    subscriptions
    variables

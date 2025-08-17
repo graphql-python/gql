@@ -10,7 +10,9 @@ import logging
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
+
 from gql import Client, gql
+from gql.client import ReconnectingAsyncClientSession
 from gql.transport.aiohttp import AIOHTTPTransport
 
 logging.basicConfig(level=logging.DEBUG)
@@ -90,9 +92,9 @@ async def get_continent(continent_code):
         raise HTTPException(status_code=404, detail="Continent not found")
 
     try:
-        result = await client.session.execute(
-            query, variable_values={"code": continent_code}
-        )
+        assert isinstance(client.session, ReconnectingAsyncClientSession)
+        query.variable_values = {"code": continent_code}
+        result = await client.session.execute(query)
     except Exception as e:
         log.debug(f"get_continent Error: {e}")
         raise HTTPException(status_code=503, detail="GraphQL backend unavailable")

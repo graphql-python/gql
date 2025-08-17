@@ -1,3 +1,5 @@
+from typing import Any, Dict
+
 import pytest
 from graphql import GraphQLError
 
@@ -20,6 +22,7 @@ def test_hero_name_and_friends_query():
         }
         """
     )
+
     result = {
         "hero": {
             "id": "2001",
@@ -32,7 +35,7 @@ def test_hero_name_and_friends_query():
         }
     }
 
-    parsed_result = parse_result(StarWarsSchema, query, result)
+    parsed_result = parse_result(StarWarsSchema, query.document, result)
 
     assert result == parsed_result
 
@@ -56,6 +59,7 @@ def test_hero_name_and_friends_query_with_fragment():
         }
         """
     )
+
     result = {
         "hero": {
             "id": "2001",
@@ -68,7 +72,7 @@ def test_hero_name_and_friends_query_with_fragment():
         }
     }
 
-    parsed_result = parse_result(StarWarsSchema, query, result)
+    parsed_result = parse_result(StarWarsSchema, query.document, result)
 
     assert result == parsed_result
 
@@ -87,9 +91,9 @@ def test_key_not_found_in_result():
 
     # Backend returned an invalid result without the hero key
     # Should be impossible. In that case, we ignore the missing key
-    result = {}
+    result: Dict[str, Any] = {}
 
-    parsed_result = parse_result(StarWarsSchema, query, result)
+    parsed_result = parse_result(StarWarsSchema, query.document, result)
 
     assert result == parsed_result
 
@@ -110,7 +114,7 @@ def test_invalid_result_raise_error():
 
     with pytest.raises(GraphQLError) as exc_info:
 
-        parse_result(StarWarsSchema, query, result)
+        parse_result(StarWarsSchema, query.document, result)
 
     assert "Invalid result for container of field id: 5" in str(exc_info)
 
@@ -139,7 +143,7 @@ def test_fragment():
         "leia": {"name": "Leia Organa", "homePlanet": "Alderaan"},
     }
 
-    parsed_result = parse_result(StarWarsSchema, query, result)
+    parsed_result = parse_result(StarWarsSchema, query.document, result)
 
     assert result == parsed_result
 
@@ -162,7 +166,7 @@ def test_fragment_not_found():
 
     with pytest.raises(GraphQLError) as exc_info:
 
-        parse_result(StarWarsSchema, query, result)
+        parse_result(StarWarsSchema, query.document, result)
 
     assert 'Fragment "HumanFragment" not found in document!' in str(exc_info)
 
@@ -181,7 +185,7 @@ def test_return_none_if_result_is_none():
 
     result = None
 
-    assert parse_result(StarWarsSchema, query, result) is None
+    assert parse_result(StarWarsSchema, query.document, result) is None
 
 
 def test_null_result_is_allowed():
@@ -198,7 +202,7 @@ def test_null_result_is_allowed():
 
     result = {"hero": None}
 
-    parsed_result = parse_result(StarWarsSchema, query, result)
+    parsed_result = parse_result(StarWarsSchema, query.document, result)
 
     assert result == parsed_result
 
@@ -222,6 +226,6 @@ def test_inline_fragment():
         "luke": {"name": "Luke Skywalker", "homePlanet": "Tatooine"},
     }
 
-    parsed_result = parse_result(StarWarsSchema, query, result)
+    parsed_result = parse_result(StarWarsSchema, query.document, result)
 
     assert result == parsed_result

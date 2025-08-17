@@ -1,7 +1,7 @@
 import pytest
 
 
-class FakeRequest(object):
+class FakeRequest:
     headers = None
 
     def __init__(self, request_props=None):

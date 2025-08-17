@@ -28,6 +28,7 @@ def use_cassette(name):
 @pytest.fixture
 def client():
     import requests
+
     from gql.transport.requests import RequestsHTTPTransport
 
     with use_cassette("client"):
@@ -42,6 +43,9 @@ def client():
                 url=URL, cookies={"csrftoken": csrf}, headers={"x-csrftoken": csrf}
             ),
             fetch_schema_from_transport=True,
+            introspection_args={
+                "input_value_deprecation": False,
+            },
         )
 
 
@@ -96,9 +100,10 @@ def test_query_with_variable(client):
         }
         """
     )
+    query.variable_values = {"id": "UGxhbmV0OjEw"}
     expected = {"planet": {"id": "UGxhbmV0OjEw", "name": "Kamino"}}
     with use_cassette("queries"):
-        result = client.execute(query, variable_values={"id": "UGxhbmV0OjEw"})
+        result = client.execute(query)
     assert result == expected
 
 
@@ -119,9 +124,10 @@ def test_named_query(client):
         }
         """
     )
+    query.operation_name = "Planet2"
     expected = {"planet": {"id": "UGxhbmV0OjEx", "name": "Geonosis"}}
     with use_cassette("queries"):
-        result = client.execute(query, operation_name="Planet2")
+        result = client.execute(query)
     assert result == expected
 
 

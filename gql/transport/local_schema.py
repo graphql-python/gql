@@ -1,10 +1,12 @@
 import asyncio
 from inspect import isawaitable
-from typing import AsyncGenerator, Awaitable, cast
+from typing import Any, AsyncGenerator, Awaitable, cast
 
-from graphql import DocumentNode, ExecutionResult, GraphQLSchema, execute, subscribe
+from graphql import ExecutionResult, GraphQLSchema, execute, subscribe
 
 from gql.transport import AsyncTransport
+
+from ..graphql_request import GraphQLRequest
 
 
 class LocalSchemaTransport(AsyncTransport):
@@ -30,13 +32,24 @@ class LocalSchemaTransport(AsyncTransport):
 
     async def execute(
         self,
-        document: DocumentNode,
-        *args,
-        **kwargs,
+        request: GraphQLRequest,
+        *args: Any,
+        **kwargs: Any,
     ) -> ExecutionResult:
-        """Execute the provided document AST for on a local GraphQL Schema."""
+        """Execute the provided request for on a local GraphQL Schema."""
 
-        result_or_awaitable = execute(self.schema, document, *args, **kwargs)
+        inner_kwargs = {
+            "variable_values": request.variable_values,
+            "operation_name": request.operation_name,
+            **kwargs,
+        }
+
+        result_or_awaitable = execute(
+            self.schema,
+            request.document,
+            *args,
+            **inner_kwargs,
+        )
 
         execution_result: ExecutionResult
 
@@ -57,17 +70,28 @@ class LocalSchemaTransport(AsyncTransport):
 
     async def subscribe(
         self,
-        document: DocumentNode,
-        *args,
-        **kwargs,
+        request: GraphQLRequest,
+        *args: Any,
+        **kwargs: Any,
     ) -> AsyncGenerator[ExecutionResult, None]:
         """Send a subscription and receive the results using an async generator
 
         The results are sent as an ExecutionResult object
         """
 
+        inner_kwargs = {
+            "variable_values": request.variable_values,
+            "operation_name": request.operation_name,
+            **kwargs,
+        }
+
         subscribe_result = await self._await_if_necessary(
-            subscribe(self.schema, document, *args, **kwargs)
+            subscribe(
+                self.schema,
+                request.document,
+                *args,
+                **inner_kwargs,
+            )
         )
 
         if isinstance(subscribe_result, ExecutionResult):

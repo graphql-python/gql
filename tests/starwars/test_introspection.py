@@ -10,7 +10,7 @@ pytestmark = pytest.mark.aiohttp
 
 
 @pytest.mark.asyncio
-async def test_starwars_introspection_args(event_loop, aiohttp_server):
+async def test_starwars_introspection_args(aiohttp_server):
 
     transport = await make_starwars_transport(aiohttp_server)
 
@@ -19,6 +19,9 @@ async def test_starwars_introspection_args(event_loop, aiohttp_server):
     async with Client(
         transport=transport,
         fetch_schema_from_transport=True,
+        introspection_args={
+            "input_value_deprecation": False,
+        },
     ) as session:
 
         schema_str = print_schema(session.client.schema)
@@ -35,6 +38,7 @@ async def test_starwars_introspection_args(event_loop, aiohttp_server):
         fetch_schema_from_transport=True,
         introspection_args={
             "descriptions": False,
+            "input_value_deprecation": False,
         },
     ) as session:
 
@@ -50,9 +54,6 @@ async def test_starwars_introspection_args(event_loop, aiohttp_server):
     async with Client(
         transport=transport,
         fetch_schema_from_transport=True,
-        introspection_args={
-            "input_value_deprecation": True,
-        },
     ) as session:
 
         schema_str = print_schema(session.client.schema)

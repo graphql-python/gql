@@ -190,6 +190,22 @@ def test_cli_get_transport_aiohttp(parser, url):
     assert isinstance(transport, AIOHTTPTransport)
 
 
+@pytest.mark.httpx
+@pytest.mark.parametrize(
+    "url",
+    ["http://your_server.com", "https://your_server.com"],
+)
+def test_cli_get_transport_httpx(parser, url):
+
+    from gql.transport.httpx import HTTPXAsyncTransport
+
+    args = parser.parse_args([url, "--transport", "httpx"])
+
+    transport = get_transport(args)
+
+    assert isinstance(transport, HTTPXAsyncTransport)
+
+
 @pytest.mark.websockets
 @pytest.mark.parametrize(
     "url",
@@ -270,8 +286,8 @@ async def test_cli_main_appsync_websockets_iam(parser, url):
 )
 def test_cli_get_transport_appsync_websockets_api_key(parser, url):
 
-    from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
     from gql.transport.appsync_auth import AppSyncApiKeyAuthentication
+    from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
 
     args = parser.parse_args(
         [url, "--transport", "appsync_websockets", "--api-key", "test-api-key"]
@@ -291,8 +307,8 @@ def test_cli_get_transport_appsync_websockets_api_key(parser, url):
 )
 def test_cli_get_transport_appsync_websockets_jwt(parser, url):
 
-    from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
     from gql.transport.appsync_auth import AppSyncJWTAuthentication
+    from gql.transport.appsync_websockets import AppSyncWebsocketsTransport
 
     args = parser.parse_args(
         [url, "--transport", "appsync_websockets", "--jwt", "test-jwt"]
@@ -370,8 +386,9 @@ def test_cli_get_transport_no_protocol(parser):
         get_transport(args)
 
 
+@pytest.mark.script_launch_mode("subprocess")
 def test_cli_ep_version(script_runner):
-    ret = script_runner.run("gql-cli", "--version")
+    ret = script_runner.run(["gql-cli", "--version"])
 
     assert ret.success
 

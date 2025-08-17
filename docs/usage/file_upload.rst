@@ -14,10 +14,13 @@ Single File
 In order to upload a single file, you need to:
 
 * set the file as a variable value in the mutation
-* provide the opened file to the `variable_values` argument of `execute`
+* create a :class:`FileVar <gql.FileVar>` object with your file path
+* provide the `FileVar` instance to the `variable_values` attribute of your query
 * set the `upload_files` argument to True
 
 .. code-block:: python
+
+    from gql import client, gql, FileVar
 
     transport = AIOHTTPTransport(url='YOUR_URL')
     # Or transport = RequestsHTTPTransport(url='YOUR_URL')
@@ -34,32 +37,36 @@ In order to upload a single file, you need to:
       }
     ''')
 
-    with open("YOUR_FILE_PATH", "rb") as f:
+    query.variable_values = {"file": FileVar("YOUR_FILE_PATH")}
 
-        params = {"file": f}
-
-        result = client.execute(
-            query, variable_values=params, upload_files=True
-        )
+    result = client.execute(query, upload_files=True)
 
 Setting the content-type
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 If you need to set a specific Content-Type attribute to a file,
-you can set the :code:`content_type` attribute of the file like this:
+you can set the :code:`content_type` attribute of :class:`FileVar <gql.FileVar>`:
 
 .. code-block:: python
 
-    with open("YOUR_FILE_PATH", "rb") as f:
+    # Setting the content-type to a pdf file for example
+    filevar = FileVar(
+        "YOUR_FILE_PATH",
+        content_type="application/pdf",
+    )
 
-        # Setting the content-type to a pdf file for example
-        f.content_type = "application/pdf"
+Setting the uploaded file name
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-        params = {"file": f}
+To modify the uploaded filename, use the :code:`filename` attribute of :class:`FileVar <gql.FileVar>`:
 
-        result = client.execute(
-            query, variable_values=params, upload_files=True
-        )
+.. code-block:: python
+
+    # Setting the content-type to a pdf file for example
+    filevar = FileVar(
+        "YOUR_FILE_PATH",
+        filename="filename1.txt",
+    )
 
 File list
 ---------
@@ -67,6 +74,8 @@ File list
 It is also possible to upload multiple files using a list.
 
 .. code-block:: python
+
+    from gql import client, gql, FileVar
 
     transport = AIOHTTPTransport(url='YOUR_URL')
     # Or transport = RequestsHTTPTransport(url='YOUR_URL')
@@ -83,17 +92,12 @@ It is also possible to upload multiple files using a list.
       }
     ''')
 
-    f1 = open("YOUR_FILE_PATH_1", "rb")
-    f2 = open("YOUR_FILE_PATH_2", "rb")
+    f1 = FileVar("YOUR_FILE_PATH_1")
+    f2 = FileVar("YOUR_FILE_PATH_2")
 
-    params = {"files": [f1, f2]}
+    query.variable_values = {"files": [f1, f2]}
 
-    result = client.execute(
-        query, variable_values=params, upload_files=True
-    )
-
-    f1.close()
-    f2.close()
+    result = client.execute(query, upload_files=True)
 
 
 Streaming
@@ -120,18 +124,8 @@ Streaming local files
 aiohttp allows to upload files using an asynchronous generator.
 See `Streaming uploads on aiohttp docs`_.
 
-
-In order to stream local files, instead of providing opened files to the
-`variable_values` argument of `execute`, you need to provide an async generator
-which will provide parts of the files.
-
-You can use `aiofiles`_
-to read the files in chunks and create this asynchronous generator.
-
-.. _Streaming uploads on aiohttp docs: https://docs.aiohttp.org/en/stable/client_quickstart.html#streaming-uploads
-.. _aiofiles: https://github.com/Tinche/aiofiles
-
-Example:
+From gql version 4.0, it is possible to activate file streaming simply by
+setting the `streaming` argument of :class:`FileVar <gql.FileVar>` to `True`
 
 .. code-block:: python
 
@@ -147,18 +141,34 @@ Example:
       }
     ''')
 
+    f1 = FileVar(
+        file_name='YOUR_FILE_PATH',
+        streaming=True,
+    )
+
+    query.variable_values = {"file": f1}
+
+    result = client.execute(query, upload_files=True)
+
+Another option is to use an async generator to provide parts of the file.
+
+You can use `aiofiles`_
+to read the files in chunks and create this asynchronous generator.
+
+.. _Streaming uploads on aiohttp docs: https://docs.aiohttp.org/en/stable/client_quickstart.html#streaming-uploads
+.. _aiofiles: https://github.com/Tinche/aiofiles
+
+.. code-block:: python
+
     async def file_sender(file_name):
         async with aiofiles.open(file_name, 'rb') as f:
-            chunk = await f.read(64*1024)
-                while chunk:
-                    yield chunk
-                    chunk = await f.read(64*1024)
+            while chunk := await f.read(64*1024):
+                yield chunk
 
-    params = {"file": file_sender(file_name='YOUR_FILE_PATH')}
+    f1 = FileVar(file_sender(file_name='YOUR_FILE_PATH'))
+    query.variable_values = {"file": f1}
 
-    result = client.execute(
-		query, variable_values=params, upload_files=True
-	)
+    result = client.execute(query, upload_files=True)
 
 Streaming downloaded files
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -175,7 +185,7 @@ In order to do that, you need to:
 
 * get the response from an aiohttp request and then get the StreamReader instance
   from `resp.content`
-* provide the StreamReader instance to the `variable_values` argument of `execute`
+* provide the StreamReader instance to the `variable_values` attribute of your query
 
 Example:
 
@@ -186,7 +196,7 @@ Example:
         async with http_client.get('YOUR_DOWNLOAD_URL') as resp:
 
             # We now have a StreamReader instance in resp.content
-            # and we provide it to the variable_values argument of execute
+            # and we provide it to the variable_values attribute of the query
 
             transport = AIOHTTPTransport(url='YOUR_GRAPHQL_URL')
 
@@ -200,8 +210,6 @@ Example:
               }
             ''')
 
-            params = {"file": resp.content}
+            query.variable_values = {"file": FileVar(resp.content)}
 
-            result = client.execute(
-                query, variable_values=params, upload_files=True
-            )
+            result = client.execute(query, upload_files=True)

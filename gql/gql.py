@@ -1,24 +1,16 @@
-from __future__ import annotations
-
-from graphql import DocumentNode, Source, parse
+from .graphql_request import GraphQLRequest
 
 
-def gql(request_string: str | Source) -> DocumentNode:
-    """Given a string containing a GraphQL request, parse it into a Document.
+def gql(request_string: str) -> GraphQLRequest:
+    """Given a string containing a GraphQL request,
+       parse it into a Document and put it into a GraphQLRequest object.
 
     :param request_string: the GraphQL request as a String
-    :type request_string: str | Source
-    :return: a Document which can be later executed or subscribed by a
-        :class:`Client <gql.client.Client>`, by an
-        :class:`async session <gql.client.AsyncClientSession>` or by a
-        :class:`sync session <gql.client.SyncClientSession>`
-
-    :raises GraphQLError: if a syntax error is encountered.
+    :return: a :class:`GraphQLRequest <gql.GraphQLRequest>`
+             which can be later executed or subscribed by a
+             :class:`Client <gql.client.Client>`, by an
+             :class:`async session <gql.client.AsyncClientSession>` or by a
+             :class:`sync session <gql.client.SyncClientSession>`
+    :raises graphql.error.GraphQLError: if a syntax error is encountered.
     """
-    if isinstance(request_string, Source):
-        source = request_string
-    elif isinstance(request_string, str):
-        source = Source(request_string, "GraphQL request")
-    else:
-        raise TypeError("Request must be passed as a string or Source object.")
-    return parse(source)
+    return GraphQLRequest(request_string)

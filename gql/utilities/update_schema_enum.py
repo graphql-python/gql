@@ -9,7 +9,7 @@ def update_schema_enum(
     name: str,
     values: Union[Dict[str, Any], Type[Enum]],
     use_enum_values: bool = False,
-):
+) -> None:
     """Update in the schema the GraphQLEnumType corresponding to the given name.
 
     Example::

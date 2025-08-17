@@ -1,25 +1,39 @@
 import io
 import json
 import logging
-from typing import Any, Collection, Dict, List, Optional, Tuple, Type, Union
+from typing import (
+    Any,
+    Callable,
+    Collection,
+    Dict,
+    List,
+    NoReturn,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+)
 
 import requests
-from graphql import DocumentNode, ExecutionResult, print_ast
+from graphql import ExecutionResult
 from requests.adapters import HTTPAdapter, Retry
 from requests.auth import AuthBase
 from requests.cookies import RequestsCookieJar
+from requests.structures import CaseInsensitiveDict
 from requests_toolbelt.multipart.encoder import MultipartEncoder
 
 from gql.transport import Transport
 
 from ..graphql_request import GraphQLRequest
-from ..utils import extract_files
+from .common.batch import get_batch_execution_result_list
 from .exceptions import (
     TransportAlreadyConnected,
     TransportClosed,
+    TransportConnectionFailed,
     TransportProtocolError,
     TransportServerError,
 )
+from .file_upload import FileVar, close_files, extract_files, open_files
 
 log = logging.getLogger(__name__)
 
@@ -47,15 +61,17 @@ class RequestsHTTPTransport(Transport):
         method: str = "POST",
         retry_backoff_factor: float = 0.1,
         retry_status_forcelist: Collection[int] = _default_retry_codes,
+        json_serialize: Callable = json.dumps,
+        json_deserialize: Callable = json.loads,
         **kwargs: Any,
     ):
         """Initialize the transport with the given request parameters.
 
         :param url: The GraphQL server URL.
-        :param headers: Dictionary of HTTP Headers to send with the :class:`Request`
-            (Default: None).
-        :param cookies: Dict or CookieJar object to send with the :class:`Request`
-            (Default: None).
+        :param headers: Dictionary of HTTP Headers to send with
+            :meth:`requests.Session.request` (Default: None).
+        :param cookies: Dict or CookieJar object to send with
+            :meth:`requests.Session.request` (Default: None).
         :param auth: Auth tuple or callable to enable Basic/Digest/Custom HTTP Auth
             (Default: None).
         :param use_json: Send request body as JSON instead of form-urlencoded
@@ -73,6 +89,10 @@ class RequestsHTTPTransport(Transport):
             should force a retry on. A retry is initiated if the request method is
             in allowed_methods and the response status code is in status_forcelist.
             (Default: [429, 500, 502, 503, 504])
+        :param json_serialize: Json serializer callable.
+                By default json.dumps() function
+        :param json_deserialize: Json deserializer callable.
+                By default json.loads() function
         :param kwargs: Optional arguments that ``request`` takes.
             These can be seen at the `requests`_ source code or the official `docs`_
 
@@ -90,11 +110,13 @@ class RequestsHTTPTransport(Transport):
         self.method = method
         self.retry_backoff_factor = retry_backoff_factor
         self.retry_status_forcelist = retry_status_forcelist
+        self.json_serialize: Callable = json_serialize
+        self.json_deserialize: Callable = json_deserialize
         self.kwargs = kwargs
 
-        self.session = None
+        self.session: Optional[requests.Session] = None
 
-        self.response_headers = None
+        self.response_headers: Optional[CaseInsensitiveDict[str]] = None
 
     def connect(self):
         if self.session is None:
@@ -116,24 +138,137 @@ class RequestsHTTPTransport(Transport):
         else:
             raise TransportAlreadyConnected("Transport is already connected")
 
-    def execute(  # type: ignore
+    def _prepare_request(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
+        request: Union[GraphQLRequest, List[GraphQLRequest]],
+        *,
+        timeout: Optional[int] = None,
+        extra_args: Optional[Dict[str, Any]] = None,
+        upload_files: bool = False,
+    ) -> Dict[str, Any]:
+
+        payload: Dict | List
+        if isinstance(request, GraphQLRequest):
+            payload = request.payload
+        else:
+            payload = [req.payload for req in request]
+
+        post_args: Dict[str, Any] = {
+            "headers": self.headers,
+            "auth": self.auth,
+            "cookies": self.cookies,
+            "timeout": timeout or self.default_timeout,
+            "verify": self.verify,
+        }
+
+        if upload_files:
+            assert isinstance(payload, Dict)
+            assert isinstance(request, GraphQLRequest)
+            post_args = self._prepare_file_uploads(
+                request=request,
+                payload=payload,
+                post_args=post_args,
+            )
+
+        else:
+            data_key = "json" if self.use_json else "data"
+            post_args[data_key] = payload
+
+        # Log the payload
+        if log.isEnabledFor(logging.DEBUG):
+            log.debug(">>> %s", self.json_serialize(payload))
+
+        # Pass kwargs to requests post method
+        post_args.update(self.kwargs)
+
+        # Pass post_args to requests post method
+        if extra_args:
+            post_args.update(extra_args)
+
+        return post_args
+
+    def _prepare_file_uploads(
+        self,
+        request: GraphQLRequest,
+        *,
+        payload: Dict[str, Any],
+        post_args: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        # If the upload_files flag is set, then we need variable_values
+        assert request.variable_values is not None
+
+        # If we upload files, we will extract the files present in the
+        # variable_values dict and replace them by null values
+        nulled_variable_values, files = extract_files(
+            variables=request.variable_values,
+            file_classes=self.file_classes,
+        )
+
+        # Opening the files using the FileVar parameters
+        open_files(list(files.values()))
+        self.files = files
+
+        # Save the nulled variable values in the payload
+        payload["variables"] = nulled_variable_values
+
+        # Add the payload to the operations field
+        operations_str = self.json_serialize(payload)
+        log.debug("operations %s", operations_str)
+
+        # Generate the file map
+        # path is nested in a list because the spec allows multiple pointers
+        # to the same file. But we don't support that.
+        # Will generate something like {"0": ["variables.file"]}
+        file_map = {str(i): [path] for i, path in enumerate(files)}
+
+        # Enumerate the file streams
+        # Will generate something like {'0': FileVar object}
+        file_vars = {str(i): files[path] for i, path in enumerate(files)}
+
+        # Add the file map field
+        file_map_str = self.json_serialize(file_map)
+        log.debug("file_map %s", file_map_str)
+
+        fields = {"operations": operations_str, "map": file_map_str}
+
+        # Add the extracted files as remaining fields
+        for k, file_var in file_vars.items():
+            assert isinstance(file_var, FileVar)
+            name = k if file_var.filename is None else file_var.filename
+
+            if file_var.content_type is None:
+                fields[k] = (name, file_var.f)
+            else:
+                fields[k] = (name, file_var.f, file_var.content_type)
+
+        # Prepare requests http to send multipart-encoded data
+        data = MultipartEncoder(fields=fields)
+
+        post_args["data"] = data
+
+        if post_args["headers"] is None:
+            post_args["headers"] = {}
+        else:
+            post_args["headers"] = dict(post_args["headers"])
+
+        post_args["headers"]["Content-Type"] = data.content_type
+
+        return post_args
+
+    def execute(
+        self,
+        request: GraphQLRequest,
         timeout: Optional[int] = None,
         extra_args: Optional[Dict[str, Any]] = None,
         upload_files: bool = False,
     ) -> ExecutionResult:
         """Execute GraphQL query.
 
-        Execute the provided document AST against the configured remote server. This
+        Execute the provided request against the configured remote server. This
         uses the requests library to perform a HTTP POST request to the remote server.
 
-        :param document: GraphQL query as AST Node object.
-        :param variable_values: Dictionary of input parameters (Default: None).
-        :param operation_name: Name of the operation that shall be executed.
-            Only required in multi-operation documents (Default: None).
+        :param request: GraphQL request as a
+                        :class:`GraphQLRequest <gql.GraphQLRequest>` object.
         :param timeout: Specifies a default timeout for requests (Default: None).
         :param extra_args: additional arguments to send to the requests post method
         :param upload_files: Set to True if you want to put files in the variable values
@@ -145,136 +280,50 @@ class RequestsHTTPTransport(Transport):
         if not self.session:
             raise TransportClosed("Transport is not connected")
 
-        query_str = print_ast(document)
-        payload: Dict[str, Any] = {"query": query_str}
-
-        if operation_name:
-            payload["operationName"] = operation_name
-
-        post_args = {
-            "headers": self.headers,
-            "auth": self.auth,
-            "cookies": self.cookies,
-            "timeout": timeout or self.default_timeout,
-            "verify": self.verify,
-        }
-
-        if upload_files:
-            # If the upload_files flag is set, then we need variable_values
-            assert variable_values is not None
-
-            # If we upload files, we will extract the files present in the
-            # variable_values dict and replace them by null values
-            nulled_variable_values, files = extract_files(
-                variables=variable_values,
-                file_classes=self.file_classes,
-            )
-
-            # Save the nulled variable values in the payload
-            payload["variables"] = nulled_variable_values
-
-            # Add the payload to the operations field
-            operations_str = json.dumps(payload)
-            log.debug("operations %s", operations_str)
-
-            # Generate the file map
-            # path is nested in a list because the spec allows multiple pointers
-            # to the same file. But we don't support that.
-            # Will generate something like {"0": ["variables.file"]}
-            file_map = {str(i): [path] for i, path in enumerate(files)}
-
-            # Enumerate the file streams
-            # Will generate something like {'0': <_io.BufferedReader ...>}
-            file_streams = {str(i): files[path] for i, path in enumerate(files)}
-
-            # Add the file map field
-            file_map_str = json.dumps(file_map)
-            log.debug("file_map %s", file_map_str)
-
-            fields = {"operations": operations_str, "map": file_map_str}
-
-            # Add the extracted files as remaining fields
-            for k, f in file_streams.items():
-                name = getattr(f, "name", k)
-                content_type = getattr(f, "content_type", None)
-
-                if content_type is None:
-                    fields[k] = (name, f)
-                else:
-                    fields[k] = (name, f, content_type)
-
-            # Prepare requests http to send multipart-encoded data
-            data = MultipartEncoder(fields=fields)
-
-            post_args["data"] = data
-
-            if post_args["headers"] is None:
-                post_args["headers"] = {}
-            else:
-                post_args["headers"] = {**post_args["headers"]}
-
-            post_args["headers"]["Content-Type"] = data.content_type
-
-        else:
-            if variable_values:
-                payload["variables"] = variable_values
-
-            data_key = "json" if self.use_json else "data"
-            post_args[data_key] = payload
-
-        # Log the payload
-        if log.isEnabledFor(logging.INFO):
-            log.info(">>> %s", json.dumps(payload))
-
-        # Pass kwargs to requests post method
-        post_args.update(self.kwargs)
-
-        # Pass post_args to requests post method
-        if extra_args:
-            post_args.update(extra_args)
+        post_args = self._prepare_request(
+            request,
+            timeout=timeout,
+            extra_args=extra_args,
+            upload_files=upload_files,
+        )
 
         # Using the created session to perform requests
-        response = self.session.request(
-            self.method, self.url, **post_args  # type: ignore
-        )
-        self.response_headers = response.headers
-
-        def raise_response_error(resp: requests.Response, reason: str):
-            # We raise a TransportServerError if the status code is 400 or higher
-            # We raise a TransportProtocolError in the other cases
-
-            try:
-                # Raise a HTTPError if response status is 400 or higher
-                resp.raise_for_status()
-            except requests.HTTPError as e:
-                raise TransportServerError(str(e), e.response.status_code) from e
-
-            result_text = resp.text
-            raise TransportProtocolError(
-                f"Server did not return a GraphQL result: "
-                f"{reason}: "
-                f"{result_text}"
-            )
-
         try:
-            result = response.json()
+            response = self.session.request(self.method, self.url, **post_args)
+        except Exception as e:
+            raise TransportConnectionFailed(str(e)) from e
+        finally:
+            if upload_files:
+                close_files(list(self.files.values()))
 
-            if log.isEnabledFor(logging.INFO):
-                log.info("<<< %s", response.text)
+        return self._prepare_result(response)
 
-        except Exception:
-            raise_response_error(response, "Not a JSON answer")
+    @staticmethod
+    def _raise_transport_server_error_if_status_more_than_400(
+        response: requests.Response,
+    ) -> None:
+        # If the status is >400,
+        # then we need to raise a TransportServerError
+        try:
+            # Raise a HTTPError if response status is 400 or higher
+            response.raise_for_status()
+        except requests.HTTPError as e:
+            status_code = e.response.status_code if e.response is not None else None
+            raise TransportServerError(str(e), status_code) from e
 
-        if "errors" not in result and "data" not in result:
-            raise_response_error(response, 'No "data" or "errors" keys in answer')
+    @classmethod
+    def _raise_response_error(cls, resp: requests.Response, reason: str) -> NoReturn:
+        # We raise a TransportServerError if the status code is 400 or higher
+        # We raise a TransportProtocolError in the other cases
 
-        return ExecutionResult(
-            errors=result.get("errors"),
-            data=result.get("data"),
-            extensions=result.get("extensions"),
+        cls._raise_transport_server_error_if_status_more_than_400(resp)
+
+        result_text = resp.text
+        raise TransportProtocolError(
+            f"Server did not return a GraphQL result: " f"{reason}: " f"{result_text}"
         )
 
-    def execute_batch(  # type: ignore
+    def execute_batch(
         self,
         reqs: List[GraphQLRequest],
         timeout: Optional[int] = None,
@@ -297,127 +346,67 @@ class RequestsHTTPTransport(Transport):
         if not self.session:
             raise TransportClosed("Transport is not connected")
 
-        # Using the created session to perform requests
-        response = self.session.request(
-            self.method,
-            self.url,
-            **self._build_batch_post_args(reqs, timeout, extra_args),
+        post_args = self._prepare_request(
+            reqs,
+            timeout=timeout,
+            extra_args=extra_args,
         )
+
+        try:
+            response = self.session.request(
+                self.method,
+                self.url,
+                **post_args,
+            )
+        except Exception as e:
+            raise TransportConnectionFailed(str(e)) from e
+
+        return self._prepare_batch_result(reqs, response)
+
+    def _get_json_result(self, response: requests.Response) -> Any:
+
+        # Saving latest response headers in the transport
         self.response_headers = response.headers
 
-        answers = self._extract_response(response)
+        try:
+            result = self.json_deserialize(response.text)
 
-        self._validate_answer_is_a_list(answers)
-        self._validate_num_of_answers_same_as_requests(reqs, answers)
-        self._validate_every_answer_is_a_dict(answers)
-        self._validate_data_and_errors_keys_in_answers(answers)
+            if log.isEnabledFor(logging.DEBUG):
+                log.debug("<<< %s", response.text)
 
-        return [self._answer_to_execution_result(answer) for answer in answers]
+        except Exception:
+            self._raise_response_error(response, "Not a JSON answer")
 
-    def _answer_to_execution_result(self, result: Dict[str, Any]) -> ExecutionResult:
+        return result
+
+    def _prepare_result(self, response: requests.Response) -> ExecutionResult:
+
+        result = self._get_json_result(response)
+
+        if "errors" not in result and "data" not in result:
+            self._raise_response_error(response, 'No "data" or "errors" keys in answer')
+
         return ExecutionResult(
             errors=result.get("errors"),
             data=result.get("data"),
             extensions=result.get("extensions"),
         )
 
-    def _validate_answer_is_a_list(self, results: Any) -> None:
-        if not isinstance(results, list):
-            self._raise_invalid_result(
-                str(results),
-                "Answer is not a list",
-            )
-
-    def _validate_data_and_errors_keys_in_answers(
-        self, results: List[Dict[str, Any]]
-    ) -> None:
-        for result in results:
-            if "errors" not in result and "data" not in result:
-                self._raise_invalid_result(
-                    str(results),
-                    'No "data" or "errors" keys in answer',
-                )
-
-    def _validate_every_answer_is_a_dict(self, results: List[Dict[str, Any]]) -> None:
-        for result in results:
-            if not isinstance(result, dict):
-                self._raise_invalid_result(str(results), "Not every answer is dict")
-
-    def _validate_num_of_answers_same_as_requests(
+    def _prepare_batch_result(
         self,
         reqs: List[GraphQLRequest],
-        results: List[Dict[str, Any]],
-    ) -> None:
-        if len(reqs) != len(results):
-            self._raise_invalid_result(
-                str(results),
-                "Invalid answer length",
-            )
+        response: requests.Response,
+    ) -> List[ExecutionResult]:
 
-    def _raise_invalid_result(self, result_text: str, reason: str) -> None:
-        raise TransportProtocolError(
-            f"Server did not return a valid GraphQL result: "
-            f"{reason}: "
-            f"{result_text}"
-        )
+        answers = self._get_json_result(response)
 
-    def _extract_response(self, response: requests.Response) -> Any:
         try:
-            response.raise_for_status()
-            result = response.json()
-
-            if log.isEnabledFor(logging.INFO):
-                log.info("<<< %s", response.text)
-
-        except requests.HTTPError as e:
-            raise TransportServerError(str(e), e.response.status_code) from e
-
-        except Exception:
-            self._raise_invalid_result(str(response.text), "Not a JSON answer")
-
-        return result
-
-    def _build_batch_post_args(
-        self,
-        reqs: List[GraphQLRequest],
-        timeout: Optional[int] = None,
-        extra_args: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
-        post_args: Dict[str, Any] = {
-            "headers": self.headers,
-            "auth": self.auth,
-            "cookies": self.cookies,
-            "timeout": timeout or self.default_timeout,
-            "verify": self.verify,
-        }
-
-        data_key = "json" if self.use_json else "data"
-        post_args[data_key] = [self._build_data(req) for req in reqs]
-
-        # Log the payload
-        if log.isEnabledFor(logging.INFO):
-            log.info(">>> %s", json.dumps(post_args[data_key]))
-
-        # Pass kwargs to requests post method
-        post_args.update(self.kwargs)
-
-        # Pass post_args to requests post method
-        if extra_args:
-            post_args.update(extra_args)
-
-        return post_args
-
-    def _build_data(self, req: GraphQLRequest) -> Dict[str, Any]:
-        query_str = print_ast(req.document)
-        payload: Dict[str, Any] = {"query": query_str}
-
-        if req.operation_name:
-            payload["operationName"] = req.operation_name
-
-        if req.variable_values:
-            payload["variables"] = req.variable_values
-
-        return payload
+            return get_batch_execution_result_list(reqs, answers)
+        except TransportProtocolError:
+            # Raise a TransportServerError if status > 400
+            self._raise_transport_server_error_if_status_more_than_400(response)
+            # In other cases, raise a TransportProtocolError
+            raise
 
     def close(self):
         """Closing the transport by closing the inner session"""

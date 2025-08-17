@@ -10,7 +10,9 @@ Reference: :class:`gql.transport.aiohttp.AIOHTTPTransport`
 .. note::
 
     GraphQL subscriptions are not supported on the HTTP transport.
-    For subscriptions you should use the :ref:`websockets transport <websockets_transport>`.
+    For subscriptions you should use a websockets transport:
+    :ref:`WebsocketsTransport <websockets_transport>` or
+    :ref:`AIOHTTPWebsocketsTransport <aiohttp_websockets_transport>`.
 
 .. literalinclude:: ../code_examples/aiohttp_async.py
 

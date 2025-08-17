@@ -1,3 +1,5 @@
+from graphql import GraphQLSchema
+
 from gql import Client, gql
 from gql.dsl import DSLFragment, DSLQuery, DSLSchema, dsl_gql, print_ast
 from gql.utilities import node_tree
@@ -34,6 +36,9 @@ type Sprite {
 def test_issue_447():
 
     client = Client(schema=schema_str)
+
+    assert isinstance(client.schema, GraphQLSchema)
+
     ds = DSLSchema(client.schema)
 
     sprite = DSLFragment("SpriteUnionAsSprite")
@@ -60,10 +65,10 @@ def test_issue_447():
     client.validate(q)
 
     # Creating a tree from the DocumentNode created by dsl_gql
-    dsl_tree = node_tree(q)
+    dsl_tree = node_tree(q.document)
 
     # Creating a tree from the DocumentNode created by gql
-    gql_tree = node_tree(gql(print_ast(q)))
+    gql_tree = node_tree(gql(print_ast(q.document)).document)
 
     print("=======")
     print(dsl_tree)

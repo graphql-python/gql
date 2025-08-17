@@ -166,7 +166,7 @@ def test_json_value_input_in_ast_with_variables():
 }"""
     )
 
-    variable_values = {
+    query.variable_values = {
         "name": "Barbara",
         "level": 1,
         "is_connected": False,
@@ -174,9 +174,7 @@ def test_json_value_input_in_ast_with_variables():
         "friends": ["Alex", "John"],
     }
 
-    result = client.execute(
-        query, variable_values=variable_values, root_value=root_value
-    )
+    result = client.execute(query, root_value=root_value)
 
     print(result)
 

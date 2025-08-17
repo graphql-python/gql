@@ -1,7 +1,7 @@
 Introduction
 ============
 
-`GQL 3`_ is a `GraphQL`_ Client for Python 3.7+ which plays nicely with other
+`GQL`_ is a `GraphQL`_ Client for Python which plays nicely with other
 graphql implementations compatible with the spec.
 
 Under the hood, it uses `GraphQL-core`_ which is a Python port of `GraphQL.js`_,
@@ -10,7 +10,7 @@ the JavaScript reference implementation for GraphQL.
 Installation
 ------------
 
-You can install GQL 3 and all the extra dependencies using pip_::
+You can install GQL and all the extra dependencies using pip_::
 
     pip install "gql[all]"
 
@@ -36,25 +36,27 @@ which needs the :code:`aiohttp` dependency, then you can install GQL with::
 
 The corresponding between extra dependencies required and the GQL classes is:
 
-+---------------------+----------------------------------------------------------------+
-| Extra dependencies  | Classes                                                        |
-+=====================+================================================================+
-| aiohttp             | :ref:`AIOHTTPTransport <aiohttp_transport>`                    |
-+---------------------+----------------------------------------------------------------+
-| websockets          | :ref:`WebsocketsTransport <websockets_transport>`              |
-|                     |                                                                |
-|                     | :ref:`PhoenixChannelWebsocketsTransport <phoenix_transport>`   |
-|                     |                                                                |
-|                     | :ref:`AppSyncWebsocketsTransport <appsync_transport>`          |
-+---------------------+----------------------------------------------------------------+
-| requests            | :ref:`RequestsHTTPTransport <requests_transport>`              |
-+---------------------+----------------------------------------------------------------+
-| httpx               | :ref:`HTTPTXTransport <httpx_transport>`                       |
-|                     |                                                                |
-|                     | :ref:`HTTPXAsyncTransport <httpx_async_transport>`             |
-+---------------------+----------------------------------------------------------------+
-| botocore            | :ref:`AppSyncIAMAuthentication <appsync_iam_auth>`             |
-+---------------------+----------------------------------------------------------------+
++---------------------+------------------------------------------------------------------+
+| Extra dependencies  | Classes                                                          |
++=====================+==================================================================+
+| aiohttp             | :ref:`AIOHTTPTransport <aiohttp_transport>`                      |
+|                     |                                                                  |
+|                     | :ref:`AIOHTTPWebsocketsTransport <aiohttp_websockets_transport>` |
++---------------------+------------------------------------------------------------------+
+| websockets          | :ref:`WebsocketsTransport <websockets_transport>`                |
+|                     |                                                                  |
+|                     | :ref:`PhoenixChannelWebsocketsTransport <phoenix_transport>`     |
+|                     |                                                                  |
+|                     | :ref:`AppSyncWebsocketsTransport <appsync_transport>`            |
++---------------------+------------------------------------------------------------------+
+| requests            | :ref:`RequestsHTTPTransport <requests_transport>`                |
++---------------------+------------------------------------------------------------------+
+| httpx               | :ref:`HTTPTXTransport <httpx_transport>`                         |
+|                     |                                                                  |
+|                     | :ref:`HTTPXAsyncTransport <httpx_async_transport>`               |
++---------------------+------------------------------------------------------------------+
+| botocore            | :ref:`AppSyncIAMAuthentication <appsync_iam_auth>`               |
++---------------------+------------------------------------------------------------------+
 
 .. note::
 
@@ -91,7 +93,7 @@ Please check the  `Contributing`_ file to learn how to make a good pull request.
 .. _GraphQL: https://graphql.org/
 .. _GraphQL-core: https://github.com/graphql-python/graphql-core
 .. _GraphQL.js: https://github.com/graphql/graphql-js
-.. _GQL 3: https://github.com/graphql-python/gql
+.. _GQL: https://github.com/graphql-python/gql
 .. _pip: https://pip.pypa.io/
 .. _GitHub repository for gql: https://github.com/graphql-python/gql
 .. _Contributing: https://github.com/graphql-python/gql/blob/master/CONTRIBUTING.md

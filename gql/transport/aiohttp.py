@@ -1,20 +1,18 @@
 import asyncio
-import functools
 import io
 import json
 import logging
-import warnings
 from ssl import SSLContext
 from typing import (
     Any,
     AsyncGenerator,
     Callable,
     Dict,
+    List,
     Optional,
     Tuple,
     Type,
     Union,
-    cast,
 )
 
 import aiohttp
@@ -22,18 +20,23 @@ from aiohttp.client_exceptions import ClientResponseError
 from aiohttp.client_reqrep import Fingerprint
 from aiohttp.helpers import BasicAuth
 from aiohttp.typedefs import LooseCookies, LooseHeaders
-from graphql import DocumentNode, ExecutionResult, print_ast
+from graphql import ExecutionResult
 from multidict import CIMultiDictProxy
 
-from ..utils import extract_files
+from ..graphql_request import GraphQLRequest
 from .appsync_auth import AppSyncAuthentication
 from .async_transport import AsyncTransport
+from .common.aiohttp_closed_event import create_aiohttp_closed_event
+from .common.batch import get_batch_execution_result_list
 from .exceptions import (
     TransportAlreadyConnected,
     TransportClosed,
+    TransportConnectionFailed,
+    TransportError,
     TransportProtocolError,
     TransportServerError,
 )
+from .file_upload import FileVar, close_files, extract_files, open_files
 
 log = logging.getLogger(__name__)
 
@@ -57,10 +60,11 @@ class AIOHTTPTransport(AsyncTransport):
         headers: Optional[LooseHeaders] = None,
         cookies: Optional[LooseCookies] = None,
         auth: Optional[Union[BasicAuth, "AppSyncAuthentication"]] = None,
-        ssl: Union[SSLContext, bool, Fingerprint, str] = "ssl_warning",
+        ssl: Union[SSLContext, bool, Fingerprint] = True,
         timeout: Optional[int] = None,
         ssl_close_timeout: Optional[Union[int, float]] = 10,
         json_serialize: Callable = json.dumps,
+        json_deserialize: Callable = json.loads,
         client_session_args: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Initialize the transport with the given aiohttp parameters.
@@ -70,11 +74,14 @@ class AIOHTTPTransport(AsyncTransport):
         :param cookies: Dict of HTTP cookies.
         :param auth: BasicAuth object to enable Basic HTTP auth if needed
                      Or Appsync Authentication class
-        :param ssl: ssl_context of the connection. Use ssl=False to disable encryption
+        :param ssl: ssl_context of the connection.
+                    Use ssl=False to not verify ssl certificates.
         :param ssl_close_timeout: Timeout in seconds to wait for the ssl connection
                                   to close properly
         :param json_serialize: Json serializer callable.
                 By default json.dumps() function
+        :param json_deserialize: Json deserializer callable.
+                By default json.loads() function
         :param client_session_args: Dict of extra args passed to
                 `aiohttp.ClientSession`_
 
@@ -85,26 +92,14 @@ class AIOHTTPTransport(AsyncTransport):
         self.headers: Optional[LooseHeaders] = headers
         self.cookies: Optional[LooseCookies] = cookies
         self.auth: Optional[Union[BasicAuth, "AppSyncAuthentication"]] = auth
-
-        if ssl == "ssl_warning":
-            ssl = False
-            if str(url).startswith("https"):
-                warnings.warn(
-                    "WARNING: By default, AIOHTTPTransport does not verify"
-                    " ssl certificates. This will be fixed in the next major version."
-                    " You can set ssl=True to force the ssl certificate verification"
-                    " or ssl=False to disable this warning"
-                )
-
-        self.ssl: Union[SSLContext, bool, Fingerprint] = cast(
-            Union[SSLContext, bool, Fingerprint], ssl
-        )
+        self.ssl: Union[SSLContext, bool, Fingerprint] = ssl
         self.timeout: Optional[int] = timeout
         self.ssl_close_timeout: Optional[Union[int, float]] = ssl_close_timeout
         self.client_session_args = client_session_args
         self.session: Optional[aiohttp.ClientSession] = None
         self.response_headers: Optional[CIMultiDictProxy[str]]
         self.json_serialize: Callable = json_serialize
+        self.json_deserialize: Callable = json_deserialize
 
     async def connect(self) -> None:
         """Coroutine which will create an aiohttp ClientSession() as self.session.
@@ -121,9 +116,9 @@ class AIOHTTPTransport(AsyncTransport):
             client_session_args: Dict[str, Any] = {
                 "cookies": self.cookies,
                 "headers": self.headers,
-                "auth": None
-                if isinstance(self.auth, AppSyncAuthentication)
-                else self.auth,
+                "auth": (
+                    None if isinstance(self.auth, AppSyncAuthentication) else self.auth
+                ),
                 "json_serialize": self.json_serialize,
             }
 
@@ -134,7 +129,7 @@ class AIOHTTPTransport(AsyncTransport):
 
             # Adding custom parameters passed from init
             if self.client_session_args:
-                client_session_args.update(self.client_session_args)  # type: ignore
+                client_session_args.update(self.client_session_args)
 
             log.debug("Connecting transport")
 
@@ -142,59 +137,6 @@ class AIOHTTPTransport(AsyncTransport):
 
         else:
             raise TransportAlreadyConnected("Transport is already connected")
-
-    @staticmethod
-    def create_aiohttp_closed_event(session) -> asyncio.Event:
-        """Work around aiohttp issue that doesn't properly close transports on exit.
-
-        See https://github.com/aio-libs/aiohttp/issues/1925#issuecomment-639080209
-
-        Returns:
-           An event that will be set once all transports have been properly closed.
-        """
-
-        ssl_transports = 0
-        all_is_lost = asyncio.Event()
-
-        def connection_lost(exc, orig_lost):
-            nonlocal ssl_transports
-
-            try:
-                orig_lost(exc)
-            finally:
-                ssl_transports -= 1
-                if ssl_transports == 0:
-                    all_is_lost.set()
-
-        def eof_received(orig_eof_received):
-            try:
-                orig_eof_received()
-            except AttributeError:  # pragma: no cover
-                # It may happen that eof_received() is called after
-                # _app_protocol and _transport are set to None.
-                pass
-
-        for conn in session.connector._conns.values():
-            for handler, _ in conn:
-                proto = getattr(handler.transport, "_ssl_protocol", None)
-                if proto is None:
-                    continue
-
-                ssl_transports += 1
-                orig_lost = proto.connection_lost
-                orig_eof_received = proto.eof_received
-
-                proto.connection_lost = functools.partial(
-                    connection_lost, orig_lost=orig_lost
-                )
-                proto.eof_received = functools.partial(
-                    eof_received, orig_eof_received=orig_eof_received
-                )
-
-        if ssl_transports == 0:
-            all_is_lost.set()
-
-        return all_is_lost
 
     async def close(self) -> None:
         """Coroutine which will close the aiohttp session.
@@ -215,7 +157,7 @@ class AIOHTTPTransport(AsyncTransport):
                 log.debug("connector_owner is False -> not closing connector")
 
             else:
-                closed_event = self.create_aiohttp_closed_event(self.session)
+                closed_event = create_aiohttp_closed_event(self.session)
                 await self.session.close()
                 try:
                     await asyncio.wait_for(closed_event.wait(), self.ssl_close_timeout)
@@ -224,96 +166,29 @@ class AIOHTTPTransport(AsyncTransport):
 
         self.session = None
 
-    async def execute(
+    def _prepare_request(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
+        request: Union[GraphQLRequest, List[GraphQLRequest]],
         extra_args: Optional[Dict[str, Any]] = None,
         upload_files: bool = False,
-    ) -> ExecutionResult:
-        """Execute the provided document AST against the configured remote server
-        using the current session.
-        This uses the aiohttp library to perform a HTTP POST request asynchronously
-        to the remote server.
+    ) -> Dict[str, Any]:
 
-        Don't call this coroutine directly on the transport, instead use
-        :code:`execute` on a client or a session.
-
-        :param document: the parsed GraphQL request
-        :param variable_values: An optional Dict of variable values
-        :param operation_name: An optional Operation name for the request
-        :param extra_args: additional arguments to send to the aiohttp post method
-        :param upload_files: Set to True if you want to put files in the variable values
-        :returns: an ExecutionResult object.
-        """
-
-        query_str = print_ast(document)
-
-        payload: Dict[str, Any] = {
-            "query": query_str,
-        }
-
-        if operation_name:
-            payload["operationName"] = operation_name
+        payload: Dict | List
+        if isinstance(request, GraphQLRequest):
+            payload = request.payload
+        else:
+            payload = [req.payload for req in request]
 
         if upload_files:
-
-            # If the upload_files flag is set, then we need variable_values
-            assert variable_values is not None
-
-            # If we upload files, we will extract the files present in the
-            # variable_values dict and replace them by null values
-            nulled_variable_values, files = extract_files(
-                variables=variable_values,
-                file_classes=self.file_classes,
-            )
-
-            # Save the nulled variable values in the payload
-            payload["variables"] = nulled_variable_values
-
-            # Prepare aiohttp to send multipart-encoded data
-            data = aiohttp.FormData()
-
-            # Generate the file map
-            # path is nested in a list because the spec allows multiple pointers
-            # to the same file. But we don't support that.
-            # Will generate something like {"0": ["variables.file"]}
-            file_map = {str(i): [path] for i, path in enumerate(files)}
-
-            # Enumerate the file streams
-            # Will generate something like {'0': <_io.BufferedReader ...>}
-            file_streams = {str(i): files[path] for i, path in enumerate(files)}
-
-            # Add the payload to the operations field
-            operations_str = self.json_serialize(payload)
-            log.debug("operations %s", operations_str)
-            data.add_field(
-                "operations", operations_str, content_type="application/json"
-            )
-
-            # Add the file map field
-            file_map_str = self.json_serialize(file_map)
-            log.debug("file_map %s", file_map_str)
-            data.add_field("map", file_map_str, content_type="application/json")
-
-            # Add the extracted files as remaining fields
-            for k, f in file_streams.items():
-                name = getattr(f, "name", k)
-                content_type = getattr(f, "content_type", None)
-
-                data.add_field(k, f, filename=name, content_type=content_type)
-
-            post_args: Dict[str, Any] = {"data": data}
-
+            assert isinstance(payload, Dict)
+            assert isinstance(request, GraphQLRequest)
+            post_args = self._prepare_file_uploads(request, payload)
         else:
-            if variable_values:
-                payload["variables"] = variable_values
-
-            if log.isEnabledFor(logging.INFO):
-                log.info(">>> %s", self.json_serialize(payload))
-
             post_args = {"json": payload}
+
+        # Log the payload
+        if log.isEnabledFor(logging.DEBUG):
+            log.debug(">>> %s", self.json_serialize(payload))
 
         # Pass post_args to aiohttp post method
         if extra_args:
@@ -326,58 +201,229 @@ class AIOHTTPTransport(AsyncTransport):
                 {"content-type": "application/json"},
             )
 
+        return post_args
+
+    def _prepare_file_uploads(
+        self, request: GraphQLRequest, payload: Dict[str, Any]
+    ) -> Dict[str, Any]:
+
+        # If the upload_files flag is set, then we need variable_values
+        variable_values = request.variable_values
+        assert variable_values is not None
+
+        # If we upload files, we will extract the files present in the
+        # variable_values dict and replace them by null values
+        nulled_variable_values, files = extract_files(
+            variables=variable_values,
+            file_classes=self.file_classes,
+        )
+
+        # Opening the files using the FileVar parameters
+        open_files(list(files.values()), transport_supports_streaming=True)
+        self.files = files
+
+        # Save the nulled variable values in the payload
+        payload["variables"] = nulled_variable_values
+
+        # Prepare aiohttp to send multipart-encoded data
+        data = aiohttp.FormData()
+
+        # Generate the file map
+        # path is nested in a list because the spec allows multiple pointers
+        # to the same file. But we don't support that.
+        # Will generate something like {"0": ["variables.file"]}
+        file_map = {str(i): [path] for i, path in enumerate(files)}
+
+        # Enumerate the file streams
+        # Will generate something like {'0': FileVar object}
+        file_vars = {str(i): files[path] for i, path in enumerate(files)}
+
+        # Add the payload to the operations field
+        operations_str = self.json_serialize(payload)
+        log.debug("operations %s", operations_str)
+        data.add_field("operations", operations_str, content_type="application/json")
+
+        # Add the file map field
+        file_map_str = self.json_serialize(file_map)
+        log.debug("file_map %s", file_map_str)
+        data.add_field("map", file_map_str, content_type="application/json")
+
+        for k, file_var in file_vars.items():
+            assert isinstance(file_var, FileVar)
+
+            data.add_field(
+                k,
+                file_var.f,
+                filename=file_var.filename,
+                content_type=file_var.content_type,
+            )
+
+        post_args: Dict[str, Any] = {"data": data}
+
+        return post_args
+
+    @staticmethod
+    def _raise_transport_server_error_if_status_more_than_400(
+        resp: aiohttp.ClientResponse,
+    ) -> None:
+        # If the status is >400,
+        # then we need to raise a TransportServerError
+        try:
+            # Raise ClientResponseError if response status is 400 or higher
+            resp.raise_for_status()
+        except ClientResponseError as e:
+            raise TransportServerError(str(e), e.status) from e
+
+    @classmethod
+    async def _raise_response_error(
+        cls,
+        resp: aiohttp.ClientResponse,
+        reason: str,
+    ) -> None:
+        # We raise a TransportServerError if status code is 400 or higher
+        # We raise a TransportProtocolError in the other cases
+
+        cls._raise_transport_server_error_if_status_more_than_400(resp)
+
+        result_text = await resp.text()
+        raise TransportProtocolError(
+            f"Server did not return a valid GraphQL result: "
+            f"{reason}: "
+            f"{result_text}"
+        )
+
+    async def _get_json_result(self, response: aiohttp.ClientResponse) -> Any:
+
+        # Saving latest response headers in the transport
+        self.response_headers = response.headers
+
+        try:
+            result = await response.json(loads=self.json_deserialize, content_type=None)
+
+            if log.isEnabledFor(logging.DEBUG):
+                result_text = await response.text()
+                log.debug("<<< %s", result_text)
+
+        except Exception:
+            await self._raise_response_error(response, "Not a JSON answer")
+
+        if result is None:
+            await self._raise_response_error(response, "Not a JSON answer")
+
+        return result
+
+    async def _prepare_result(
+        self, response: aiohttp.ClientResponse
+    ) -> ExecutionResult:
+
+        result = await self._get_json_result(response)
+
+        if "errors" not in result and "data" not in result:
+            await self._raise_response_error(
+                response, 'No "data" or "errors" keys in answer'
+            )
+
+        return ExecutionResult(
+            errors=result.get("errors"),
+            data=result.get("data"),
+            extensions=result.get("extensions"),
+        )
+
+    async def _prepare_batch_result(
+        self,
+        reqs: List[GraphQLRequest],
+        response: aiohttp.ClientResponse,
+    ) -> List[ExecutionResult]:
+
+        answers = await self._get_json_result(response)
+
+        try:
+            return get_batch_execution_result_list(reqs, answers)
+        except TransportProtocolError:
+            # Raise a TransportServerError if status > 400
+            self._raise_transport_server_error_if_status_more_than_400(response)
+            # In other cases, raise a TransportProtocolError
+            raise
+
+    async def execute(
+        self,
+        request: GraphQLRequest,
+        *,
+        extra_args: Optional[Dict[str, Any]] = None,
+        upload_files: bool = False,
+    ) -> ExecutionResult:
+        """Execute the provided request against the configured remote server
+        using the current session.
+        This uses the aiohttp library to perform a HTTP POST request asynchronously
+        to the remote server.
+
+        Don't call this coroutine directly on the transport, instead use
+        :code:`execute` on a client or a session.
+
+        :param request: GraphQL request as a
+                        :class:`GraphQLRequest <gql.GraphQLRequest>` object.
+        :param extra_args: additional arguments to send to the aiohttp post method
+        :param upload_files: Set to True if you want to put files in the variable values
+        :returns: an ExecutionResult object.
+        """
+
         if self.session is None:
             raise TransportClosed("Transport is not connected")
 
-        async with self.session.post(self.url, ssl=self.ssl, **post_args) as resp:
+        post_args = self._prepare_request(
+            request,
+            extra_args,
+            upload_files,
+        )
 
-            # Saving latest response headers in the transport
-            self.response_headers = resp.headers
+        try:
+            async with self.session.post(self.url, ssl=self.ssl, **post_args) as resp:
+                return await self._prepare_result(resp)
+        except TransportError:
+            raise
+        except Exception as e:
+            raise TransportConnectionFailed(str(e)) from e
+        finally:
+            if upload_files:
+                close_files(list(self.files.values()))
 
-            async def raise_response_error(resp: aiohttp.ClientResponse, reason: str):
-                # We raise a TransportServerError if the status code is 400 or higher
-                # We raise a TransportProtocolError in the other cases
+    async def execute_batch(
+        self,
+        reqs: List[GraphQLRequest],
+        extra_args: Optional[Dict[str, Any]] = None,
+    ) -> List[ExecutionResult]:
+        """Execute multiple GraphQL requests in a batch.
 
-                try:
-                    # Raise a ClientResponseError if response status is 400 or higher
-                    resp.raise_for_status()
-                except ClientResponseError as e:
-                    raise TransportServerError(str(e), e.status) from e
+        Don't call this coroutine directly on the transport, instead use
+        :code:`execute_batch` on a client or a session.
 
-                result_text = await resp.text()
-                raise TransportProtocolError(
-                    f"Server did not return a GraphQL result: "
-                    f"{reason}: "
-                    f"{result_text}"
-                )
+        :param reqs: GraphQL requests as a list of GraphQLRequest objects.
+        :param extra_args: additional arguments to send to the aiohttp post method
+        :return: A list of results of execution.
+            For every result `data` is the result of executing the query,
+            `errors` is null if no errors occurred, and is a non-empty array
+            if an error occurred.
+        """
 
-            try:
-                result = await resp.json(content_type=None)
+        if self.session is None:
+            raise TransportClosed("Transport is not connected")
 
-                if log.isEnabledFor(logging.INFO):
-                    result_text = await resp.text()
-                    log.info("<<< %s", result_text)
+        post_args = self._prepare_request(
+            reqs,
+            extra_args,
+        )
 
-            except Exception:
-                await raise_response_error(resp, "Not a JSON answer")
-
-            if result is None:
-                await raise_response_error(resp, "Not a JSON answer")
-
-            if "errors" not in result and "data" not in result:
-                await raise_response_error(resp, 'No "data" or "errors" keys in answer')
-
-            return ExecutionResult(
-                errors=result.get("errors"),
-                data=result.get("data"),
-                extensions=result.get("extensions"),
-            )
+        try:
+            async with self.session.post(self.url, ssl=self.ssl, **post_args) as resp:
+                return await self._prepare_batch_result(reqs, resp)
+        except TransportError:
+            raise
+        except Exception as e:
+            raise TransportConnectionFailed(str(e)) from e
 
     def subscribe(
         self,
-        document: DocumentNode,
-        variable_values: Optional[Dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
+        request: GraphQLRequest,
     ) -> AsyncGenerator[ExecutionResult, None]:
         """Subscribe is not supported on HTTP.
 

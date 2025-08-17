@@ -1,6 +1,9 @@
 import pytest
 
 from gql import Client, gql
+from gql.transport.exceptions import TransportConnectionFailed
+
+from .conftest import get_localhost_ssl_context_client
 
 # Marking all tests in this file with the websockets marker
 pytestmark = pytest.mark.websockets
@@ -36,7 +39,7 @@ def ws_server_helper(request):
     yield PhoenixChannelServerHelper
 
 
-async def query_server(ws, path):
+async def query_server(ws):
     from .conftest import PhoenixChannelServerHelper
 
     await PhoenixChannelServerHelper.send_connection_ack(ws)
@@ -49,22 +52,98 @@ async def query_server(ws, path):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [query_server], indirect=True)
 @pytest.mark.parametrize("query_str", [query1_str])
-async def test_phoenix_channel_query(event_loop, server, query_str):
+async def test_phoenix_channel_query(server, query_str):
     from gql.transport.phoenix_channel_websockets import (
         PhoenixChannelWebsocketsTransport,
     )
 
     path = "/graphql"
     url = f"ws://{server.hostname}:{server.port}{path}"
-    sample_transport = PhoenixChannelWebsocketsTransport(
-        channel_name="test_channel", url=url
-    )
+    transport = PhoenixChannelWebsocketsTransport(channel_name="test_channel", url=url)
 
     query = gql(query_str)
-    async with Client(transport=sample_transport) as session:
+    async with Client(transport=transport) as session:
         result = await session.execute(query)
 
     print("Client received:", result)
+    continents = result["continents"]
+    print("Continents received:", continents)
+    africa = continents[0]
+    assert africa["code"] == "AF"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("ws_ssl_server", [query_server], indirect=True)
+@pytest.mark.parametrize("query_str", [query1_str])
+async def test_phoenix_channel_query_ssl(ws_ssl_server, query_str):
+    from gql.transport.phoenix_channel_websockets import (
+        PhoenixChannelWebsocketsTransport,
+    )
+
+    path = "/graphql"
+    server = ws_ssl_server
+    url = f"wss://{server.hostname}:{server.port}{path}"
+
+    extra_args = {}
+
+    _, ssl_context = get_localhost_ssl_context_client()
+
+    extra_args["ssl"] = ssl_context
+
+    transport = PhoenixChannelWebsocketsTransport(
+        channel_name="test_channel",
+        url=url,
+        **extra_args,
+    )
+
+    query = gql(query_str)
+    async with Client(transport=transport) as session:
+        result = await session.execute(query)
+
+    print("Client received:", result)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("ws_ssl_server", [query_server], indirect=True)
+@pytest.mark.parametrize("query_str", [query1_str])
+@pytest.mark.parametrize("verify_https", ["explicitely_enabled", "default"])
+async def test_phoenix_channel_query_ssl_self_cert_fail(
+    ws_ssl_server, query_str, verify_https
+):
+    from ssl import SSLCertVerificationError
+
+    from gql.transport.phoenix_channel_websockets import (
+        PhoenixChannelWebsocketsTransport,
+    )
+
+    path = "/graphql"
+    server = ws_ssl_server
+    url = f"wss://{server.hostname}:{server.port}{path}"
+
+    extra_args = {}
+
+    if verify_https == "explicitely_enabled":
+        extra_args["ssl"] = True
+
+    transport = PhoenixChannelWebsocketsTransport(
+        channel_name="test_channel",
+        url=url,
+        **extra_args,
+    )
+
+    query = gql(query_str)
+
+    with pytest.raises(TransportConnectionFailed) as exc_info:
+        async with Client(transport=transport) as session:
+            await session.execute(query)
+
+    cause = exc_info.value.__cause__
+
+    assert isinstance(cause, SSLCertVerificationError)
+
+    expected_error = "certificate verify failed: self-signed certificate"
+
+    assert expected_error in str(cause)
 
 
 query2_str = """
@@ -109,7 +188,7 @@ unsubscribe_server_answer = (
 )
 
 
-async def subscription_server(ws, path):
+async def subscription_server(ws):
     from .conftest import PhoenixChannelServerHelper
 
     await PhoenixChannelServerHelper.send_connection_ack(ws)
@@ -126,22 +205,24 @@ async def subscription_server(ws, path):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("server", [subscription_server], indirect=True)
 @pytest.mark.parametrize("query_str", [query2_str])
-async def test_phoenix_channel_subscription(event_loop, server, query_str):
+async def test_phoenix_channel_subscription(server, query_str):
     from gql.transport.phoenix_channel_websockets import (
         PhoenixChannelWebsocketsTransport,
     )
 
     path = "/graphql"
     url = f"ws://{server.hostname}:{server.port}{path}"
-    sample_transport = PhoenixChannelWebsocketsTransport(
-        channel_name="test_channel", url=url
-    )
+    transport = PhoenixChannelWebsocketsTransport(channel_name="test_channel", url=url)
 
     first_result = None
     query = gql(query_str)
-    async with Client(transport=sample_transport) as session:
-        async for result in session.subscribe(query):
+    async with Client(transport=transport) as session:
+        generator = session.subscribe(query)
+        async for result in generator:
             first_result = result
             break
+
+        # Using aclose here to make it stop cleanly on pypy
+        await generator.aclose()
 
     print("Client received:", first_result)
