@@ -1,9 +1,9 @@
-.. _basic_usage:
+.. _sync_usage:
 
-Basic usage
------------
+Sync usage
+==========
 
-In order to execute a GraphQL request against a GraphQL API:
+To execute a GraphQL request against a GraphQL API:
 
 * create your gql :ref:`transport <transports>` in order to choose the destination url
   and the protocol used to communicate with it
@@ -18,4 +18,3 @@ In order to execute a GraphQL request against a GraphQL API:
     Please note that this basic example won't work if you have an asyncio event loop running. In some
     python environments (as with Jupyter which uses IPython) an asyncio event loop is created for you.
     In that case you should use instead the :ref:`Async Usage example<async_usage>`.
-

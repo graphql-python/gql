@@ -1,5 +1,5 @@
-Welcome to GQL 3 documentation!
-===============================
+GQL documentation
+=================
 
 Contents
 --------
@@ -9,7 +9,6 @@ Contents
 
    intro
    usage/index
-   async/index
    transports/index
    advanced/index
    gql-cli/intro

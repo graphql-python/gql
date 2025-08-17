@@ -1,7 +1,7 @@
 Introduction
 ============
 
-`GQL 3`_ is a `GraphQL`_ Client for Python 3.8+ which plays nicely with other
+`GQL`_ is a `GraphQL`_ Client for Python which plays nicely with other
 graphql implementations compatible with the spec.
 
 Under the hood, it uses `GraphQL-core`_ which is a Python port of `GraphQL.js`_,
@@ -10,7 +10,7 @@ the JavaScript reference implementation for GraphQL.
 Installation
 ------------
 
-You can install GQL 3 and all the extra dependencies using pip_::
+You can install GQL and all the extra dependencies using pip_::
 
     pip install "gql[all]"
 
@@ -93,7 +93,7 @@ Please check the  `Contributing`_ file to learn how to make a good pull request.
 .. _GraphQL: https://graphql.org/
 .. _GraphQL-core: https://github.com/graphql-python/graphql-core
 .. _GraphQL.js: https://github.com/graphql/graphql-js
-.. _GQL 3: https://github.com/graphql-python/gql
+.. _GQL: https://github.com/graphql-python/gql
 .. _pip: https://pip.pypa.io/
 .. _GitHub repository for gql: https://github.com/graphql-python/gql
 .. _Contributing: https://github.com/graphql-python/gql/blob/master/CONTRIBUTING.md
