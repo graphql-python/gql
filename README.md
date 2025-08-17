@@ -96,7 +96,7 @@ $ python basic_example.py
 
 > **WARNING**: Please note that this basic example won't work if you have an asyncio event loop running. In some
 > python environments (as with Jupyter which uses IPython) an asyncio event loop is created for you. In that case you
-> should use instead the [async usage example](https://gql.readthedocs.io/en/latest/async/async_usage.html#async-usage).
+> should use instead the [async usage example](https://gql.readthedocs.io/en/latest/usage/async_usage.html#async-usage).
 
 ### Async usage
 
