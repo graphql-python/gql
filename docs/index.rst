@@ -1,5 +1,5 @@
-Welcome to GQL 3 documentation!
-===============================
+GQL documentation
+=================
 
 Contents
 --------

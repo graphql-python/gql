@@ -17,8 +17,8 @@ sys.path.insert(0, os.path.abspath('./..'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'gql 3'
-copyright = '2020, graphql-python.org'
+project = 'gql'
+copyright = '2025, graphql-python.org'
 author = 'graphql-python.org'
 
 # The full version, including alpha/beta/rc tags
