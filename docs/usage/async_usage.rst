@@ -1,7 +1,27 @@
 .. _async_usage:
 
-Async Usage
+Async usage
 ===========
+
+On previous versions of GQL, the code was `sync` only , it means that when you ran
+`execute` on the Client, you could do nothing else in the current Thread and had to wait for
+an answer or a timeout from the backend to continue. The only http library was `requests`, allowing only sync usage.
+
+From the version 3 of GQL, we support `sync` and `async` :ref:`transports <transports>` using `asyncio`_.
+
+With the :ref:`async transports <async_transports>`, there is now the possibility to execute GraphQL requests
+asynchronously, :ref:`allowing to execute multiple requests in parallel if needed <async_advanced_usage>`.
+
+If you don't care or need async functionality, it is still possible, with :ref:`async transports <async_transports>`,
+to run the `execute` or `subscribe` methods directly from the Client
+(as described in the :ref:`Sync Usage <sync_usage>` example) and GQL will execute the request
+in a synchronous manner by running an asyncio event loop itself.
+
+This won't work though if you already have an asyncio event loop running. In that case you should use the async
+methods.
+
+Example
+-------
 
 If you use an :ref:`async transport <async_transports>`, you can use GQL asynchronously using `asyncio`_.
 
@@ -9,8 +29,6 @@ If you use an :ref:`async transport <async_transports>`, you can use GQL asynchr
 * use :code:`async with client as session:` to connect to the backend and provide a session instance
 * use the :code:`await` keyword to execute requests: :code:`await session.execute(...)`
 * then run your coroutine in an asyncio event loop by running :code:`asyncio.run`
-
-Example:
 
 .. literalinclude:: ../code_examples/aiohttp_async.py
 

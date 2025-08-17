@@ -5,7 +5,7 @@ from gql.transport.aiohttp import AIOHTTPTransport
 transport = AIOHTTPTransport(url="https://countries.trevorblades.com/")
 
 # Create a GraphQL client using the defined transport
-client = Client(transport=transport, fetch_schema_from_transport=True)
+client = Client(transport=transport)
 
 # Provide a GraphQL query
 query = gql(

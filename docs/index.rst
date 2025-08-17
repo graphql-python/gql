@@ -9,7 +9,6 @@ Contents
 
    intro
    usage/index
-   async/index
    transports/index
    advanced/index
    gql-cli/intro
