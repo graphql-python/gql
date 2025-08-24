@@ -18,6 +18,12 @@ def parser():
     return get_parser()
 
 
+@pytest.fixture(autouse=True)
+def tmp_path_as_home(monkeypatch, tmp_path):
+    """Override $HOME so that AWS Appsync credentials aren't fetched from real $HOME"""
+    monkeypatch.setenv("HOME", str(tmp_path))
+
+
 def test_cli_parser(parser):
 
     # Simple call with https server

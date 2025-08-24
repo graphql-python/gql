@@ -23,7 +23,9 @@ from graphql.utilities import get_introspection_query
 
 from gql import Client, gql
 from gql.dsl import (
+    DSLDirective,
     DSLFragment,
+    DSLFragmentSpread,
     DSLInlineFragment,
     DSLMetaField,
     DSLMutation,
@@ -45,6 +47,12 @@ from .schema import StarWarsSchema
 @pytest.fixture
 def ds():
     return DSLSchema(StarWarsSchema)
+
+
+@pytest.fixture
+def var():
+    """Common DSLVariableDefinitions fixture for directive tests"""
+    return DSLVariableDefinitions()
 
 
 @pytest.fixture
@@ -659,7 +667,23 @@ def test_fragments_repr(ds):
     assert repr(DSLInlineFragment()) == "<DSLInlineFragment>"
     assert repr(DSLInlineFragment().on(ds.Droid)) == "<DSLInlineFragment on Droid>"
     assert repr(DSLFragment("fragment_1")) == "<DSLFragment fragment_1>"
+    assert repr(DSLFragment("fragment_1").spread()) == "<DSLFragmentSpread fragment_1>"
     assert repr(DSLFragment("fragment_2").on(ds.Droid)) == "<DSLFragment fragment_2>"
+    assert (
+        repr(DSLFragment("fragment_2").on(ds.Droid).spread())
+        == "<DSLFragmentSpread fragment_2>"
+    )
+
+
+def test_fragment_spread_instances(ds):
+    """Test that each .spread() creates new DSLFragmentSpread instance"""
+    fragment = DSLFragment("Test").on(ds.Character).select(ds.Character.name)
+    spread1 = fragment.spread()
+    spread2 = fragment.spread()
+
+    assert isinstance(spread1, DSLFragmentSpread)
+    assert isinstance(spread2, DSLFragmentSpread)
+    assert spread1 is not spread2
 
 
 def test_fragments(ds):
@@ -1271,3 +1295,185 @@ fragment heroFragment($episode: Episode) on Query {
 }
 """.strip()
     assert print_ast(query.document) == expected
+
+
+def test_executable_directives(ds, var):
+    """Test ALL executable directive locations and types in one document"""
+
+    # Fragment with both built-in and custom directives
+    fragment = (
+        DSLFragment("CharacterInfo")
+        .on(ds.Character)
+        .select(ds.Character.name, ds.Character.appearsIn)
+        .directives(
+            DSLDirective("skip", **{"if": var.skipFrag}),  # built-in
+            DSLDirective("fragmentDefinition"),
+            schema=ds,  # custom
+        )
+    )
+
+    # Query with multiple directive types
+    query = DSLQuery(
+        ds.Query.hero.args(episode=var.episode).select(
+            # Field with both built-in and custom directives
+            ds.Character.name.directives(
+                DSLDirective("skip", **{"if": var.skipName}),
+                DSLDirective("field"),  # implicit schema from DSLField
+            ),
+            # Field with repeated directives (same directive multiple times)
+            ds.Character.appearsIn.directives(
+                DSLDirective("repeat", value="first"),
+                DSLDirective("repeat", value="second"),
+                DSLDirective("repeat", value="third"),
+            ),
+            # Fragment spread with multiple directives
+            fragment.spread().directives(
+                DSLDirective("include", **{"if": var.includeSpread}),
+                DSLDirective("fragmentSpread"),
+                schema=ds,
+            ),
+            # Inline fragment with directives
+            DSLInlineFragment()
+            .on(ds.Human)
+            .select(ds.Human.homePlanet)
+            .directives(
+                DSLDirective("skip", **{"if": var.skipInline}),
+                DSLDirective("inlineFragment"),
+                schema=ds,
+            ),
+            # Meta field with directive
+            DSLMetaField("__typename").directives(
+                DSLDirective("include", **{"if": var.includeType})
+            ),
+        )
+    ).directives(
+        DSLDirective("skip", **{"if": var.skipQuery}), DSLDirective("query"), schema=ds
+    )
+
+    # Mutation with directives
+    mutation = DSLMutation(
+        ds.Mutation.createReview.args(
+            episode=6, review={"stars": 5, "commentary": "Great!"}
+        ).select(ds.Review.stars, ds.Review.commentary)
+    ).directives(
+        DSLDirective("include", **{"if": var.allowMutation}),
+        DSLDirective("mutation"),
+        schema=ds,
+    )
+
+    # Subscription with directives
+    subscription = DSLSubscription(
+        ds.Subscription.reviewAdded.args(episode=6).select(
+            ds.Review.stars, ds.Review.commentary
+        )
+    ).directives(
+        DSLDirective("skip", **{"if": var.skipSub}),
+        DSLDirective("subscription"),
+        schema=ds,
+    )
+
+    # Variable definitions with directives
+    var.episode.directives(DSLDirective("skip", **{"if": True}))
+    query.variable_definitions = var
+
+    # Generate ONE document with everything
+    doc = dsl_gql(
+        fragment, HeroQuery=query, CreateReview=mutation, ReviewSub=subscription
+    )
+
+    expected = """\
+fragment CharacterInfo on Character @skip(if: $skipFrag) @fragmentDefinition {
+  name
+  appearsIn
+}
+
+query HeroQuery(\
+$skipFrag: Boolean!, \
+$episode: Episode @skip(if: true), \
+$skipName: Boolean!, \
+$includeSpread: Boolean!, \
+$skipInline: Boolean!, \
+$includeType: Boolean!\
+) @skip(if: $skipQuery) @query {
+  hero(episode: $episode) {
+    name @skip(if: $skipName) @field
+    appearsIn @repeat(value: "first") @repeat(value: "second") @repeat(value: "third")
+    ...CharacterInfo @include(if: $includeSpread) @fragmentSpread
+    ... on Human @skip(if: $skipInline) @inlineFragment {
+      homePlanet
+    }
+    __typename @include(if: $includeType)
+  }
+}
+
+mutation CreateReview @include(if: $allowMutation) @mutation {
+  createReview(episode: JEDI, review: { stars: 5, commentary: "Great!" }) {
+    stars
+    commentary
+  }
+}
+
+subscription ReviewSub @skip(if: $skipSub) @subscription {
+  reviewAdded(episode: JEDI) {
+    stars
+    commentary
+  }
+}"""
+
+    assert print_ast(doc.document) == expected
+    assert node_tree(doc.document) == node_tree(gql(expected).document)
+
+
+def test_directive_repr():
+    """Test DSLDirective string representation"""
+    directive = DSLDirective("include", **{"if": True}, reason="testing")
+    expected = "<DSLDirective @include(if=True, reason='testing')>"
+    assert repr(directive) == expected
+
+
+def test_directive_error_handling(ds):
+    """Test error handling for directives"""
+    # Invalid directive argument type
+    with pytest.raises(TypeError, match="Expected DSLDirective"):
+        ds.Query.hero.directives(123)
+
+    # Invalid directive name
+    with pytest.raises(GraphQLError, match="Directive '@nonexistent' not found"):
+        ds.Query.hero.directives(DSLDirective("nonexistent"))
+
+    # Invalid directive argument
+    with pytest.raises(KeyError, match="Argument 'invalid' does not exist"):
+        ds.Query.hero.directives(DSLDirective("include", invalid=True))
+
+    # Test unvalidated directive (covers line 309-312 in dsl.py)
+    unvalidated_directive = DSLDirective("include", **{"if": True})
+    with pytest.raises(GraphQLError, match="Directive '@include' definition not set"):
+        _ = unvalidated_directive.ast_directive
+
+
+def test_custom_directive_requires_schema(ds):
+    """Test that custom directives require schema access"""
+    # Operations require explicit schema for custom directives
+    with pytest.raises(GraphQLError, match="Directive '@query' not found"):
+        DSLQuery(ds.Query.hero.select(ds.Character.name)).directives(
+            DSLDirective("query")
+        )
+
+    # Fragment definitions require explicit schema
+    with pytest.raises(GraphQLError, match="Directive '@fragmentDefinition' not found"):
+        DSLFragment("test").on(ds.Character).directives(
+            DSLDirective("fragmentDefinition")
+        )
+
+    # Works with explicit schema
+    DSLQuery(ds.Query.hero.select(ds.Character.name)).directives(
+        DSLDirective("query"), schema=ds
+    )
+
+    # DSLField has implicit schema, so custom directives work
+    query = DSLQuery(
+        ds.Query.hero.select(
+            ds.Character.name.directives(DSLDirective("field"))  # implicit schema
+        )
+    )
+    assert query is not None

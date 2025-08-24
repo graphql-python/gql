@@ -7,11 +7,12 @@ import logging
 import re
 from abc import ABC, abstractmethod
 from math import isfinite
-from typing import Any, Dict, Iterable, Mapping, Optional, Tuple, Union, cast
+from typing import Any, Dict, Iterable, Mapping, Optional, Set, Tuple, Union, cast
 
 from graphql import (
     ArgumentNode,
     BooleanValueNode,
+    DirectiveNode,
     DocumentNode,
     EnumValueNode,
     FieldNode,
@@ -19,6 +20,7 @@ from graphql import (
     FragmentDefinitionNode,
     FragmentSpreadNode,
     GraphQLArgument,
+    GraphQLDirective,
     GraphQLEnumType,
     GraphQLError,
     GraphQLField,
@@ -61,6 +63,7 @@ from graphql import (
     is_non_null_type,
     is_wrapping_type,
     print_ast,
+    specified_directives,
 )
 from graphql.pyutils import inspect
 
@@ -381,7 +384,155 @@ class DSLSelector(ABC):
         log.debug(f"Added fields: {added_fields} in {self!r}")
 
 
-class DSLExecutable(DSLSelector):
+class DSLDirective:
+    """The DSLDirective represents a GraphQL directive for the DSL code.
+
+    Directives provide a way to describe alternate runtime execution and type validation
+    behavior in a GraphQL document.
+    """
+
+    def __init__(self, name: str, **kwargs: Any):
+        r"""Initialize the DSLDirective with the given name and arguments.
+
+        :param name: the name of the directive
+        :param \**kwargs: the arguments for the directive
+        """
+        self.name = name
+        self.arguments = kwargs
+        self.directive_def: Optional[GraphQLDirective] = None
+
+    def set_definition(self, directive_def: GraphQLDirective) -> "DSLDirective":
+        """Attach GraphQL directive definition from schema.
+
+        :param directive_def: The GraphQL directive definition from the schema
+        :return: itself
+        """
+        self.directive_def = directive_def
+        return self
+
+    @property
+    def ast_directive(self) -> DirectiveNode:
+        """Generate DirectiveNode with validation.
+
+        :return: DirectiveNode for the GraphQL AST
+
+        :raises graphql.error.GraphQLError: if directive not validated
+        :raises KeyError: if argument doesn't exist in directive definition
+        """
+        if not self.directive_def:
+            raise GraphQLError(
+                f"Directive '@{self.name}' definition not set. "
+                "Call set_definition() before converting to AST."
+            )
+
+        # Validate and convert arguments
+        arguments = []
+        for arg_name, arg_value in self.arguments.items():
+            if arg_name not in self.directive_def.args:
+                raise KeyError(
+                    f"Argument '{arg_name}' does not exist in directive '@{self.name}'"
+                )
+            arguments.append(
+                ArgumentNode(
+                    name=NameNode(value=arg_name),
+                    value=ast_from_value(
+                        arg_value, self.directive_def.args[arg_name].type
+                    ),
+                )
+            )
+
+        return DirectiveNode(name=NameNode(value=self.name), arguments=tuple(arguments))
+
+    def __repr__(self) -> str:
+        args_str = ", ".join(f"{k}={v!r}" for k, v in self.arguments.items())
+        return f"<DSLDirective @{self.name}({args_str})>"
+
+
+class DSLDirectable:
+    """Mixin class for DSL elements that can have directives.
+
+    Provides the directives() method for adding GraphQL directives to DSL elements.
+    Classes that need immediate AST updates should override the directives() method.
+    """
+
+    _directives: Tuple[DSLDirective, ...]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._directives = ()
+
+    def directives(
+        self, *directives: DSLDirective, schema: Optional[DSLSchema] = None
+    ) -> Any:
+        r"""Add directives to this DSL element.
+
+        :param \*directives: DSLDirective instances to add
+        :param schema: Optional DSLSchema for directive validation.
+                      If None, uses built-in directives (@skip, @include)
+        :return: itself
+
+        :raises graphql.error.GraphQLError: if directive not found in schema
+        :raises KeyError: if directive argument is invalid
+
+        Usage:
+            # With explicit schema
+            element.directives(DSLDirective("include", **{"if": var.show}), schema=ds)
+
+            # With built-in directives (no schema needed)
+            element.directives(DSLDirective("skip", **{"if": var.hide}))
+        """
+        validated_directives = []
+
+        for directive in directives:
+            if not isinstance(directive, DSLDirective):
+                raise TypeError(
+                    f"Expected DSLDirective, got {type(directive)}. "
+                    f"Use DSLDirective(name, **args) to create directive instances."
+                )
+
+            # Find directive definition
+            directive_def = None
+
+            if schema is not None:
+                # Try to find directive in provided schema
+                directive_def = schema._schema.get_directive(directive.name)
+
+            if directive_def is None:
+                # Try to find in built-in directives using specified_directives
+                for builtin_directive in specified_directives:
+                    if builtin_directive.name == directive.name:
+                        directive_def = builtin_directive
+
+            if directive_def is None:
+                available: Set[str] = set()
+                if schema:
+                    available.update(f"@{d.name}" for d in schema._schema.directives)
+                available.update(f"@{d.name}" for d in specified_directives)
+                raise GraphQLError(
+                    f"Directive '@{directive.name}' not found in schema or built-ins. "
+                    f"Available directives: {', '.join(sorted(available))}"
+                )
+
+            # Set definition and validate
+            directive.set_definition(directive_def)
+            validated_directives.append(directive)
+
+        # Update stored directives
+        self._directives = self._directives + tuple(validated_directives)
+
+        log.debug(
+            f"Added directives {[d.name for d in validated_directives]} to {self!r}"
+        )
+
+        return self
+
+    @property
+    def directives_ast(self) -> Tuple[DirectiveNode, ...]:
+        """Get AST directive nodes for this element."""
+        return tuple(directive.ast_directive for directive in self._directives)
+
+
+class DSLExecutable(DSLSelector, DSLDirectable):
     """Interface for the root elements which can be executed
     in the :func:`dsl_gql <gql.dsl.dsl_gql>` function
 
@@ -430,6 +581,7 @@ class DSLExecutable(DSLSelector):
         self.variable_definitions = DSLVariableDefinitions()
 
         DSLSelector.__init__(self, *fields, **fields_with_alias)
+        DSLDirectable.__init__(self)
 
 
 class DSLRootFieldSelector(DSLSelector):
@@ -508,7 +660,7 @@ class DSLOperation(DSLExecutable, DSLRootFieldSelector):
             selection_set=self.selection_set,
             variable_definitions=self.variable_definitions.get_ast_definitions(),
             **({"name": NameNode(value=self.name)} if self.name else {}),
-            directives=(),
+            directives=self.directives_ast,
         )
 
     def __repr__(self) -> str:
@@ -527,7 +679,7 @@ class DSLSubscription(DSLOperation):
     operation_type = OperationType.SUBSCRIPTION
 
 
-class DSLVariable:
+class DSLVariable(DSLDirectable):
     """The DSLVariable represents a single variable defined in a GraphQL operation
 
     Instances of this class are generated for you automatically as attributes
@@ -544,6 +696,8 @@ class DSLVariable:
         self.ast_variable_name = VariableNode(name=NameNode(value=self.name))
         self.default_value = None
         self.type: Optional[GraphQLInputType] = None
+
+        DSLDirectable.__init__(self)
 
     def to_ast_type(self, type_: GraphQLInputType) -> TypeNode:
         if is_wrapping_type(type_):
@@ -605,7 +759,7 @@ class DSLVariableDefinitions:
                     if var.default_value is None
                     else ast_from_value(var.default_value, var.type)
                 ),
-                directives=(),
+                directives=var.directives_ast,
             )
             for var in self.variables.values()
             if var.type is not None  # only variables used
@@ -715,7 +869,7 @@ class DSLFragmentSelector(DSLSelector):
 
         assert isinstance(self, (DSLFragment, DSLInlineFragment))
 
-        if isinstance(field, (DSLFragment, DSLInlineFragment)):
+        if isinstance(field, (DSLFragment, DSLFragmentSpread, DSLInlineFragment)):
             return True
 
         assert isinstance(field, DSLField)
@@ -747,7 +901,7 @@ class DSLFieldSelector(DSLSelector):
 
         assert isinstance(self, DSLField)
 
-        if isinstance(field, (DSLFragment, DSLInlineFragment)):
+        if isinstance(field, (DSLFragment, DSLFragmentSpread, DSLInlineFragment)):
             return True
 
         assert isinstance(field, DSLField)
@@ -791,7 +945,7 @@ class DSLSelectableWithAlias(DSLSelectable):
         return self
 
 
-class DSLField(DSLSelectableWithAlias, DSLFieldSelector):
+class DSLField(DSLSelectableWithAlias, DSLFieldSelector, DSLDirectable):
     """The DSLField represents a GraphQL field for the DSL code.
 
     Instances of this class are generated for you automatically as attributes
@@ -837,6 +991,7 @@ class DSLField(DSLSelectableWithAlias, DSLFieldSelector):
         log.debug(f"Creating {self!r}")
 
         DSLSelector.__init__(self)
+        DSLDirectable.__init__(self)
 
     @property
     def name(self):
@@ -903,6 +1058,20 @@ class DSLField(DSLSelectableWithAlias, DSLFieldSelector):
 
         return self
 
+    def directives(
+        self, *directives: DSLDirective, schema: Optional[DSLSchema] = None
+    ) -> "DSLField":
+        """Add directives to this field.
+
+        Fields auto-supply schema through dsl_type for custom directives.
+        """
+        if schema is None and self.dsl_type is not None:
+            schema = self.dsl_type._dsl_schema
+        super().directives(*directives, schema=schema)
+        self.ast_field.directives = self.directives_ast
+
+        return self
+
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} {self.parent_type.name}" f"::{self.name}>"
 
@@ -942,7 +1111,7 @@ class DSLMetaField(DSLField):
         super().__init__(name, self.meta_type, field)
 
 
-class DSLInlineFragment(DSLSelectable, DSLFragmentSelector):
+class DSLInlineFragment(DSLSelectable, DSLFragmentSelector, DSLDirectable):
     """DSLInlineFragment represents an inline fragment for the DSL code."""
 
     _type: Union[GraphQLObjectType, GraphQLInterfaceType]
@@ -966,6 +1135,7 @@ class DSLInlineFragment(DSLSelectable, DSLFragmentSelector):
         self.ast_field = InlineFragmentNode(directives=())
 
         DSLSelector.__init__(self, *fields, **fields_with_alias)
+        DSLDirectable.__init__(self)
 
     def select(
         self, *fields: "DSLSelectable", **fields_with_alias: "DSLSelectableWithAlias"
@@ -987,6 +1157,17 @@ class DSLInlineFragment(DSLSelectable, DSLFragmentSelector):
         )
         return self
 
+    def directives(
+        self, *directives: DSLDirective, schema: Optional[DSLSchema] = None
+    ) -> "DSLInlineFragment":
+        """Add directives to this inline fragment.
+
+        Custom directives require explicit schema parameter.
+        """
+        super().directives(*directives, schema=schema)
+        self.ast_field.directives = self.directives_ast
+        return self
+
     def __repr__(self) -> str:
         type_info = ""
 
@@ -998,7 +1179,50 @@ class DSLInlineFragment(DSLSelectable, DSLFragmentSelector):
         return f"<{self.__class__.__name__}{type_info}>"
 
 
-class DSLFragment(DSLSelectable, DSLFragmentSelector, DSLExecutable):
+class DSLFragmentSpread(DSLSelectable, DSLDirectable):
+    """Represents a fragment spread (usage) with its own directives.
+
+    This class is created by calling .spread() on a DSLFragment and allows
+    adding directives specific to the FRAGMENT_SPREAD location.
+    """
+
+    ast_field: FragmentSpreadNode
+    _fragment: "DSLFragment"
+
+    def __init__(self, fragment: "DSLFragment"):
+        """Initialize a fragment spread from a fragment definition.
+
+        :param fragment: The DSLFragment to create a spread from
+        """
+        self._fragment = fragment
+        self.name = fragment.name
+
+        log.debug(f"Creating fragment spread for {fragment.name}")
+
+        DSLDirectable.__init__(self)
+
+    @property  # type: ignore
+    def ast_field(self) -> FragmentSpreadNode:  # type: ignore
+        """Generate FragmentSpreadNode with spread-specific directives."""
+        spread_node = FragmentSpreadNode(directives=self.directives_ast)
+        spread_node.name = NameNode(value=self.name)
+        return spread_node
+
+    def directives(
+        self, *directives: DSLDirective, schema: Optional[DSLSchema] = None
+    ) -> "DSLFragmentSpread":
+        """Add directives to this fragment spread.
+
+        Custom directives require explicit schema parameter.
+        """
+        super().directives(*directives, schema=schema)
+        return self
+
+    def __repr__(self) -> str:
+        return f"<DSLFragmentSpread {self.name}>"
+
+
+class DSLFragment(DSLSelectable, DSLFragmentSelector, DSLExecutable, DSLDirectable):
     """DSLFragment represents a named GraphQL fragment for the DSL code."""
 
     _type: Optional[Union[GraphQLObjectType, GraphQLInterfaceType]]
@@ -1027,6 +1251,10 @@ class DSLFragment(DSLSelectable, DSLFragmentSelector, DSLExecutable):
         """ast_field property will generate a FragmentSpreadNode with the
         provided name.
 
+        For backward compatibility, when used directly without .spread(),
+        the fragment spread has no directives. Use .spread().directives()
+        to add directives to the fragment spread.
+
         Note: We need to ignore the type because of
         `issue #4125 of mypy <https://github.com/python/mypy/issues/4125>`_.
         """
@@ -1035,6 +1263,16 @@ class DSLFragment(DSLSelectable, DSLFragmentSelector, DSLExecutable):
         spread_node.name = NameNode(value=self.name)
 
         return spread_node
+
+    def spread(self) -> DSLFragmentSpread:
+        """Create a fragment spread that can have its own directives.
+
+        This allows adding directives specific to the FRAGMENT_SPREAD location,
+        separate from directives on the fragment definition itself.
+
+        :return: DSLFragmentSpread instance for this fragment
+        """
+        return DSLFragmentSpread(self)
 
     def select(
         self, *fields: "DSLSelectable", **fields_with_alias: "DSLSelectableWithAlias"
@@ -1096,7 +1334,7 @@ class DSLFragment(DSLSelectable, DSLFragmentSelector, DSLExecutable):
             selection_set=self.selection_set,
             **variable_definition_kwargs,
             name=NameNode(value=self.name),
-            directives=(),
+            directives=self.directives_ast,
         )
 
     def __repr__(self) -> str:
