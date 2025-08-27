@@ -819,7 +819,7 @@ class DSLType:
         return f"<{self.__class__.__name__} {self._type!r}>"
 
 
-class DSLSelectable(ABC):
+class DSLSelectable(DSLDirectable):
     """DSLSelectable is an abstract class which indicates that
     the subclasses can be used as arguments of the
     :meth:`select <gql.dsl.DSLSelector.select>` method.
@@ -945,7 +945,7 @@ class DSLSelectableWithAlias(DSLSelectable):
         return self
 
 
-class DSLField(DSLSelectableWithAlias, DSLFieldSelector, DSLDirectable):
+class DSLField(DSLSelectableWithAlias, DSLFieldSelector):
     """The DSLField represents a GraphQL field for the DSL code.
 
     Instances of this class are generated for you automatically as attributes
@@ -1111,7 +1111,7 @@ class DSLMetaField(DSLField):
         super().__init__(name, self.meta_type, field)
 
 
-class DSLInlineFragment(DSLSelectable, DSLFragmentSelector, DSLDirectable):
+class DSLInlineFragment(DSLSelectable, DSLFragmentSelector):
     """DSLInlineFragment represents an inline fragment for the DSL code."""
 
     _type: Union[GraphQLObjectType, GraphQLInterfaceType]
@@ -1179,7 +1179,7 @@ class DSLInlineFragment(DSLSelectable, DSLFragmentSelector, DSLDirectable):
         return f"<{self.__class__.__name__}{type_info}>"
 
 
-class DSLFragmentSpread(DSLSelectable, DSLDirectable):
+class DSLFragmentSpread(DSLSelectable):
     """Represents a fragment spread (usage) with its own directives.
 
     This class is created by calling .spread() on a DSLFragment and allows
