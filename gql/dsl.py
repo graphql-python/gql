@@ -1195,18 +1195,18 @@ class DSLFragmentSpread(DSLSelectable, DSLDirectable):
         :param fragment: The DSLFragment to create a spread from
         """
         self._fragment = fragment
-        self.name = fragment.name
+        self.ast_field = FragmentSpreadNode(
+            name=NameNode(value=fragment.name), directives=()
+        )
 
         log.debug(f"Creating fragment spread for {fragment.name}")
 
         DSLDirectable.__init__(self)
 
-    @property  # type: ignore
-    def ast_field(self) -> FragmentSpreadNode:  # type: ignore
-        """Generate FragmentSpreadNode with spread-specific directives."""
-        spread_node = FragmentSpreadNode(directives=self.directives_ast)
-        spread_node.name = NameNode(value=self.name)
-        return spread_node
+    @property
+    def name(self) -> str:
+        """:meta private:"""
+        return self.ast_field.name.value
 
     def directives(
         self, *directives: DSLDirective, schema: Optional[DSLSchema] = None
@@ -1216,6 +1216,7 @@ class DSLFragmentSpread(DSLSelectable, DSLDirectable):
         Custom directives require explicit schema parameter.
         """
         super().directives(*directives, schema=schema)
+        self.ast_field.directives = self.directives_ast
         return self
 
     def __repr__(self) -> str:
@@ -1227,7 +1228,6 @@ class DSLFragment(DSLSelectable, DSLFragmentSelector, DSLExecutable, DSLDirectab
 
     _type: Optional[Union[GraphQLObjectType, GraphQLInterfaceType]]
     ast_field: FragmentSpreadNode
-    name: str
 
     def __init__(
         self,
@@ -1241,28 +1241,22 @@ class DSLFragment(DSLSelectable, DSLFragmentSelector, DSLExecutable, DSLDirectab
 
         DSLExecutable.__init__(self)
 
-        self.name = name
+        self.ast_field = FragmentSpreadNode(name=NameNode(value=name), directives=())
+
         self._type = None
 
         log.debug(f"Creating {self!r}")
 
-    @property  # type: ignore
-    def ast_field(self) -> FragmentSpreadNode:  # type: ignore
-        """ast_field property will generate a FragmentSpreadNode with the
-        provided name.
+    @property
+    def name(self) -> str:
+        """:meta private:"""
+        return self.ast_field.name.value
 
-        For backward compatibility, when used directly without .spread(),
-        the fragment spread has no directives. Use .spread().directives()
-        to add directives to the fragment spread.
-
-        Note: We need to ignore the type because of
-        `issue #4125 of mypy <https://github.com/python/mypy/issues/4125>`_.
-        """
-
-        spread_node = FragmentSpreadNode(directives=())
-        spread_node.name = NameNode(value=self.name)
-
-        return spread_node
+    @name.setter
+    def name(self, value: str) -> None:
+        """:meta private:"""
+        if hasattr(self, "ast_field"):
+            self.ast_field.name.value = value
 
     def spread(self) -> DSLFragmentSpread:
         """Create a fragment spread that can have its own directives.
