@@ -1407,7 +1407,7 @@ $includeType: Boolean!\
 }
 
 mutation CreateReview @include(if: $allowMutation) @mutation {
-  createReview(episode: JEDI, review: { stars: 5, commentary: "Great!" }) {
+  createReview(episode: JEDI, review: {stars: 5, commentary: "Great!"}) {
     stars
     commentary
   }
@@ -1420,7 +1420,7 @@ subscription ReviewSub @skip(if: $skipSub) @subscription {
   }
 }"""
 
-    assert print_ast(doc.document) == expected
+    assert strip_braces_spaces(print_ast(doc.document)) == expected
     assert node_tree(doc.document) == node_tree(gql(expected).document)
 
 
