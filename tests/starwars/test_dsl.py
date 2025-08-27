@@ -1373,7 +1373,13 @@ def test_executable_directives(ds, var):
     )
 
     # Variable definitions with directives
-    var.episode.directives(DSLDirective("skip", **{"if": True}))
+    var.episode.directives(
+        # Note that `$episode: Episode skip(if=$skipFrag)` is INVALID GraphQL because
+        # variable definitions must be static, literal values defined in the query!
+        DSLDirective("skip", **{"if": True}),
+        DSLDirective("variableDefinition"),
+        schema=ds,
+    )
     query.variable_definitions = var
 
     # Generate ONE document with everything
@@ -1389,7 +1395,7 @@ fragment CharacterInfo on Character @skip(if: $skipFrag) @fragmentDefinition {
 
 query HeroQuery(\
 $skipFrag: Boolean!, \
-$episode: Episode @skip(if: true), \
+$episode: Episode @skip(if: true) @variableDefinition, \
 $skipName: Boolean!, \
 $includeSpread: Boolean!, \
 $skipInline: Boolean!, \

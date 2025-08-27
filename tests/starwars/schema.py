@@ -319,6 +319,13 @@ subscription_directive = GraphQLDirective(
     args={},
 )
 
+variable_definition_directive = GraphQLDirective(
+    name="variableDefinition",
+    description="Test directive for VARIABLE_DEFINITION location",
+    locations=[DirectiveLocation.VARIABLE_DEFINITION],
+    args={},
+)
+
 repeat_directive = GraphQLDirective(
     name="repeat",
     description="Test repeatable directive for FIELD location",
@@ -347,6 +354,7 @@ StarWarsSchema = GraphQLSchema(
         fragment_definition_directive,
         mutation_directive,
         subscription_directive,
+        variable_definition_directive,
         repeat_directive,
     ],
 )
