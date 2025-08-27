@@ -448,7 +448,7 @@ class DSLDirective:
         return f"<DSLDirective @{self.name}({args_str})>"
 
 
-class DSLDirectable:
+class DSLDirectable(ABC):
     """Mixin class for DSL elements that can have directives.
 
     Provides the directives() method for adding GraphQL directives to DSL elements.
@@ -1223,7 +1223,7 @@ class DSLFragmentSpread(DSLSelectable, DSLDirectable):
         return f"<DSLFragmentSpread {self.name}>"
 
 
-class DSLFragment(DSLSelectable, DSLFragmentSelector, DSLExecutable, DSLDirectable):
+class DSLFragment(DSLSelectable, DSLFragmentSelector, DSLExecutable):
     """DSLFragment represents a named GraphQL fragment for the DSL code."""
 
     _type: Optional[Union[GraphQLObjectType, GraphQLInterfaceType]]
