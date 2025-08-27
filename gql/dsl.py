@@ -475,6 +475,9 @@ class DSLDirectable(ABC):
         :raises KeyError: if directive argument is invalid
 
         Usage:
+
+        .. code-block::
+
             # With explicit schema
             element.directives(DSLDirective("include", **{"if": var.show}), schema=ds)
 
