@@ -391,57 +391,40 @@ Directives
 behavior in a GraphQL document. The DSL module supports both built-in GraphQL directives
 (:code:`@skip`, :code:`@include`) and custom schema-defined directives.
 
-To add directives to DSL elements, you use the :class:`DSLDirective <gql.dsl.DSLDirective>`
-class and the :meth:`directives <gql.dsl.DSLDirectable.directives>` method::
+To add directives to DSL elements, use the :meth:`DSLSchema.__call__ <gql.dsl.DSLSchema.__call__>`
+factory method and the :meth:`directives <gql.dsl.DSLDirectable.directives>` method::
 
-    from gql.dsl import DSLDirective
-
-    # Using built-in @skip directive
+    # Using built-in @skip directive with DSLSchema.__call__ factory
     ds.Query.hero.select(
-        ds.Character.name.directives(DSLDirective("skip", **{"if": True}))
+        ds.Character.name.directives(ds("@skip").args(**{"if": True}))
     )
 
 Directive Arguments
 """""""""""""""""""
 
-Directive arguments can be passed as keyword arguments to :class:`DSLDirective <gql.dsl.DSLDirective>`.
+Directive arguments can be passed using the :meth:`args <gql.dsl.DSLDirective.args>` method.
 For arguments that don't conflict with Python reserved words, you can pass them directly::
 
-    # Direct keyword arguments for non-reserved names
-    DSLDirective("custom", value="foo", reason="testing")
-    DSLDirective("deprecated", reason="Use newField instead")
+    # Using the args method for non-reserved names
+    ds("@custom").args(value="foo", reason="testing")
+
+It can also be done by calling the directive directly::
+
+    ds("@custom")(value="foo", reason="testing")
 
 However, when the GraphQL directive argument name conflicts with a Python reserved word
 (like :code:`if`), you need to unpack a dictionary to escape it::
 
     # Dictionary unpacking for Python reserved words
-    DSLDirective("skip", **{"if": True})
-    DSLDirective("include", **{"if": False})
+    ds("@skip").args(**{"if": True})
+    ds("@include")(**{"if": False})
 
 This ensures that the exact GraphQL argument name is passed to the directive and that
 no post-processing of arguments is required.
 
-Built-in vs Custom Directives
-"""""""""""""""""""""""""""""
-
-**Built-in directives** (:code:`@skip`, :code:`@include`) work without any schema parameter::
-
-    # Built-in directives work directly
-    DSLQuery(ds.Query.hero.select(ds.Character.name)).directives(
-        DSLDirective("skip", **{"if": False}),
-        DSLDirective("include", **{"if": True}),
-    )
-
-**Custom directives** require access to the schema. For fields, the schema is provided
-automatically, but for other elements you need to pass it explicitly::
-
-    # Fields automatically have schema access
-    ds.Character.name.directives(DSLDirective("customDirective"))
-
-    # Other elements need explicit schema parameter
-    query = DSLQuery(ds.Query.hero.select(ds.Character.name)).directives(
-        DSLDirective("customDirective"), schema=ds
-    )
+The :meth:`DSLSchema.__call__ <gql.dsl.DSLSchema.__call__>` factory method automatically handles
+schema lookup and validation for both built-in directives (:code:`@skip`, :code:`@include`) 
+and custom schema-defined directives using the same syntax.
 
 Directive Locations
 """""""""""""""""""
@@ -487,7 +470,7 @@ Examples by Location
 
     # Query operation
     query = DSLQuery(ds.Query.hero.select(ds.Character.name)).directives(
-        DSLDirective("customQueryDirective"), schema=ds
+        ds("@customQueryDirective")
     )
 
     # Mutation operation
@@ -495,21 +478,21 @@ Examples by Location
         ds.Mutation.createReview.args(episode=6, review={"stars": 5}).select(
             ds.Review.stars
         )
-    ).directives(DSLDirective("customMutationDirective"), schema=ds)
+    ).directives(ds("@customMutationDirective"))
 
 **Field directives**::
 
     # Single directive on field
     ds.Query.hero.select(
-        ds.Character.name.directives(DSLDirective("customFieldDirective"))
+        ds.Character.name.directives(ds("@customFieldDirective"))
     )
 
     # Multiple directives on a field
     ds.Query.hero.select(
         ds.Character.appearsIn.directives(
-            DSLDirective("repeat", value="first"),
-            DSLDirective("repeat", value="second"),
-            DSLDirective("repeat", value="third"),
+            ds("@repeat").args(value="first"),
+            ds("@repeat").args(value="second"),
+            ds("@repeat").args(value="third"),
         )
     )
 
@@ -530,7 +513,7 @@ directives to the fragment spread::
     query_with_fragment = DSLQuery(
         ds.Query.hero.select(
             name_and_appearances.spread().directives(
-                DSLDirective("customFragmentSpreadDirective"), schema=ds
+                ds("@customFragmentSpreadDirective")
             )
         )
     )
@@ -547,7 +530,7 @@ Example with fragment definition and spread-specific directives::
         DSLFragment("CharacterInfo")
         .on(ds.Character)
         .select(ds.Character.name, ds.Character.appearsIn)
-        .directives(DSLDirective("customFragmentDefinitionDirective"), schema=ds)
+        .directives(ds("@customFragmentDefinitionDirective"))
     )
 
     # Using fragment with spread-specific directives
@@ -558,7 +541,7 @@ Example with fragment definition and spread-specific directives::
     query_with_spread_directive = DSLQuery(
         # Enhanced usage with spread directives
         name_and_appearances.spread().directives(
-            DSLDirective("customFragmentSpreadDirective"), schema=ds
+            ds("@customFragmentSpreadDirective")
         )
     )
 
@@ -593,7 +576,7 @@ Inline fragments also support directives using the
     query_with_directive = ds.Query.hero.args(episode=6).select(
         ds.Character.name,
         DSLInlineFragment().on(ds.Human).select(ds.Human.homePlanet).directives(
-            DSLDirective("customInlineFragmentDirective"), schema=ds
+            ds("@customInlineFragmentDirective")
         )
     )
 
@@ -614,7 +597,7 @@ You can also add directives to variable definitions using the
 :meth:`directives <gql.dsl.DSLVariable.directives>` method::
 
     var = DSLVariableDefinitions()
-    var.episode.directives(DSLDirective("customVariableDirective"), schema=ds)
+    var.episode.directives(ds("@customVariableDirective"))
     # Note: the directive is attached to the `.episode` variable definition (singular),
     #   and not the `var` variable definitions (plural) holder.
 
@@ -636,7 +619,7 @@ Here's a comprehensive example showing directives on multiple locations:
 
 .. code-block:: python
 
-    from gql.dsl import DSLDirective, DSLFragment, DSLInlineFragment, DSLQuery, dsl_gql
+    from gql.dsl import DSLFragment, DSLInlineFragment, DSLQuery, dsl_gql
 
     # Create variables for directive conditions
     var = DSLVariableDefinitions()
@@ -644,33 +627,33 @@ Here's a comprehensive example showing directives on multiple locations:
     # Fragment with directive on definition
     character_fragment = DSLFragment("CharacterInfo").on(ds.Character).select(
         ds.Character.name, ds.Character.appearsIn
-    ).directives(DSLDirective("fragmentDefinition"), schema=ds)
+    ).directives(ds("@fragmentDefinition"))
 
     # Query with directives on multiple locations
     query = DSLQuery(
         ds.Query.hero.args(episode=var.episode).select(
             # Field with directive
-            ds.Character.name.directives(DSLDirective("skip", **{"if": var.skipName})),
+            ds.Character.name.directives(ds("@skip").args(**{"if": var.skipName})),
 
             # Fragment spread with directive
             character_fragment.spread().directives(
-                DSLDirective("include", **{"if": var.includeFragment})
+                ds("@include").args(**{"if": var.includeFragment})
             ),
 
             # Inline fragment with directive
             DSLInlineFragment().on(ds.Human).select(ds.Human.homePlanet).directives(
-                DSLDirective("skip", **{"if": var.skipHuman})
+                ds("@skip").args(**{"if": var.skipHuman})
             ),
 
             # Meta field with directive
             DSLMetaField("__typename").directives(
-                DSLDirective("include", **{"if": var.includeType})
+                ds("@include").args(**{"if": var.includeType})
             )
         )
-    ).directives(DSLDirective("query"), schema=ds)  # Operation directive
+    ).directives(ds("@query"))  # Operation directive
 
     # Variable definition with directive
-    var.episode.directives(DSLDirective("skip", **{"if": True}))
+    var.episode.directives(ds("@variableDefinition"))
     query.variable_definitions = var
 
     # Generate the document
@@ -684,7 +667,7 @@ This generates GraphQL equivalent to::
     }
 
     query (
-      $episode: Episode @skip(if: true)
+      $episode: Episode @variableDefinition
       $skipName: Boolean!
       $includeFragment: Boolean!
       $skipHuman: Boolean!

@@ -12,6 +12,7 @@ from typing import Any, Dict, Iterable, Mapping, Optional, Set, Tuple, Union, ca
 from graphql import (
     ArgumentNode,
     BooleanValueNode,
+    DirectiveLocation,
     DirectiveNode,
     DocumentNode,
     EnumValueNode,
@@ -296,6 +297,29 @@ class DSLSchema:
 
         self._schema: GraphQLSchema = schema
 
+    def __call__(self, name: str) -> "DSLDirective":
+        """Factory method for creating DSL objects.
+
+        Currently, supports creating DSLDirective instances when name starts with '@'.
+        Future support planned for meta-fields (__typename), inline fragments (...),
+        and fragment definitions (fragment).
+
+        :param name: the name of the object to create
+        :type name: str
+
+        :return: DSLDirective instance
+
+        :raises ValueError: if name format is not supported
+        """
+        if name.startswith("@"):
+            return DSLDirective(name=name[1:], dsl_schema=self)
+        # Future support:
+        # if name.startswith("__"): return DSLMetaField(name)
+        # if name == "...": return DSLInlineFragment()
+        # if name.startswith("fragment "): return DSLFragment(name[9:])
+
+        raise ValueError(f"Unsupported name: {name}")
+
     def __getattr__(self, name: str) -> "DSLType":
 
         type_def: Optional[GraphQLNamedType] = self._schema.get_type(name)
@@ -391,60 +415,115 @@ class DSLDirective:
     behavior in a GraphQL document.
     """
 
-    def __init__(self, name: str, **kwargs: Any):
+    def __init__(self, name: str, dsl_schema: "DSLSchema"):
         r"""Initialize the DSLDirective with the given name and arguments.
 
         :param name: the name of the directive
-        :param \**kwargs: the arguments for the directive
-        """
-        self.name = name
-        self.arguments = kwargs
-        self.directive_def: Optional[GraphQLDirective] = None
+        :param dsl_schema: DSLSchema for directive validation and definition lookup
 
-    def set_definition(self, directive_def: GraphQLDirective) -> "DSLDirective":
-        """Attach GraphQL directive definition from schema.
-
-        :param directive_def: The GraphQL directive definition from the schema
-        :return: itself
+        :raises GraphQLError: if directive not found or not executable
         """
-        self.directive_def = directive_def
-        return self
+        self._dsl_schema = dsl_schema
+
+        # Find directive definition in schema or built-ins
+        directive_def = self._dsl_schema._schema.get_directive(name)
+
+        if directive_def is None:
+            # Try to find in built-in directives using specified_directives
+            builtins = {builtin.name: builtin for builtin in specified_directives}
+            directive_def = builtins.get(name)
+
+        if directive_def is None:
+            available: Set[str] = set()
+            available.update(f"@{d.name}" for d in self._dsl_schema._schema.directives)
+            available.update(f"@{d.name}" for d in specified_directives)
+            raise GraphQLError(
+                f"Directive '@{name}' not found in schema or built-ins. "
+                f"Available directives: {', '.join(sorted(available))}"
+            )
+
+        # Check directive has at least one executable location
+        executable_locations = {
+            DirectiveLocation.QUERY,
+            DirectiveLocation.MUTATION,
+            DirectiveLocation.SUBSCRIPTION,
+            DirectiveLocation.FIELD,
+            DirectiveLocation.FRAGMENT_DEFINITION,
+            DirectiveLocation.FRAGMENT_SPREAD,
+            DirectiveLocation.INLINE_FRAGMENT,
+            DirectiveLocation.VARIABLE_DEFINITION,
+        }
+
+        if not any(loc in executable_locations for loc in directive_def.locations):
+            raise GraphQLError(
+                f"Directive '@{name}' is not a valid request executable directive. "
+                f"It can only be used in type system locations, not in requests."
+            )
+
+        self.directive_def: GraphQLDirective = directive_def
+        self.ast_directive = DirectiveNode(name=NameNode(value=name), arguments=())
 
     @property
-    def ast_directive(self) -> DirectiveNode:
-        """Generate DirectiveNode with validation.
+    def name(self) -> str:
+        """Get the directive name."""
+        return self.ast_directive.name.value
 
-        :return: DirectiveNode for the GraphQL AST
+    def __call__(self, **kwargs: Any) -> "DSLDirective":
+        """Add arguments by calling the directive like a function.
 
-        :raises graphql.error.GraphQLError: if directive not validated
-        :raises KeyError: if argument doesn't exist in directive definition
+        :param kwargs: directive arguments
+        :return: itself
         """
-        if not self.directive_def:
-            raise GraphQLError(
-                f"Directive '@{self.name}' definition not set. "
-                "Call set_definition() before converting to AST."
-            )
+        return self.args(**kwargs)
 
-        # Validate and convert arguments
-        arguments = []
-        for arg_name, arg_value in self.arguments.items():
-            if arg_name not in self.directive_def.args:
-                raise KeyError(
-                    f"Argument '{arg_name}' does not exist in directive '@{self.name}'"
+    def args(self, **kwargs: Any) -> "DSLDirective":
+        r"""Set the arguments of a directive
+
+        The arguments are parsed to be stored in the AST of this field.
+
+        .. note::
+            You can also call the field directly with your arguments.
+            :code: ds("@someDirective").args(value="foo")` is equivalent to:
+            :code: ds("@someDirective")(value="foo")`
+
+        :param \**kwargs: the arguments (keyword=value)
+
+        :return: itself
+
+        :raises AttributeError: if arguments already set for this directive
+        :raises GraphQLError: if argument doesn't exist in directive definition
+        """
+        if len(self.ast_directive.arguments) > 0:
+            raise AttributeError(f"Arguments for directive @{self.name} already set.")
+
+        errs = []
+        for key, value in kwargs.items():
+            if key not in self.directive_def.args:
+                errs.append(
+                    f"Argument '{key}' does not exist in directive '@{self.name}'"
                 )
-            arguments.append(
+        if errs:
+            raise GraphQLError("\n".join(errs))
+
+        # Update AST directive with arguments
+        self.ast_directive = DirectiveNode(
+            name=NameNode(value=self.name),
+            arguments=tuple(
                 ArgumentNode(
-                    name=NameNode(value=arg_name),
-                    value=ast_from_value(
-                        arg_value, self.directive_def.args[arg_name].type
-                    ),
+                    name=NameNode(value=key),
+                    value=ast_from_value(value, self.directive_def.args[key].type),
                 )
-            )
+                for key, value in kwargs.items()
+            ),
+        )
 
-        return DirectiveNode(name=NameNode(value=self.name), arguments=tuple(arguments))
+        return self
 
     def __repr__(self) -> str:
-        args_str = ", ".join(f"{k}={v!r}" for k, v in self.arguments.items())
+        args_str = ", ".join(
+            f"{arg.name.value}={arg.value.value}"
+            for arg in self.ast_directive.arguments
+        )
         return f"<DSLDirective @{self.name}({args_str})>"
 
 
@@ -461,28 +540,33 @@ class DSLDirectable(ABC):
         super().__init__(*args, **kwargs)
         self._directives = ()
 
-    def directives(
-        self, *directives: DSLDirective, schema: Optional[DSLSchema] = None
-    ) -> Any:
+    @abstractmethod
+    def is_valid_directive(self, directive: "DSLDirective") -> bool:
+        """Check if a directive is valid for this DSL element.
+
+        :param directive: The DSLDirective to validate
+        :return: True if the directive can be used at this location
+        """
+        raise NotImplementedError(
+            "Any DSLDirectable concrete class must have an is_valid_directive method"
+        )
+
+    def directives(self, *directives: DSLDirective) -> Any:
         r"""Add directives to this DSL element.
 
         :param \*directives: DSLDirective instances to add
-        :param schema: Optional DSLSchema for directive validation.
-                      If None, uses built-in directives (@skip, @include)
         :return: itself
 
-        :raises graphql.error.GraphQLError: if directive not found in schema
-        :raises KeyError: if directive argument is invalid
+        :raises graphql.error.GraphQLError: if directive location is invalid
+        :raises TypeError: if argument is not a DSLDirective
 
         Usage:
 
         .. code-block::
 
-            # With explicit schema
-            element.directives(DSLDirective("include", **{"if": var.show}), schema=ds)
-
-            # With built-in directives (no schema needed)
-            element.directives(DSLDirective("skip", **{"if": var.hide}))
+            # Using new factory method
+            element.directives(ds("@include")(**{"if": var.show}))
+            element.directives(ds("@skip")(**{"if": var.hide}))
         """
         validated_directives = []
 
@@ -490,34 +574,32 @@ class DSLDirectable(ABC):
             if not isinstance(directive, DSLDirective):
                 raise TypeError(
                     f"Expected DSLDirective, got {type(directive)}. "
-                    f"Use DSLDirective(name, **args) to create directive instances."
+                    f"Use ds('@directiveName') factory method to create directive instances."
                 )
 
-            # Find directive definition
-            directive_def = None
-
-            if schema is not None:
-                # Try to find directive in provided schema
-                directive_def = schema._schema.get_directive(directive.name)
-
-            if directive_def is None:
-                # Try to find in built-in directives using specified_directives
-                for builtin_directive in specified_directives:
-                    if builtin_directive.name == directive.name:
-                        directive_def = builtin_directive
-
-            if directive_def is None:
-                available: Set[str] = set()
-                if schema:
-                    available.update(f"@{d.name}" for d in schema._schema.directives)
-                available.update(f"@{d.name}" for d in specified_directives)
+            # Validate directive location using the abstract method
+            if not self.is_valid_directive(directive):
+                # Get valid locations for error message
+                valid_locations = [
+                    loc.name
+                    for loc in directive.directive_def.locations
+                    if loc
+                    in {
+                        DirectiveLocation.QUERY,
+                        DirectiveLocation.MUTATION,
+                        DirectiveLocation.SUBSCRIPTION,
+                        DirectiveLocation.FIELD,
+                        DirectiveLocation.FRAGMENT_DEFINITION,
+                        DirectiveLocation.FRAGMENT_SPREAD,
+                        DirectiveLocation.INLINE_FRAGMENT,
+                        DirectiveLocation.VARIABLE_DEFINITION,
+                    }
+                ]
                 raise GraphQLError(
-                    f"Directive '@{directive.name}' not found in schema or built-ins. "
-                    f"Available directives: {', '.join(sorted(available))}"
+                    f"Invalid directive location: '@{directive.name}' cannot be used on {self.__class__.__name__}. "
+                    f"Valid locations for this directive: {', '.join(valid_locations)}"
                 )
 
-            # Set definition and validate
-            directive.set_definition(directive_def)
             validated_directives.append(directive)
 
         # Update stored directives
@@ -673,13 +755,25 @@ class DSLOperation(DSLExecutable, DSLRootFieldSelector):
 class DSLQuery(DSLOperation):
     operation_type = OperationType.QUERY
 
+    def is_valid_directive(self, directive: "DSLDirective") -> bool:
+        """Check if directive is valid for Query operations."""
+        return DirectiveLocation.QUERY in directive.directive_def.locations
+
 
 class DSLMutation(DSLOperation):
     operation_type = OperationType.MUTATION
 
+    def is_valid_directive(self, directive: "DSLDirective") -> bool:
+        """Check if directive is valid for Mutation operations."""
+        return DirectiveLocation.MUTATION in directive.directive_def.locations
+
 
 class DSLSubscription(DSLOperation):
     operation_type = OperationType.SUBSCRIPTION
+
+    def is_valid_directive(self, directive: "DSLDirective") -> bool:
+        """Check if directive is valid for Subscription operations."""
+        return DirectiveLocation.SUBSCRIPTION in directive.directive_def.locations
 
 
 class DSLVariable(DSLDirectable):
@@ -724,6 +818,18 @@ class DSLVariable(DSLDirectable):
     def default(self, default_value: Any) -> "DSLVariable":
         self.default_value = default_value
         return self
+
+    def is_valid_directive(self, directive: "DSLDirective") -> bool:
+        """Check if directive is valid for Variable definitions."""
+        for arg in directive.ast_directive.arguments:
+            if isinstance(arg.value, VariableNode):
+                raise GraphQLError(
+                    f"Directive @{directive.name} argument value has "
+                    f"unexpected variable '${arg.value.name}' in constant location."
+                )
+        return (
+            DirectiveLocation.VARIABLE_DEFINITION in directive.directive_def.locations
+        )
 
 
 class DSLVariableDefinitions:
@@ -1061,19 +1167,19 @@ class DSLField(DSLSelectableWithAlias, DSLFieldSelector):
 
         return self
 
-    def directives(
-        self, *directives: DSLDirective, schema: Optional[DSLSchema] = None
-    ) -> "DSLField":
+    def directives(self, *directives: DSLDirective) -> "DSLField":
         """Add directives to this field.
 
-        Fields auto-supply schema through dsl_type for custom directives.
+        Fields support all directive types since they auto-validate through is_valid_directive.
         """
-        if schema is None and self.dsl_type is not None:
-            schema = self.dsl_type._dsl_schema
-        super().directives(*directives, schema=schema)
+        super().directives(*directives)
         self.ast_field.directives = self.directives_ast
 
         return self
+
+    def is_valid_directive(self, directive: "DSLDirective") -> bool:
+        """Check if directive is valid for Field locations."""
+        return DirectiveLocation.FIELD in directive.directive_def.locations
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} {self.parent_type.name}" f"::{self.name}>"
@@ -1112,6 +1218,10 @@ class DSLMetaField(DSLField):
             raise GraphQLError(f'Invalid meta-field "{name}"')
 
         super().__init__(name, self.meta_type, field)
+
+    def is_valid_directive(self, directive: "DSLDirective") -> bool:
+        """Check if directive is valid for MetaField locations (same as Field)."""
+        return DirectiveLocation.FIELD in directive.directive_def.locations
 
 
 class DSLInlineFragment(DSLSelectable, DSLFragmentSelector):
@@ -1160,14 +1270,12 @@ class DSLInlineFragment(DSLSelectable, DSLFragmentSelector):
         )
         return self
 
-    def directives(
-        self, *directives: DSLDirective, schema: Optional[DSLSchema] = None
-    ) -> "DSLInlineFragment":
+    def directives(self, *directives: DSLDirective) -> "DSLInlineFragment":
         """Add directives to this inline fragment.
 
-        Custom directives require explicit schema parameter.
+        Inline fragments support all directive types through auto-validation.
         """
-        super().directives(*directives, schema=schema)
+        super().directives(*directives)
         self.ast_field.directives = self.directives_ast
         return self
 
@@ -1180,6 +1288,10 @@ class DSLInlineFragment(DSLSelectable, DSLFragmentSelector):
             pass
 
         return f"<{self.__class__.__name__}{type_info}>"
+
+    def is_valid_directive(self, directive: "DSLDirective") -> bool:
+        """Check if directive is valid for Inline Fragment locations."""
+        return DirectiveLocation.INLINE_FRAGMENT in directive.directive_def.locations
 
 
 class DSLFragmentSpread(DSLSelectable):
@@ -1211,16 +1323,18 @@ class DSLFragmentSpread(DSLSelectable):
         """:meta private:"""
         return self.ast_field.name.value
 
-    def directives(
-        self, *directives: DSLDirective, schema: Optional[DSLSchema] = None
-    ) -> "DSLFragmentSpread":
+    def directives(self, *directives: DSLDirective) -> "DSLFragmentSpread":
         """Add directives to this fragment spread.
 
-        Custom directives require explicit schema parameter.
+        Fragment spreads support all directive types through auto-validation.
         """
-        super().directives(*directives, schema=schema)
+        super().directives(*directives)
         self.ast_field.directives = self.directives_ast
         return self
+
+    def is_valid_directive(self, directive: "DSLDirective") -> bool:
+        """Check if directive is valid for Fragment Spread locations."""
+        return DirectiveLocation.FRAGMENT_SPREAD in directive.directive_def.locations
 
     def __repr__(self) -> str:
         return f"<DSLFragmentSpread {self.name}>"
@@ -1332,6 +1446,12 @@ class DSLFragment(DSLSelectable, DSLFragmentSelector, DSLExecutable):
             **variable_definition_kwargs,
             name=NameNode(value=self.name),
             directives=self.directives_ast,
+        )
+
+    def is_valid_directive(self, directive: "DSLDirective") -> bool:
+        """Check if directive is valid for Fragment Definition locations."""
+        return (
+            DirectiveLocation.FRAGMENT_DEFINITION in directive.directive_def.locations
         )
 
     def __repr__(self) -> str:

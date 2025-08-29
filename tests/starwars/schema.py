@@ -267,63 +267,92 @@ subscription_type = GraphQLObjectType(
     },
 )
 
-
-# Custom directives for testing - simple location-specific directives
-# These test that each executable directive location works correctly
 query_directive = GraphQLDirective(
     name="query",
     description="Test directive for QUERY location",
     locations=[DirectiveLocation.QUERY],
-    args={},
+    args={
+        "value": GraphQLArgument(
+            GraphQLString, description="A string value for the variable"
+        )
+    },
 )
 
 field_directive = GraphQLDirective(
     name="field",
     description="Test directive for FIELD location",
     locations=[DirectiveLocation.FIELD],
-    args={},
+    args={
+        "value": GraphQLArgument(
+            GraphQLString, description="A string value for the variable"
+        )
+    },
 )
 
 fragment_spread_directive = GraphQLDirective(
     name="fragmentSpread",
     description="Test directive for FRAGMENT_SPREAD location",
     locations=[DirectiveLocation.FRAGMENT_SPREAD],
-    args={},
+    args={
+        "value": GraphQLArgument(
+            GraphQLString, description="A string value for the variable"
+        )
+    },
 )
 
 inline_fragment_directive = GraphQLDirective(
     name="inlineFragment",
     description="Test directive for INLINE_FRAGMENT location",
     locations=[DirectiveLocation.INLINE_FRAGMENT],
-    args={},
+    args={
+        "value": GraphQLArgument(
+            GraphQLString, description="A string value for the variable"
+        )
+    },
 )
 
 fragment_definition_directive = GraphQLDirective(
     name="fragmentDefinition",
     description="Test directive for FRAGMENT_DEFINITION location",
     locations=[DirectiveLocation.FRAGMENT_DEFINITION],
-    args={},
+    args={
+        "value": GraphQLArgument(
+            GraphQLString, description="A string value for the variable"
+        )
+    },
 )
 
 mutation_directive = GraphQLDirective(
     name="mutation",
     description="Test directive for MUTATION location (tests keyword conflict)",
     locations=[DirectiveLocation.MUTATION],
-    args={},
+    args={
+        "value": GraphQLArgument(
+            GraphQLString, description="A string value for the variable"
+        )
+    },
 )
 
 subscription_directive = GraphQLDirective(
     name="subscription",
     description="Test directive for SUBSCRIPTION location",
     locations=[DirectiveLocation.SUBSCRIPTION],
-    args={},
+    args={
+        "value": GraphQLArgument(
+            GraphQLString, description="A string value for the variable"
+        )
+    },
 )
 
 variable_definition_directive = GraphQLDirective(
     name="variableDefinition",
     description="Test directive for VARIABLE_DEFINITION location",
     locations=[DirectiveLocation.VARIABLE_DEFINITION],
-    args={},
+    args={
+        "value": GraphQLArgument(
+            GraphQLString, description="A string value for the variable"
+        )
+    },
 )
 
 repeat_directive = GraphQLDirective(
