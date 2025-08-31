@@ -1,6 +1,5 @@
 import pytest
 from graphql import (
-    DirectiveLocation,
     FloatValueNode,
     GraphQLError,
     GraphQLFloat,
@@ -24,7 +23,6 @@ from graphql.utilities import get_introspection_query
 
 from gql import Client, gql
 from gql.dsl import (
-    DSLDirective,
     DSLField,
     DSLFragment,
     DSLFragmentSpread,
@@ -1360,8 +1358,8 @@ def test_executable_directives(ds, var):
 
     # Variable definitions with directives
     var.episode.directives(
-        # Note that `$episode: Episode @someDirective(value=$someValue)` is INVALID GraphQL because
-        # variable definitions must be static, literal values defined in the query!
+        # Note that `$episode: Episode @someDirective(value=$someValue)`
+        # is INVALID GraphQL because variable definitions must be literal values
         ds("@variableDefinition"),
     )
     query.variable_definitions = var
