@@ -521,7 +521,7 @@ class DSLDirective:
 
     def __repr__(self) -> str:
         args_str = ", ".join(
-            f"{arg.name.value}={arg.value.value}"
+            f"{arg.name.value}={getattr(arg.value, 'value')}"
             for arg in self.ast_directive.arguments
         )
         return f"<DSLDirective @{self.name}({args_str})>"
@@ -574,7 +574,7 @@ class DSLDirectable(ABC):
             if not isinstance(directive, DSLDirective):
                 raise TypeError(
                     f"Expected DSLDirective, got {type(directive)}. "
-                    f"Use ds('@directiveName') factory method to create directive instances."
+                    f"Use ds('@directiveName') to create directive instances."
                 )
 
             # Validate directive location using the abstract method
@@ -596,7 +596,8 @@ class DSLDirectable(ABC):
                     }
                 ]
                 raise GraphQLError(
-                    f"Invalid directive location: '@{directive.name}' cannot be used on {self.__class__.__name__}. "
+                    f"Invalid directive location: '@{directive.name}' "
+                    f"cannot be used on {self.__class__.__name__}. "
                     f"Valid locations for this directive: {', '.join(valid_locations)}"
                 )
 
@@ -1168,10 +1169,7 @@ class DSLField(DSLSelectableWithAlias, DSLFieldSelector):
         return self
 
     def directives(self, *directives: DSLDirective) -> "DSLField":
-        """Add directives to this field.
-
-        Fields support all directive types since they auto-validate through is_valid_directive.
-        """
+        """Add directives to this field."""
         super().directives(*directives)
         self.ast_field.directives = self.directives_ast
 
