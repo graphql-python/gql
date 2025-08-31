@@ -1297,6 +1297,11 @@ fragment heroFragment($episode: Episode) on Query {
     assert print_ast(query.document) == expected
 
 
+def test_dsl_schema_call_validation(ds):
+    with pytest.raises(ValueError, match="(?i)unsupported shortcut"):
+        ds("foo")
+
+
 def test_executable_directives(ds, var):
     """Test ALL executable directive locations and types in one document"""
 
@@ -1424,13 +1429,25 @@ def test_directive_error_handling(ds):
     with pytest.raises(TypeError, match="Expected DSLDirective"):
         ds.Query.hero.directives(123)
 
-    # Invalid directive name
+    # Invalid directive name from `__call__
     with pytest.raises(GraphQLError, match="Directive '@nonexistent' not found"):
         ds("@nonexistent")
 
     # Invalid directive argument
     with pytest.raises(GraphQLError, match="Argument 'invalid' does not exist"):
         ds("@include")(invalid=True)
+
+    # Tried to set arguments twice
+    with pytest.raises(
+        AttributeError, match="Arguments for directive @field already set."
+    ):
+        ds("@field").args(value="foo").args(value="bar")
+
+    with pytest.raises(
+        GraphQLError,
+        match="(?i)Directive '@deprecated' is not a valid request executable directive",
+    ):
+        ds("@deprecated")
 
     with pytest.raises(GraphQLError, match="unexpected variable"):
         # variable definitions must be static, literal values defined in the query!
@@ -1442,8 +1459,7 @@ def test_directive_error_handling(ds):
             ds("@variableDefinition").args(value=var.nonStatic),
         )
         query.variable_definitions = var
-        invalid = print_ast(dsl_gql(query).document)
-        print(invalid)
+        _ = dsl_gql(query).document
 
 
 # Parametrized tests for comprehensive directive location validation

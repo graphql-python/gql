@@ -7,7 +7,19 @@ import logging
 import re
 from abc import ABC, abstractmethod
 from math import isfinite
-from typing import Any, Dict, Iterable, Mapping, Optional, Set, Tuple, Union, cast
+from typing import (
+    Any,
+    Dict,
+    Iterable,
+    Literal,
+    Mapping,
+    Optional,
+    Set,
+    Tuple,
+    Union,
+    cast,
+    overload,
+)
 
 from graphql import (
     ArgumentNode,
@@ -297,28 +309,48 @@ class DSLSchema:
 
         self._schema: GraphQLSchema = schema
 
-    def __call__(self, name: str) -> "DSLDirective":
+    @overload
+    def __call__(
+        self, shortcut: Literal["__typename", "__schema", "__type"]
+    ) -> "DSLMetaField": ...  # pragma: no cover
+
+    @overload
+    def __call__(
+        self, shortcut: Literal["..."]
+    ) -> "DSLInlineFragment": ...  # pragma: no cover
+
+    @overload
+    def __call__(
+        self, shortcut: Literal["fragment"], name: str
+    ) -> "DSLFragment": ...  # pragma: no cover
+
+    @overload
+    def __call__(self, shortcut: Any) -> "DSLDirective": ...  # pragma: no cover
+
+    def __call__(
+        self, shortcut: str, name: Optional[str] = None
+    ) -> Union["DSLMetaField", "DSLInlineFragment", "DSLFragment", "DSLDirective"]:
         """Factory method for creating DSL objects.
 
         Currently, supports creating DSLDirective instances when name starts with '@'.
         Future support planned for meta-fields (__typename), inline fragments (...),
         and fragment definitions (fragment).
 
-        :param name: the name of the object to create
-        :type name: str
+        :param shortcut: the name of the object to create
+        :type shortcut: LiteralString
 
         :return: DSLDirective instance
 
-        :raises ValueError: if name format is not supported
+        :raises ValueError: if shortcut format is not supported
         """
-        if name.startswith("@"):
-            return DSLDirective(name=name[1:], dsl_schema=self)
+        if shortcut.startswith("@"):
+            return DSLDirective(name=shortcut[1:], dsl_schema=self)
         # Future support:
         # if name.startswith("__"): return DSLMetaField(name)
         # if name == "...": return DSLInlineFragment()
         # if name.startswith("fragment "): return DSLFragment(name[9:])
 
-        raise ValueError(f"Unsupported name: {name}")
+        raise ValueError(f"Unsupported shortcut: {shortcut}")
 
     def __getattr__(self, name: str) -> "DSLType":
 
@@ -549,7 +581,7 @@ class DSLDirectable(ABC):
         """
         raise NotImplementedError(
             "Any DSLDirectable concrete class must have an is_valid_directive method"
-        )
+        )  # pragma: no cover
 
     def directives(self, *directives: DSLDirective) -> Any:
         r"""Add directives to this DSL element.
