@@ -591,7 +591,7 @@ This generates::
       }
     }
 
-**Variable definition directives**::
+**Variable definition directives**:
 
 You can also add directives to variable definitions using the
 :meth:`directives <gql.dsl.DSLVariable.directives>` method::

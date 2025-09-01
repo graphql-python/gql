@@ -148,8 +148,9 @@ def ast_from_value(value: Any, type_: GraphQLInputType) -> Optional[ValueNode]:
 
     Produce a GraphQL Value AST given a Python object.
 
-    Raises a GraphQLError instead of returning None if we receive an Undefined
-    of if we receive a Null value for a Non-Null type.
+    :raises graphql.error.GraphQLError:
+        instead of returning None if we receive an Undefined
+        of if we receive a Null value for a Non-Null type.
     """
     if isinstance(value, DSLVariable):
         return value.set_type(type_).ast_variable_name
@@ -290,6 +291,8 @@ class DSLSchema:
     Attributes of the DSLSchema class are generated automatically
     with the `__getattr__` dunder method in order to generate
     instances of :class:`DSLType`
+
+    .. automethod:: __call__
     """
 
     def __init__(self, schema: GraphQLSchema):
@@ -453,7 +456,7 @@ class DSLDirective:
         :param name: the name of the directive
         :param dsl_schema: DSLSchema for directive validation and definition lookup
 
-        :raises GraphQLError: if directive not found or not executable
+        :raises graphql.error.GraphQLError: if directive not found or not executable
         """
         self._dsl_schema = dsl_schema
 
@@ -515,15 +518,16 @@ class DSLDirective:
 
         .. note::
             You can also call the field directly with your arguments.
-            :code: ds("@someDirective").args(value="foo")` is equivalent to:
-            :code: ds("@someDirective")(value="foo")`
+            :code:`ds("@someDirective").args(value="foo")` is equivalent to:
+            :code:`ds("@someDirective")(value="foo")`
 
         :param \**kwargs: the arguments (keyword=value)
 
         :return: itself
 
         :raises AttributeError: if arguments already set for this directive
-        :raises GraphQLError: if argument doesn't exist in directive definition
+        :raises graphql.error.GraphQLError:
+                if argument doesn't exist in directive definition
         """
         if len(self.ast_directive.arguments) > 0:
             raise AttributeError(f"Arguments for directive @{self.name} already set.")
@@ -594,7 +598,7 @@ class DSLDirectable(ABC):
 
         Usage:
 
-        .. code-block::
+        .. code-block:: python
 
             # Using new factory method
             element.directives(ds("@include")(**{"if": var.show}))
