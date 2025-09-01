@@ -64,11 +64,11 @@ from the :code:`ds` instance
 
     ds.Query.hero.select(ds.Character.name)
 
-The select method return the same instance, so it is possible to chain the calls::
+The select method returns the same instance, so it is possible to chain the calls::
 
     ds.Query.hero.select(ds.Character.name).select(ds.Character.id)
 
-Or do it sequencially::
+Or do it sequentially::
 
     hero_query = ds.Query.hero
 
@@ -279,7 +279,7 @@ will generate the request::
 Multiple operations in a document
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-It is possible to create an Document with multiple operations::
+It is possible to create a Document with multiple operations::
 
     query = dsl_gql(
         operation_name_1=DSLQuery( ... ),
@@ -384,6 +384,305 @@ you can use the :class:`DSLMetaField <gql.dsl.DSLMetaField>` class::
         DSLMetaField("__typename")
     )
 
+Directives
+^^^^^^^^^^
+
+`Directives`_ provide a way to describe alternate runtime execution and type validation
+behavior in a GraphQL document. The DSL module supports both built-in GraphQL directives
+(:code:`@skip`, :code:`@include`) and custom schema-defined directives.
+
+To add directives to DSL elements, use the :meth:`DSLSchema.__call__ <gql.dsl.DSLSchema.__call__>`
+factory method and the :meth:`directives <gql.dsl.DSLDirectable.directives>` method::
+
+    # Using built-in @skip directive with DSLSchema.__call__ factory
+    ds.Query.hero.select(
+        ds.Character.name.directives(ds("@skip").args(**{"if": True}))
+    )
+
+Directive Arguments
+"""""""""""""""""""
+
+Directive arguments can be passed using the :meth:`args <gql.dsl.DSLDirective.args>` method.
+For arguments that don't conflict with Python reserved words, you can pass them directly::
+
+    # Using the args method for non-reserved names
+    ds("@custom").args(value="foo", reason="testing")
+
+It can also be done by calling the directive directly::
+
+    ds("@custom")(value="foo", reason="testing")
+
+However, when the GraphQL directive argument name conflicts with a Python reserved word
+(like :code:`if`), you need to unpack a dictionary to escape it::
+
+    # Dictionary unpacking for Python reserved words
+    ds("@skip").args(**{"if": True})
+    ds("@include")(**{"if": False})
+
+This ensures that the exact GraphQL argument name is passed to the directive and that
+no post-processing of arguments is required.
+
+The :meth:`DSLSchema.__call__ <gql.dsl.DSLSchema.__call__>` factory method automatically handles
+schema lookup and validation for both built-in directives (:code:`@skip`, :code:`@include`) 
+and custom schema-defined directives using the same syntax.
+
+Directive Locations
+"""""""""""""""""""
+
+The DSL module supports all executable directive locations from the GraphQL specification:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 25 35 40
+
+   * - GraphQL Spec Location
+     - DSL Class/Method
+     - Description
+   * - QUERY
+     - :code:`DSLQuery.directives()`
+     - Directives on query operations
+   * - MUTATION
+     - :code:`DSLMutation.directives()`
+     - Directives on mutation operations
+   * - SUBSCRIPTION
+     - :code:`DSLSubscription.directives()`
+     - Directives on subscription operations
+   * - FIELD
+     - :code:`DSLField.directives()`
+     - Directives on fields (including meta-fields)
+   * - FRAGMENT_DEFINITION
+     - :code:`DSLFragment.directives()`
+     - Directives on fragment definitions
+   * - FRAGMENT_SPREAD
+     - :code:`DSLFragmentSpread.directives()`
+     - Directives on fragment spreads (via .spread())
+   * - INLINE_FRAGMENT
+     - :code:`DSLInlineFragment.directives()`
+     - Directives on inline fragments
+   * - VARIABLE_DEFINITION
+     - :code:`DSLVariable.directives()`
+     - Directives on variable definitions
+
+Examples by Location
+""""""""""""""""""""
+
+**Operation directives**::
+
+    # Query operation
+    query = DSLQuery(ds.Query.hero.select(ds.Character.name)).directives(
+        ds("@customQueryDirective")
+    )
+
+    # Mutation operation
+    mutation = DSLMutation(
+        ds.Mutation.createReview.args(episode=6, review={"stars": 5}).select(
+            ds.Review.stars
+        )
+    ).directives(ds("@customMutationDirective"))
+
+**Field directives**::
+
+    # Single directive on field
+    ds.Query.hero.select(
+        ds.Character.name.directives(ds("@customFieldDirective"))
+    )
+
+    # Multiple directives on a field
+    ds.Query.hero.select(
+        ds.Character.appearsIn.directives(
+            ds("@repeat").args(value="first"),
+            ds("@repeat").args(value="second"),
+            ds("@repeat").args(value="third"),
+        )
+    )
+
+**Fragment directives**:
+
+You can add directives to fragment definitions and to fragment spread instances.
+To do this, first define your fragment in the usual way::
+
+    name_and_appearances = (
+        DSLFragment("NameAndAppearances")
+        .on(ds.Character)
+        .select(ds.Character.name, ds.Character.appearsIn)
+    )
+
+Then, use :meth:`spread() <gql.dsl.DSLFragment.spread>` when you need to add
+directives to the fragment spread::
+
+    query_with_fragment = DSLQuery(
+        ds.Query.hero.select(
+            name_and_appearances.spread().directives(
+                ds("@customFragmentSpreadDirective")
+            )
+        )
+    )
+
+The :meth:`spread() <gql.dsl.DSLFragment.spread>` method creates a
+:class:`DSLFragmentSpread <gql.dsl.DSLFragmentSpread>` instance that allows you to add
+directives specific to the fragment spread location, separate from directives on the
+fragment definition itself.
+
+Example with fragment definition and spread-specific directives::
+
+    # Fragment definition with directive
+    name_and_appearances = (
+        DSLFragment("CharacterInfo")
+        .on(ds.Character)
+        .select(ds.Character.name, ds.Character.appearsIn)
+        .directives(ds("@customFragmentDefinitionDirective"))
+    )
+
+    # Using fragment with spread-specific directives
+    query_without_spread_directive = DSLQuery(
+        # Direct usage (no spread directives)
+        ds.Query.hero.select(name_and_appearances)
+    )
+    query_with_spread_directive = DSLQuery(
+        # Enhanced usage with spread directives
+        name_and_appearances.spread().directives(
+            ds("@customFragmentSpreadDirective")
+        )
+    )
+
+    # Don't forget to include the fragment definition in dsl_gql
+    query = dsl_gql(
+        name_and_appearances,
+        BaseQuery=query_without_spread_directive,
+        QueryWithDirective=query_with_spread_directive,
+    )
+
+This generates GraphQL equivalent to::
+
+    fragment CharacterInfo on Character @customFragmentDefinitionDirective {
+        name
+        appearsIn
+    }
+
+    {
+        BaseQuery hero {
+            ...CharacterInfo
+        }
+        QueryWithDirective hero {
+            ...CharacterInfo @customFragmentSpreadDirective
+        }
+    }
+
+**Inline fragment directives**:
+
+Inline fragments also support directives using the
+:meth:`directives <gql.dsl.DSLInlineFragment.directives>` method::
+
+    query_with_directive = ds.Query.hero.args(episode=6).select(
+        ds.Character.name,
+        DSLInlineFragment().on(ds.Human).select(ds.Human.homePlanet).directives(
+            ds("@customInlineFragmentDirective")
+        )
+    )
+
+This generates::
+
+    {
+      hero(episode: JEDI) {
+        name
+        ... on Human @customInlineFragmentDirective {
+          homePlanet
+        }
+      }
+    }
+
+**Variable definition directives**:
+
+You can also add directives to variable definitions using the
+:meth:`directives <gql.dsl.DSLVariable.directives>` method::
+
+    var = DSLVariableDefinitions()
+    var.episode.directives(ds("@customVariableDirective"))
+    # Note: the directive is attached to the `.episode` variable definition (singular),
+    #   and not the `var` variable definitions (plural) holder.
+
+    op = DSLQuery(ds.Query.hero.args(episode=var.episode).select(ds.Character.name))
+    op.variable_definitions = var
+
+This will generate::
+
+    query ($episode: Episode @customVariableDirective) {
+      hero(episode: $episode) {
+        name
+      }
+    }
+
+Complete Example for Directives
+"""""""""""""""""""""""""""""""
+
+Here's a comprehensive example showing directives on multiple locations:
+
+.. code-block:: python
+
+    from gql.dsl import DSLFragment, DSLInlineFragment, DSLQuery, dsl_gql
+
+    # Create variables for directive conditions
+    var = DSLVariableDefinitions()
+
+    # Fragment with directive on definition
+    character_fragment = DSLFragment("CharacterInfo").on(ds.Character).select(
+        ds.Character.name, ds.Character.appearsIn
+    ).directives(ds("@fragmentDefinition"))
+
+    # Query with directives on multiple locations
+    query = DSLQuery(
+        ds.Query.hero.args(episode=var.episode).select(
+            # Field with directive
+            ds.Character.name.directives(ds("@skip").args(**{"if": var.skipName})),
+
+            # Fragment spread with directive
+            character_fragment.spread().directives(
+                ds("@include").args(**{"if": var.includeFragment})
+            ),
+
+            # Inline fragment with directive
+            DSLInlineFragment().on(ds.Human).select(ds.Human.homePlanet).directives(
+                ds("@skip").args(**{"if": var.skipHuman})
+            ),
+
+            # Meta field with directive
+            DSLMetaField("__typename").directives(
+                ds("@include").args(**{"if": var.includeType})
+            )
+        )
+    ).directives(ds("@query"))  # Operation directive
+
+    # Variable definition with directive
+    var.episode.directives(ds("@variableDefinition"))
+    query.variable_definitions = var
+
+    # Generate the document
+    document = dsl_gql(character_fragment, query)
+
+This generates GraphQL equivalent to::
+
+    fragment CharacterInfo on Character @fragmentDefinition {
+      name
+      appearsIn
+    }
+
+    query (
+      $episode: Episode @variableDefinition
+      $skipName: Boolean!
+      $includeFragment: Boolean!
+      $skipHuman: Boolean!
+      $includeType: Boolean!
+    ) @query {
+      hero(episode: $episode) {
+        name @skip(if: $skipName)
+        ...CharacterInfo @include(if: $includeFragment)
+        ... on Human @skip(if: $skipHuman) {
+          homePlanet
+        }
+        __typename @include(if: $includeType)
+      }
+    }
+
 Executable examples
 -------------------
 
@@ -399,4 +698,5 @@ Sync example
 
 .. _Fragment: https://graphql.org/learn/queries/#fragments
 .. _Inline Fragment: https://graphql.org/learn/queries/#inline-fragments
+.. _Directives: https://graphql.org/learn/queries/#directives
 .. _issue #308: https://github.com/graphql-python/gql/issues/308
