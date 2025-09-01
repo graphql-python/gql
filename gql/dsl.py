@@ -293,6 +293,7 @@ class DSLSchema:
     instances of :class:`DSLType`
 
     .. automethod:: __call__
+    .. automethod:: __getattr__
     """
 
     def __init__(self, schema: GraphQLSchema):
@@ -340,9 +341,9 @@ class DSLSchema:
         and fragment definitions (fragment).
 
         :param shortcut: the name of the object to create
-        :type shortcut: LiteralString
+        :type shortcut: str
 
-        :return: DSLDirective instance
+        :return: :class:`DSLDirective` instance
 
         :raises ValueError: if shortcut format is not supported
         """
@@ -356,6 +357,13 @@ class DSLSchema:
         raise ValueError(f"Unsupported shortcut: {shortcut}")
 
     def __getattr__(self, name: str) -> "DSLType":
+        """Attributes of the DSLSchema class are generated automatically
+        with this dunder method in order to generate
+        instances of :class:`DSLType`
+
+        :return: :class:`DSLType` instance
+        :raises AttributeError: if the name is not valid
+        """
 
         type_def: Optional[GraphQLNamedType] = self._schema.get_type(name)
 
@@ -879,6 +887,8 @@ class DSLVariableDefinitions:
     with the `__getattr__` dunder method in order to generate
     instances of :class:`DSLVariable`, that can then be used as values
     in the :meth:`args <gql.dsl.DSLField.args>` method.
+
+    .. automethod:: __getattr__
     """
 
     def __init__(self):
@@ -886,6 +896,12 @@ class DSLVariableDefinitions:
         self.variables: Dict[str, DSLVariable] = {}
 
     def __getattr__(self, name: str) -> "DSLVariable":
+        """Attributes of the DSLVariableDefinitions class are generated automatically
+        with this dunder method in order to generate
+        instances of :class:`DSLVariable`
+
+        :return: :class:`DSLVariable` instance
+        """
         if name not in self.variables:
             self.variables[name] = DSLVariable(name)
         return self.variables[name]
@@ -925,6 +941,8 @@ class DSLType:
     Attributes of the DSLType class are generated automatically
     with the `__getattr__` dunder method in order to generate
     instances of :class:`DSLField`
+
+    .. automethod:: __getattr__
     """
 
     def __init__(
@@ -946,6 +964,13 @@ class DSLType:
         log.debug(f"Creating {self!r})")
 
     def __getattr__(self, name: str) -> "DSLField":
+        """Attributes of the DSLType class are generated automatically
+        with this dunder method in order to generate
+        instances of :class:`DSLField`
+
+        :return: :class:`DSLField` instance
+        :raises AttributeError: if the field name does not exist in the type
+        """
         camel_cased_name = to_camel_case(name)
 
         if name in self._type.fields:
