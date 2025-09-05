@@ -5,6 +5,7 @@
 
 import logging
 import re
+import sys
 from abc import ABC, abstractmethod
 from math import isfinite
 from typing import (
@@ -82,6 +83,11 @@ from graphql.pyutils import inspect
 
 from .graphql_request import GraphQLRequest
 from .utils import to_camel_case
+
+if sys.version_info >= (3, 11):
+    from typing import Self  # pragma: no cover
+else:
+    from typing_extensions import Self  # pragma: no cover
 
 log = logging.getLogger(__name__)
 
@@ -457,7 +463,7 @@ class DSLDirective:
     behavior in a GraphQL document.
     """
 
-    def __init__(self, name: str, dsl_schema: "DSLSchema"):
+    def __init__(self, name: str, dsl_schema: DSLSchema):
         r"""Initialize the DSLDirective with the given name and arguments.
 
         :param name: the name of the directive
@@ -510,7 +516,7 @@ class DSLDirective:
         """Get the directive name."""
         return self.ast_directive.name.value
 
-    def __call__(self, **kwargs: Any) -> "DSLDirective":
+    def __call__(self, **kwargs: Any) -> Self:
         """Add arguments by calling the directive like a function.
 
         :param kwargs: directive arguments
@@ -518,7 +524,7 @@ class DSLDirective:
         """
         return self.args(**kwargs)
 
-    def args(self, **kwargs: Any) -> "DSLDirective":
+    def args(self, **kwargs: Any) -> Self:
         r"""Set the arguments of a directive
 
         The arguments are parsed to be stored in the AST of this field.
@@ -584,7 +590,7 @@ class DSLDirectable(ABC):
         self._directives = ()
 
     @abstractmethod
-    def is_valid_directive(self, directive: "DSLDirective") -> bool:
+    def is_valid_directive(self, directive: DSLDirective) -> bool:
         """Check if a directive is valid for this DSL element.
 
         :param directive: The DSLDirective to validate
@@ -594,7 +600,7 @@ class DSLDirectable(ABC):
             "Any DSLDirectable concrete class must have an is_valid_directive method"
         )  # pragma: no cover
 
-    def directives(self, *directives: DSLDirective) -> Any:
+    def directives(self, *directives: DSLDirective) -> Self:
         r"""Add directives to this DSL element.
 
         :param \*directives: DSLDirective instances to add
@@ -799,7 +805,7 @@ class DSLOperation(DSLExecutable, DSLRootFieldSelector):
 class DSLQuery(DSLOperation):
     operation_type = OperationType.QUERY
 
-    def is_valid_directive(self, directive: "DSLDirective") -> bool:
+    def is_valid_directive(self, directive: DSLDirective) -> bool:
         """Check if directive is valid for Query operations."""
         return DirectiveLocation.QUERY in directive.directive_def.locations
 
@@ -807,7 +813,7 @@ class DSLQuery(DSLOperation):
 class DSLMutation(DSLOperation):
     operation_type = OperationType.MUTATION
 
-    def is_valid_directive(self, directive: "DSLDirective") -> bool:
+    def is_valid_directive(self, directive: DSLDirective) -> bool:
         """Check if directive is valid for Mutation operations."""
         return DirectiveLocation.MUTATION in directive.directive_def.locations
 
@@ -815,7 +821,7 @@ class DSLMutation(DSLOperation):
 class DSLSubscription(DSLOperation):
     operation_type = OperationType.SUBSCRIPTION
 
-    def is_valid_directive(self, directive: "DSLDirective") -> bool:
+    def is_valid_directive(self, directive: DSLDirective) -> bool:
         """Check if directive is valid for Subscription operations."""
         return DirectiveLocation.SUBSCRIPTION in directive.directive_def.locations
 
@@ -854,16 +860,16 @@ class DSLVariable(DSLDirectable):
 
         return NamedTypeNode(name=NameNode(value=type_.name))
 
-    def set_type(self, type_: GraphQLInputType) -> "DSLVariable":
+    def set_type(self, type_: GraphQLInputType) -> Self:
         self.type = type_
         self.ast_variable_type = self.to_ast_type(type_)
         return self
 
-    def default(self, default_value: Any) -> "DSLVariable":
+    def default(self, default_value: Any) -> Self:
         self.default_value = default_value
         return self
 
-    def is_valid_directive(self, directive: "DSLDirective") -> bool:
+    def is_valid_directive(self, directive: DSLDirective) -> bool:
         """Check if directive is valid for Variable definitions."""
         for arg in directive.ast_directive.arguments:
             if isinstance(arg.value, VariableNode):
@@ -894,7 +900,7 @@ class DSLVariableDefinitions:
         """:meta private:"""
         self.variables: Dict[str, DSLVariable] = {}
 
-    def __getattr__(self, name: str) -> "DSLVariable":
+    def __getattr__(self, name: str) -> DSLVariable:
         """Attributes of the DSLVariableDefinitions class are generated automatically
         with this dunder method in order to generate
         instances of :class:`DSLVariable`
@@ -1097,7 +1103,7 @@ class DSLSelectableWithAlias(DSLSelectable):
 
     ast_field: FieldNode
 
-    def alias(self, alias: str) -> "DSLSelectableWithAlias":
+    def alias(self, alias: str) -> Self:
         """Set an alias
 
         .. note::
@@ -1168,10 +1174,10 @@ class DSLField(DSLSelectableWithAlias, DSLFieldSelector):
         """:meta private:"""
         return self.ast_field.name.value
 
-    def __call__(self, **kwargs: Any) -> "DSLField":
+    def __call__(self, **kwargs: Any) -> Self:
         return self.args(**kwargs)
 
-    def args(self, **kwargs: Any) -> "DSLField":
+    def args(self, **kwargs: Any) -> Self:
         r"""Set the arguments of a field
 
         The arguments are parsed to be stored in the AST of this field.
@@ -1217,8 +1223,8 @@ class DSLField(DSLSelectableWithAlias, DSLFieldSelector):
         return arg
 
     def select(
-        self, *fields: "DSLSelectable", **fields_with_alias: "DSLSelectableWithAlias"
-    ) -> "DSLField":
+        self, *fields: DSLSelectable, **fields_with_alias: DSLSelectableWithAlias
+    ) -> Self:
         """Calling :meth:`select <gql.dsl.DSLSelector.select>` method with
         corrected typing hints
         """
@@ -1228,14 +1234,14 @@ class DSLField(DSLSelectableWithAlias, DSLFieldSelector):
 
         return self
 
-    def directives(self, *directives: DSLDirective) -> "DSLField":
+    def directives(self, *directives: DSLDirective) -> Self:
         """Add directives to this field."""
         super().directives(*directives)
         self.ast_field.directives = self.directives_ast
 
         return self
 
-    def is_valid_directive(self, directive: "DSLDirective") -> bool:
+    def is_valid_directive(self, directive: DSLDirective) -> bool:
         """Check if directive is valid for Field locations."""
         return DirectiveLocation.FIELD in directive.directive_def.locations
 
@@ -1277,7 +1283,7 @@ class DSLMetaField(DSLField):
 
         super().__init__(name, self.meta_type, field)
 
-    def is_valid_directive(self, directive: "DSLDirective") -> bool:
+    def is_valid_directive(self, directive: DSLDirective) -> bool:
         """Check if directive is valid for MetaField locations (same as Field)."""
         return DirectiveLocation.FIELD in directive.directive_def.locations
 
@@ -1290,8 +1296,8 @@ class DSLInlineFragment(DSLSelectable, DSLFragmentSelector):
 
     def __init__(
         self,
-        *fields: "DSLSelectable",
-        **fields_with_alias: "DSLSelectableWithAlias",
+        *fields: DSLSelectable,
+        **fields_with_alias: DSLSelectableWithAlias,
     ):
         r"""Initialize the DSLInlineFragment.
 
@@ -1309,8 +1315,8 @@ class DSLInlineFragment(DSLSelectable, DSLFragmentSelector):
         DSLDirectable.__init__(self)
 
     def select(
-        self, *fields: "DSLSelectable", **fields_with_alias: "DSLSelectableWithAlias"
-    ) -> "DSLInlineFragment":
+        self, *fields: DSLSelectable, **fields_with_alias: DSLSelectableWithAlias
+    ) -> Self:
         """Calling :meth:`select <gql.dsl.DSLSelector.select>` method with
         corrected typing hints
         """
@@ -1319,7 +1325,7 @@ class DSLInlineFragment(DSLSelectable, DSLFragmentSelector):
 
         return self
 
-    def on(self, type_condition: DSLType) -> "DSLInlineFragment":
+    def on(self, type_condition: DSLType) -> Self:
         """Provides the GraphQL type of this inline fragment."""
 
         self._type = type_condition._type
@@ -1328,7 +1334,7 @@ class DSLInlineFragment(DSLSelectable, DSLFragmentSelector):
         )
         return self
 
-    def directives(self, *directives: DSLDirective) -> "DSLInlineFragment":
+    def directives(self, *directives: DSLDirective) -> Self:
         """Add directives to this inline fragment.
 
         Inline fragments support all directive types through auto-validation.
@@ -1347,7 +1353,7 @@ class DSLInlineFragment(DSLSelectable, DSLFragmentSelector):
 
         return f"<{self.__class__.__name__}{type_info}>"
 
-    def is_valid_directive(self, directive: "DSLDirective") -> bool:
+    def is_valid_directive(self, directive: DSLDirective) -> bool:
         """Check if directive is valid for Inline Fragment locations."""
         return DirectiveLocation.INLINE_FRAGMENT in directive.directive_def.locations
 
@@ -1381,7 +1387,7 @@ class DSLFragmentSpread(DSLSelectable):
         """:meta private:"""
         return self.ast_field.name.value
 
-    def directives(self, *directives: DSLDirective) -> "DSLFragmentSpread":
+    def directives(self, *directives: DSLDirective) -> Self:
         """Add directives to this fragment spread.
 
         Fragment spreads support all directive types through auto-validation.
@@ -1390,7 +1396,7 @@ class DSLFragmentSpread(DSLSelectable):
         self.ast_field.directives = self.directives_ast
         return self
 
-    def is_valid_directive(self, directive: "DSLDirective") -> bool:
+    def is_valid_directive(self, directive: DSLDirective) -> bool:
         """Check if directive is valid for Fragment Spread locations."""
         return DirectiveLocation.FRAGMENT_SPREAD in directive.directive_def.locations
 
@@ -1444,8 +1450,8 @@ class DSLFragment(DSLSelectable, DSLFragmentSelector, DSLExecutable):
         return DSLFragmentSpread(self)
 
     def select(
-        self, *fields: "DSLSelectable", **fields_with_alias: "DSLSelectableWithAlias"
-    ) -> "DSLFragment":
+        self, *fields: DSLSelectable, **fields_with_alias: DSLSelectableWithAlias
+    ) -> Self:
         """Calling :meth:`select <gql.dsl.DSLSelector.select>` method with
         corrected typing hints
         """
@@ -1458,7 +1464,7 @@ class DSLFragment(DSLSelectable, DSLFragmentSelector, DSLExecutable):
 
         return self
 
-    def on(self, type_condition: DSLType) -> "DSLFragment":
+    def on(self, type_condition: DSLType) -> Self:
         """Provides the GraphQL type of this fragment.
 
         :param type_condition: the provided type
@@ -1506,7 +1512,7 @@ class DSLFragment(DSLSelectable, DSLFragmentSelector, DSLExecutable):
             directives=self.directives_ast,
         )
 
-    def is_valid_directive(self, directive: "DSLDirective") -> bool:
+    def is_valid_directive(self, directive: DSLDirective) -> bool:
         """Check if directive is valid for Fragment Definition locations."""
         return (
             DirectiveLocation.FRAGMENT_DEFINITION in directive.directive_def.locations
