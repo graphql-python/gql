@@ -1497,7 +1497,7 @@ def dsl_gql(
     """
 
     # Concatenate operations without and with name
-    all_operations: Tuple["DSLExecutable", ...] = (
+    all_operations: Tuple[DSLExecutable, ...] = (
         *operations,
         *(operation for operation in operations_with_name.values()),
     )
