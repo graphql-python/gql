@@ -329,78 +329,6 @@ class DSLSchema:
         return DSLType(type_def, self)
 
 
-class DSLSelector(ABC):
-    """DSLSelector is an abstract class which defines the
-    :meth:`select <gql.dsl.DSLSelector.select>` method to select
-    children fields in the query.
-
-    Inherited by
-    :class:`DSLRootFieldSelector <gql.dsl.DSLRootFieldSelector>`,
-    :class:`DSLFieldSelector <gql.dsl.DSLFieldSelector>`
-    :class:`DSLFragmentSelector <gql.dsl.DSLFragmentSelector>`
-    """
-
-    selection_set: SelectionSetNode
-
-    def __init__(
-        self,
-        *fields: "DSLSelectable",
-        **fields_with_alias: "DSLSelectableWithAlias",
-    ):
-        """:meta private:"""
-        self.selection_set = SelectionSetNode(selections=())
-
-        if fields or fields_with_alias:
-            self.select(*fields, **fields_with_alias)
-
-    @abstractmethod
-    def is_valid_field(self, field: "DSLSelectable") -> bool:
-        raise NotImplementedError(
-            "Any DSLSelector subclass must have a is_valid_field method"
-        )  # pragma: no cover
-
-    def select(
-        self,
-        *fields: "DSLSelectable",
-        **fields_with_alias: "DSLSelectableWithAlias",
-    ) -> Any:
-        r"""Select the fields which should be added.
-
-        :param \*fields: fields or fragments
-        :type \*fields: DSLSelectable
-        :param \**fields_with_alias: fields or fragments with alias as key
-        :type \**fields_with_alias: DSLSelectable
-
-        :raises TypeError: if an argument is not an instance of :class:`DSLSelectable`
-        :raises graphql.error.GraphQLError: if an argument is not a valid field
-        """
-        # Concatenate fields without and with alias
-        added_fields: Tuple["DSLSelectable", ...] = DSLField.get_aliased_fields(
-            fields, fields_with_alias
-        )
-
-        # Check that each field is valid
-        for field in added_fields:
-            if not isinstance(field, DSLSelectable):
-                raise TypeError(
-                    "Fields should be instances of DSLSelectable. "
-                    f"Received: {type(field)}"
-                )
-
-            if not self.is_valid_field(field):
-                raise GraphQLError(f"Invalid field for {self!r}: {field!r}")
-
-        # Get a list of AST Nodes for each added field
-        added_selections: Tuple[
-            Union[FieldNode, InlineFragmentNode, FragmentSpreadNode], ...
-        ] = tuple(field.ast_field for field in added_fields)
-
-        # Update the current selection list with new selections
-        self.selection_set.selections = self.selection_set.selections + added_selections
-
-        log.debug(f"Added fields: {added_fields} in {self!r}")
-
-
 class DSLDirective:
     """The DSLDirective represents a GraphQL directive for the DSL code.
 
@@ -612,6 +540,138 @@ class DSLDirectable(ABC):
         return tuple(directive.ast_directive for directive in self._directives)
 
 
+class DSLSelectable(DSLDirectable):
+    """DSLSelectable is an abstract class which indicates that
+    the subclasses can be used as arguments of the
+    :meth:`select <gql.dsl.DSLSelector.select>` method.
+
+    Inherited by
+    :class:`DSLField <gql.dsl.DSLField>`,
+    :class:`DSLFragment <gql.dsl.DSLFragment>`
+    :class:`DSLInlineFragment <gql.dsl.DSLInlineFragment>`
+    """
+
+    ast_field: Union[FieldNode, InlineFragmentNode, FragmentSpreadNode]
+
+    @staticmethod
+    def get_aliased_fields(
+        fields: Iterable["DSLSelectable"],
+        fields_with_alias: Dict[str, "DSLSelectableWithAlias"],
+    ) -> Tuple["DSLSelectable", ...]:
+        """
+        :meta private:
+
+        Concatenate all the fields (with or without alias) in a Tuple.
+
+        Set the requested alias for the fields with alias.
+        """
+
+        return (
+            *fields,
+            *(field.alias(alias) for alias, field in fields_with_alias.items()),
+        )
+
+    def __str__(self) -> str:
+        return print_ast(self.ast_field)
+
+
+class DSLSelectableWithAlias(DSLSelectable):
+    """DSLSelectableWithAlias is an abstract class which indicates that
+    the subclasses can be selected with an alias.
+    """
+
+    ast_field: FieldNode
+
+    def alias(self, alias: str) -> Self:
+        """Set an alias
+
+        .. note::
+            You can also pass the alias directly at the
+            :meth:`select <gql.dsl.DSLSelector.select>` method.
+            :code:`ds.Query.human.select(my_name=ds.Character.name)` is equivalent to:
+            :code:`ds.Query.human.select(ds.Character.name.alias("my_name"))`
+
+        :param alias: the alias
+        :type alias: str
+        :return: itself
+        """
+
+        self.ast_field.alias = NameNode(value=alias)
+        return self
+
+
+class DSLSelector(ABC):
+    """DSLSelector is an abstract class which defines the
+    :meth:`select <gql.dsl.DSLSelector.select>` method to select
+    children fields in the query.
+
+    Inherited by
+    :class:`DSLRootFieldSelector <gql.dsl.DSLRootFieldSelector>`,
+    :class:`DSLFieldSelector <gql.dsl.DSLFieldSelector>`
+    :class:`DSLFragmentSelector <gql.dsl.DSLFragmentSelector>`
+    """
+
+    selection_set: SelectionSetNode
+
+    def __init__(
+        self,
+        *fields: DSLSelectable,
+        **fields_with_alias: DSLSelectableWithAlias,
+    ):
+        """:meta private:"""
+        self.selection_set = SelectionSetNode(selections=())
+
+        if fields or fields_with_alias:
+            self.select(*fields, **fields_with_alias)
+
+    @abstractmethod
+    def is_valid_field(self, field: DSLSelectable) -> bool:
+        raise NotImplementedError(
+            "Any DSLSelector subclass must have a is_valid_field method"
+        )  # pragma: no cover
+
+    def select(
+        self,
+        *fields: DSLSelectable,
+        **fields_with_alias: DSLSelectableWithAlias,
+    ) -> Any:
+        r"""Select the fields which should be added.
+
+        :param \*fields: fields or fragments
+        :type \*fields: DSLSelectable
+        :param \**fields_with_alias: fields or fragments with alias as key
+        :type \**fields_with_alias: DSLSelectable
+
+        :raises TypeError: if an argument is not an instance of :class:`DSLSelectable`
+        :raises graphql.error.GraphQLError: if an argument is not a valid field
+        """
+        # Concatenate fields without and with alias
+        added_fields: Tuple[DSLSelectable, ...] = DSLField.get_aliased_fields(
+            fields, fields_with_alias
+        )
+
+        # Check that each field is valid
+        for field in added_fields:
+            if not isinstance(field, DSLSelectable):
+                raise TypeError(
+                    "Fields should be instances of DSLSelectable. "
+                    f"Received: {type(field)}"
+                )
+
+            if not self.is_valid_field(field):
+                raise GraphQLError(f"Invalid field for {self!r}: {field!r}")
+
+        # Get a list of AST Nodes for each added field
+        added_selections: Tuple[
+            Union[FieldNode, InlineFragmentNode, FragmentSpreadNode], ...
+        ] = tuple(field.ast_field for field in added_fields)
+
+        # Update the current selection list with new selections
+        self.selection_set.selections = self.selection_set.selections + added_selections
+
+        log.debug(f"Added fields: {added_fields} in {self!r}")
+
+
 class DSLExecutable(DSLSelector, DSLDirectable):
     """Interface for the root elements which can be executed
     in the :func:`dsl_gql <gql.dsl.dsl_gql>` function
@@ -635,8 +695,8 @@ class DSLExecutable(DSLSelector, DSLDirectable):
 
     def __init__(
         self,
-        *fields: "DSLSelectable",
-        **fields_with_alias: "DSLSelectableWithAlias",
+        *fields: DSLSelectable,
+        **fields_with_alias: DSLSelectableWithAlias,
     ):
         r"""Given arguments of type :class:`DSLSelectable` containing GraphQL requests,
         generate an operation which can be converted to a Document
@@ -673,7 +733,7 @@ class DSLRootFieldSelector(DSLSelector):
     :class:`DSLOperation <gql.dsl.DSLOperation>`
     """
 
-    def is_valid_field(self, field: "DSLSelectable") -> bool:
+    def is_valid_field(self, field: DSLSelectable) -> bool:
         """Check that a field is valid for a root field.
 
         For operations, the fields arguments should be fields of root GraphQL types
@@ -940,41 +1000,6 @@ class DSLType:
         return f"<{self.__class__.__name__} {self._type!r}>"
 
 
-class DSLSelectable(DSLDirectable):
-    """DSLSelectable is an abstract class which indicates that
-    the subclasses can be used as arguments of the
-    :meth:`select <gql.dsl.DSLSelector.select>` method.
-
-    Inherited by
-    :class:`DSLField <gql.dsl.DSLField>`,
-    :class:`DSLFragment <gql.dsl.DSLFragment>`
-    :class:`DSLInlineFragment <gql.dsl.DSLInlineFragment>`
-    """
-
-    ast_field: Union[FieldNode, InlineFragmentNode, FragmentSpreadNode]
-
-    @staticmethod
-    def get_aliased_fields(
-        fields: Iterable["DSLSelectable"],
-        fields_with_alias: Dict[str, "DSLSelectableWithAlias"],
-    ) -> Tuple["DSLSelectable", ...]:
-        """
-        :meta private:
-
-        Concatenate all the fields (with or without alias) in a Tuple.
-
-        Set the requested alias for the fields with alias.
-        """
-
-        return (
-            *fields,
-            *(field.alias(alias) for alias, field in fields_with_alias.items()),
-        )
-
-    def __str__(self) -> str:
-        return print_ast(self.ast_field)
-
-
 class DSLFragmentSelector(DSLSelector):
     """Class used to define the
     :meth:`is_valid_field <gql.dsl.DSLFragmentSelector.is_valid_field>` method
@@ -1039,31 +1064,6 @@ class DSLFieldSelector(DSLSelector):
             return parent_type.fields[field.name].type == field.field.type
 
         return False
-
-
-class DSLSelectableWithAlias(DSLSelectable):
-    """DSLSelectableWithAlias is an abstract class which indicates that
-    the subclasses can be selected with an alias.
-    """
-
-    ast_field: FieldNode
-
-    def alias(self, alias: str) -> Self:
-        """Set an alias
-
-        .. note::
-            You can also pass the alias directly at the
-            :meth:`select <gql.dsl.DSLSelector.select>` method.
-            :code:`ds.Query.human.select(my_name=ds.Character.name)` is equivalent to:
-            :code:`ds.Query.human.select(ds.Character.name.alias("my_name"))`
-
-        :param alias: the alias
-        :type alias: str
-        :return: itself
-        """
-
-        self.ast_field.alias = NameNode(value=alias)
-        return self
 
 
 class DSLField(DSLSelectableWithAlias, DSLFieldSelector):
