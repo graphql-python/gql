@@ -23,6 +23,7 @@ from graphql.utilities import get_introspection_query
 
 from gql import Client, gql
 from gql.dsl import (
+    DSLDirective,
     DSLField,
     DSLFragment,
     DSLFragmentSpread,
@@ -1295,6 +1296,22 @@ fragment heroFragment($episode: Episode) on Query {
 }
 """.strip()
     assert print_ast(query.document) == expected
+
+
+@pytest.mark.parametrize(
+    "shortcut,expected",
+    [
+        ("__typename", DSLMetaField("__typename")),
+        ("__schema", DSLMetaField("__schema")),
+        ("__type", DSLMetaField("__type")),
+        ("...", DSLInlineFragment()),
+        ("@skip", DSLDirective(name="skip", dsl_schema=DSLSchema(StarWarsSchema))),
+    ],
+)
+def test_dsl_schema_call_shortcuts(ds, shortcut, expected):
+    actual = ds(shortcut)
+    assert getattr(actual, "name", None) == getattr(expected, "name", None)
+    assert isinstance(actual, type(expected))
 
 
 def test_dsl_schema_call_validation(ds):

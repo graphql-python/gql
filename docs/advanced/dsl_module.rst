@@ -373,6 +373,14 @@ this can be written in a concise manner::
         DSLInlineFragment().on(ds.Human).select(ds.Human.homePlanet)
     )
 
+Alternatively, you can use the DSL shortcut syntax to create an inline fragment by
+passing the string ``"..."`` directly to the :meth:`__call__ <gql.dsl.DSLSchema.__call__>` method::
+
+    query_with_inline_fragment = ds.Query.hero.args(episode=6).select(
+        ds.Character.name,
+        ds("...").on(ds.Human).select(ds.Human.homePlanet)
+    )
+
 Meta-fields
 ^^^^^^^^^^^
 
@@ -383,6 +391,15 @@ you can use the :class:`DSLMetaField <gql.dsl.DSLMetaField>` class::
         ds.Character.name,
         DSLMetaField("__typename")
     )
+
+Alternatively, you can use the DSL shortcut syntax to create the same meta-field by
+passing the ``"__typename"`` string directly to the :meth:`__call__ <gql.dsl.DSLSchema.__call__>` method::
+
+    query = ds.Query.hero.select(
+        ds.Character.name,
+        ds("__typename")
+    )
+
 
 Directives
 ^^^^^^^^^^

@@ -324,35 +324,34 @@ class DSLSchema:
     ) -> "DSLInlineFragment": ...  # pragma: no cover
 
     @overload
-    def __call__(
-        self, shortcut: Literal["fragment"], name: str
-    ) -> "DSLFragment": ...  # pragma: no cover
-
-    @overload
     def __call__(self, shortcut: Any) -> "DSLDirective": ...  # pragma: no cover
 
     def __call__(
-        self, shortcut: str, name: Optional[str] = None
-    ) -> Union["DSLMetaField", "DSLInlineFragment", "DSLFragment", "DSLDirective"]:
-        """Factory method for creating DSL objects.
+        self, shortcut: str
+    ) -> Union["DSLMetaField", "DSLInlineFragment", "DSLDirective"]:
+        """Factory method for creating DSL objects from a shortcut string.
 
-        Currently, supports creating DSLDirective instances when name starts with '@'.
-        Future support planned for meta-fields (__typename), inline fragments (...),
-        and fragment definitions (fragment).
+        The shortcut determines which DSL object is created:
 
-        :param shortcut: the name of the object to create
+          * "__typename", "__schema", "__type" -> :class:`DSLMetaField`
+          * "..." -> :class:`DSLInlineFragment`
+          * "@<name>" -> :class:`DSLDirective`
+
+        :param shortcut: The shortcut string identifying the DSL object.
         :type shortcut: str
 
-        :return: :class:`DSLDirective` instance
+        :return: A DSL object corresponding to the given shortcut.
+        :rtype: DSLMetaField | DSLInlineFragment | DSLDirective
 
-        :raises ValueError: if shortcut format is not supported
+        :raises ValueError: If the shortcut is not recognized.
         """
+
+        if shortcut in ("__typename", "__schema", "__type"):
+            return DSLMetaField(name=shortcut)
+        if shortcut == "...":
+            return DSLInlineFragment()
         if shortcut.startswith("@"):
             return DSLDirective(name=shortcut[1:], dsl_schema=self)
-        # Future support:
-        # if name.startswith("__"): return DSLMetaField(name)
-        # if name == "...": return DSLInlineFragment()
-        # if name.startswith("fragment "): return DSLFragment(name[9:])
 
         raise ValueError(f"Unsupported shortcut: {shortcut}")
 
