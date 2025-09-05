@@ -7,6 +7,7 @@ install_requires = [
     "yarl>=1.6,<2.0",
     "backoff>=1.11.1,<3.0",
     "anyio>=3.0,<5",
+    "typing_extensions>=4.0.0; python_version<'3.11'",
 ]
 
 console_scripts = [
