@@ -236,61 +236,6 @@ def ast_from_value(value: Any, type_: GraphQLInputType) -> Optional[ValueNode]:
     raise TypeError(f"Unexpected input type: {inspect(type_)}.")
 
 
-def dsl_gql(
-    *operations: "DSLExecutable", **operations_with_name: "DSLExecutable"
-) -> GraphQLRequest:
-    r"""Given arguments instances of :class:`DSLExecutable`
-    containing GraphQL operations or fragments,
-    generate a Document which can be executed later in a
-    gql client or a gql session.
-
-    Similar to the :func:`gql.gql` function but instead of parsing a python
-    string to describe the request, we are using operations which have been generated
-    dynamically using instances of :class:`DSLField`, generated
-    by instances of :class:`DSLType` which themselves originated from
-    a :class:`DSLSchema` class.
-
-    :param \*operations: the GraphQL operations and fragments
-    :type \*operations: DSLQuery, DSLMutation, DSLSubscription, DSLFragment
-    :param \**operations_with_name: the GraphQL operations with an operation name
-    :type \**operations_with_name: DSLQuery, DSLMutation, DSLSubscription
-
-    :return: a :class:`GraphQLRequest <gql.GraphQLRequest>`
-        which can be later executed or subscribed by a
-        :class:`Client <gql.client.Client>`, by an
-        :class:`async session <gql.client.AsyncClientSession>` or by a
-        :class:`sync session <gql.client.SyncClientSession>`
-
-    :raises TypeError: if an argument is not an instance of :class:`DSLExecutable`
-    :raises AttributeError: if a type has not been provided in a :class:`DSLFragment`
-    """
-
-    # Concatenate operations without and with name
-    all_operations: Tuple["DSLExecutable", ...] = (
-        *operations,
-        *(operation for operation in operations_with_name.values()),
-    )
-
-    # Set the operation name
-    for name, operation in operations_with_name.items():
-        operation.name = name
-
-    # Check the type
-    for operation in all_operations:
-        if not isinstance(operation, DSLExecutable):
-            raise TypeError(
-                "Operations should be instances of DSLExecutable "
-                "(DSLQuery, DSLMutation, DSLSubscription or DSLFragment).\n"
-                f"Received: {type(operation)}."
-            )
-
-    document = DocumentNode(
-        definitions=[operation.executable_ast for operation in all_operations]
-    )
-
-    return GraphQLRequest(document)
-
-
 class DSLSchema:
     """The DSLSchema is the root of the DSL code.
 
@@ -1520,3 +1465,58 @@ class DSLFragment(DSLSelectable, DSLFragmentSelector, DSLExecutable):
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} {self.name!s}>"
+
+
+def dsl_gql(
+    *operations: DSLExecutable, **operations_with_name: DSLExecutable
+) -> GraphQLRequest:
+    r"""Given arguments instances of :class:`DSLExecutable`
+    containing GraphQL operations or fragments,
+    generate a Document which can be executed later in a
+    gql client or a gql session.
+
+    Similar to the :func:`gql.gql` function but instead of parsing a python
+    string to describe the request, we are using operations which have been generated
+    dynamically using instances of :class:`DSLField`, generated
+    by instances of :class:`DSLType` which themselves originated from
+    a :class:`DSLSchema` class.
+
+    :param \*operations: the GraphQL operations and fragments
+    :type \*operations: DSLQuery, DSLMutation, DSLSubscription, DSLFragment
+    :param \**operations_with_name: the GraphQL operations with an operation name
+    :type \**operations_with_name: DSLQuery, DSLMutation, DSLSubscription
+
+    :return: a :class:`GraphQLRequest <gql.GraphQLRequest>`
+        which can be later executed or subscribed by a
+        :class:`Client <gql.client.Client>`, by an
+        :class:`async session <gql.client.AsyncClientSession>` or by a
+        :class:`sync session <gql.client.SyncClientSession>`
+
+    :raises TypeError: if an argument is not an instance of :class:`DSLExecutable`
+    :raises AttributeError: if a type has not been provided in a :class:`DSLFragment`
+    """
+
+    # Concatenate operations without and with name
+    all_operations: Tuple["DSLExecutable", ...] = (
+        *operations,
+        *(operation for operation in operations_with_name.values()),
+    )
+
+    # Set the operation name
+    for name, operation in operations_with_name.items():
+        operation.name = name
+
+    # Check the type
+    for operation in all_operations:
+        if not isinstance(operation, DSLExecutable):
+            raise TypeError(
+                "Operations should be instances of DSLExecutable "
+                "(DSLQuery, DSLMutation, DSLSubscription or DSLFragment).\n"
+                f"Received: {type(operation)}."
+            )
+
+    document = DocumentNode(
+        definitions=[operation.executable_ast for operation in all_operations]
+    )
+
+    return GraphQLRequest(document)
