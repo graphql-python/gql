@@ -173,7 +173,7 @@ class AIOHTTPTransport(AsyncTransport):
         upload_files: bool = False,
     ) -> Dict[str, Any]:
 
-        payload: Dict | List
+        payload: Union[Dict, List]
         if isinstance(request, GraphQLRequest):
             payload = request.payload
         else:
