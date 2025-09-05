@@ -324,46 +324,32 @@ class DSLSchema:
     ) -> "DSLInlineFragment": ...  # pragma: no cover
 
     @overload
-    def __call__(
-        self, shortcut: Literal["fragment"], name: str
-    ) -> "DSLFragment": ...  # pragma: no cover
-
-    @overload
     def __call__(self, shortcut: Any) -> "DSLDirective": ...  # pragma: no cover
 
     def __call__(
-        self, shortcut: str, name: Optional[str] = None
-    ) -> Union["DSLMetaField", "DSLInlineFragment", "DSLFragment", "DSLDirective"]:
+        self, shortcut: str
+    ) -> Union["DSLMetaField", "DSLInlineFragment", "DSLDirective"]:
         """Factory method for creating DSL objects from a shortcut string.
 
         The shortcut determines which DSL object is created:
 
           * "__typename", "__schema", "__type" -> :class:`DSLMetaField`
           * "..." -> :class:`DSLInlineFragment`
-          * "fragment" -> :class:`DSLFragment` (requires ``name`` to be a string)
           * "@<name>" -> :class:`DSLDirective`
 
         :param shortcut: The shortcut string identifying the DSL object.
         :type shortcut: str
 
-        :param name: The fragment name, required when ``shortcut == "fragment"``.
-        :type name: Optional[str]
-
         :return: A DSL object corresponding to the given shortcut.
-        :rtype: DSLMetaField | DSLInlineFragment | DSLFragment | DSLDirective
+        :rtype: DSLMetaField | DSLInlineFragment | DSLDirective
 
-        :raises ValueError: If the shortcut is not recognized,
-            or if ``name`` is missing for a fragment shortcut.
+        :raises ValueError: If the shortcut is not recognized.
         """
 
         if shortcut in ("__typename", "__schema", "__type"):
             return DSLMetaField(name=shortcut)
         if shortcut == "...":
             return DSLInlineFragment()
-        if shortcut == "fragment":
-            if not isinstance(name, str):
-                raise ValueError(f"Missing name: {name} for fragment shortcut")
-            return DSLFragment(name=name)
         if shortcut.startswith("@"):
             return DSLDirective(name=shortcut[1:], dsl_schema=self)
 

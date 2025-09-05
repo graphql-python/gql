@@ -1314,19 +1314,9 @@ def test_dsl_schema_call_shortcuts(ds, shortcut, expected):
     assert isinstance(actual, type(expected))
 
 
-def test_dsl_schema_call_fragment(ds):
-    fragment = ds("fragment", "foo")
-    assert fragment.name == "foo"
-    assert isinstance(fragment, DSLFragment)
-
-
-@pytest.mark.parametrize(
-    "shortcut,match",
-    [("foo", "(?i)unsupported shortcut"), ("fragment", "(?i)missing name")],
-)
-def test_dsl_schema_call_validation(ds, shortcut, match):
-    with pytest.raises(ValueError, match=match):
-        ds(shortcut)
+def test_dsl_schema_call_validation(ds):
+    with pytest.raises(ValueError, match="(?i)unsupported shortcut"):
+        ds("foo")
 
 
 def test_executable_directives(ds, var):

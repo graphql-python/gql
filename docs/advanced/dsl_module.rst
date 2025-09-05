@@ -328,16 +328,6 @@ The above example will generate the following request::
         }
     }
 
-Alternatively, you can use the DSL shortcut syntax to create a fragment by
-passing the string ``"fragment"`` directly to the :meth:`__call__ <gql.dsl.DSLSchema.__call__>` method.
-When using the shortcut, you must also provide the fragment name via the ``name`` parameter::
-
-    name_and_appearances = (
-        ds("fragment", "NameAndAppearances")
-        .on(ds.Character)
-        .select(ds.Character.name, ds.Character.appearsIn)
-    )
-
 Inline Fragments
 ^^^^^^^^^^^^^^^^
 
