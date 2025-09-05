@@ -7,6 +7,7 @@ install_requires = [
     "yarl>=1.6,<2.0",
     "backoff>=1.11.1,<3.0",
     "anyio>=3.0,<5",
+    "typing_extensions>=4.0.0; python_version<'3.11'",
 ]
 
 console_scripts = [
@@ -32,7 +33,8 @@ dev_requires = [
     "sphinx>=7.0.0,<8;python_version<='3.9'",
     "sphinx>=8.1.0,<9;python_version>'3.9'",
     "sphinx_rtd_theme>=3.0.2,<4",
-    "sphinx-argparse==0.5.2",
+    "sphinx-argparse==0.5.2; python_version>='3.10'",
+    "sphinx-argparse==0.4.0; python_version<'3.10'",
     "types-aiofiles",
     "types-requests",
 ] + tests_requires
