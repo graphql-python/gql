@@ -140,7 +140,9 @@ def get_parser(with_examples: bool = False) -> ArgumentParser:
              - input_value_deprecation:false  to omit deprecated input fields
              - specified_by_url:true
              - schema_description:true
-             - directive_is_repeatable:true"""
+             - directive_is_repeatable:true
+             - input_object_one_of:true
+             """
         ),
         dest="schema_download",
     )
