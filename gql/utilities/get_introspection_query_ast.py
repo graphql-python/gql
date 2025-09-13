@@ -75,7 +75,7 @@ def get_introspection_query_ast(
             fragment_FullType.select(ds.__Type.isOneOf)
         except AttributeError:
             raise NotImplementedError(
-                "IsOneOf is only supported from graphql-core version 3.3.0a7"
+                "isOneOf is only supported from graphql-core version 3.3.0a7"
             )
     if specified_by_url:
         fragment_FullType.select(ds.__Type.specifiedByURL)
