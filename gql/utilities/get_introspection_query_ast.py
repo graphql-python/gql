@@ -73,7 +73,7 @@ def get_introspection_query_ast(
     if input_object_one_of:
         try:
             fragment_FullType.select(ds.__Type.isOneOf)
-        except AttributeError:
+        except AttributeError:  # pragma: no cover
             raise NotImplementedError(
                 "isOneOf is only supported from graphql-core version 3.3.0a7"
             )
