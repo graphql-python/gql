@@ -430,6 +430,7 @@ def get_introspection_args(args: Namespace) -> Dict:
         "directive_is_repeatable",
         "schema_description",
         "input_value_deprecation",
+        "input_object_one_of",
     ]
 
     if args.schema_download is not None:
