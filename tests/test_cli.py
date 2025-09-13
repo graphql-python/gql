@@ -407,6 +407,7 @@ def test_cli_parse_schema_download(parser):
             "specified_by_url:True",
             "schema_description:true",
             "directive_is_repeatable:true",
+            "input_object_one_of:true",
             "--print-schema",
         ]
     )
@@ -419,6 +420,7 @@ def test_cli_parse_schema_download(parser):
         "specified_by_url": True,
         "schema_description": True,
         "directive_is_repeatable": True,
+        "input_object_one_of": True,
     }
 
     assert introspection_args == expected_args
