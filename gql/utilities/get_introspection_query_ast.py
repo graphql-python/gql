@@ -11,6 +11,8 @@ def get_introspection_query_ast(
     directive_is_repeatable: bool = False,
     schema_description: bool = False,
     input_value_deprecation: bool = True,
+    input_object_one_of: bool = False,
+    *,
     type_recursion_level: int = 7,
 ) -> DocumentNode:
     """Get a query for introspection as a document using the DSL module.
@@ -68,6 +70,13 @@ def get_introspection_query_ast(
     )
     if descriptions:
         fragment_FullType.select(ds.__Type.description)
+    if input_object_one_of:
+        try:
+            fragment_FullType.select(ds.__Type.isOneOf)
+        except AttributeError:
+            raise NotImplementedError(
+                "IsOneOf is only supported from graphql-core version 3.3.0a7"
+            )
     if specified_by_url:
         fragment_FullType.select(ds.__Type.specifiedByURL)
 

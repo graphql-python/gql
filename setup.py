@@ -16,6 +16,7 @@ console_scripts = [
 
 tests_requires = [
     "parse==1.20.2",
+    "packaging>=21.0",
     "pytest==8.3.4",
     "pytest-asyncio==0.25.3",
     "pytest-console-scripts==1.4.1",
