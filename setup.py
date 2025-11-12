@@ -18,7 +18,7 @@ tests_requires = [
     "parse==1.20.2",
     "packaging>=21.0",
     "pytest==8.3.4",
-    "pytest-asyncio==0.25.3",
+    "pytest-asyncio==1.2.0",
     "pytest-console-scripts==1.4.1",
     "pytest-cov==6.0.0",
     "vcrpy==7.0.0",
