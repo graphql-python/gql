@@ -2,12 +2,15 @@ import asyncio
 import json
 from typing import Mapping
 
+import aiohttp
 import pytest
 
 from gql import Client, gql
+from gql.graphql_request import GraphQLRequest
 from gql.transport.exceptions import (
     TransportAlreadyConnected,
     TransportClosed,
+    TransportConnectionFailed,
     TransportProtocolError,
     TransportServerError,
 )
@@ -243,6 +246,7 @@ async def test_http_multipart_graphql_errors(aiohttp_server):
     """Test handling of GraphQL-level errors in response."""
     from aiohttp import web
 
+    from gql.transport.exceptions import TransportQueryError
     from gql.transport.http_multipart_transport import HTTPMultipartTransport
 
     async def handler(request):
@@ -275,15 +279,15 @@ async def test_http_multipart_graphql_errors(aiohttp_server):
     async with Client(transport=transport) as session:
         query = gql(subscription_str)
 
-        results = []
-        async for result in session.subscribe(query):
-            results.append(result)
+        # Client raises TransportQueryError when there are errors in the result
+        with pytest.raises(TransportQueryError) as exc_info:
+            async for result in session.subscribe(query):
+                pass
 
-        assert len(results) == 1
-        assert results[0]["book"]["title"] == "Book 1"
-        assert results[0].errors is not None
-        assert len(results[0].errors) == 1
-        assert "deprecated" in results[0].errors[0]["message"]
+        # Verify error details
+        assert "deprecated" in str(exc_info.value).lower()
+        assert exc_info.value.data is not None
+        assert exc_info.value.data["book"]["title"] == "Book 1"
 
 
 @pytest.mark.asyncio
@@ -369,9 +373,10 @@ async def test_http_multipart_transport_not_connected():
     transport = HTTPMultipartTransport(url="http://example.com/graphql")
 
     query = gql(subscription_str)
+    request = GraphQLRequest(query)
 
     with pytest.raises(TransportClosed):
-        async for result in transport.subscribe(query._ast):
+        async for result in transport.subscribe(request):
             pass
 
 
@@ -492,3 +497,131 @@ async def test_http_multipart_accept_header(aiohttp_server):
             results.append(result)
 
         assert len(results) == 1
+
+
+@pytest.mark.asyncio
+async def test_http_multipart_execute_empty_response(aiohttp_server):
+    """Test execute method with empty response (no results)."""
+    from aiohttp import web
+
+    from gql.transport.http_multipart_transport import HTTPMultipartTransport
+
+    async def handler(request):
+        # Return empty multipart response (no data parts)
+        body = "--graphql--\r\n"
+        return web.Response(
+            text=body,
+            content_type='multipart/mixed; boundary="graphql"',
+        )
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+    transport = HTTPMultipartTransport(url=url, timeout=10)
+
+    async with Client(transport=transport) as session:
+        query = gql(subscription_str)
+
+        with pytest.raises(TransportProtocolError) as exc_info:
+            await session.execute(query)
+
+        assert "No result received" in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+async def test_http_multipart_response_without_payload_wrapper(aiohttp_server):
+    """Test parsing response without payload wrapper (direct format)."""
+    from aiohttp import web
+
+    from gql.transport.http_multipart_transport import HTTPMultipartTransport
+
+    async def handler(request):
+        # Send data in direct format (no payload wrapper)
+        response = {"data": {"book": book1}}
+        part = (
+            f"--graphql\r\n"
+            f"Content-Type: application/json\r\n"
+            f"\r\n"
+            f"{json.dumps(response)}\r\n"
+            f"--graphql--\r\n"
+        )
+        return web.Response(
+            text=part,
+            content_type='multipart/mixed; boundary="graphql"',
+        )
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+    transport = HTTPMultipartTransport(url=url, timeout=10)
+
+    async with Client(transport=transport) as session:
+        query = gql(subscription_str)
+
+        results = []
+        async for result in session.subscribe(query):
+            results.append(result)
+
+        assert len(results) == 1
+        assert results[0]["book"]["title"] == "Book 1"
+
+
+@pytest.mark.asyncio
+async def test_http_multipart_newline_separator(aiohttp_server):
+    """Test parsing multipart response with LF separator instead of CRLF."""
+    from aiohttp import web
+
+    from gql.transport.http_multipart_transport import HTTPMultipartTransport
+
+    async def handler(request):
+        # Use LF instead of CRLF
+        payload = {"data": {"book": book1}}
+        wrapped = {"payload": payload}
+        part = (
+            f"--graphql\n"
+            f"Content-Type: application/json\n"
+            f"\n"
+            f"{json.dumps(wrapped)}\n"
+            f"--graphql--\n"
+        )
+        return web.Response(
+            text=part,
+            content_type='multipart/mixed; boundary="graphql"',
+        )
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+    transport = HTTPMultipartTransport(url=url, timeout=10)
+
+    async with Client(transport=transport) as session:
+        query = gql(subscription_str)
+
+        results = []
+        async for result in session.subscribe(query):
+            results.append(result)
+
+        assert len(results) == 1
+        assert results[0]["book"]["title"] == "Book 1"
+
+
+@pytest.mark.asyncio
+async def test_http_multipart_connection_error():
+    """Test handling of connection errors (non-transport exceptions)."""
+    from gql.transport.http_multipart_transport import HTTPMultipartTransport
+
+    # Use an invalid URL that will fail to connect
+    transport = HTTPMultipartTransport(url="http://invalid.local:99999/graphql", timeout=1)
+
+    async with Client(transport=transport) as session:
+        query = gql(subscription_str)
+
+        with pytest.raises(TransportConnectionFailed):
+            async for result in session.subscribe(query):
+                pass

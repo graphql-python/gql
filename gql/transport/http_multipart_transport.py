@@ -186,7 +186,7 @@ class HTTPMultipartTransport(AsyncTransport):
                 async for result in self._parse_multipart_response(response, content_type):
                     yield result
 
-        except TransportServerError:
+        except (TransportServerError, TransportProtocolError):
             raise
         except Exception as e:
             raise TransportConnectionFailed(str(e)) from e
@@ -253,6 +253,9 @@ class HTTPMultipartTransport(AsyncTransport):
                     result = self._parse_multipart_part(part_data)
                     if result:
                         yield result
+                except TransportServerError:
+                    # Re-raise transport-level errors
+                    raise
                 except Exception as e:
                     log.warning("Error parsing multipart part: %s", e)
 
