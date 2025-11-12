@@ -15,11 +15,15 @@ from graphql import (
     NonNullTypeNode,
     NullValueNode,
     Undefined,
+)
+from graphql import __version__ as graphql_version
+from graphql import (
     build_ast_schema,
     parse,
     print_ast,
 )
 from graphql.utilities import get_introspection_query
+from packaging import version
 
 from gql import Client, gql
 from gql.dsl import (
@@ -1081,6 +1085,50 @@ def test_get_introspection_query_ast(option):
         )
         assert node_tree(dsl_introspection_query) == node_tree(
             gql(print_ast(dsl_introspection_query)).document
+        )
+
+
+@pytest.mark.skipif(
+    version.parse(graphql_version) < version.parse("3.3.0a7"),
+    reason="Requires graphql-core >= 3.3.0a7",
+)
+@pytest.mark.parametrize("option", [True, False])
+def test_get_introspection_query_ast_is_one_of(option):
+
+    introspection_query = print_ast(
+        gql(
+            get_introspection_query(
+                input_value_deprecation=option,
+            )
+        ).document
+    )
+
+    # Because the option does not exist yet in graphql-core,
+    # we add it manually here for now
+    if option:
+        introspection_query = introspection_query.replace(
+            "fields",
+            "isOneOf\n  fields",
+        )
+
+    dsl_introspection_query = get_introspection_query_ast(
+        input_value_deprecation=option,
+        input_object_one_of=option,
+        type_recursion_level=9,
+    )
+
+    assert introspection_query == print_ast(dsl_introspection_query)
+
+
+@pytest.mark.skipif(
+    version.parse(graphql_version) >= version.parse("3.3.0a7"),
+    reason="Test only for older graphql-core versions < 3.3.0a7",
+)
+def test_get_introspection_query_ast_is_one_of_not_implemented_yet():
+
+    with pytest.raises(NotImplementedError):
+        get_introspection_query_ast(
+            input_object_one_of=True,
         )
 
 
