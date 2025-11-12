@@ -5,15 +5,15 @@ This transport implements support for GraphQL subscriptions over HTTP using
 the multipart subscription protocol as implemented by Apollo GraphOS Router
 and other compatible servers.
 
-Reference: https://www.apollographql.com/docs/graphos/routing/operations/subscriptions/multipart-protocol
-Issue: https://github.com/graphql-python/gql/issues/463
+Reference:
+https://www.apollographql.com/docs/graphos/routing/operations/subscriptions/multipart-protocol
 """
 
 import asyncio
 import json
 import logging
 from ssl import SSLContext
-from typing import Any, AsyncGenerator, Callable, Dict, Optional, Tuple, Union
+from typing import Any, AsyncGenerator, Callable, Dict, Optional, Union
 
 import aiohttp
 from aiohttp.client_reqrep import Fingerprint
@@ -92,7 +92,7 @@ class HTTPMultipartTransport(AsyncTransport):
         if self.session is not None:
             raise TransportAlreadyConnected("Transport is already connected")
 
-        client_session_args = {
+        client_session_args: Dict[str, Any] = {
             "cookies": self.cookies,
             "headers": self.headers,
             "auth": self.auth,
@@ -170,7 +170,7 @@ class HTTPMultipartTransport(AsyncTransport):
                     error_text = await response.text()
                     raise TransportServerError(
                         f"Server returned {response.status}: {error_text}",
-                        response.status
+                        response.status,
                     )
 
                 content_type = response.headers.get("Content-Type", "")
@@ -183,7 +183,9 @@ class HTTPMultipartTransport(AsyncTransport):
                     )
 
                 # Parse multipart response
-                async for result in self._parse_multipart_response(response, content_type):
+                async for result in self._parse_multipart_response(
+                    response, content_type
+                ):
                     yield result
 
         except (TransportServerError, TransportProtocolError):
@@ -233,20 +235,24 @@ class HTTPMultipartTransport(AsyncTransport):
                     break  # No complete part yet
 
                 # Check if this is the end boundary
-                if buffer[boundary_pos:boundary_pos + len(end_boundary_bytes)] == end_boundary_bytes:
+                end_pos = boundary_pos + len(end_boundary_bytes)
+                if buffer[boundary_pos:end_pos] == end_boundary_bytes:
                     log.debug("Reached end boundary")
                     return
 
                 # Find the start of the next part (after this boundary)
                 # Look for either another regular boundary or the end boundary
-                next_boundary_pos = buffer.find(boundary_bytes, boundary_pos + len(boundary_bytes))
+                next_boundary_pos = buffer.find(
+                    boundary_bytes, boundary_pos + len(boundary_bytes)
+                )
 
                 if next_boundary_pos == -1:
                     # No next boundary yet, wait for more data
                     break
 
                 # Extract the part between boundaries
-                part_data = buffer[boundary_pos + len(boundary_bytes):next_boundary_pos]
+                start_pos = boundary_pos + len(boundary_bytes)
+                part_data = buffer[start_pos:next_boundary_pos]
 
                 # Parse the part
                 try:
@@ -270,16 +276,16 @@ class HTTPMultipartTransport(AsyncTransport):
         :return: ExecutionResult or None if part is empty/heartbeat
         """
         # Split headers and body by double CRLF or double LF
-        part_str = part_data.decode('utf-8')
+        part_str = part_data.decode("utf-8")
 
         # Try different separators
-        if '\r\n\r\n' in part_str:
-            parts = part_str.split('\r\n\r\n', 1)
-        elif '\n\n' in part_str:
-            parts = part_str.split('\n\n', 1)
+        if "\r\n\r\n" in part_str:
+            parts = part_str.split("\r\n\r\n", 1)
+        elif "\n\n" in part_str:
+            parts = part_str.split("\n\n", 1)
         else:
             # No headers separator found, treat entire content as body
-            parts = ['', part_str]
+            parts = ["", part_str]
 
         if len(parts) < 2:
             return None

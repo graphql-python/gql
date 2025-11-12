@@ -2,7 +2,6 @@ import asyncio
 import json
 from typing import Mapping
 
-import aiohttp
 import pytest
 
 from gql import Client, gql
@@ -210,7 +209,7 @@ async def test_http_multipart_transport_level_error(aiohttp_server):
         # Transport error has null payload with errors at top level
         error_response = {
             "payload": None,
-            "errors": [{"message": "Transport connection failed"}]
+            "errors": [{"message": "Transport connection failed"}],
         }
         part = (
             f"--graphql\r\n"
@@ -254,7 +253,7 @@ async def test_http_multipart_graphql_errors(aiohttp_server):
         response = {
             "payload": {
                 "data": {"book": book1},
-                "errors": [{"message": "Field deprecated", "path": ["book", "author"]}]
+                "errors": [{"message": "Field deprecated", "path": ["book", "author"]}],
             }
         }
         part = (
@@ -472,9 +471,9 @@ async def test_http_multipart_accept_header(aiohttp_server):
     async def handler(request):
         # Verify the Accept header
         accept_header = request.headers.get("Accept", "")
-        assert 'multipart/mixed' in accept_header
+        assert "multipart/mixed" in accept_header
         assert 'subscriptionSpec="1.0"' in accept_header
-        assert 'application/json' in accept_header
+        assert "application/json" in accept_header
 
         body = create_multipart_response([book1])
         return web.Response(
@@ -617,7 +616,9 @@ async def test_http_multipart_connection_error():
     from gql.transport.http_multipart_transport import HTTPMultipartTransport
 
     # Use an invalid URL that will fail to connect
-    transport = HTTPMultipartTransport(url="http://invalid.local:99999/graphql", timeout=1)
+    transport = HTTPMultipartTransport(
+        url="http://invalid.local:99999/graphql", timeout=1
+    )
 
     async with Client(transport=transport) as session:
         query = gql(subscription_str)

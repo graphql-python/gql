@@ -9,9 +9,7 @@ logging.basicConfig(level=logging.INFO)
 
 async def main():
 
-    transport = HTTPMultipartTransport(
-        url="http://localhost:8000/graphql"
-    )
+    transport = HTTPMultipartTransport(url="http://localhost:8000/graphql")
 
     # Using `async with` on the client will start a connection on the transport
     # and provide a `session` variable to execute queries on this connection
