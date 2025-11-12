@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 install_requires = [
     "graphql-core>=3.3.0a3,<3.4",
     "yarl>=1.6,<2.0",
-    "backoff>=1.11.1,<3.0",
+    "tenacity>=9.1.2,<10.0",
     "anyio>=3.0,<5",
     "typing_extensions>=4.0.0; python_version<'3.11'",
 ]
