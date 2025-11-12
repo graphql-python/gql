@@ -6,7 +6,7 @@ Async advanced usage
 It is possible to send multiple GraphQL queries (query, mutation or subscription) in parallel,
 on the same websocket connection, using asyncio tasks.
 
-In order to retry in case of connection failure, we can use the great `backoff`_ module.
+In order to retry in case of connection failure, we can use the great `tenacity`_ module.
 
 .. code-block:: python
 
@@ -28,10 +28,22 @@ In order to retry in case of connection failure, we can use the great `backoff`_
         async for result in session.subscribe(subscription2):
             print(result)
 
-    # Then create a couroutine which will connect to your API and run all your queries as tasks.
-    # We use a `backoff` decorator to reconnect using exponential backoff in case of connection failure.
+    # Then create a couroutine which will connect to your API and run all your
+    # queries as tasks. We use a `tenacity` retry decorator to reconnect using
+    # exponential backoff in case of connection failure.
 
-    @backoff.on_exception(backoff.expo, Exception, max_time=300)
+    from tenacity import (
+        retry,
+        retry_if_exception_type,
+        stop_after_delay,
+        wait_exponential,
+    )
+
+    @retry(
+        retry=retry_if_exception_type(Exception),
+        stop=stop_after_delay(300),  # max_time in seconds
+        wait=wait_exponential(),
+    )
     async def graphql_connection():
 
         transport = WebsocketsTransport(url="wss://YOUR_URL")
@@ -54,4 +66,4 @@ Subscriptions tasks can be stopped at any time by running
 
     task.cancel()
 
-.. _backoff: https://github.com/litl/backoff
+.. _tenacity: https://github.com/jd/tenacity
