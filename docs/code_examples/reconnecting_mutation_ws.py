@@ -1,7 +1,7 @@
 import asyncio
 import logging
 
-import backoff
+from tenacity import retry, retry_if_exception_type, wait_exponential
 
 from gql import Client, gql
 from gql.transport.websockets import WebsocketsTransport
@@ -17,11 +17,9 @@ async def main():
 
     client = Client(transport=transport)
 
-    retry_connect = backoff.on_exception(
-        backoff.expo,
-        Exception,
-        max_value=10,
-        jitter=None,
+    retry_connect = retry(
+        retry=retry_if_exception_type(Exception),
+        wait=wait_exponential(max=10),
     )
     session = await client.connect_async(reconnecting=True, retry_connect=retry_connect)
 
