@@ -21,7 +21,6 @@ from typing import (
     overload,
 )
 
-import backoff
 from anyio import fail_after
 from graphql import (
     ExecutionResult,
@@ -30,6 +29,13 @@ from graphql import (
     build_ast_schema,
     parse,
     validate,
+)
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    retry_unless_exception_type,
+    stop_after_attempt,
+    wait_exponential,
 )
 
 from .graphql_request import GraphQLRequest, support_deprecated_request
@@ -1902,11 +1908,12 @@ class ReconnectingAsyncClientSession(AsyncClientSession):
         """
         :param client: the :class:`client <gql.client.Client>` used.
         :param retry_connect: Either a Boolean to activate/deactivate the retries
-            for the connection to the transport OR a backoff decorator to
-            provide specific retries parameters for the connections.
+            for the connection to the transport OR a retry decorator
+            (e.g., from tenacity) to provide specific retries parameters
+            for the connections.
         :param retry_execute: Either a Boolean to activate/deactivate the retries
-            for the execute method OR a backoff decorator to
-            provide specific retries parameters for this method.
+            for the execute method OR a retry decorator (e.g., from tenacity)
+            to provide specific retries parameters for this method.
         """
         self.client = client
         self._connect_task = None
@@ -1917,10 +1924,9 @@ class ReconnectingAsyncClientSession(AsyncClientSession):
         if retry_connect is True:
             # By default, retry again and again, with maximum 60 seconds
             # between retries
-            self.retry_connect = backoff.on_exception(
-                backoff.expo,
-                Exception,
-                max_value=60,
+            self.retry_connect = retry(
+                retry=retry_if_exception_type(Exception),
+                wait=wait_exponential(max=60),
             )
         elif retry_connect is False:
             self.retry_connect = lambda e: e
@@ -1930,11 +1936,11 @@ class ReconnectingAsyncClientSession(AsyncClientSession):
 
         if retry_execute is True:
             # By default, retry 5 times, except if we receive a TransportQueryError
-            self.retry_execute = backoff.on_exception(
-                backoff.expo,
-                Exception,
-                max_tries=5,
-                giveup=lambda e: isinstance(e, TransportQueryError),
+            self.retry_execute = retry(
+                retry=retry_if_exception_type(Exception)
+                & retry_unless_exception_type(TransportQueryError),
+                stop=stop_after_attempt(5),
+                wait=wait_exponential(),
             )
         elif retry_execute is False:
             self.retry_execute = lambda e: e
@@ -1943,7 +1949,7 @@ class ReconnectingAsyncClientSession(AsyncClientSession):
             self.retry_execute = retry_execute
 
         # Creating the _execute_with_retries and _connect_with_retries  methods
-        # using the provided backoff decorators
+        # using the provided retry decorators
         self._execute_with_retries = self.retry_execute(self._execute_once)
         self._connect_with_retries = self.retry_connect(self.transport.connect)
 
