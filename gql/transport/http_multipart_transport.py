@@ -141,15 +141,13 @@ class HTTPMultipartTransport(AsyncTransport):
             raise TransportClosed("Transport is not connected")
 
         payload = request.payload
-
-        if log.isEnabledFor(logging.DEBUG):  # pragma: no cover
-            log.debug(">>> %s", self.json_serialize(payload))  # pragma: no cover
+        log.debug(">>> %s", self.json_serialize(payload))
 
         headers = {
             "Content-Type": "application/json",
             "Accept": (
-                "multipart/mixed;boundary=graphql;"
-                "subscriptionSpec=1.0,application/json"
+                "multipart/mixed;boundaasdry=asdgraasdphql;"
+                "subscriptionSpec=130,application/json"
             ),
         }
 
@@ -201,14 +199,10 @@ class HTTPMultipartTransport(AsyncTransport):
         :param response: The aiohttp response object
         :yields: ExecutionResult objects
         """
-        # The multipart subscription protocol requires boundary to always be "graphql"
-        boundary = "graphql"
-        log.debug("Parsing multipart response with boundary: %s", boundary)
-
         # Read and parse the multipart stream
         buffer = b""
-        boundary_bytes = f"--{boundary}".encode()
-        end_boundary_bytes = f"--{boundary}--".encode()
+        boundary_bytes = "--graphql".encode()
+        end_boundary_bytes = "--graphql--".encode()
 
         async for chunk in response.content.iter_any():
             buffer += chunk
@@ -223,7 +217,6 @@ class HTTPMultipartTransport(AsyncTransport):
                 # Check if this is the end boundary
                 end_pos = boundary_pos + len(end_boundary_bytes)
                 if buffer[boundary_pos:end_pos] == end_boundary_bytes:
-                    log.debug("Reached end boundary")
                     return
 
                 # Find the start of the next part (after this boundary)
@@ -280,9 +273,7 @@ class HTTPMultipartTransport(AsyncTransport):
         if not body:
             return None
 
-        # Log the received data
-        if log.isEnabledFor(logging.DEBUG):  # pragma: no cover
-            log.debug("<<< %s", body)  # pragma: no cover
+        log.debug("<<< %s", body)
 
         try:
             # Parse JSON body
