@@ -146,8 +146,8 @@ class HTTPMultipartTransport(AsyncTransport):
         headers = {
             "Content-Type": "application/json",
             "Accept": (
-                "multipart/mixed;boundaasdry=asdgraasdphql;"
-                "subscriptionSpec=130,application/json"
+                "multipart/mixed;boundary=graphql;"
+                "subscriptionSpec=1.0,application/json"
             ),
         }
 
