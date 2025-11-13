@@ -38,20 +38,22 @@ def create_multipart_response(books, include_heartbeat=False):
     for idx, book in enumerate(books):
         data = {"data": {"book": book}}
         payload = {"payload": data}
-        part = (
+
+        parts.append((
             f"--graphql\r\n"
             f"Content-Type: application/json\r\n"
             f"\r\n"
             f"{json.dumps(payload)}\r\n"
-        )
-        parts.append(part)
+        ))
 
         # Add heartbeat after first item if requested
         if include_heartbeat and idx == 0:
-            heartbeat_part = (
-                "--graphql\r\n" "Content-Type: application/json\r\n" "\r\n" "{{}}\r\n"
-            )
-            parts.append(heartbeat_part)
+            parts.append((
+                "--graphql\r\n"
+                "Content-Type: application/json\r\n"
+                "\r\n"
+                "{}\r\n"
+            ))
 
     # Add end boundary
     parts.append("--graphql--\r\n")

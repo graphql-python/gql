@@ -280,7 +280,7 @@ class HTTPMultipartTransport(AsyncTransport):
             data = self.json_deserialize(body)
 
             # Handle heartbeats - empty JSON objects
-            if not data or (len(data) == 0):
+            if not data:
                 log.debug("Received heartbeat, ignoring")
                 return None
 
