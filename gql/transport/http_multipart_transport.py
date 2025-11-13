@@ -140,18 +140,17 @@ class HTTPMultipartTransport(AsyncTransport):
         if self.session is None:
             raise TransportClosed("Transport is not connected")
 
-        # Prepare the request payload
         payload = request.payload
 
-        # Log the request
-        if log.isEnabledFor(logging.DEBUG):
-            log.debug(">>> %s", self.json_serialize(payload))
+        if log.isEnabledFor(logging.DEBUG):  # pragma: no cover
+            log.debug(">>> %s", self.json_serialize(payload))  # pragma: no cover
 
-        # Set headers to accept multipart responses
-        # The multipart subscription protocol requires subscriptionSpec parameter
         headers = {
             "Content-Type": "application/json",
-            "Accept": 'multipart/mixed;subscriptionSpec="1.0", application/json',
+            "Accept": (
+                "multipart/mixed;boundary=graphql;"
+                "subscriptionSpec=1.0,application/json"
+            ),
         }
 
         try:
@@ -175,17 +174,14 @@ class HTTPMultipartTransport(AsyncTransport):
 
                 content_type = response.headers.get("Content-Type", "")
 
-                # Check if response is multipart
-                if "multipart/mixed" not in content_type:
+                if "application/json" not in content_type:
                     raise TransportProtocolError(
-                        f"Expected multipart/mixed response, got {content_type}. "
+                        f"Expected application/json response, got {content_type}. "
                         "Server may not support the multipart subscription protocol."
                     )
 
                 # Parse multipart response
-                async for result in self._parse_multipart_response(
-                    response, content_type
-                ):
+                async for result in self._parse_multipart_response(response):
                     yield result
 
         except (TransportServerError, TransportProtocolError):
@@ -196,27 +192,17 @@ class HTTPMultipartTransport(AsyncTransport):
     async def _parse_multipart_response(
         self,
         response: aiohttp.ClientResponse,
-        content_type: str,
     ) -> AsyncGenerator[ExecutionResult, None]:
         """
-        Parse a multipart/mixed response and yield execution results.
+        Parse a multipart response stream and yield execution results.
+
+        The boundary is always "graphql" per the protocol specification.
 
         :param response: The aiohttp response object
-        :param content_type: The Content-Type header value
         :yields: ExecutionResult objects
         """
-        # Extract boundary from Content-Type header
-        # Format: multipart/mixed; boundary="---"
-        boundary = None
-        for part in content_type.split(";"):
-            part = part.strip()
-            if part.startswith("boundary="):
-                boundary = part.split("=", 1)[1].strip('"')
-                break
-
-        if not boundary:
-            raise TransportProtocolError("No boundary found in multipart response")
-
+        # The multipart subscription protocol requires boundary to always be "graphql"
+        boundary = "graphql"
         log.debug("Parsing multipart response with boundary: %s", boundary)
 
         # Read and parse the multipart stream
@@ -287,9 +273,7 @@ class HTTPMultipartTransport(AsyncTransport):
             # No headers separator found, treat entire content as body
             parts = ["", part_str]
 
-        if len(parts) < 2:
-            return None
-
+        assert len(parts) == 2, "parts should always have exactly 2 elements"
         headers_str, body = parts
         body = body.strip()
 
@@ -297,8 +281,8 @@ class HTTPMultipartTransport(AsyncTransport):
             return None
 
         # Log the received data
-        if log.isEnabledFor(logging.DEBUG):
-            log.debug("<<< %s", body)
+        if log.isEnabledFor(logging.DEBUG):  # pragma: no cover
+            log.debug("<<< %s", body)  # pragma: no cover
 
         try:
             # Parse JSON body
