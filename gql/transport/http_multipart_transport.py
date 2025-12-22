@@ -259,7 +259,7 @@ class HTTPMultipartTransport(AsyncTransport):
             body = body.strip()
 
             if log.isEnabledFor(logging.DEBUG):
-                log.debug("<<< %s", body or "(empty body, skipping)")
+                log.debug("<<< %s", ascii(body or "(empty body, skipping)"))
 
             if not body:
                 return None
@@ -305,8 +305,12 @@ class HTTPMultipartTransport(AsyncTransport):
             )
         except json.JSONDecodeError as e:
             log.warning(
-                f"Failed to parse JSON: {e}, body: {body[:100] if body else ''}"
+                f"Failed to parse JSON: {ascii(e)}, "
+                f"body: {ascii(body[:100]) if body else ''}"
             )
+            return None
+        except UnicodeDecodeError as e:
+            log.warning(f"Failed to decode part: {ascii(e)}")
             return None
 
     async def execute(

@@ -80,7 +80,10 @@ def multipart_server(aiohttp_server):
             response.enable_chunked_encoding()
             await response.prepare(request)
             for part in parts:
-                await response.write(part.encode())
+                if isinstance(part, str):
+                    await response.write(part.encode())
+                else:
+                    await response.write(part)
                 await asyncio.sleep(0)  # force the chunk to be written
             await response.write_eof()
             return response
@@ -696,3 +699,33 @@ async def test_http_multipart_with_content_length_headers(multipart_server):
         assert len(results) == 2
         assert results[0]["book"]["title"] == "Book 1"
         assert results[1]["book"]["title"] == "Book 2"
+
+
+@pytest.mark.asyncio
+async def test_http_multipart_actually_invalid_utf8(multipart_server):
+    """Test handling of ACTUAL invalid UTF-8 bytes in multipart response."""
+    from gql.transport.http_multipart_transport import HTTPMultipartTransport
+
+    # \\x80 is an invalid start byte in UTF-8
+    parts = [
+        (
+            b"--graphql\r\n"
+            b"Content-Type: application/json; charset=utf-8\r\n"
+            b"\r\n"
+            b"\x80\x81\r\n"
+        ),
+        b"--graphql--\r\n",
+    ]
+
+    server = await multipart_server(parts)
+    url = server.make_url("/")
+    transport = HTTPMultipartTransport(url=url)
+
+    async with Client(transport=transport) as session:
+        query = gql(subscription_str)
+        results = []
+        async for result in session.subscribe(query):
+            results.append(result)
+
+        # Should skip invalid part and not crash
+        assert len(results) == 0
