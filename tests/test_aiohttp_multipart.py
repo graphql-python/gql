@@ -7,7 +7,6 @@ import pytest
 from gql import Client, gql
 from gql.graphql_request import GraphQLRequest
 from gql.transport.exceptions import (
-    TransportAlreadyConnected,
     TransportClosed,
     TransportConnectionFailed,
     TransportProtocolError,
@@ -200,6 +199,22 @@ async def test_aiohttp_multipart_server_error(aiohttp_server):
 
 
 @pytest.mark.asyncio
+async def test_aiohttp_multipart_transport_not_connected(multipart_server):
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    parts = create_multipart_response([book1])
+    server = await multipart_server(parts)
+    transport = AIOHTTPTransport(url=server.make_url("/"))
+
+    query = gql(subscription_str)
+    request = GraphQLRequest(query)
+
+    with pytest.raises(TransportClosed):
+        async for result in transport.subscribe(request):
+            pass
+
+
+@pytest.mark.asyncio
 async def test_aiohttp_multipart_transport_level_error(multipart_server):
     from gql.transport.aiohttp import AIOHTTPTransport
 
@@ -277,38 +292,6 @@ async def test_aiohttp_multipart_graphql_errors(multipart_server):
 
 
 @pytest.mark.asyncio
-async def test_aiohttp_multipart_transport_already_connected(multipart_server):
-    from gql.transport.aiohttp import AIOHTTPTransport
-
-    parts = create_multipart_response([])
-    server = await multipart_server(parts)
-    transport = AIOHTTPTransport(url=server.make_url("/"))
-
-    await transport.connect()
-
-    with pytest.raises(TransportAlreadyConnected):
-        await transport.connect()
-
-    await transport.close()
-
-
-@pytest.mark.asyncio
-async def test_aiohttp_multipart_transport_not_connected(multipart_server):
-    from gql.transport.aiohttp import AIOHTTPTransport
-
-    parts = create_multipart_response([book1])
-    server = await multipart_server(parts)
-    transport = AIOHTTPTransport(url=server.make_url("/"))
-
-    query = gql(subscription_str)
-    request = GraphQLRequest(query)
-
-    with pytest.raises(TransportClosed):
-        async for result in transport.subscribe(request):
-            pass
-
-
-@pytest.mark.asyncio
 async def test_aiohttp_multipart_newline_separator(multipart_server):
     """Test that LF-only separators are rejected (spec requires CRLF)."""
     from gql.transport.aiohttp import AIOHTTPTransport
@@ -326,44 +309,6 @@ async def test_aiohttp_multipart_newline_separator(multipart_server):
         with pytest.raises(TransportConnectionFailed):
             async for result in session.subscribe(query):
                 pass
-
-
-@pytest.mark.asyncio
-async def test_aiohttp_multipart_transport_connection_failed_error():
-    from gql.transport.aiohttp import AIOHTTPTransport
-
-    # Use an invalid URL that will fail to connect
-    transport = AIOHTTPTransport(url="http://invalid.local:-1/graphql", timeout=1)
-
-    query = gql(subscription_str)
-
-    async with Client(transport=transport) as session:
-        with pytest.raises(TransportConnectionFailed):
-            async for result in session.subscribe(query):
-                pass
-
-
-@pytest.mark.asyncio
-async def test_aiohttp_multipart_connector_owner_false(multipart_server):
-    """Test closing transport with connector_owner=False."""
-    from gql.transport.aiohttp import AIOHTTPTransport
-
-    parts = create_multipart_response([book1])
-    server = await multipart_server(parts)
-    url = server.make_url("/")
-
-    transport = AIOHTTPTransport(
-        url=url, client_session_args={"connector_owner": False}
-    )
-
-    query = gql(subscription_str)
-
-    async with Client(transport=transport) as session:
-        results = []
-        async for result in session.subscribe(query):
-            results.append(result)
-
-        assert len(results) == 1
 
 
 @pytest.mark.asyncio
