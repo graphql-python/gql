@@ -128,7 +128,6 @@ for name in [
     "gql.transport.appsync",
     "gql.transport.common.base",
     "gql.transport.httpx",
-    "gql.transport.http_multipart_transport",
     "gql.transport.phoenix_channel_websockets",
     "gql.transport.requests",
     "gql.transport.websockets",
