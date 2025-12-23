@@ -29,7 +29,6 @@ Sub-Packages
    transport_common_adapters_aiohttp
    transport_common_adapters_websockets
    transport_exceptions
-   transport_http_multipart
    transport_phoenix_channel_websockets
    transport_requests
    transport_httpx

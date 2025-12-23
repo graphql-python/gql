@@ -97,8 +97,8 @@ def multipart_server(aiohttp_server):
 
 
 @pytest.mark.asyncio
-async def test_http_multipart_subscription(multipart_server):
-    from gql.transport.http_multipart_transport import HTTPMultipartTransport
+async def test_aiohttp_multipart_subscription(multipart_server):
+    from gql.transport.aiohttp import AIOHTTPTransport
 
     def assert_response_headers(request):
         # Verify the Accept header follows the spec
@@ -111,7 +111,7 @@ async def test_http_multipart_subscription(multipart_server):
     parts = create_multipart_response([book1, book2])
     server = await multipart_server(parts, request_handler=assert_response_headers)
     url = server.make_url("/")
-    transport = HTTPMultipartTransport(url=url)
+    transport = AIOHTTPTransport(url=url)
 
     query = gql(subscription_str)
 
@@ -127,13 +127,13 @@ async def test_http_multipart_subscription(multipart_server):
 
 
 @pytest.mark.asyncio
-async def test_http_multipart_subscription_with_heartbeat(multipart_server):
-    from gql.transport.http_multipart_transport import HTTPMultipartTransport
+async def test_aiohttp_multipart_subscription_with_heartbeat(multipart_server):
+    from gql.transport.aiohttp import AIOHTTPTransport
 
     parts = create_multipart_response([book1, book2], include_heartbeat=True)
     server = await multipart_server(parts)
     url = server.make_url("/")
-    transport = HTTPMultipartTransport(url=url)
+    transport = AIOHTTPTransport(url=url)
 
     query = gql(subscription_str)
 
@@ -150,10 +150,10 @@ async def test_http_multipart_subscription_with_heartbeat(multipart_server):
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_http_multipart_unsupported_content_type(aiohttp_server):
+async def test_aiohttp_multipart_unsupported_content_type(aiohttp_server):
     from aiohttp import web
 
-    from gql.transport.http_multipart_transport import HTTPMultipartTransport
+    from gql.transport.aiohttp import AIOHTTPTransport
 
     async def handler(request):
         # Return text/html instead of application/json
@@ -162,7 +162,7 @@ async def test_http_multipart_unsupported_content_type(aiohttp_server):
     app = web.Application()
     app.router.add_route("POST", "/", handler)
     server = await aiohttp_server(app)
-    transport = HTTPMultipartTransport(url=server.make_url("/"))
+    transport = AIOHTTPTransport(url=server.make_url("/"))
 
     query = gql(subscription_str)
 
@@ -176,10 +176,10 @@ async def test_http_multipart_unsupported_content_type(aiohttp_server):
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_http_multipart_server_error(aiohttp_server):
+async def test_aiohttp_multipart_server_error(aiohttp_server):
     from aiohttp import web
 
-    from gql.transport.http_multipart_transport import HTTPMultipartTransport
+    from gql.transport.aiohttp import AIOHTTPTransport
 
     async def handler(request):
         return web.Response(text="Internal Server Error", status=500)
@@ -187,7 +187,7 @@ async def test_http_multipart_server_error(aiohttp_server):
     app = web.Application()
     app.router.add_route("POST", "/", handler)
     server = await aiohttp_server(app)
-    transport = HTTPMultipartTransport(url=server.make_url("/"))
+    transport = AIOHTTPTransport(url=server.make_url("/"))
 
     query = gql(subscription_str)
 
@@ -196,12 +196,12 @@ async def test_http_multipart_server_error(aiohttp_server):
             async for result in session.subscribe(query):
                 pass
 
-        assert "500: Internal Server Error" in str(exc_info.value)
+        assert "Internal Server Error" in str(exc_info.value)
 
 
 @pytest.mark.asyncio
-async def test_http_multipart_transport_level_error(multipart_server):
-    from gql.transport.http_multipart_transport import HTTPMultipartTransport
+async def test_aiohttp_multipart_transport_level_error(multipart_server):
+    from gql.transport.aiohttp import AIOHTTPTransport
 
     # Transport error has null payload with errors at top level
     error_response = {
@@ -220,7 +220,7 @@ async def test_http_multipart_transport_level_error(multipart_server):
 
     server = await multipart_server(parts)
     url = server.make_url("/")
-    transport = HTTPMultipartTransport(url=url)
+    transport = AIOHTTPTransport(url=url)
 
     async with Client(transport=transport) as session:
         query = gql(subscription_str)
@@ -233,9 +233,9 @@ async def test_http_multipart_transport_level_error(multipart_server):
 
 
 @pytest.mark.asyncio
-async def test_http_multipart_graphql_errors(multipart_server):
+async def test_aiohttp_multipart_graphql_errors(multipart_server):
+    from gql.transport.aiohttp import AIOHTTPTransport
     from gql.transport.exceptions import TransportQueryError
-    from gql.transport.http_multipart_transport import HTTPMultipartTransport
 
     # GraphQL errors come inside the payload
     response = {
@@ -258,7 +258,7 @@ async def test_http_multipart_graphql_errors(multipart_server):
 
     server = await multipart_server(parts)
     url = server.make_url("/")
-    transport = HTTPMultipartTransport(url=url)
+    transport = AIOHTTPTransport(url=url)
 
     async with Client(transport=transport) as session:
         query = gql(subscription_str)
@@ -277,31 +277,12 @@ async def test_http_multipart_graphql_errors(multipart_server):
 
 
 @pytest.mark.asyncio
-async def test_http_multipart_execute_method(multipart_server):
-    from gql.transport.http_multipart_transport import HTTPMultipartTransport
-
-    parts = create_multipart_response([book1, book2])
-    server = await multipart_server(parts)
-    url = server.make_url("/")
-    transport = HTTPMultipartTransport(url=url)
-
-    query = gql(subscription_str)
-
-    async with Client(transport=transport) as session:
-        # execute() should raise NotImplementedError
-        with pytest.raises(NotImplementedError) as exc_info:
-            await session.execute(query)
-
-        assert "does not support queries or mutations" in str(exc_info.value)
-
-
-@pytest.mark.asyncio
-async def test_http_multipart_transport_already_connected(multipart_server):
-    from gql.transport.http_multipart_transport import HTTPMultipartTransport
+async def test_aiohttp_multipart_transport_already_connected(multipart_server):
+    from gql.transport.aiohttp import AIOHTTPTransport
 
     parts = create_multipart_response([])
     server = await multipart_server(parts)
-    transport = HTTPMultipartTransport(url=server.make_url("/"))
+    transport = AIOHTTPTransport(url=server.make_url("/"))
 
     await transport.connect()
 
@@ -312,12 +293,12 @@ async def test_http_multipart_transport_already_connected(multipart_server):
 
 
 @pytest.mark.asyncio
-async def test_http_multipart_transport_not_connected(multipart_server):
-    from gql.transport.http_multipart_transport import HTTPMultipartTransport
+async def test_aiohttp_multipart_transport_not_connected(multipart_server):
+    from gql.transport.aiohttp import AIOHTTPTransport
 
     parts = create_multipart_response([book1])
     server = await multipart_server(parts)
-    transport = HTTPMultipartTransport(url=server.make_url("/"))
+    transport = AIOHTTPTransport(url=server.make_url("/"))
 
     query = gql(subscription_str)
     request = GraphQLRequest(query)
@@ -328,34 +309,15 @@ async def test_http_multipart_transport_not_connected(multipart_server):
 
 
 @pytest.mark.asyncio
-async def test_http_multipart_execute_empty_response(multipart_server):
-    from gql.transport.http_multipart_transport import HTTPMultipartTransport
-
-    # Return empty multipart response (no data parts)
-    parts = ["--graphql--\r\n"]
-    server = await multipart_server(parts)
-    transport = HTTPMultipartTransport(url=server.make_url("/"))
-
-    async with Client(transport=transport) as session:
-        query = gql(subscription_str)
-
-        # execute() should raise NotImplementedError
-        with pytest.raises(NotImplementedError) as exc_info:
-            await session.execute(query)
-
-        assert "does not support queries or mutations" in str(exc_info.value)
-
-
-@pytest.mark.asyncio
-async def test_http_multipart_newline_separator(multipart_server):
+async def test_aiohttp_multipart_newline_separator(multipart_server):
     """Test that LF-only separators are rejected (spec requires CRLF)."""
-    from gql.transport.http_multipart_transport import HTTPMultipartTransport
+    from gql.transport.aiohttp import AIOHTTPTransport
 
     # The GraphQL over HTTP spec requires CRLF line endings in multipart responses
     # https://github.com/graphql/graphql-over-http/blob/main/rfcs/IncrementalDelivery.md
     parts = create_multipart_response([book1], separator="\n")
     server = await multipart_server(parts)
-    transport = HTTPMultipartTransport(url=server.make_url("/"))
+    transport = AIOHTTPTransport(url=server.make_url("/"))
 
     query = gql(subscription_str)
 
@@ -367,11 +329,11 @@ async def test_http_multipart_newline_separator(multipart_server):
 
 
 @pytest.mark.asyncio
-async def test_http_multipart_transport_connection_failed_error():
-    from gql.transport.http_multipart_transport import HTTPMultipartTransport
+async def test_aiohttp_multipart_transport_connection_failed_error():
+    from gql.transport.aiohttp import AIOHTTPTransport
 
     # Use an invalid URL that will fail to connect
-    transport = HTTPMultipartTransport(url="http://invalid.local:-1/graphql", timeout=1)
+    transport = AIOHTTPTransport(url="http://invalid.local:-1/graphql", timeout=1)
 
     query = gql(subscription_str)
 
@@ -382,15 +344,15 @@ async def test_http_multipart_transport_connection_failed_error():
 
 
 @pytest.mark.asyncio
-async def test_http_multipart_connector_owner_false(multipart_server):
+async def test_aiohttp_multipart_connector_owner_false(multipart_server):
     """Test closing transport with connector_owner=False."""
-    from gql.transport.http_multipart_transport import HTTPMultipartTransport
+    from gql.transport.aiohttp import AIOHTTPTransport
 
     parts = create_multipart_response([book1])
     server = await multipart_server(parts)
     url = server.make_url("/")
 
-    transport = HTTPMultipartTransport(
+    transport = AIOHTTPTransport(
         url=url, client_session_args={"connector_owner": False}
     )
 
@@ -405,21 +367,21 @@ async def test_http_multipart_connector_owner_false(multipart_server):
 
 
 @pytest.mark.asyncio
-async def test_http_multipart_ssl_close_timeout(multipart_server):
+async def test_aiohttp_multipart_ssl_close_timeout(multipart_server):
     """Test SSL close timeout during transport close."""
-    from gql.transport.http_multipart_transport import HTTPMultipartTransport
+    from gql.transport.aiohttp import AIOHTTPTransport
 
     parts = create_multipart_response([book1], separator="\n")
     server = await multipart_server(parts)
     url = server.make_url("/")
 
-    transport = HTTPMultipartTransport(url=url, ssl_close_timeout=0.001)
+    transport = AIOHTTPTransport(url=url, ssl_close_timeout=0.001)
 
     await transport.connect()
 
     # Mock the closed event to timeout
     with patch(
-        "gql.transport.http_multipart_transport.create_aiohttp_closed_event"
+        "gql.transport.common.aiohttp_closed_event.create_aiohttp_closed_event"
     ) as mock_event:
         mock_wait = AsyncMock()
         mock_wait.side_effect = asyncio.TimeoutError()
@@ -430,9 +392,9 @@ async def test_http_multipart_ssl_close_timeout(multipart_server):
 
 
 @pytest.mark.asyncio
-async def test_http_multipart_malformed_json(multipart_server):
+async def test_aiohttp_multipart_malformed_json(multipart_server):
     """Test handling of malformed JSON in multipart response."""
-    from gql.transport.http_multipart_transport import HTTPMultipartTransport
+    from gql.transport.aiohttp import AIOHTTPTransport
 
     parts = [
         (
@@ -446,7 +408,7 @@ async def test_http_multipart_malformed_json(multipart_server):
 
     server = await multipart_server(parts)
     url = server.make_url("/")
-    transport = HTTPMultipartTransport(url=url)
+    transport = AIOHTTPTransport(url=url)
 
     async with Client(transport=transport) as session:
         query = gql(subscription_str)
@@ -460,9 +422,9 @@ async def test_http_multipart_malformed_json(multipart_server):
 
 
 @pytest.mark.asyncio
-async def test_http_multipart_payload_null_no_errors(multipart_server):
+async def test_aiohttp_multipart_payload_null_no_errors(multipart_server):
     """Test handling of null payload without errors."""
-    from gql.transport.http_multipart_transport import HTTPMultipartTransport
+    from gql.transport.aiohttp import AIOHTTPTransport
 
     # Null payload but no errors
     response = {"payload": None}
@@ -478,7 +440,7 @@ async def test_http_multipart_payload_null_no_errors(multipart_server):
 
     server = await multipart_server(parts)
     url = server.make_url("/")
-    transport = HTTPMultipartTransport(url=url)
+    transport = AIOHTTPTransport(url=url)
 
     async with Client(transport=transport) as session:
         query = gql(subscription_str)
@@ -491,9 +453,9 @@ async def test_http_multipart_payload_null_no_errors(multipart_server):
 
 
 @pytest.mark.asyncio
-async def test_http_multipart_invalid_utf8(multipart_server):
+async def test_aiohttp_multipart_invalid_utf8(multipart_server):
     """Test handling of invalid UTF-8 in multipart response."""
-    from gql.transport.http_multipart_transport import HTTPMultipartTransport
+    from gql.transport.aiohttp import AIOHTTPTransport
 
     parts = [
         (
@@ -507,7 +469,7 @@ async def test_http_multipart_invalid_utf8(multipart_server):
 
     server = await multipart_server(parts)
     url = server.make_url("/")
-    transport = HTTPMultipartTransport(url=url)
+    transport = AIOHTTPTransport(url=url)
 
     async with Client(transport=transport) as session:
         query = gql(subscription_str)
@@ -520,9 +482,9 @@ async def test_http_multipart_invalid_utf8(multipart_server):
 
 
 @pytest.mark.asyncio
-async def test_http_multipart_chunked_boundary_split(multipart_server):
+async def test_aiohttp_multipart_chunked_boundary_split(multipart_server):
     """Test parsing when boundary is split across chunks."""
-    from gql.transport.http_multipart_transport import HTTPMultipartTransport
+    from gql.transport.aiohttp import AIOHTTPTransport
 
     parts = [
         "--gra",
@@ -535,7 +497,7 @@ async def test_http_multipart_chunked_boundary_split(multipart_server):
 
     server = await multipart_server(parts)
     url = server.make_url("/")
-    transport = HTTPMultipartTransport(url=url)
+    transport = AIOHTTPTransport(url=url)
 
     async with Client(transport=transport) as session:
         query = gql(subscription_str)
@@ -548,9 +510,9 @@ async def test_http_multipart_chunked_boundary_split(multipart_server):
 
 
 @pytest.mark.asyncio
-async def test_http_multipart_wrong_part_content_type(multipart_server):
+async def test_aiohttp_multipart_wrong_part_content_type(multipart_server):
     """Test that parts with wrong content-type raise an error."""
-    from gql.transport.http_multipart_transport import HTTPMultipartTransport
+    from gql.transport.aiohttp import AIOHTTPTransport
 
     # Part with text/html instead of application/json
     parts = [
@@ -560,7 +522,7 @@ async def test_http_multipart_wrong_part_content_type(multipart_server):
 
     server = await multipart_server(parts)
     url = server.make_url("/")
-    transport = HTTPMultipartTransport(url=url)
+    transport = AIOHTTPTransport(url=url)
 
     async with Client(transport=transport) as session:
         query = gql(subscription_str)
@@ -574,14 +536,14 @@ async def test_http_multipart_wrong_part_content_type(multipart_server):
 
 
 @pytest.mark.asyncio
-async def test_http_multipart_response_headers(multipart_server):
+async def test_aiohttp_multipart_response_headers(multipart_server):
     """Test that response headers are captured in the transport."""
-    from gql.transport.http_multipart_transport import HTTPMultipartTransport
+    from gql.transport.aiohttp import AIOHTTPTransport
 
     parts = create_multipart_response([book1])
     server = await multipart_server(parts)
     url = server.make_url("/")
-    transport = HTTPMultipartTransport(url=url)
+    transport = AIOHTTPTransport(url=url)
 
     query = gql(subscription_str)
 
@@ -597,9 +559,9 @@ async def test_http_multipart_response_headers(multipart_server):
 
 
 @pytest.mark.asyncio
-async def test_http_multipart_empty_body(multipart_server):
+async def test_aiohttp_multipart_empty_body(multipart_server):
     """Test part with empty body after stripping."""
-    from gql.transport.http_multipart_transport import HTTPMultipartTransport
+    from gql.transport.aiohttp import AIOHTTPTransport
 
     # Part with only whitespace body
     parts = [
@@ -609,7 +571,7 @@ async def test_http_multipart_empty_body(multipart_server):
 
     server = await multipart_server(parts)
     url = server.make_url("/")
-    transport = HTTPMultipartTransport(url=url)
+    transport = AIOHTTPTransport(url=url)
 
     async with Client(transport=transport) as session:
         query = gql(subscription_str)
@@ -620,9 +582,9 @@ async def test_http_multipart_empty_body(multipart_server):
 
 
 @pytest.mark.asyncio
-async def test_http_multipart_missing_payload_field(multipart_server):
+async def test_aiohttp_multipart_missing_payload_field(multipart_server):
     """Test handling of response missing required 'payload' field."""
-    from gql.transport.http_multipart_transport import HTTPMultipartTransport
+    from gql.transport.aiohttp import AIOHTTPTransport
 
     response = {"foo": "bar"}  # No payload field!
     parts = [
@@ -637,7 +599,7 @@ async def test_http_multipart_missing_payload_field(multipart_server):
 
     server = await multipart_server(parts)
     url = server.make_url("/")
-    transport = HTTPMultipartTransport(url=url)
+    transport = AIOHTTPTransport(url=url)
 
     async with Client(transport=transport) as session:
         query = gql(subscription_str)
@@ -650,9 +612,9 @@ async def test_http_multipart_missing_payload_field(multipart_server):
 
 
 @pytest.mark.asyncio
-async def test_http_multipart_with_content_length_headers(multipart_server):
+async def test_aiohttp_multipart_with_content_length_headers(multipart_server):
     """Test multipart response with Content-Length headers (like real servers send)."""
-    from gql.transport.http_multipart_transport import HTTPMultipartTransport
+    from gql.transport.aiohttp import AIOHTTPTransport
 
     # Simulate real server behavior: each part has Content-Length header
     book1_payload = json.dumps({"payload": {"data": {"book": book1}}})
@@ -687,7 +649,7 @@ async def test_http_multipart_with_content_length_headers(multipart_server):
 
     server = await multipart_server(parts)
     url = server.make_url("/")
-    transport = HTTPMultipartTransport(url=url)
+    transport = AIOHTTPTransport(url=url)
 
     async with Client(transport=transport) as session:
         query = gql(subscription_str)
@@ -702,9 +664,9 @@ async def test_http_multipart_with_content_length_headers(multipart_server):
 
 
 @pytest.mark.asyncio
-async def test_http_multipart_actually_invalid_utf8(multipart_server):
+async def test_aiohttp_multipart_actually_invalid_utf8(multipart_server):
     """Test handling of ACTUAL invalid UTF-8 bytes in multipart response."""
-    from gql.transport.http_multipart_transport import HTTPMultipartTransport
+    from gql.transport.aiohttp import AIOHTTPTransport
 
     # \\x80 is an invalid start byte in UTF-8
     parts = [
@@ -719,7 +681,7 @@ async def test_http_multipart_actually_invalid_utf8(multipart_server):
 
     server = await multipart_server(parts)
     url = server.make_url("/")
-    transport = HTTPMultipartTransport(url=url)
+    transport = AIOHTTPTransport(url=url)
 
     async with Client(transport=transport) as session:
         query = gql(subscription_str)

@@ -2,14 +2,14 @@ import asyncio
 import logging
 
 from gql import Client, gql
-from gql.transport.http_multipart_transport import HTTPMultipartTransport
+from gql.transport.aiohttp import AIOHTTPTransport
 
 logging.basicConfig(level=logging.INFO)
 
 
 async def main():
 
-    transport = HTTPMultipartTransport(url="https://gql-book-server.fly.dev/graphql")
+    transport = AIOHTTPTransport(url="https://gql-book-server.fly.dev/graphql")
 
     # Using `async with` on the client will start a connection on the transport
     # and provide a `session` variable to execute queries on this connection
