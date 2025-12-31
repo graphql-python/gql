@@ -93,6 +93,7 @@ intersphinx_mapping = {
 nitpick_ignore = [
     # graphql-core: should be fixed
     ('py:class', 'graphql.execution.execute.ExecutionResult'),
+    ('py:class', 'graphql.execution.incremental_publisher.ExecutionResult'),
     ('py:class', 'Source'),
     ('py:class', 'GraphQLSchema'),
 
