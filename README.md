@@ -30,13 +30,14 @@ The complete documentation for GQL can be found at
 
 ## Features
 
-* Execute GraphQL queries using [different protocols](https://gql.readthedocs.io/en/latest/transports/index.html):
+* Execute GraphQL requests using [different protocols](https://gql.readthedocs.io/en/latest/transports/index.html):
   * http
+    * including the multipart protocol for subscriptions
   * websockets:
     * apollo or graphql-ws protocol
     * Phoenix channels
-    * AWS AppSync realtime protocol (experimental)
-* Possibility to [validate the queries locally](https://gql.readthedocs.io/en/latest/usage/validation.html) using a GraphQL schema provided locally or fetched from the backend using an instrospection query
+    * AWS AppSync realtime protocol
+* Possibility to [validate the requests locally](https://gql.readthedocs.io/en/latest/usage/validation.html) using a GraphQL schema provided locally or fetched from the backend using an instrospection query
 * Supports GraphQL queries, mutations and [subscriptions](https://gql.readthedocs.io/en/latest/usage/subscriptions.html)
 * Supports [sync](https://gql.readthedocs.io/en/latest/usage/sync_usage.html) or [async](https://gql.readthedocs.io/en/latest/usage/async_usage.html) usage, [allowing concurrent requests](https://gql.readthedocs.io/en/latest/advanced/async_advanced_usage.html#async-advanced-usage)
 * Supports [File uploads](https://gql.readthedocs.io/en/latest/usage/file_upload.html)

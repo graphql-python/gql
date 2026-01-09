@@ -354,32 +354,6 @@ async def test_aiohttp_invalid_protocol(aiohttp_server, param):
 
 
 @pytest.mark.asyncio
-async def test_aiohttp_subscribe_not_supported(aiohttp_server):
-    from aiohttp import web
-
-    from gql.transport.aiohttp import AIOHTTPTransport
-
-    async def handler(request):
-        return web.Response(text="does not matter", content_type="application/json")
-
-    app = web.Application()
-    app.router.add_route("POST", "/", handler)
-    server = await aiohttp_server(app)
-
-    url = server.make_url("/")
-
-    transport = AIOHTTPTransport(url=url)
-
-    async with Client(transport=transport) as session:
-
-        query = gql(query1_str)
-
-        with pytest.raises(NotImplementedError):
-            async for result in session.subscribe(query):
-                pass
-
-
-@pytest.mark.asyncio
 async def test_aiohttp_cannot_connect_twice(aiohttp_server):
     from aiohttp import web
 
@@ -590,16 +564,17 @@ async def test_aiohttp_subscribe_running_in_thread(aiohttp_server, run_sync_test
 
         query = gql(query1_str)
 
-        # Note: subscriptions are not supported on the aiohttp transport
-        # But we add this test in order to have 100% code coverage
         # It is to check that we will correctly set an event loop
         # in the subscribe function if there is none (in a Thread for example)
         # We cannot test this with the websockets transport because
         # the websockets transport will set an event loop in its init
 
-        with pytest.raises(NotImplementedError):
-            for result in client.subscribe(query):
-                pass
+        results = []
+        for result in client.subscribe(query):
+            results.append(result)
+
+        assert len(results) == 1
+        assert results[0]["continents"][0]["code"] == "AF"
 
     await run_sync_test(server, test_code)
 

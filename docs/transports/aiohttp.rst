@@ -7,14 +7,78 @@ This transport uses the `aiohttp`_ library and allows you to send GraphQL querie
 
 Reference: :class:`gql.transport.aiohttp.AIOHTTPTransport`
 
-.. note::
+This transport supports both standard GraphQL operations (queries, mutations) and subscriptions.
+Subscriptions are implemented using the `multipart subscription protocol`_
+as implemented by Apollo GraphOS Router and other compatible servers.
 
-    GraphQL subscriptions are not supported on the HTTP transport.
-    For subscriptions you should use a websockets transport:
-    :ref:`WebsocketsTransport <websockets_transport>` or
-    :ref:`AIOHTTPWebsocketsTransport <aiohttp_websockets_transport>`.
+This provides an HTTP-based alternative to WebSocket transports for receiving streaming
+subscription updates. It's particularly useful when:
+
+- WebSocket connections are not available or blocked by infrastructure
+- You want to use standard HTTP with existing load balancers and proxies
+- The backend implements the multipart subscription protocol
+
+Queries
+-------
 
 .. literalinclude:: ../code_examples/aiohttp_async.py
+
+Subscriptions
+-------------
+
+The transport sends a standard HTTP POST request with an ``Accept`` header indicating
+support for multipart responses:
+
+.. code-block:: text
+
+    Accept: multipart/mixed;subscriptionSpec="1.0", application/json
+
+The server responds with a ``multipart/mixed`` content type and streams subscription
+updates as separate parts in the response body. Each part contains a JSON payload
+with GraphQL execution results.
+
+.. literalinclude:: ../code_examples/aiohttp_multipart_subscription.py
+
+How It Works
+^^^^^^^^^^^^
+
+**Message Format**
+
+Each message part follows this structure:
+
+.. code-block:: text
+
+    --graphql
+    Content-Type: application/json
+
+    {"payload": {"data": {...}, "errors": [...]}}
+
+**Heartbeats**
+
+Servers may send empty JSON objects (``{}``) as heartbeat messages to keep the
+connection alive. These are automatically filtered out by the transport.
+
+**Error Handling**
+
+The protocol distinguishes between two types of errors:
+
+- **GraphQL errors**: Returned within the ``payload`` property alongside data
+- **Transport errors**: Returned with a top-level ``errors`` field and ``null`` payload
+
+**End of Stream**
+
+The subscription ends when the server sends the final boundary marker:
+
+.. code-block:: text
+
+    --graphql--
+
+Limitations
+^^^^^^^^^^^
+
+- Subscriptions require the server to implement the multipart subscription protocol
+- Long-lived connections may be terminated by intermediate proxies or load balancers
+- Some server configurations may not support HTTP/1.1 chunked transfer encoding required for streaming
 
 Authentication
 --------------
@@ -52,3 +116,5 @@ and you can save these cookies in a cookie jar to reuse them in a following conn
 
 .. _aiohttp: https://docs.aiohttp.org
 .. _issue 197: https://github.com/graphql-python/gql/issues/197
+.. _multipart subscription protocol: https://www.apollographql.com/docs/graphos/routing/operations/subscriptions/multipart-protocol
+
