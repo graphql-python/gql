@@ -577,7 +577,8 @@ def test_requests_sync_batch_auto():
             "continent_code": continent_code,
         }
 
-        result = session.execute(query, variable_values=variables)
+        query.variable_values = variables
+        result = session.execute(query)
 
         name = result["continent"]["name"]
         print(f"The continent with the code {continent_code} has the name: '{name}'")
