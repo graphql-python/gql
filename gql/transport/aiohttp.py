@@ -425,19 +425,21 @@ class AIOHTTPTransport(AsyncTransport):
     async def subscribe(
         self,
         request: GraphQLRequest,
+        *,
+        extra_args: Optional[Dict[str, Any]] = None,
     ) -> AsyncGenerator[ExecutionResult, None]:
         """Execute a GraphQL subscription and yield results from multipart response.
 
         :param request: GraphQL request to execute
+        :param extra_args: additional arguments to send to the aiohttp post method
         :yields: ExecutionResult objects as they arrive in the multipart stream
         """
         if self.session is None:
             raise TransportClosed("Transport is not connected")
 
-        post_args = self._prepare_request(request)
+        post_args = self._prepare_request(request, extra_args)
 
-        # Add headers for multipart subscription
-        headers = post_args.get("headers", {})
+        headers = dict(post_args.get("headers", {}))
         headers.update(
             {
                 "Content-Type": "application/json",
