@@ -636,3 +636,31 @@ async def test_aiohttp_multipart_actually_invalid_utf8(multipart_server):
 
         # Should skip invalid part and not crash
         assert len(results) == 0
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_multipart_subscribe_extra_args(multipart_server):
+    """Test that extra_args are passed through to the post method."""
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    custom_header_received = False
+
+    def check_custom_header(request):
+        nonlocal custom_header_received
+        if request.headers.get("X-Custom-Header") == "custom-value":
+            custom_header_received = True
+
+    parts = create_multipart_response([book1])
+    server = await multipart_server(parts, request_handler=check_custom_header)
+    url = server.make_url("/")
+    transport = AIOHTTPTransport(url=url)
+
+    query = gql(subscription_str)
+
+    async with Client(transport=transport) as session:
+        async for result in session.subscribe(
+            query, extra_args={"headers": {"X-Custom-Header": "custom-value"}}
+        ):
+            pass
+
+    assert custom_header_received
