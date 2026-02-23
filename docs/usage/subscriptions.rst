@@ -69,7 +69,7 @@ Async
         async with client as session:
 
             # Then get the results using 'async for'
-            async for result in client.subscribe(query):
+            async for result in session.subscribe(query):
                 print (result)
 
 
