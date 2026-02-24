@@ -479,12 +479,15 @@ class WebsocketsProtocolTransportBase(SubscriptionTransportBase):
         # Find the backend subprotocol returned in the response headers
         try:
             self.subprotocol = self.response_headers["Sec-WebSocket-Protocol"]
+            log.debug(f"backend subprotocol returned: {self.subprotocol!r}")
         except KeyError:
-            # If the server does not send the subprotocol header, using
-            # the apollo subprotocol by default
-            self.subprotocol = self.APOLLO_SUBPROTOCOL
-
-        log.debug(f"backend subprotocol returned: {self.subprotocol!r}")
+            # If the server does not send the subprotocol header, use
+            # the apollo subprotocol by default unless we didn't ask for it
+            if self.APOLLO_SUBPROTOCOL in self.adapter.subprotocols:
+                self.subprotocol = self.APOLLO_SUBPROTOCOL
+            else:
+                self.subprotocol = self.GRAPHQLWS_SUBPROTOCOL
+            log.debug(f"backend returned no subprotocol, using: {self.subprotocol!r}")
 
     async def _after_initialize(self):
 
