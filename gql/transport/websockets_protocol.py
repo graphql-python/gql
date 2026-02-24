@@ -483,7 +483,10 @@ class WebsocketsProtocolTransportBase(SubscriptionTransportBase):
         except KeyError:
             # If the server does not send the subprotocol header, use
             # the apollo subprotocol by default unless we didn't ask for it
-            if self.adapter.subprotocols is None or self.APOLLO_SUBPROTOCOL in self.adapter.subprotocols:
+            if (
+                self.adapter.subprotocols is None
+                or self.APOLLO_SUBPROTOCOL in self.adapter.subprotocols
+            ):
                 self.subprotocol = self.APOLLO_SUBPROTOCOL
             else:
                 self.subprotocol = self.GRAPHQLWS_SUBPROTOCOL
