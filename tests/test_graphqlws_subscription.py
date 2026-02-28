@@ -899,3 +899,41 @@ async def test_graphqlws_subscription_reconnecting_session(
             break
 
     assert transport._connected is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("server", [server_countdown], indirect=True)
+@pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
+async def test_graphqlws_subscription_no_server_protocol(server, subscription_str):
+    """The goal of this test is to verify that if the client requests only the
+    graphqlws subprotocol AND the server is not returning its subprotocol
+    in its header, then the client will assume that the protocol used is
+    the graphqlws subprotocol (See PR #586).
+    """
+
+    from gql.transport.websockets import WebsocketsTransport
+
+    url = f"ws://{server.hostname}:{server.port}/graphql"
+    print(f"url = {url}")
+
+    transport = WebsocketsTransport(
+        url=url,
+        subprotocols=[WebsocketsTransport.GRAPHQLWS_SUBPROTOCOL],
+        keep_alive_timeout=3,
+    )
+
+    client = Client(transport=transport)
+
+    count = 10
+    subscription = gql(subscription_str.format(count=count))
+
+    async with client as session:
+        async for result in session.subscribe(subscription):
+
+            number = result["number"]
+            print(f"Number received: {number}")
+
+            assert number == count
+            count -= 1
+
+    assert count == -1
