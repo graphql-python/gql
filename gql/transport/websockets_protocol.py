@@ -4,7 +4,7 @@ import logging
 from contextlib import suppress
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from graphql import ExecutionResult
+from graphql import ExecutionResult, GraphQLError
 
 from ..graphql_request import GraphQLRequest
 from .common.adapters.connection import AdapterConnection
@@ -382,7 +382,14 @@ class WebsocketsProtocolTransportBase(SubscriptionTransportBase):
                     elif answer_type == "error":
 
                         raise TransportQueryError(
-                            str(payload), query_id=answer_id, errors=[payload]
+                            str(payload),
+                            query_id=answer_id,
+                            errors=[
+                                GraphQLError(
+                                    payload.get("message", str(payload)),
+                                    extensions=payload.get("extensions"),
+                                )
+                            ],
                         )
 
             elif answer_type == "ka":

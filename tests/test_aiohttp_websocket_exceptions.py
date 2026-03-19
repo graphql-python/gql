@@ -55,7 +55,8 @@ async def test_aiohttp_websocket_invalid_query(aiohttp_client_and_server, query_
 
     error = exception.errors[0]
 
-    assert error["extensions"]["code"] == "INTERNAL_SERVER_ERROR"
+    assert error.extensions is not None
+    assert error.extensions["code"] == "INTERNAL_SERVER_ERROR"
 
 
 invalid_subscription_str = """
@@ -97,7 +98,8 @@ async def test_aiohttp_websocket_invalid_subscription(
 
     error = exception.errors[0]
 
-    assert error["extensions"]["code"] == "INTERNAL_SERVER_ERROR"
+    assert error.extensions is not None
+    assert error.extensions["code"] == "INTERNAL_SERVER_ERROR"
 
 
 connection_error_server_answer = (
@@ -205,7 +207,7 @@ async def test_aiohttp_websocket_sending_invalid_payload(
 
     error = exception.errors[0]
 
-    assert error["message"] == "Must provide document"
+    assert error.message == "Must provide document"
 
 
 not_json_answer = ["BLAHBLAH"]

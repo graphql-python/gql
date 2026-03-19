@@ -1,5 +1,7 @@
 from typing import Any, List, Optional
 
+from graphql import GraphQLError
+
 
 class TransportError(Exception):
     """Base class for all the Transport exceptions"""
@@ -34,7 +36,7 @@ class TransportQueryError(TransportError):
     """
 
     query_id: Optional[int]
-    errors: Optional[List[Any]]
+    errors: Optional[List[GraphQLError]]
     data: Optional[Any]
     extensions: Optional[Any]
 
@@ -42,7 +44,7 @@ class TransportQueryError(TransportError):
         self,
         msg: str,
         query_id: Optional[int] = None,
-        errors: Optional[List[Any]] = None,
+        errors: Optional[List[GraphQLError]] = None,
         data: Optional[Any] = None,
         extensions: Optional[Any] = None,
     ):

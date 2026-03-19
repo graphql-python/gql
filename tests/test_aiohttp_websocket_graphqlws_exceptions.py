@@ -55,7 +55,8 @@ async def test_aiohttp_websocket_graphqlws_invalid_query(
 
     error = exception.errors[0]
 
-    assert error["extensions"]["code"] == "INTERNAL_SERVER_ERROR"
+    assert error.extensions is not None
+    assert error.extensions["code"] == "INTERNAL_SERVER_ERROR"
 
 
 invalid_subscription_str = """
@@ -99,7 +100,8 @@ async def test_aiohttp_websocket_graphqlws_invalid_subscription(
 
     error = exception.errors[0]
 
-    assert error["extensions"]["code"] == "INTERNAL_SERVER_ERROR"
+    assert error.extensions is not None
+    assert error.extensions["code"] == "INTERNAL_SERVER_ERROR"
 
 
 async def server_no_ack(ws):
@@ -159,7 +161,7 @@ async def test_aiohttp_websocket_graphqlws_sending_invalid_query(
     error = exception.errors[0]
 
     assert (
-        error["message"]
+        error.message
         == 'Cannot query field "helo" on type "Query". Did you mean "hello"?'
     )
 
