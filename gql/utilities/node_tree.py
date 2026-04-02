@@ -14,7 +14,7 @@ def _node_tree_recursive(
 
     results = []
 
-    if hasattr(obj, "__slots__"):
+    if hasattr(obj, "__slots__") or isinstance(obj, Node):
 
         results.append("  " * indent + f"{type(obj).__name__}")
 
@@ -88,5 +88,8 @@ def node_tree(
     if ignore_block:
         # We are ignoring block attributes by default (in StringValueNode)
         ignored_keys.append("block")
+
+    # Ignore new field added in graphql-core 3.3.0a12 to keep output compatible
+    ignored_keys.append("nullability_assertion")
 
     return _node_tree_recursive(obj, ignored_keys=ignored_keys)
