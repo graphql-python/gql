@@ -124,10 +124,10 @@ class ParseResultVisitor(Visitor):
             if not hasattr(node.name, "value"):
                 return REMOVE  # pragma: no cover
 
-            node.name = cast(NameNode, node.name)
+            name = cast(NameNode, node.name)
 
-            if node.name.value != self.operation_name:
-                log.debug(f"SKIPPING operation {node.name.value}")
+            if name.value != self.operation_name:
+                log.debug(f"SKIPPING operation {name.value}")
                 return REMOVE
 
         return IDLE
@@ -238,7 +238,7 @@ class ParseResultVisitor(Visitor):
                 assert isinstance(selection_set_node, SelectionSetNode)
 
                 # Keep only the current node in a new selection set node
-                new_node = SelectionSetNode(selections=[node])
+                new_node = SelectionSetNode(selections=(node,))
 
                 for item in result_value:
 

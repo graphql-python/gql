@@ -135,12 +135,13 @@ def get_introspection_query_ast(
 
     if type_recursion_level >= 1:
         current_field = ds.__Type.ofType.select(ds.__Type.kind, ds.__Type.name)
-        fragment_TypeRef.select(current_field)
 
         for _ in repeat(None, type_recursion_level - 1):
-            new_oftype = ds.__Type.ofType.select(ds.__Type.kind, ds.__Type.name)
-            current_field.select(new_oftype)
-            current_field = new_oftype
+            parent_field = ds.__Type.ofType.select(ds.__Type.kind, ds.__Type.name)
+            parent_field.select(current_field)
+            current_field = parent_field
+
+        fragment_TypeRef.select(current_field)
 
     query = DSLQuery(schema)
 
