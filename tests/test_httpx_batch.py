@@ -120,6 +120,97 @@ async def test_httpx_sync_batch_query(aiohttp_server, run_sync_test):
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
+async def test_httpx_async_batch_query_with_extensions(aiohttp_server):
+    from aiohttp import web
+
+    from gql.transport.httpx import HTTPXAsyncTransport
+
+    async def handler(request):
+        body = await request.json()
+        assert isinstance(body, list)
+        assert "extensions" in body[0]
+        assert body[0]["extensions"] == {
+            "persistedQuery": {"version": 1, "sha256Hash": "abc123"}
+        }
+        return web.Response(
+            text=query1_server_answer_list,
+            content_type="application/json",
+        )
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = str(server.make_url("/"))
+
+    transport = HTTPXAsyncTransport(url=url, timeout=10)
+
+    async with Client(transport=transport) as session:
+
+        query = [
+            GraphQLRequest(
+                query1_str,
+                extensions={
+                    "persistedQuery": {"version": 1, "sha256Hash": "abc123"}
+                },
+            )
+        ]
+
+        results = await session.execute_batch(query)
+
+        continents = results[0]["continents"]
+        assert continents[0]["code"] == "AF"
+
+
+@pytest.mark.aiohttp
+@pytest.mark.asyncio
+async def test_httpx_sync_batch_query_with_extensions(aiohttp_server, run_sync_test):
+    from aiohttp import web
+
+    from gql.transport.httpx import HTTPXTransport
+
+    async def handler(request):
+        body = await request.json()
+        assert isinstance(body, list)
+        assert "extensions" in body[0]
+        assert body[0]["extensions"] == {
+            "persistedQuery": {"version": 1, "sha256Hash": "abc123"}
+        }
+        return web.Response(
+            text=query1_server_answer_list,
+            content_type="application/json",
+        )
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = str(server.make_url("/"))
+
+    transport = HTTPXTransport(url=url, timeout=10)
+
+    def test_code():
+        with Client(transport=transport) as session:
+
+            query = [
+                GraphQLRequest(
+                    query1_str,
+                    extensions={
+                        "persistedQuery": {"version": 1, "sha256Hash": "abc123"}
+                    },
+                )
+            ]
+
+            results = session.execute_batch(query)
+
+            continents = results[0]["continents"]
+            assert continents[0]["code"] == "AF"
+
+    await run_sync_test(server, test_code)
+
+
+@pytest.mark.aiohttp
+@pytest.mark.asyncio
 async def test_httpx_async_batch_query_without_session(aiohttp_server, run_sync_test):
     from aiohttp import web
 

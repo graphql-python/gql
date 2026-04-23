@@ -8,7 +8,7 @@ import pytest
 from graphql import ExecutionResult
 from parse import search
 
-from gql import Client, gql
+from gql import Client, GraphQLRequest, gql
 from gql.client import AsyncClientSession
 from gql.transport.exceptions import TransportConnectionFailed, TransportServerError
 
@@ -458,6 +458,36 @@ async def test_aiohttp_websocket_subscription_with_operation_name(
 
     # Check that the query contains the operationName
     assert '"operationName": "CountdownSubscription"' in logged_messages[0]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("server", [server_countdown], indirect=True)
+@pytest.mark.parametrize("subscription_str", [countdown_subscription_str])
+async def test_aiohttp_websocket_subscription_with_extensions(
+    aiohttp_client_and_server, subscription_str
+):
+
+    session, server = aiohttp_client_and_server
+
+    count = 10
+    request = GraphQLRequest(
+        subscription_str.format(count=count),
+        extensions={"persistedQuery": {"version": 1, "sha256Hash": "abc123"}},
+    )
+
+    async for result in session.subscribe(request):
+
+        number = result["number"]
+        print(f"Number received: {number}")
+
+        assert number == count
+        count -= 1
+
+    assert count == -1
+
+    # Check that the query contains the extensions
+    assert '"persistedQuery"' in logged_messages[0]
+    assert '"sha256Hash": "abc123"' in logged_messages[0]
 
 
 WITH_KEEPALIVE = True

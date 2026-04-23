@@ -619,6 +619,46 @@ async def test_aiohttp_subscribe_running_in_thread(aiohttp_server, run_sync_test
     await run_sync_test(server, test_code)
 
 
+@pytest.mark.asyncio
+async def test_aiohttp_subscribe_with_extensions(aiohttp_server):
+    from aiohttp import web
+
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    async def handler(request):
+        body = await request.json()
+        assert "extensions" in body
+        assert body["extensions"] == {
+            "persistedQuery": {"version": 1, "sha256Hash": "abc123"}
+        }
+        return web.Response(
+            text=query1_server_answer,
+            content_type="application/json",
+        )
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    transport = AIOHTTPTransport(url=url, timeout=10)
+
+    request = GraphQLRequest(
+        query1_str,
+        extensions={"persistedQuery": {"version": 1, "sha256Hash": "abc123"}},
+    )
+
+    async with Client(transport=transport) as session:
+
+        results = []
+        async for result in session.subscribe(request):
+            results.append(result)
+
+        assert len(results) == 1
+        assert results[0]["continents"][0]["code"] == "AF"
+
+
 file_upload_mutation_1 = """
     mutation($file: Upload!) {
       uploadFile(input:{other_var:$other_var, file:$file}) {
