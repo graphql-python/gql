@@ -26,7 +26,7 @@ You can use this to pass protocol extensions such as
         request = GraphQLRequest(
             "query { viewer { name } }",
             extensions={
-                "document-id": "foo",
+                "document-id": "155d6e8f5545...",
             },
         )
 
