@@ -248,12 +248,15 @@ def test_graphql_request_extensions():
     request_1 = GraphQLRequest("{balance}", extensions=extensions_1)
     assert request_1.payload["extensions"] == extensions_1
 
+    # Copied from another GraphQLRequest
     request_2 = GraphQLRequest(request_1)
     assert request_2.extensions == extensions_1
 
+    # Explicit extensions override the copied value
     request_3 = GraphQLRequest(request_1, extensions=extensions_2)
     assert request_3.extensions == extensions_2
 
+    # Preserved through serialize_variable_values
     request_4 = GraphQLRequest(
         "query myquery($money: Money) {toEuros(money: $money)}",
         variable_values={"money": money_value},
