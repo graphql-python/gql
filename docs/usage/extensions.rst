@@ -3,6 +3,41 @@
 Extensions
 ----------
 
+Request extensions
+^^^^^^^^^^^^^^^^^^
+
+The `GraphQL over HTTP spec <https://github.com/graphql/graphql-over-http>`_
+defines an optional :code:`extensions` field on requests. This is sent as a
+top-level key in the request payload alongside :code:`query`, :code:`variables`,
+and :code:`operationName`.
+
+You can use this to pass protocol extensions such as
+`persisted queries <https://www.apollographql.com/docs/apollo-server/performance/apq/>`_:
+
+.. code-block:: python
+
+    from gql import Client, GraphQLRequest
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    transport = AIOHTTPTransport(url="https://example.com/graphql")
+
+    async with Client(transport=transport) as session:
+
+        request = GraphQLRequest(
+            "query { viewer { name } }",
+            extensions={
+                "persistedQuery": {
+                    "version": 1,
+                    "sha256Hash": "abc123...",
+                }
+            },
+        )
+
+        result = await session.execute(request)
+
+Response extensions
+^^^^^^^^^^^^^^^^^^^
+
 When you execute (or subscribe) GraphQL requests, the server will send
 responses which may have 3 fields:
 
