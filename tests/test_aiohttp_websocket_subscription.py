@@ -478,8 +478,6 @@ async def test_aiohttp_websocket_subscription_with_extensions(
     async for result in session.subscribe(request):
 
         number = result["number"]
-        print(f"Number received: {number}")
-
         assert number == count
         count -= 1
 
