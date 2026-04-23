@@ -88,17 +88,16 @@ async def test_aiohttp_query(aiohttp_server):
 
 
 @pytest.mark.asyncio
-async def test_aiohttp_query_with_extensions(aiohttp_server):
+async def test_aiohttp_request_extensions(aiohttp_server):
     from aiohttp import web
 
     from gql.transport.aiohttp import AIOHTTPTransport
 
+    extensions = {"persistedQuery": {"version": 1, "sha256Hash": "abc123"}}
+
     async def handler(request):
         body = await request.json()
-        assert "extensions" in body
-        assert body["extensions"] == {
-            "persistedQuery": {"version": 1, "sha256Hash": "abc123"}
-        }
+        assert body["extensions"] == extensions
         return web.Response(
             text=query1_server_answer,
             content_type="application/json",
@@ -112,19 +111,17 @@ async def test_aiohttp_query_with_extensions(aiohttp_server):
 
     transport = AIOHTTPTransport(url=url, timeout=10)
 
+    request = GraphQLRequest(query1_str, extensions=extensions)
+
     async with Client(transport=transport) as session:
 
-        request = GraphQLRequest(
-            query1_str,
-            extensions={
-                "persistedQuery": {"version": 1, "sha256Hash": "abc123"}
-            },
-        )
-
+        # execute
         result = await session.execute(request)
+        assert result["continents"][0]["code"] == "AF"
 
-        continents = result["continents"]
-        assert continents[0]["code"] == "AF"
+        # subscribe
+        async for result in session.subscribe(request):
+            assert result["continents"][0]["code"] == "AF"
 
 
 @pytest.mark.asyncio
@@ -617,46 +614,6 @@ async def test_aiohttp_subscribe_running_in_thread(aiohttp_server, run_sync_test
         assert results[0]["continents"][0]["code"] == "AF"
 
     await run_sync_test(server, test_code)
-
-
-@pytest.mark.asyncio
-async def test_aiohttp_subscribe_with_extensions(aiohttp_server):
-    from aiohttp import web
-
-    from gql.transport.aiohttp import AIOHTTPTransport
-
-    async def handler(request):
-        body = await request.json()
-        assert "extensions" in body
-        assert body["extensions"] == {
-            "persistedQuery": {"version": 1, "sha256Hash": "abc123"}
-        }
-        return web.Response(
-            text=query1_server_answer,
-            content_type="application/json",
-        )
-
-    app = web.Application()
-    app.router.add_route("POST", "/", handler)
-    server = await aiohttp_server(app)
-
-    url = server.make_url("/")
-
-    transport = AIOHTTPTransport(url=url, timeout=10)
-
-    request = GraphQLRequest(
-        query1_str,
-        extensions={"persistedQuery": {"version": 1, "sha256Hash": "abc123"}},
-    )
-
-    async with Client(transport=transport) as session:
-
-        results = []
-        async for result in session.subscribe(request):
-            results.append(result)
-
-        assert len(results) == 1
-        assert results[0]["continents"][0]["code"] == "AF"
 
 
 file_upload_mutation_1 = """

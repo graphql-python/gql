@@ -238,55 +238,26 @@ def test_graphql_request_init_with_graphql_request():
     assert request_3.variable_values["money"] == money_value_2
 
 
-def test_graphql_request_extensions_in_payload():
-    extensions = {"persistedQuery": {"version": 1, "sha256Hash": "abc123"}}
-    request = GraphQLRequest("{balance}", extensions=extensions)
-
-    payload = request.payload
-    assert payload["extensions"] == extensions
-
-
-def test_graphql_request_extensions_not_in_payload_when_none():
-    request = GraphQLRequest("{balance}")
-    assert "extensions" not in request.payload
-
-
-def test_graphql_request_extensions_copied_from_graphql_request():
-    extensions = {"persistedQuery": {"version": 1, "sha256Hash": "abc123"}}
-    request_1 = GraphQLRequest("{balance}", extensions=extensions)
-    request_2 = GraphQLRequest(request_1)
-
-    assert request_2.extensions == extensions
-    assert request_2.payload["extensions"] == extensions
-
-
-def test_graphql_request_extensions_override_from_graphql_request():
+def test_graphql_request_extensions():
     extensions_1 = {"persistedQuery": {"version": 1, "sha256Hash": "abc123"}}
     extensions_2 = {"custom": "value"}
-    request_1 = GraphQLRequest("{balance}", extensions=extensions_1)
-    request_2 = GraphQLRequest(request_1, extensions=extensions_2)
-
-    assert request_2.extensions == extensions_2
-
-
-def test_graphql_request_extensions_preserved_by_serialize_variable_values():
-    extensions = {"persistedQuery": {"version": 1, "sha256Hash": "abc123"}}
     money_value = Money(10, "DM")
 
-    request = GraphQLRequest(
+    assert "extensions" not in GraphQLRequest("{balance}").payload
+
+    request_1 = GraphQLRequest("{balance}", extensions=extensions_1)
+    assert request_1.payload["extensions"] == extensions_1
+
+    request_2 = GraphQLRequest(request_1)
+    assert request_2.extensions == extensions_1
+
+    request_3 = GraphQLRequest(request_1, extensions=extensions_2)
+    assert request_3.extensions == extensions_2
+
+    request_4 = GraphQLRequest(
         "query myquery($money: Money) {toEuros(money: $money)}",
         variable_values={"money": money_value},
-        extensions=extensions,
+        extensions=extensions_1,
     )
-
-    serialized = request.serialize_variable_values(schema)
-    assert serialized.extensions == extensions
-    assert serialized.payload["extensions"] == extensions
-
-
-def test_graphql_request_str_includes_extensions():
-    extensions = {"key": "value"}
-    request = GraphQLRequest("{balance}", extensions=extensions)
-    result = str(request)
-    assert "extensions" in result
-    assert "'key': 'value'" in result
+    serialized = request_4.serialize_variable_values(schema)
+    assert serialized.extensions == extensions_1

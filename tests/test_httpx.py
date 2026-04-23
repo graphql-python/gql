@@ -86,17 +86,16 @@ async def test_httpx_query(aiohttp_server, run_sync_test):
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
-async def test_httpx_query_with_extensions(aiohttp_server, run_sync_test):
+async def test_httpx_request_extensions(aiohttp_server, run_sync_test):
     from aiohttp import web
 
     from gql.transport.httpx import HTTPXTransport
 
+    extensions = {"persistedQuery": {"version": 1, "sha256Hash": "abc123"}}
+
     async def handler(request):
         body = await request.json()
-        assert "extensions" in body
-        assert body["extensions"] == {
-            "persistedQuery": {"version": 1, "sha256Hash": "abc123"}
-        }
+        assert body["extensions"] == extensions
         return web.Response(
             text=query1_server_answer,
             content_type="application/json",
@@ -112,18 +111,9 @@ async def test_httpx_query_with_extensions(aiohttp_server, run_sync_test):
         transport = HTTPXTransport(url=url)
 
         with Client(transport=transport) as session:
-
-            request = GraphQLRequest(
-                query1_str,
-                extensions={
-                    "persistedQuery": {"version": 1, "sha256Hash": "abc123"}
-                },
-            )
-
+            request = GraphQLRequest(query1_str, extensions=extensions)
             result = session.execute(request)
-
-            continents = result["continents"]
-            assert continents[0]["code"] == "AF"
+            assert result["continents"][0]["code"] == "AF"
 
     await run_sync_test(server, test_code)
 

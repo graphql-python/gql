@@ -485,9 +485,10 @@ async def test_aiohttp_websocket_subscription_with_extensions(
 
     assert count == -1
 
-    # Check that the query contains the extensions
-    assert '"persistedQuery"' in logged_messages[0]
-    assert '"sha256Hash": "abc123"' in logged_messages[0]
+    message = json.loads(logged_messages[0])
+    assert message["payload"]["extensions"] == {
+        "persistedQuery": {"version": 1, "sha256Hash": "abc123"}
+    }
 
 
 WITH_KEEPALIVE = True
