@@ -12,7 +12,7 @@ top-level key in the request payload alongside :code:`query`, :code:`variables`,
 and :code:`operationName`.
 
 You can use this to pass protocol extensions such as
-`persisted queries <https://www.apollographql.com/docs/apollo-server/performance/apq/>`_:
+`trusted documents <https://graphql.org/learn/security/#trusted-documents>`_:
 
 .. code-block:: python
 
@@ -26,10 +26,7 @@ You can use this to pass protocol extensions such as
         request = GraphQLRequest(
             "query { viewer { name } }",
             extensions={
-                "persistedQuery": {
-                    "version": 1,
-                    "sha256Hash": "abc123...",
-                }
+                "x-trusted-document-id": "foo",
             },
         )
 
