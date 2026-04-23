@@ -4,7 +4,7 @@ from typing import Any, Dict, Mapping
 
 import pytest
 
-from gql import Client, FileVar, gql
+from gql import Client, FileVar, GraphQLRequest, gql
 from gql.transport.exceptions import (
     TransportAlreadyConnected,
     TransportClosed,
@@ -81,6 +81,50 @@ async def test_requests_query(aiohttp_server, run_sync_test):
             assert hasattr(transport, "response_headers")
             assert isinstance(transport.response_headers, Mapping)
             assert transport.response_headers["dummy"] == "test1234"
+
+    await run_sync_test(server, test_code)
+
+
+@pytest.mark.aiohttp
+@pytest.mark.asyncio
+async def test_requests_query_with_extensions(aiohttp_server, run_sync_test):
+    from aiohttp import web
+
+    from gql.transport.requests import RequestsHTTPTransport
+
+    async def handler(request):
+        body = await request.json()
+        assert "extensions" in body
+        assert body["extensions"] == {
+            "persistedQuery": {"version": 1, "sha256Hash": "abc123"}
+        }
+        return web.Response(
+            text=query1_server_answer,
+            content_type="application/json",
+        )
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    def test_code():
+        transport = RequestsHTTPTransport(url=url)
+
+        with Client(transport=transport) as session:
+
+            request = GraphQLRequest(
+                query1_str,
+                extensions={
+                    "persistedQuery": {"version": 1, "sha256Hash": "abc123"}
+                },
+            )
+
+            result = session.execute(request)
+
+            continents = result["continents"]
+            assert continents[0]["code"] == "AF"
 
     await run_sync_test(server, test_code)
 
