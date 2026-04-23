@@ -23,9 +23,8 @@ class GraphQLRequest:
         :param operation_name: Name of the operation that shall be executed.
             Only required in multi-operation documents (Default: None).
         :param extensions: Dictionary of protocol extensions (Default: None).
-            This is passed as the top-level ``extensions`` key in the request
-            payload, as defined in the `GraphQL over HTTP spec
-            <https://github.com/graphql/graphql-over-http>`_.
+            This is passed as the top-level "extensions" key in the request
+            payload, as defined in the GraphQL over HTTP spec.
         :return: a :class:`GraphQLRequest <gql.GraphQLRequest>`
                  which can be later executed or subscribed by a
                  :class:`Client <gql.client.Client>`, by an
