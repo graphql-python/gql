@@ -6,7 +6,7 @@ from typing import Mapping
 
 import pytest
 
-from gql import Client, FileVar, gql
+from gql import Client, FileVar, GraphQLRequest, gql
 from gql.cli import get_parser, main
 from gql.transport.exceptions import (
     TransportAlreadyConnected,
@@ -85,6 +85,43 @@ async def test_aiohttp_query(aiohttp_server):
         assert hasattr(transport, "response_headers")
         assert isinstance(transport.response_headers, Mapping)
         assert transport.response_headers["dummy"] == "test1234"
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_request_extensions(aiohttp_server):
+    from aiohttp import web
+
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    extensions = {"persistedQuery": {"version": 1, "sha256Hash": "abc123"}}
+
+    async def handler(request):
+        body = await request.json()
+        assert body["extensions"] == extensions
+        return web.Response(
+            text=query1_server_answer,
+            content_type="application/json",
+        )
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    transport = AIOHTTPTransport(url=url, timeout=10)
+
+    request = GraphQLRequest(query1_str, extensions=extensions)
+
+    async with Client(transport=transport) as session:
+
+        # execute
+        result = await session.execute(request)
+        assert result["continents"][0]["code"] == "AF"
+
+        # subscribe
+        async for result in session.subscribe(request):
+            assert result["continents"][0]["code"] == "AF"
 
 
 @pytest.mark.asyncio

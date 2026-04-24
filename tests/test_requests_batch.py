@@ -92,6 +92,41 @@ async def test_requests_query(aiohttp_server, run_sync_test):
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
+async def test_requests_batch_request_extensions(aiohttp_server, run_sync_test):
+    from aiohttp import web
+
+    from gql.transport.requests import RequestsHTTPTransport
+
+    extensions = {"persistedQuery": {"version": 1, "sha256Hash": "abc123"}}
+
+    async def handler(request):
+        body = await request.json()
+        assert isinstance(body, list)
+        assert body[0]["extensions"] == extensions
+        return web.Response(
+            text=query1_server_answer_list,
+            content_type="application/json",
+        )
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    def test_code():
+        transport = RequestsHTTPTransport(url=url)
+
+        with Client(transport=transport) as session:
+            query = [GraphQLRequest(query1_str, extensions=extensions)]
+            results = session.execute_batch(query)
+            assert results[0]["continents"][0]["code"] == "AF"
+
+    await run_sync_test(server, test_code)
+
+
+@pytest.mark.aiohttp
+@pytest.mark.asyncio
 async def test_requests_query_auto_batch_enabled(aiohttp_server, run_sync_test):
     from aiohttp import web
 

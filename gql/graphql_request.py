@@ -13,6 +13,7 @@ class GraphQLRequest:
         *,
         variable_values: Optional[Dict[str, Any]] = None,
         operation_name: Optional[str] = None,
+        extensions: Optional[Dict[str, Any]] = None,
     ):
         """Initialize a GraphQL request.
 
@@ -21,6 +22,9 @@ class GraphQLRequest:
         :param variable_values: Dictionary of input parameters (Default: None).
         :param operation_name: Name of the operation that shall be executed.
             Only required in multi-operation documents (Default: None).
+        :param extensions: Dictionary of protocol extensions (Default: None).
+            This is passed as the top-level "extensions" key in the request
+            payload, as defined in the GraphQL over HTTP spec.
         :return: a :class:`GraphQLRequest <gql.GraphQLRequest>`
                  which can be later executed or subscribed by a
                  :class:`Client <gql.client.Client>`, by an
@@ -42,9 +46,12 @@ class GraphQLRequest:
                 variable_values = request.variable_values
             if operation_name is None:
                 operation_name = request.operation_name
+            if extensions is None:
+                extensions = request.extensions
 
         self.variable_values: Optional[Dict[str, Any]] = variable_values
         self.operation_name: Optional[str] = operation_name
+        self.extensions: Optional[Dict[str, Any]] = extensions
 
     def serialize_variable_values(self, schema: GraphQLSchema) -> "GraphQLRequest":
 
@@ -61,6 +68,7 @@ class GraphQLRequest:
                 operation_name=self.operation_name,
             ),
             operation_name=self.operation_name,
+            extensions=self.extensions,
         )
 
     @property
@@ -73,6 +81,9 @@ class GraphQLRequest:
 
         if self.variable_values:
             payload["variables"] = self.variable_values
+
+        if self.extensions:
+            payload["extensions"] = self.extensions
 
         return payload
 

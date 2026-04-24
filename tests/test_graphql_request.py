@@ -236,3 +236,31 @@ def test_graphql_request_init_with_graphql_request():
     assert request_1.variable_values["money"] == money_value_1
     assert request_2.variable_values["money"] == money_value_1
     assert request_3.variable_values["money"] == money_value_2
+
+
+def test_graphql_request_extensions():
+    extensions_1 = {"persistedQuery": {"version": 1, "sha256Hash": "abc123"}}
+    extensions_2 = {"custom": "value"}
+    money_value = Money(10, "DM")
+
+    assert "extensions" not in GraphQLRequest("{balance}").payload
+
+    request_1 = GraphQLRequest("{balance}", extensions=extensions_1)
+    assert request_1.payload["extensions"] == extensions_1
+
+    # Copied from another GraphQLRequest
+    request_2 = GraphQLRequest(request_1)
+    assert request_2.extensions == extensions_1
+
+    # Explicit extensions override the copied value
+    request_3 = GraphQLRequest(request_1, extensions=extensions_2)
+    assert request_3.extensions == extensions_2
+
+    # Preserved through serialize_variable_values
+    request_4 = GraphQLRequest(
+        "query myquery($money: Money) {toEuros(money: $money)}",
+        variable_values={"money": money_value},
+        extensions=extensions_1,
+    )
+    serialized = request_4.serialize_variable_values(schema)
+    assert serialized.extensions == extensions_1
