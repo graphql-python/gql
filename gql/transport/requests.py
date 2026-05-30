@@ -1,6 +1,7 @@
 import io
 import json
 import logging
+from http.cookiejar import CookieJar
 from typing import (
     Any,
     Callable,
@@ -18,7 +19,6 @@ import requests
 from graphql import ExecutionResult
 from requests.adapters import HTTPAdapter, Retry
 from requests.auth import AuthBase
-from requests.cookies import RequestsCookieJar
 from requests.structures import CaseInsensitiveDict
 from requests_toolbelt.multipart.encoder import MultipartEncoder
 
@@ -52,7 +52,7 @@ class RequestsHTTPTransport(Transport):
         self,
         url: str,
         headers: Optional[Dict[str, Any]] = None,
-        cookies: Optional[Union[Dict[str, Any], RequestsCookieJar]] = None,
+        cookies: Optional[Union[Dict[str, Any], CookieJar]] = None,
         auth: Optional[AuthBase] = None,
         use_json: bool = True,
         timeout: Optional[int] = None,

@@ -271,6 +271,49 @@ async def test_requests_cookies(aiohttp_server, run_sync_test):
 
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
+async def test_requests_cookies_cookiejar(aiohttp_server, run_sync_test):
+    import http.cookiejar
+
+    from aiohttp import web
+    from requests.cookies import cookiejar_from_dict
+
+    from gql.transport.requests import RequestsHTTPTransport
+
+    async def handler(request):
+        assert "COOKIE" in request.headers
+        assert "cookie1=val1" == request.headers["COOKIE"]
+
+        return web.Response(text=query1_server_answer, content_type="application/json")
+
+    app = web.Application()
+    app.router.add_route("POST", "/", handler)
+    server = await aiohttp_server(app)
+
+    url = server.make_url("/")
+
+    def test_code():
+        cookie_jar = cookiejar_from_dict({"cookie1": "val1"})
+        assert isinstance(cookie_jar, http.cookiejar.CookieJar)
+        transport = RequestsHTTPTransport(url=url, cookies=cookie_jar)
+
+        with Client(transport=transport) as session:
+
+            query = gql(query1_str)
+
+            # Execute query synchronously
+            result = session.execute(query)
+
+            continents = result["continents"]
+
+            africa = continents[0]
+
+            assert africa["code"] == "AF"
+
+    await run_sync_test(server, test_code)
+
+
+@pytest.mark.aiohttp
+@pytest.mark.asyncio
 async def test_requests_error_code_401(aiohttp_server, run_sync_test):
     from aiohttp import web
 
