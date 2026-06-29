@@ -91,7 +91,8 @@ def node_tree(
     # Ignore new field added in graphql-core 3.3.0a12 to keep output compatible
     ignored_keys.append("nullability_assertion")
 
-    # Ignore description field which was added to OperationDefinitionNode in graphql-core 3.3.0b0
+    # Ignore description field which was added to OperationDefinitionNode
+    # in graphql-core 3.3.0b0
     ignored_keys.append("description")
 
     return _node_tree_recursive(obj, ignored_keys=ignored_keys)

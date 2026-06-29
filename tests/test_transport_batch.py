@@ -12,8 +12,9 @@ pytestmark = pytest.mark.requests
 
 
 def use_cassette(name):
-    import vcr
     import json
+
+    import vcr
 
     # method to ignore introspection changes in graphql-core 3.3.0b0
     def graphql_body_matcher(r1, r2):
