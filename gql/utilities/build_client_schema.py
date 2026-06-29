@@ -23,10 +23,10 @@ INCLUDE_DIRECTIVE_JSON: IntrospectionDirective = {
             "description": "Included when true.",
             "type": {
                 "kind": "NON_NULL",
-                "name": "None",
-                "ofType": {"kind": "SCALAR", "name": "Boolean", "ofType": "None"},
+                "name": None,
+                "ofType": {"kind": "SCALAR", "name": "Boolean", "ofType": None},
             },
-            "defaultValue": "None",
+            "defaultValue": None,
         }
     ],
 }
@@ -48,10 +48,10 @@ SKIP_DIRECTIVE_JSON: IntrospectionDirective = {
             "description": "Skipped when true.",
             "type": {
                 "kind": "NON_NULL",
-                "name": "None",
-                "ofType": {"kind": "SCALAR", "name": "Boolean", "ofType": "None"},
+                "name": None,
+                "ofType": {"kind": "SCALAR", "name": "Boolean", "ofType": None},
             },
-            "defaultValue": "None",
+            "defaultValue": None,
         }
     ],
 }

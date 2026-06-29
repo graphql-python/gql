@@ -29,22 +29,21 @@ def _node_tree_recursive(
                     continue
                 attr_value = getattr(obj, key, None)
                 results.append("  " * (indent + 1) + f"{key}:")
-                if isinstance(attr_value, Iterable) and not isinstance(
+                if attr_value is None or (
+                    isinstance(attr_value, Sized) and len(attr_value) == 0
+                ):
+                    results.append("  " * (indent + 2) + "None")
+                elif isinstance(attr_value, Iterable) and not isinstance(
                     attr_value, (str, bytes)
                 ):
-                    if isinstance(attr_value, Sized) and len(attr_value) == 0:
+                    for item in attr_value:
                         results.append(
-                            "  " * (indent + 2) + f"empty {type(attr_value).__name__}"
-                        )
-                    else:
-                        for item in attr_value:
-                            results.append(
-                                _node_tree_recursive(
-                                    item,
-                                    indent=indent + 2,
-                                    ignored_keys=ignored_keys,
-                                )
+                            _node_tree_recursive(
+                                item,
+                                indent=indent + 2,
+                                ignored_keys=ignored_keys,
                             )
+                        )
                 else:
                     results.append(
                         _node_tree_recursive(
@@ -91,5 +90,8 @@ def node_tree(
 
     # Ignore new field added in graphql-core 3.3.0a12 to keep output compatible
     ignored_keys.append("nullability_assertion")
+
+    # Ignore description field which was added to OperationDefinitionNode in graphql-core 3.3.0b0
+    ignored_keys.append("description")
 
     return _node_tree_recursive(obj, ignored_keys=ignored_keys)

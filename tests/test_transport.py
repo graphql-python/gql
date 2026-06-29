@@ -13,14 +13,40 @@ pytestmark = pytest.mark.requests
 
 def use_cassette(name):
     import vcr
+    import json
+
+    # method to ignore introspection changes in graphql-core 3.3.0b0
+    def graphql_body_matcher(r1, r2):
+        try:
+            b1 = json.loads(r1.body)
+            b2 = json.loads(r2.body)
+            if isinstance(b1, dict) and isinstance(b2, dict):
+                q1 = b1.get("query", "")
+                q2 = b2.get("query", "")
+                if "IntrospectionQuery" in q1 and "IntrospectionQuery" in q2:
+                    return True
+                return b1 == b2
+            elif isinstance(b1, list) and isinstance(b2, list) and len(b1) == len(b2):
+                for item1, item2 in zip(b1, b2):
+                    q1 = item1.get("query", "")
+                    q2 = item2.get("query", "")
+                    if "IntrospectionQuery" in q1 and "IntrospectionQuery" in q2:
+                        continue
+                    if item1 != item2:
+                        return False
+                return True
+        except Exception:
+            pass
+        return r1.body == r2.body
 
     query_vcr = vcr.VCR(
         cassette_library_dir=os.path.join(
             os.path.dirname(__file__), "fixtures", "vcr_cassettes"
         ),
         record_mode="new_episodes",
-        match_on=["uri", "method", "body"],
     )
+    query_vcr.register_matcher("graphql_body", graphql_body_matcher)
+    query_vcr.match_on = ["uri", "method", "graphql_body"]
 
     return query_vcr.use_cassette(name + ".yaml")
 

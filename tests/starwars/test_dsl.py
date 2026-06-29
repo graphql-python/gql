@@ -1044,6 +1044,10 @@ def test_invalid_meta_field_selection(ds):
         ds.Query.hero.select(DSLMetaField("__type"))
 
 
+@pytest.mark.skipif(
+    version.parse(graphql_version) < version.parse("3.3.0b0"),
+    reason="Requires graphql-core >= 3.3.0b0",
+)
 @pytest.mark.parametrize("option", [True, False])
 def test_get_introspection_query_ast(option):
 
@@ -1089,8 +1093,8 @@ def test_get_introspection_query_ast(option):
 
 
 @pytest.mark.skipif(
-    version.parse(graphql_version) < version.parse("3.3.0a7"),
-    reason="Requires graphql-core >= 3.3.0a7",
+    version.parse(graphql_version) < version.parse("3.3.0b0"),
+    reason="Requires graphql-core >= 3.3.0b0",
 )
 @pytest.mark.parametrize("option", [True, False])
 def test_get_introspection_query_ast_is_one_of(option):
@@ -1165,7 +1169,7 @@ DocumentNode
   definitions:
     OperationDefinitionNode
       directives:
-        empty tuple
+        None
       loc:
         Location
           <Location 0:43>
@@ -1188,9 +1192,9 @@ DocumentNode
               alias:
                 None
               arguments:
-                empty tuple
+                None
               directives:
-                empty tuple
+                None
               loc:
                 Location
                   <Location 22:41>
@@ -1213,9 +1217,9 @@ DocumentNode
                       alias:
                         None
                       arguments:
-                        empty tuple
+                        None
                       directives:
-                        empty tuple
+                        None
                       loc:
                         Location
                           <Location 33:37>
@@ -1231,7 +1235,7 @@ DocumentNode
                       selection_set:
                         None
       variable_definitions:
-        empty tuple
+        None
   loc:
     Location
       <Location 0:43>
@@ -1242,7 +1246,7 @@ DocumentNode
   definitions:
     OperationDefinitionNode
       directives:
-        empty tuple
+        None
       loc:
         Location
           <Location 0:43>
@@ -1265,9 +1269,9 @@ DocumentNode
               alias:
                 None
               arguments:
-                empty tuple
+                None
               directives:
-                empty tuple
+                None
               loc:
                 Location
                   <Location 22:41>
@@ -1288,9 +1292,9 @@ DocumentNode
                       alias:
                         None
                       arguments:
-                        empty tuple
+                        None
                       directives:
-                        empty tuple
+                        None
                       loc:
                         Location
                           <Location 33:37>
@@ -1304,7 +1308,7 @@ DocumentNode
                       selection_set:
                         None
       variable_definitions:
-        empty tuple
+        None
   loc:
     Location
       <Location 0:43>
