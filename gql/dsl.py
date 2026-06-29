@@ -416,7 +416,7 @@ class DSLDirective:
         :raises graphql.error.GraphQLError:
                 if argument doesn't exist in directive definition
         """
-        if len(self.ast_directive.arguments) > 0:
+        if self.ast_directive.arguments and len(self.ast_directive.arguments) > 0:
             raise AttributeError(f"Arguments for directive @{self.name} already set.")
 
         errs = []
@@ -448,7 +448,7 @@ class DSLDirective:
     def __repr__(self) -> str:
         args_str = ", ".join(
             f"{arg.name.value}={getattr(arg.value, 'value')}"
-            for arg in self.ast_directive.arguments
+            for arg in (self.ast_directive.arguments or ())
         )
         return f"<DSLDirective @{self.name}({args_str})>"
 
@@ -893,7 +893,7 @@ class DSLVariable(DSLDirectable):
 
     def is_valid_directive(self, directive: DSLDirective) -> bool:
         """Check if directive is valid for Variable definitions."""
-        for arg in directive.ast_directive.arguments:
+        for arg in directive.ast_directive.arguments or ():
             if isinstance(arg.value, VariableNode):
                 raise GraphQLError(
                     f"Directive @{directive.name} argument value has "
