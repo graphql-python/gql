@@ -134,10 +134,10 @@ def get_introspection_query_ast(
     )
 
     if type_recursion_level >= 1:
-        current_field = ds.__Type.ofType.select(ds.__Type.kind, ds.__Type.name)
+        current_field = ds.__Type.ofType.select(ds.__Type.name, ds.__Type.kind)
 
         for _ in repeat(None, type_recursion_level - 1):
-            parent_field = ds.__Type.ofType.select(ds.__Type.kind, ds.__Type.name)
+            parent_field = ds.__Type.ofType.select(ds.__Type.name, ds.__Type.kind)
             parent_field.select(current_field)
             current_field = parent_field
 
