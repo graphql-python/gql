@@ -41,7 +41,7 @@ dev_requires = [
 ] + tests_requires
 
 install_aiohttp_requires = [
-    "aiohttp>=3.11.2,<4",
+    "aiohttp>=3.11.2,<=3.13.2",
 ]
 
 install_requests_requires = [
