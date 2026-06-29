@@ -542,6 +542,9 @@ class AIOHTTPTransport(AsyncTransport):
         """
         # Verify the part has the correct content type
         content_type = part.headers.get(aiohttp.hdrs.CONTENT_TYPE, "")
+        if not content_type:
+            log.debug("Skipping part with no content-type (likely heartbeat)")
+            return None
         if not content_type.startswith("application/json"):
             raise TransportProtocolError(
                 f"Unexpected part content-type: {content_type}. "
