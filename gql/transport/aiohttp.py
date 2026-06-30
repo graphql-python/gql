@@ -593,8 +593,7 @@ class AIOHTTPTransport(AsyncTransport):
             errors = data.get("errors")
             if errors:
                 error_messages = [
-                    error.get("message", "Unknown transport error")
-                    for error in errors
+                    error.get("message", "Unknown transport error") for error in errors
                 ]
 
                 for message in error_messages:
@@ -611,4 +610,3 @@ class AIOHTTPTransport(AsyncTransport):
             errors=payload.get("errors"),
             extensions=payload.get("extensions"),
         )
- 
