@@ -1183,19 +1183,24 @@ async def test_httpx_query_https_self_cert_fail(ssl_aiohttp_server, verify_https
 
     query = gql(query1_str)
 
-    expected_error = "certificate verify failed: self-signed certificate"
+    expected_errors = [
+        # Linux / OpenSSL error message
+        "certificate verify failed: self-signed certificate",
+        # Windows error message
+        "not trusted by the trust provider",
+    ]
 
     with pytest.raises(TransportConnectionFailed) as exc_info:
         async with Client(transport=transport) as session:
             await session.execute(query)
 
-    assert expected_error in str(exc_info.value)
+    assert any(err in str(exc_info.value) for err in expected_errors)
 
     with pytest.raises(TransportConnectionFailed) as exc_info:
         async with Client(transport=transport) as session:
             await session.execute_batch([query])
 
-    assert expected_error in str(exc_info.value)
+    assert any(err in str(exc_info.value) for err in expected_errors)
 
 
 @pytest.mark.aiohttp
