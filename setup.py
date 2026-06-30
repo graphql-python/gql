@@ -29,7 +29,7 @@ dev_requires = [
     "black==26.5.1",
     "check-manifest>=0.42,<1",
     "flake8==7.3.0",
-    "isort==6.0.1",
+    "isort==8.0.1",
     "mypy==2.1.0",
     "sphinx>=8.1.0,<9",
     "sphinx_rtd_theme>=3.0.2,<4",
