@@ -61,7 +61,11 @@ def parse_money_value(input_value: Any) -> Money:
         amount = input_value.get("amount", None)
         currency = input_value.get("currency", None)
 
-        if not is_finite(amount) or not isinstance(currency, str):
+        if (
+            not isinstance(amount, (int, float))
+            or not is_finite(amount)
+            or not isinstance(currency, str)
+        ):
             raise GraphQLError("Cannot parse money value dict: " + inspect(input_value))
 
         return Money(float(amount), currency)
