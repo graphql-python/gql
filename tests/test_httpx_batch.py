@@ -325,7 +325,11 @@ async def test_httpx_sync_batch_cannot_execute_if_not_connected(aiohttp_server):
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
 async def test_httpx_async_batch_extra_args(aiohttp_server):
-    import httpx
+    try:
+        import httpx2 as httpx
+    except ModuleNotFoundError:  # pragma: no cover
+        import httpx
+
     from aiohttp import web
 
     from gql.transport.httpx import HTTPXAsyncTransport
