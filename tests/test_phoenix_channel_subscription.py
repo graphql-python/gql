@@ -117,7 +117,6 @@ async def server_countdown(ws):
         counting_task = asyncio.ensure_future(counting_coro())
 
         async def stopping_coro():
-            nonlocal counting_task
             while True:
                 result = await ws.recv()
                 json_result = json.loads(result)

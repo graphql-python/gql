@@ -111,7 +111,6 @@ def server_countdown_factory(
             async def receiving_coro():
                 print("            Server: receiving task started")
                 try:
-                    nonlocal counting_task
                     while True:
 
                         try:
@@ -314,7 +313,6 @@ async def test_aiohttp_websocket_graphqlws_subscription_task_cancel(
     task = asyncio.ensure_future(task_coro())
 
     async def cancel_task_coro():
-        nonlocal task
 
         await asyncio.sleep(5.5 * COUNTING_DELAY)
 
@@ -354,7 +352,6 @@ async def test_aiohttp_websocket_graphqlws_subscription_close_transport(
     task = asyncio.ensure_future(task_coro())
 
     async def close_transport_task_coro():
-        nonlocal task
 
         await asyncio.sleep(5.5 * COUNTING_DELAY)
 

@@ -277,7 +277,6 @@ def realtime_appsync_server_factory(
             async def receiving_coro():
                 print("            Server: receiving task started")
                 try:
-                    nonlocal send_message_task
                     while True:
 
                         try:

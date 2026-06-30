@@ -89,7 +89,6 @@ def extract_files(
         replacing any file-like objects with nulls and
         shunting the originals off to the side.
         """
-        nonlocal files
         if isinstance(obj, list):
             nulled_list = []
             for key, value in enumerate(obj):

@@ -97,7 +97,6 @@ async def server_countdown(ws):
 
     logged_messages.clear()
 
-    global WITH_KEEPALIVE
     try:
         await WebSocketServerHelper.send_connection_ack(ws)
         if WITH_KEEPALIVE:
@@ -126,7 +125,6 @@ async def server_countdown(ws):
         counting_task = asyncio.ensure_future(counting_coro())
 
         async def stopping_coro():
-            nonlocal counting_task
             while True:
 
                 try:
@@ -305,7 +303,6 @@ async def test_aiohttp_websocket_subscription_task_cancel(
     task = asyncio.ensure_future(task_coro())
 
     async def cancel_task_coro():
-        nonlocal task
 
         await asyncio.sleep(11 * MS)
 
@@ -345,7 +342,6 @@ async def test_aiohttp_websocket_subscription_close_transport(
     task = asyncio.ensure_future(task_coro())
 
     async def close_transport_task_coro():
-        nonlocal task
 
         await asyncio.sleep(11 * MS)
 
