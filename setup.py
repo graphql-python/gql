@@ -21,7 +21,7 @@ tests_requires = [
     "pytest-asyncio==1.2.0",
     "pytest-console-scripts==1.4.1",
     "pytest-cov==6.0.0",
-    "vcrpy==7.0.0",
+    "vcrpy==8.2.1",
     "aiofiles",
 ]
 
@@ -41,7 +41,7 @@ dev_requires = [
 ] + tests_requires
 
 install_aiohttp_requires = [
-    "aiohttp>=3.11.2,<=3.13.2",
+    "aiohttp>=3.11.2,<=4",
 ]
 
 install_requests_requires = [
