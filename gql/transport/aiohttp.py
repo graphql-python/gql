@@ -540,70 +540,73 @@ class AIOHTTPTransport(AsyncTransport):
         :param part: aiohttp BodyPartReader for the part
         :return: ExecutionResult or None if part is empty/heartbeat
         """
-        # Verify the part has the correct content type
+        try:
+            body = await part.text()
+            body = body.strip()
+        except UnicodeDecodeError as e:
+            log.warning(f"Failed to decode part: {ascii(e)}")
+            return None
+
         content_type = part.headers.get(aiohttp.hdrs.CONTENT_TYPE, "")
+
+        if not content_type and not body:
+            log.debug("Skipping part with no content-type and no body")
+            return None
+
+        # Verify the part has the correct content type
         if not content_type.startswith("application/json"):
             raise TransportProtocolError(
                 f"Unexpected part content-type: {content_type}. "
                 "Expected 'application/json'."
             )
 
+        if log.isEnabledFor(logging.DEBUG):
+            log.debug("<<< %s", ascii(body or "(empty body, skipping)"))
+
+        if not body:
+            return None
+
         try:
-            # Read the part content as text
-            body = await part.text()
-            body = body.strip()
-
-            if log.isEnabledFor(logging.DEBUG):
-                log.debug("<<< %s", ascii(body or "(empty body, skipping)"))
-
-            if not body:
-                return None
-
-            # Parse JSON body using custom deserializer
             data = self.json_deserialize(body)
-
-            # Handle heartbeats - empty JSON objects
-            if not data:
-                log.debug("Received heartbeat, ignoring")
-                return None
-
-            # The multipart subscription protocol wraps data in a "payload" property
-            if "payload" not in data:
-                log.warning("Invalid response: missing 'payload' field")
-                return None
-
-            payload = data["payload"]
-
-            # Check for transport-level errors (payload is null)
-            if payload is None:
-                # If there are errors, this is a transport-level error
-                errors = data.get("errors")
-                if errors:
-                    error_messages = [
-                        error.get("message", "Unknown transport error")
-                        for error in errors
-                    ]
-
-                    for message in error_messages:
-                        log.error(f"Transport error: {message}")
-
-                    raise TransportServerError("\n\n".join(error_messages))
-                else:
-                    # Null payload without errors - just skip this part
-                    return None
-
-            # Extract GraphQL data from payload
-            return ExecutionResult(
-                data=payload.get("data"),
-                errors=payload.get("errors"),
-                extensions=payload.get("extensions"),
-            )
         except json.JSONDecodeError as e:
             log.warning(
                 f"Failed to parse JSON: {ascii(e)}, "
                 f"body: {ascii(body[:100]) if body else ''}"
             )
             return None
-        except UnicodeDecodeError as e:
-            log.warning(f"Failed to decode part: {ascii(e)}")
+
+        # Handle heartbeats - empty JSON objects
+        if not data:
+            log.debug("Received heartbeat, ignoring")
             return None
+
+        # The multipart subscription protocol wraps data in a "payload" property
+        if "payload" not in data:
+            log.warning("Invalid response: missing 'payload' field")
+            return None
+
+        payload = data["payload"]
+
+        # Check for transport-level errors (payload is null)
+        if payload is None:
+            # If there are errors, this is a transport-level error
+            errors = data.get("errors")
+            if errors:
+                error_messages = [
+                    error.get("message", "Unknown transport error") for error in errors
+                ]
+
+                for message in error_messages:
+                    log.error(f"Transport error: {message}")
+
+                raise TransportServerError("\n\n".join(error_messages))
+            else:
+                # Null payload without errors - just skip this part
+                return None
+
+        # Extract GraphQL data from payload
+        return ExecutionResult(
+            data=payload.get("data"),
+            errors=payload.get("errors"),
+            extensions=payload.get("extensions"),
+        )
