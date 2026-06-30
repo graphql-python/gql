@@ -26,7 +26,7 @@ tests_requires = [
 ]
 
 dev_requires = [
-    "black==25.1.0",
+    "black==26.5.1",
     "check-manifest>=0.42,<1",
     "flake8==7.1.2",
     "isort==6.0.1",

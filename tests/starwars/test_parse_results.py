@@ -9,8 +9,7 @@ from tests.starwars.schema import StarWarsSchema
 
 
 def test_hero_name_and_friends_query():
-    query = gql(
-        """
+    query = gql("""
         query HeroNameAndFriendsQuery {
           hero {
             id
@@ -20,8 +19,7 @@ def test_hero_name_and_friends_query():
             name
           }
         }
-        """
-    )
+        """)
 
     result = {
         "hero": {
@@ -43,8 +41,7 @@ def test_hero_name_and_friends_query():
 def test_hero_name_and_friends_query_with_fragment():
     """Testing for issue #445"""
 
-    query = gql(
-        """
+    query = gql("""
         query HeroNameAndFriendsQuery {
           hero {
             ...HeroSummary
@@ -57,8 +54,7 @@ def test_hero_name_and_friends_query_with_fragment():
           id
           name
         }
-        """
-    )
+        """)
 
     result = {
         "hero": {
@@ -79,15 +75,13 @@ def test_hero_name_and_friends_query_with_fragment():
 
 def test_key_not_found_in_result():
 
-    query = gql(
-        """
+    query = gql("""
         {
           hero {
             id
           }
         }
-        """
-    )
+        """)
 
     # Backend returned an invalid result without the hero key
     # Should be impossible. In that case, we ignore the missing key
@@ -100,15 +94,13 @@ def test_key_not_found_in_result():
 
 def test_invalid_result_raise_error():
 
-    query = gql(
-        """
+    query = gql("""
         {
           hero {
             id
           }
         }
-        """
-    )
+        """)
 
     result = {"hero": 5}
 
@@ -121,8 +113,7 @@ def test_invalid_result_raise_error():
 
 def test_fragment():
 
-    query = gql(
-        """
+    query = gql("""
         query UseFragment {
           luke: human(id: "1000") {
             ...HumanFragment
@@ -135,8 +126,7 @@ def test_fragment():
           name
           homePlanet
         }
-        """
-    )
+        """)
 
     result = {
         "luke": {"name": "Luke Skywalker", "homePlanet": "Tatooine"},
@@ -150,15 +140,13 @@ def test_fragment():
 
 def test_fragment_not_found():
 
-    query = gql(
-        """
+    query = gql("""
         query UseFragment {
           luke: human(id: "1000") {
             ...HumanFragment
           }
         }
-        """
-    )
+        """)
 
     result = {
         "luke": {"name": "Luke Skywalker", "homePlanet": "Tatooine"},
@@ -173,15 +161,13 @@ def test_fragment_not_found():
 
 def test_return_none_if_result_is_none():
 
-    query = gql(
-        """
+    query = gql("""
         query {
           hero {
            id
           }
         }
-        """
-    )
+        """)
 
     result = None
 
@@ -190,15 +176,13 @@ def test_return_none_if_result_is_none():
 
 def test_null_result_is_allowed():
 
-    query = gql(
-        """
+    query = gql("""
         query {
           hero {
            id
           }
         }
-        """
-    )
+        """)
 
     result = {"hero": None}
 
@@ -209,8 +193,7 @@ def test_null_result_is_allowed():
 
 def test_inline_fragment():
 
-    query = gql(
-        """
+    query = gql("""
         query UseFragment {
           luke: human(id: "1000") {
             ... on Human {
@@ -219,8 +202,7 @@ def test_inline_fragment():
             }
           }
         }
-        """
-    )
+        """)
 
     result = {
         "luke": {"name": "Luke Skywalker", "homePlanet": "Tatooine"},

@@ -24,16 +24,14 @@ async def test_httpx_simple_query():
     # Instanciate client
     async with Client(transport=transport) as session:
 
-        query = gql(
-            """
+        query = gql("""
             query getContinents {
               continents {
                 code
                 name
               }
             }
-        """
-        )
+        """)
 
         # Fetch schema
         await session.fetch_schema()
@@ -64,16 +62,14 @@ async def test_httpx_invalid_query():
 
     async with Client(transport=transport) as session:
 
-        query = gql(
-            """
+        query = gql("""
             query getContinents {
               continents {
                 code
                 bloh
               }
             }
-        """
-        )
+        """)
 
         with pytest.raises(TransportQueryError):
             await session.execute(query)
@@ -94,25 +90,21 @@ async def test_httpx_two_queries_in_parallel_using_two_tasks():
     # Instanciate client
     async with Client(transport=transport) as session:
 
-        query1 = gql(
-            """
+        query1 = gql("""
             query getContinents {
               continents {
                 code
               }
             }
-        """
-        )
+        """)
 
-        query2 = gql(
-            """
+        query2 = gql("""
             query getContinents {
               continents {
                 name
               }
             }
-        """
-        )
+        """)
 
         async def query_task1():
             result = await session.execute(query1)

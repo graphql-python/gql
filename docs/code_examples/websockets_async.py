@@ -19,29 +19,25 @@ async def main():
     ) as session:
 
         # Execute single query
-        query = gql(
-            """
+        query = gql("""
             query getContinents {
               continents {
                 code
                 name
               }
             }
-        """
-        )
+        """)
         result = await session.execute(query)
         print(result)
 
         # Request subscription
-        subscription = gql(
-            """
+        subscription = gql("""
             subscription {
                 somethingChanged {
                     id
                 }
             }
-        """
-        )
+        """)
         async for result in session.subscribe(subscription):
             print(result)
 

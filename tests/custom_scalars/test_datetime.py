@@ -132,11 +132,9 @@ def test_shift_days_serialized_manually_in_query():
 
     client = Client(schema=schema)
 
-    query = gql(
-        """{
+    query = gql("""{
         shiftDays(time: "2021-11-12T11:58:13.461161", days: 5)
-    }"""
-    )
+    }""")
 
     result = client.execute(query, parse_result=True)
 

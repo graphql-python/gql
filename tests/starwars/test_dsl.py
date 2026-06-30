@@ -155,9 +155,7 @@ def test_use_variable_definition_multiple_times(ds):
     op.variable_definitions = var
     query = dsl_gql(op)
 
-    assert (
-        print_ast(query.document)
-        == """mutation \
+    assert print_ast(query.document) == """mutation \
 ($badReview: ReviewInput, $episode: Episode, $goodReview: ReviewInput) {
   badReview: createReview(review: $badReview, episode: $episode) {
     stars
@@ -168,7 +166,6 @@ def test_use_variable_definition_multiple_times(ds):
     commentary
   }
 }"""
-    )
 
     assert node_tree(query.document) == node_tree(
         gql(print_ast(query.document)).document
@@ -232,16 +229,13 @@ def test_add_variable_definitions_with_default_value_input_object(ds):
     op.variable_definitions = var
     query = dsl_gql(op)
 
-    assert (
-        strip_braces_spaces(print_ast(query.document))
-        == """
+    assert strip_braces_spaces(print_ast(query.document)) == """
 mutation ($review: ReviewInput = {stars: 5, commentary: "Wow!"}, $episode: Episode) {
   createReview(review: $review, episode: $episode) {
     stars
     commentary
   }
 }""".strip()
-    )
 
     assert node_tree(query.document) == node_tree(
         gql(print_ast(query.document)).document
@@ -500,15 +494,12 @@ def test_subscription(ds):
             )
         )
     )
-    assert (
-        print_ast(query.document)
-        == """subscription {
+    assert print_ast(query.document) == """subscription {
   reviewAdded(episode: JEDI) {
     stars
     commentary
   }
 }"""
-    )
 
     assert node_tree(query.document) == node_tree(
         gql(print_ast(query.document)).document
@@ -583,14 +574,11 @@ def test_operation_name(ds):
         )
     )
 
-    assert (
-        print_ast(query.document)
-        == """query GetHeroName {
+    assert print_ast(query.document) == """query GetHeroName {
   hero {
     name
   }
 }"""
-    )
 
     assert node_tree(query.document) == node_tree(
         gql(print_ast(query.document)).document
@@ -607,9 +595,7 @@ def test_multiple_operations(ds):
         ),
     )
 
-    assert (
-        strip_braces_spaces(print_ast(query.document))
-        == """query GetHeroName {
+    assert strip_braces_spaces(print_ast(query.document)) == """query GetHeroName {
   hero {
     name
   }
@@ -624,7 +610,6 @@ mutation CreateReviewMutation {
     commentary
   }
 }"""
-    )
 
     assert node_tree(query.document) == node_tree(
         gql(print_ast(query.document)).document

@@ -16,16 +16,14 @@ with suppress(ModuleNotFoundError):
 
 @pytest.fixture
 def http_transport_query():
-    return gql(
-        """
+    return gql("""
         query getContinents {
           continents {
             code
             name
           }
         }
-        """
-    )
+        """)
 
 
 def test_request_transport_not_implemented(http_transport_query):
@@ -74,8 +72,7 @@ def test_retries_on_transport(execute_mock):
     )
     client = Client(transport=transport)
 
-    query = gql(
-        """
+    query = gql("""
         {
           myFavoriteFilm: film(id:"RmlsbToz") {
             id
@@ -83,8 +80,7 @@ def test_retries_on_transport(execute_mock):
             episodeId
           }
         }
-        """
-    )
+        """)
     with client as session:  # We're using the client as context manager
         with pytest.raises(Exception):
             session.execute(query)
@@ -123,8 +119,7 @@ def test_execute_result_error():
         transport=RequestsHTTPTransport(url="https://countries.trevorblades.com/"),
     )
 
-    failing_query = gql(
-        """
+    failing_query = gql("""
         query getContinents {
           continents {
             code
@@ -132,8 +127,7 @@ def test_execute_result_error():
             id
           }
         }
-        """
-    )
+        """)
 
     with pytest.raises(TransportQueryError) as exc_info:
         client.execute(failing_query)
@@ -214,16 +208,14 @@ def test_gql():
 
     schema = build_ast_schema(document)
 
-    query = gql(
-        """
+    query = gql("""
         query getUser {
           user(id: "1000") {
             id
             username
           }
         }
-        """
-    )
+        """)
 
     client = Client(schema=schema)
     result = client.execute(query)

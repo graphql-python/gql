@@ -14,8 +14,7 @@ def local_schema():
 
 @pytest.fixture
 def typedef_schema():
-    return Client(
-        schema="""
+    return Client(schema="""
 schema {
   query: Query
 }
@@ -53,8 +52,7 @@ type Query {
   droid(id: String!): Droid
   hero(episode: Episode): Character
   human(id: String!): Human
-}"""
-    )
+}""")
 
 
 @pytest.fixture

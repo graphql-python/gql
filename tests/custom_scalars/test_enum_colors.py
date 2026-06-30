@@ -158,12 +158,10 @@ def test_opposite_color_variable_serialized_manually():
 
     client = Client(schema=schema, parse_results=True)
 
-    query = gql(
-        """
+    query = gql("""
         query GetOppositeColor($color: Color) {
             opposite(color:$color)
-        }"""
-    )
+        }""")
 
     query.variable_values = {
         "color": "RED",
@@ -183,12 +181,10 @@ def test_opposite_color_variable_serialized_by_gql():
 
     client = Client(schema=schema, parse_results=True)
 
-    query = gql(
-        """
+    query = gql("""
         query GetOppositeColor($color: Color) {
             opposite(color:$color)
-        }"""
-    )
+        }""")
 
     query.variable_values = {
         "color": RED,
@@ -306,8 +302,7 @@ def test_parse_results_with_operation_type():
 
     client = Client(schema=schema, parse_results=True)
 
-    query = gql(
-        """
+    query = gql("""
         query GetAll {
             all
         }
@@ -323,8 +318,7 @@ def test_parse_results_with_operation_type():
         query GetListOfListOfList {
             list_of_list_of_list
         }
-        """
-    )
+        """)
 
     query.variable_values = {
         "color": "RED",

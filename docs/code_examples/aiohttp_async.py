@@ -13,16 +13,14 @@ async def main():
     client = Client(transport=transport)
 
     # Provide a GraphQL query
-    query = gql(
-        """
+    query = gql("""
         query getContinents {
           continents {
             code
             name
           }
         }
-    """
-    )
+    """)
 
     # Using `async with` on the client will start a connection on the transport
     # and provide a `session` variable to execute queries on this connection

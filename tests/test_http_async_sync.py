@@ -23,16 +23,14 @@ async def test_async_client_async_transport(fetch_schema_from_transport):
         fetch_schema_from_transport=fetch_schema_from_transport,
     ) as session:
 
-        query = gql(
-            """
+        query = gql("""
             query getContinents {
               continents {
                 code
                 name
               }
             }
-        """
-        )
+        """)
 
         # Execute query
         result = await session.execute(query)
@@ -90,16 +88,14 @@ def test_sync_client_async_transport(fetch_schema_from_transport):
         fetch_schema_from_transport=fetch_schema_from_transport,
     )
 
-    query = gql(
-        """
+    query = gql("""
         query getContinents {
           continents {
             code
             name
           }
         }
-    """
-    )
+    """)
 
     # Execute query synchronously
     result = client.execute(query)
@@ -133,16 +129,14 @@ def test_sync_client_sync_transport(fetch_schema_from_transport):
         fetch_schema_from_transport=fetch_schema_from_transport,
     )
 
-    query = gql(
-        """
+    query = gql("""
         query getContinents {
           continents {
             code
             name
           }
         }
-    """
-    )
+    """)
 
     # Execute query synchronously
     result = client.execute(query)

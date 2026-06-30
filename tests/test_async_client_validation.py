@@ -202,15 +202,13 @@ async def test_async_client_validation_fetch_schema_from_server_valid_query(
     assert client.introspection == StarWarsIntrospection
     assert client.schema is not None
 
-    query = gql(
-        """
+    query = gql("""
         query HeroNameQuery {
           hero {
             name
           }
         }
-    """
-    )
+    """)
 
     result = await session.execute(query)
 
@@ -231,16 +229,14 @@ async def test_async_client_validation_fetch_schema_from_server_invalid_query(
     # Fetch schema from server
     await session.fetch_schema()
 
-    query = gql(
-        """
+    query = gql("""
         query HeroNameQuery {
           hero {
             name
             sldkfjqlmsdkjfqlskjfmlqkjsfmkjqsdf
           }
         }
-    """
-    )
+    """)
 
     with pytest.raises(graphql.error.GraphQLError):
         await session.execute(query)
@@ -264,16 +260,14 @@ async def test_async_client_validation_fetch_schema_from_server_with_client_argu
         fetch_schema_from_transport=True,
     ) as session:
 
-        query = gql(
-            """
+        query = gql("""
             query HeroNameQuery {
               hero {
                 name
                 sldkfjqlmsdkjfqlskjfmlqkjsfmkjqsdf
               }
             }
-        """
-        )
+        """)
 
         with pytest.raises(graphql.error.GraphQLError):
             await session.execute(query)

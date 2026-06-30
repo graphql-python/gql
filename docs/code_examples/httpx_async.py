@@ -16,16 +16,14 @@ async def main():
     ) as session:
 
         # Execute single query
-        query = gql(
-            """
+        query = gql("""
             query getContinents {
               continents {
                 code
                 name
               }
             }
-        """
-        )
+        """)
 
         result = await session.execute(query)
         print(result)
