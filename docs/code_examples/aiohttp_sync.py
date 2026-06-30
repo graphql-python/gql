@@ -8,16 +8,14 @@ transport = AIOHTTPTransport(url="https://countries.trevorblades.com/")
 client = Client(transport=transport)
 
 # Provide a GraphQL query
-query = gql(
-    """
+query = gql("""
     query getContinents {
       continents {
         code
         name
       }
     }
-"""
-)
+""")
 
 # Execute the query on the transport
 result = client.execute(query)

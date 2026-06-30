@@ -112,8 +112,7 @@ def test_json_value_input_in_ast():
 
     client = Client(schema=schema)
 
-    query = gql(
-        """
+    query = gql("""
     mutation adding_player {
         addPlayer(player:  {
           name: "Tom",
@@ -124,8 +123,7 @@ def test_json_value_input_in_ast():
               "John"
           ]
         })
-}"""
-    )
+}""")
 
     result = client.execute(query, root_value=root_value)
 
@@ -147,8 +145,7 @@ def test_json_value_input_in_ast_with_variables():
     schema.type_map["Int"] = GraphQLInt
     schema.type_map["Float"] = GraphQLFloat
 
-    query = gql(
-        """
+    query = gql("""
     mutation adding_player(
         $name: String!,
         $level: Int!,
@@ -163,8 +160,7 @@ def test_json_value_input_in_ast_with_variables():
           score: $score,
           friends: $friends,
         })
-}"""
-    )
+}""")
 
     query.variable_values = {
         "name": "Barbara",
@@ -200,12 +196,9 @@ def test_json_value_input_in_dsl_argument():
 
     print(str(query))
 
-    assert (
-        strip_braces_spaces(str(query))
-        == """addPlayer(
+    assert strip_braces_spaces(str(query)) == """addPlayer(
   player: {name: "Tim", level: 0, is_connected: false, score: 5, friends: ["Lea"]}
 )"""
-    )
 
 
 def test_none_json_value_input_in_dsl_argument():
@@ -234,9 +227,6 @@ def test_json_value_input_with_none_list_in_dsl_argument():
 
     print(str(query))
 
-    assert (
-        strip_braces_spaces(str(query))
-        == """addPlayer(
+    assert strip_braces_spaces(str(query)) == """addPlayer(
   player: {name: "Bob", level: 9001, is_connected: true, score: 666.66, friends: null}
 )"""
-    )

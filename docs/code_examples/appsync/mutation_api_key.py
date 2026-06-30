@@ -35,16 +35,14 @@ async def main():
         fetch_schema_from_transport=False,
     ) as session:
 
-        query = gql(
-            """
+        query = gql("""
 mutation createMessage($message: String!) {
   createMessage(input: {message: $message}) {
     id
     message
     createdAt
   }
-}"""
-        )
+}""")
 
         query.variable_values = {"message": "Hello world!"}
 

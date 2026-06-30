@@ -597,15 +597,13 @@ def test_requests_sync_batch_auto():
         batch_max=3,
     )
 
-    query = gql(
-        """
+    query = gql("""
         query getContinentName($continent_code: ID!) {
           continent(code: $continent_code) {
             name
           }
         }
-        """
-    )
+        """)
 
     def get_continent_name(session, continent_code):
         variables = {

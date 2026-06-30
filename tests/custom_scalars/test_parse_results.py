@@ -78,8 +78,7 @@ def test_parse_results_null_mapping():
     """
 
     client = Client(schema=schema, parse_results=True)
-    query = gql(
-        """query testQ($count: Int) {test(count: $count){
+    query = gql("""query testQ($count: Int) {test(count: $count){
         edges {
           node {
             from {
@@ -90,8 +89,7 @@ def test_parse_results_null_mapping():
             }
           }
         }
-    } }"""
-    )
+    } }""")
 
     query.variable_values = {"count": 2}
     assert client.execute(query) == {"test": static_result}

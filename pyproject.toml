@@ -1,7 +1,7 @@
 [project]
 name = "gql"
 readme = "README.md"
-requires-python = ">=3.8.1"
+requires-python = ">=3.10"
 dynamic = ["authors", "classifiers", "dependencies", "description", "entry-points", "keywords", "license", "optional-dependencies", "scripts", "version"]
 
 [build-system]
@@ -20,3 +20,6 @@ asyncio_default_fixture_loop_scope = "function"
 ignore_missing_imports = true
 check_untyped_defs = true
 disallow_incomplete_defs = true
+
+[tool.black]
+target-version = ["py310"]

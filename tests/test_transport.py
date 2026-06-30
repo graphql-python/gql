@@ -77,8 +77,7 @@ def client():
 
 
 def test_hero_name_query(client):
-    query = gql(
-        """
+    query = gql("""
         {
           myFavoriteFilm: film(id:"RmlsbToz") {
             id
@@ -93,8 +92,7 @@ def test_hero_name_query(client):
             }
           }
         }
-        """
-    )
+        """)
     expected = {
         "myFavoriteFilm": {
             "id": "RmlsbToz",
@@ -117,16 +115,14 @@ def test_hero_name_query(client):
 
 
 def test_query_with_variable(client):
-    query = gql(
-        """
+    query = gql("""
         query Planet($id: ID!) {
           planet(id: $id) {
             id
             name
           }
         }
-        """
-    )
+        """)
     query.variable_values = {"id": "UGxhbmV0OjEw"}
     expected = {"planet": {"id": "UGxhbmV0OjEw", "name": "Kamino"}}
     with use_cassette("queries"):
@@ -135,8 +131,7 @@ def test_query_with_variable(client):
 
 
 def test_named_query(client):
-    query = gql(
-        """
+    query = gql("""
         query Planet1 {
           planet(id: "UGxhbmV0OjEw") {
             id
@@ -149,8 +144,7 @@ def test_named_query(client):
             name
           }
         }
-        """
-    )
+        """)
     query.operation_name = "Planet2"
     expected = {"planet": {"id": "UGxhbmV0OjEx", "name": "Geonosis"}}
     with use_cassette("queries"):
@@ -159,16 +153,14 @@ def test_named_query(client):
 
 
 def test_header_query(client):
-    query = gql(
-        """
+    query = gql("""
         query Planet($id: ID!) {
           planet(id: $id) {
             id
             name
           }
         }
-        """
-    )
+        """)
     expected = {"planet": {"id": "UGxhbmV0OjEx", "name": "Geonosis"}}
     with use_cassette("queries"):
         result = client.execute(

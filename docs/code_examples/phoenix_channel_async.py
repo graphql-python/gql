@@ -15,13 +15,11 @@ async def main():
     async with Client(transport=transport) as session:
 
         # Execute single query
-        query = gql(
-            """
+        query = gql("""
             query yourQuery {
                 ...
             }
-        """
-        )
+        """)
 
         result = await session.execute(query)
         print(result)

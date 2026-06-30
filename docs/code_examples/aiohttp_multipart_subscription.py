@@ -18,16 +18,14 @@ async def main():
     ) as session:
 
         # Request subscription
-        subscription = gql(
-            """
+        subscription = gql("""
             subscription {
               book {
                 title
                 author
               }
             }
-        """
-        )
+        """)
 
         # Subscribe and receive streaming updates
         async for result in session.subscribe(subscription):

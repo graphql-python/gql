@@ -53,16 +53,14 @@ async def test_appsync_iam_mutation(aiohttp_server, fake_credentials_factory):
 
     async with Client(transport=transport) as session:
 
-        query = gql(
-            """
+        query = gql("""
 mutation createMessage($message: String!) {
   createMessage(input: {message: $message}) {
     id
     message
     createdAt
   }
-}"""
-        )
+}""")
 
         # Execute query asynchronously
         execution_result = await session.execute(query, get_execution_result=True)

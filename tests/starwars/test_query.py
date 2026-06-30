@@ -11,23 +11,20 @@ def client():
 
 
 def test_hero_name_query(client):
-    query = gql(
-        """
+    query = gql("""
         query HeroNameQuery {
           hero {
             name
           }
         }
-        """
-    )
+        """)
     expected = {"hero": {"name": "R2-D2"}}
     result = client.execute(query)
     assert result == expected
 
 
 def test_hero_name_and_friends_query(client):
-    query = gql(
-        """
+    query = gql("""
         query HeroNameAndFriendsQuery {
           hero {
             id
@@ -37,8 +34,7 @@ def test_hero_name_and_friends_query(client):
             }
           }
         }
-        """
-    )
+        """)
     expected = {
         "hero": {
             "id": "2001",
@@ -55,8 +51,7 @@ def test_hero_name_and_friends_query(client):
 
 
 def test_nested_query(client):
-    query = gql(
-        """
+    query = gql("""
         query NestedQuery {
           hero {
             name
@@ -69,8 +64,7 @@ def test_nested_query(client):
             }
           }
         }
-        """
-    )
+        """)
     expected = {
         "hero": {
             "name": "R2-D2",
@@ -112,30 +106,26 @@ def test_nested_query(client):
 
 
 def test_fetch_luke_query(client):
-    query = gql(
-        """
+    query = gql("""
         query FetchLukeQuery {
           human(id: "1000") {
             name
           }
         }
-        """
-    )
+        """)
     expected = {"human": {"name": "Luke Skywalker"}}
     result = client.execute(query)
     assert result == expected
 
 
 def test_fetch_some_id_query(client):
-    query = gql(
-        """
+    query = gql("""
         query FetchSomeIDQuery($someId: String!) {
           human(id: $someId) {
             name
           }
         }
-        """
-    )
+        """)
     query.variable_values = {
         "someId": "1000",
     }
@@ -145,15 +135,13 @@ def test_fetch_some_id_query(client):
 
 
 def test_fetch_some_id_query2(client):
-    query = gql(
-        """
+    query = gql("""
         query FetchSomeIDQuery($someId: String!) {
           human(id: $someId) {
             name
           }
         }
-        """
-    )
+        """)
     query.variable_values = {
         "someId": "1002",
     }
@@ -163,15 +151,13 @@ def test_fetch_some_id_query2(client):
 
 
 def test_invalid_id_query(client):
-    query = gql(
-        """
+    query = gql("""
         query humanQuery($id: String!) {
           human(id: $id) {
             name
           }
         }
-        """
-    )
+        """)
     query.variable_values = {
         "id": "not a valid id",
     }
@@ -181,23 +167,20 @@ def test_invalid_id_query(client):
 
 
 def test_fetch_luke_aliased(client):
-    query = gql(
-        """
+    query = gql("""
         query FetchLukeAliased {
           luke: human(id: "1000") {
             name
           }
         }
-        """
-    )
+        """)
     expected = {"luke": {"name": "Luke Skywalker"}}
     result = client.execute(query)
     assert result == expected
 
 
 def test_fetch_luke_and_leia_aliased(client):
-    query = gql(
-        """
+    query = gql("""
         query FetchLukeAndLeiaAliased {
           luke: human(id: "1000") {
             name
@@ -206,16 +189,14 @@ def test_fetch_luke_and_leia_aliased(client):
             name
           }
         }
-        """
-    )
+        """)
     expected = {"luke": {"name": "Luke Skywalker"}, "leia": {"name": "Leia Organa"}}
     result = client.execute(query)
     assert result == expected
 
 
 def test_duplicate_fields(client):
-    query = gql(
-        """
+    query = gql("""
         query DuplicateFields {
           luke: human(id: "1000") {
             name
@@ -226,8 +207,7 @@ def test_duplicate_fields(client):
             homePlanet
           }
         }
-        """
-    )
+        """)
     expected = {
         "luke": {"name": "Luke Skywalker", "homePlanet": "Tatooine"},
         "leia": {"name": "Leia Organa", "homePlanet": "Alderaan"},
@@ -237,8 +217,7 @@ def test_duplicate_fields(client):
 
 
 def test_use_fragment(client):
-    query = gql(
-        """
+    query = gql("""
         query UseFragment {
           luke: human(id: "1000") {
             ...HumanFragment
@@ -251,8 +230,7 @@ def test_use_fragment(client):
           name
           homePlanet
         }
-        """
-    )
+        """)
     expected = {
         "luke": {"name": "Luke Skywalker", "homePlanet": "Tatooine"},
         "leia": {"name": "Leia Organa", "homePlanet": "Alderaan"},
@@ -262,32 +240,28 @@ def test_use_fragment(client):
 
 
 def test_check_type_of_r2(client):
-    query = gql(
-        """
+    query = gql("""
         query CheckTypeOfR2 {
           hero {
             __typename
             name
           }
         }
-        """
-    )
+        """)
     expected = {"hero": {"__typename": "Droid", "name": "R2-D2"}}
     result = client.execute(query)
     assert result == expected
 
 
 def test_check_type_of_luke(client):
-    query = gql(
-        """
+    query = gql("""
         query CheckTypeOfLuke {
           hero(episode: EMPIRE) {
             __typename
             name
           }
         }
-        """
-    )
+        """)
     expected = {"hero": {"__typename": "Human", "name": "Luke Skywalker"}}
     result = client.execute(query)
     assert result == expected
@@ -295,27 +269,23 @@ def test_check_type_of_luke(client):
 
 def test_parse_error(client):
     with pytest.raises(Exception) as exc_info:
-        gql(
-            """
+        gql("""
             qeury
-            """
-        )
+            """)
     error = exc_info.value
     assert isinstance(error, GraphQLError)
     assert "Syntax Error: Unexpected Name 'qeury'." in str(error)
 
 
 def test_mutation_result(client):
-    query = gql(
-        """
+    query = gql("""
         mutation CreateReviewForEpisode($ep: Episode!, $review: ReviewInput!) {
           createReview(episode: $ep, review: $review) {
             stars
             commentary
           }
         }
-        """
-    )
+        """)
     query.variable_values = {
         "ep": "JEDI",
         "review": {"stars": 5, "commentary": "This is a great movie!"},

@@ -25,15 +25,13 @@ async def main():
 
     async with Client(transport=transport) as session:
 
-        subscription = gql(
-            """
+        subscription = gql("""
 subscription onCreateMessage {
   onCreateMessage {
     message
   }
 }
-"""
-        )
+""")
 
         print("Waiting for messages...")
 

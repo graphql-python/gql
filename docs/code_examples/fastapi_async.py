@@ -22,8 +22,7 @@ transport = AIOHTTPTransport(url="https://countries.trevorblades.com/graphql")
 
 client = Client(transport=transport)
 
-query = gql(
-    """
+query = gql("""
 query getContinentInfo($code: ID!) {
   continent(code:$code) {
     name
@@ -34,8 +33,7 @@ query getContinentInfo($code: ID!) {
     }
   }
 }
-"""
-)
+""")
 
 app = FastAPI()
 

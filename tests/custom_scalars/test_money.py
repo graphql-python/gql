@@ -208,8 +208,7 @@ def test_custom_scalar_in_output_embedded_fragments():
 
     client = Client(schema=schema, parse_results=True)
 
-    query = gql(
-        """
+    query = gql("""
         fragment LuxMoneyInternal on CountriesBalance {
             ... on CountriesBalance {
                 Luxembourg
@@ -224,8 +223,7 @@ def test_custom_scalar_in_output_embedded_fragments():
         fragment LuxMoney on CountriesBalance {
             ...LuxMoneyInternal
         }
-        """
-    )
+        """)
 
     result = client.execute(query, root_value=root_value)
 
@@ -325,16 +323,14 @@ def test_serialize_variable_values_exception_multiple_ops_without_operation_name
 
     client = Client(schema=schema)
 
-    query = gql(
-        """
+    query = gql("""
     query myconversion($money: Money) {
         toEuros(money: $money)
     }
 
     query mybalance {
         balance
-    }"""
-    )
+    }""")
 
     money_value = Money(10, "DM")
 
@@ -359,13 +355,11 @@ def test_serialize_variable_values_exception_operation_name_not_found():
 
     client = Client(schema=schema)
 
-    query = gql(
-        """
+    query = gql("""
     query myconversion($money: Money) {
         toEuros(money: $money)
     }
-"""
-    )
+""")
 
     money_value = Money(10, "DM")
 
@@ -556,12 +550,10 @@ async def test_custom_scalar_in_input_variable_values_split_with_transport(
         transport=transport,
     ) as session:
 
-        query = gql(
-            """
+        query = gql("""
 query myquery($amount: Float, $currency: String) {
     toEuros(money: {amount: $amount, currency: $currency})
-}"""
-        )
+}""")
 
         query.variable_values = {"amount": 10, "currency": "DM"}
 
@@ -845,11 +837,8 @@ async def test_gql_cli_print_schema(aiohttp_server, capsys):
     captured_out = str(captured.out).strip()
 
     print(captured_out)
-    assert (
-        """
+    assert """
 type Subscription {
   spend(money: Money): Money
 }
-""".strip()
-        in captured_out
-    )
+""".strip() in captured_out
