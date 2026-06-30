@@ -11,11 +11,9 @@ jobs:
     strategy:
       max-parallel: 4
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14", "pypy3.10"]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14", "pypy3.10"]
         os: [ubuntu-24.04, windows-latest]
         exclude:
-          - os: windows-latest
-            python-version: "3.9"
           - os: windows-latest
             python-version: "3.10"
           - os: windows-latest
