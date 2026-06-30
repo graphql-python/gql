@@ -21,8 +21,7 @@ tests_requires = [
     "pytest-asyncio==1.2.0",
     "pytest-console-scripts==1.4.1",
     "pytest-cov==6.0.0",
-    "vcrpy==7.0.0;python_version<='3.9'",
-    "vcrpy==8.2.1;python_version>'3.9'",
+    "vcrpy==8.2.1",
     "aiofiles",
 ]
 
@@ -32,8 +31,7 @@ dev_requires = [
     "flake8==7.1.2",
     "isort==6.0.1",
     "mypy==1.15",
-    "sphinx>=7.0.0,<8;python_version<='3.9'",
-    "sphinx>=8.1.0,<9;python_version>'3.9'",
+    "sphinx>=8.1.0,<9",
     "sphinx_rtd_theme>=3.0.2,<4",
     "sphinx-argparse==0.5.2; python_version>='3.10'",
     "sphinx-argparse==0.4.0; python_version<'3.10'",
@@ -42,8 +40,7 @@ dev_requires = [
 ] + tests_requires
 
 install_aiohttp_requires = [
-    "aiohttp>=3.11.2,<=3.13.2;python_version<='3.9'",
-    "aiohttp>=3.11.2,<4;python_version>'3.9'",
+    "aiohttp>=3.11.2,<4",
 ]
 
 install_requests_requires = [
@@ -93,7 +90,6 @@ setup(
         "Topic :: Software Development :: Libraries",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3 :: Only",
-        "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
