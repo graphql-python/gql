@@ -481,8 +481,8 @@ async def test_aiohttp_multipart_wrong_part_content_type(multipart_server):
 
 
 @pytest.mark.asyncio
-async def test_aiohttp_multipart_empty_content_type_skipped(multipart_server):
-    """Test that parts with empty/missing content-type are skipped as heartbeats."""
+async def test_aiohttp_multipart_empty_part_no_content_type_skipped(multipart_server):
+    """Test that empty parts with no content-type are skipped."""
     from gql.transport.aiohttp import AIOHTTPTransport
 
     book1_payload = json.dumps({"payload": {"data": {"book": book1}}})
