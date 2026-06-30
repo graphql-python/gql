@@ -436,7 +436,11 @@ async def test_httpx_cannot_execute_if_not_connected(aiohttp_server):
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
 async def test_httpx_extra_args(aiohttp_server):
-    import httpx
+    try:
+        import httpx2 as httpx
+    except ModuleNotFoundError:  # pragma: no cover
+        import httpx  # type: ignore[no-redef]
+
     from aiohttp import web
 
     from gql.transport.httpx import HTTPXAsyncTransport
@@ -1179,19 +1183,24 @@ async def test_httpx_query_https_self_cert_fail(ssl_aiohttp_server, verify_https
 
     query = gql(query1_str)
 
-    expected_error = "certificate verify failed: self-signed certificate"
+    expected_errors = [
+        # Linux / OpenSSL error message
+        "certificate verify failed: self-signed certificate",
+        # Windows error message
+        "not trusted by the trust provider",
+    ]
 
     with pytest.raises(TransportConnectionFailed) as exc_info:
         async with Client(transport=transport) as session:
             await session.execute(query)
 
-    assert expected_error in str(exc_info.value)
+    assert any(err in str(exc_info.value) for err in expected_errors)
 
     with pytest.raises(TransportConnectionFailed) as exc_info:
         async with Client(transport=transport) as session:
             await session.execute_batch([query])
 
-    assert expected_error in str(exc_info.value)
+    assert any(err in str(exc_info.value) for err in expected_errors)
 
 
 @pytest.mark.aiohttp

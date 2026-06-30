@@ -3,7 +3,7 @@
 HTTPXTransport
 ==============
 
-The HTTPXTransport is a sync transport using the `httpx`_ library
+The HTTPXTransport is a sync transport using the `httpx2`_ or  `httpx`_ library
 and allows you to send GraphQL queries using the HTTP protocol.
 
 Reference: :class:`gql.transport.httpx.HTTPXTransport`
@@ -11,3 +11,4 @@ Reference: :class:`gql.transport.httpx.HTTPXTransport`
 .. literalinclude:: ../code_examples/httpx_sync.py
 
 .. _httpx: https://www.python-httpx.org
+.. _httpx2: https://httpx2.pydantic.dev

@@ -14,7 +14,11 @@ from typing import (
     Union,
 )
 
-import httpx
+try:
+    import httpx2 as httpx
+except ModuleNotFoundError:  # pragma: no cover
+    import httpx  # type: ignore[no-redef]
+
 from graphql import ExecutionResult
 
 from ..graphql_request import GraphQLRequest
