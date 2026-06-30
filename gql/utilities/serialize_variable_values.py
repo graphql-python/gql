@@ -115,7 +115,7 @@ def serialize_variable_values(
     operation = _get_document_operation(document, operation_name=operation_name)
 
     # Serialize every variable value defined for the operation
-    for var_def_node in operation.variable_definitions:
+    for var_def_node in operation.variable_definitions or ():
         var_name = var_def_node.variable.name.value
         var_type = type_from_ast(schema, var_def_node.type)
 

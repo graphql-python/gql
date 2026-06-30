@@ -37,9 +37,9 @@ def get_introspection_query_ast(
         schema.select(ds.__Schema.description)
 
     schema.select(
-        ds.__Schema.queryType.select(ds.__Type.name),
-        ds.__Schema.mutationType.select(ds.__Type.name),
-        ds.__Schema.subscriptionType.select(ds.__Type.name),
+        ds.__Schema.queryType.select(ds.__Type.name, ds.__Type.kind),
+        ds.__Schema.mutationType.select(ds.__Type.name, ds.__Type.kind),
+        ds.__Schema.subscriptionType.select(ds.__Type.name, ds.__Type.kind),
     )
 
     schema.select(ds.__Schema.types.select(fragment_FullType))
@@ -134,10 +134,10 @@ def get_introspection_query_ast(
     )
 
     if type_recursion_level >= 1:
-        current_field = ds.__Type.ofType.select(ds.__Type.kind, ds.__Type.name)
+        current_field = ds.__Type.ofType.select(ds.__Type.name, ds.__Type.kind)
 
         for _ in repeat(None, type_recursion_level - 1):
-            parent_field = ds.__Type.ofType.select(ds.__Type.kind, ds.__Type.name)
+            parent_field = ds.__Type.ofType.select(ds.__Type.name, ds.__Type.kind)
             parent_field.select(current_field)
             current_field = parent_field
 
