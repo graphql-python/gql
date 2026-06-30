@@ -23,3 +23,6 @@ disallow_incomplete_defs = true
 
 [tool.black]
 target-version = ["py310"]
+
+[tool.coverage.run]
+patch = ["subprocess"]
