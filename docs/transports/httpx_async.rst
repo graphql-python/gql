@@ -3,7 +3,7 @@
 HTTPXAsyncTransport
 ===================
 
-This transport uses the `httpx`_ library and allows you to send GraphQL queries using the HTTP protocol.
+This transport uses the `httpx2`_ or `httpx`_ library and allows you to send GraphQL queries using the HTTP protocol.
 
 Reference: :class:`gql.transport.httpx.HTTPXAsyncTransport`
 
@@ -37,3 +37,4 @@ You can manually set the cookies which will be sent with each connection:
     transport = HTTPXAsyncTransport(url=url, cookies={"cookie1": "val1"})
 
 .. _httpx: https://www.python-httpx.org
+.. _httpx2: https://httpx2.pydantic.dev

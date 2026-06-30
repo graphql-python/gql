@@ -51,7 +51,7 @@ The corresponding between extra dependencies required and the GQL classes is:
 +---------------------+------------------------------------------------------------------+
 | requests            | :ref:`RequestsHTTPTransport <requests_transport>`                |
 +---------------------+------------------------------------------------------------------+
-| httpx               | :ref:`HTTPTXTransport <httpx_transport>`                         |
+| httpx2 or httpx     | :ref:`HTTPTXTransport <httpx_transport>`                         |
 |                     |                                                                  |
 |                     | :ref:`HTTPXAsyncTransport <httpx_async_transport>`               |
 +---------------------+------------------------------------------------------------------+

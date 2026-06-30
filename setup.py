@@ -52,6 +52,10 @@ install_httpx_requires = [
     "httpx>=0.27.0,<1",
 ]
 
+install_httpx2_requires = [
+    "httpx2>=2.0.0,<3",
+]
+
 install_websockets_requires = [
     "websockets>=14.2,<16",
 ]
@@ -65,7 +69,7 @@ install_aiofiles_requires = [
 ]
 
 install_all_requires = (
-    install_aiohttp_requires + install_requests_requires + install_httpx_requires + install_websockets_requires + install_botocore_requires + install_aiofiles_requires
+    install_aiohttp_requires + install_requests_requires + install_httpx2_requires + install_websockets_requires + install_botocore_requires + install_aiofiles_requires
 )
 
 # Get version from __version__.py file
@@ -110,6 +114,7 @@ setup(
         "aiohttp": install_aiohttp_requires,
         "requests": install_requests_requires,
         "httpx": install_httpx_requires,
+        "httpx2": install_httpx2_requires,
         "websockets": install_websockets_requires,
         "botocore": install_botocore_requires,
         "aiofiles": install_aiofiles_requires,

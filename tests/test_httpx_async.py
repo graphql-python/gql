@@ -439,7 +439,7 @@ async def test_httpx_extra_args(aiohttp_server):
     try:
         import httpx2 as httpx
     except ModuleNotFoundError:  # pragma: no cover
-        import httpx
+        import httpx  # type: ignore[no-redef]
 
     from aiohttp import web
 

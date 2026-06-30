@@ -17,7 +17,7 @@ from typing import (
 try:
     import httpx2 as httpx
 except ModuleNotFoundError:  # pragma: no cover
-    import httpx
+    import httpx  # type: ignore[no-redef]
 
 from graphql import ExecutionResult
 
