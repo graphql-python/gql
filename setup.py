@@ -17,10 +17,10 @@ console_scripts = [
 tests_requires = [
     "parse==1.20.2",
     "packaging>=21.0",
-    "pytest==8.3.4",
-    "pytest-asyncio==1.2.0",
+    "pytest==9.1.1",
+    "pytest-asyncio==1.4.0",
     "pytest-console-scripts==1.4.1",
-    "pytest-cov==6.0.0",
+    "pytest-cov==7.1.0",
     "vcrpy==8.2.1",
     "aiofiles",
 ]
