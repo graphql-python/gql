@@ -30,7 +30,7 @@ dev_requires = [
     "check-manifest>=0.42,<1",
     "flake8==7.3.0",
     "isort==6.0.1",
-    "mypy==1.15",
+    "mypy==2.1.0",
     "sphinx>=8.1.0,<9",
     "sphinx_rtd_theme>=3.0.2,<4",
     "sphinx-argparse==0.5.2; python_version>='3.10'",
