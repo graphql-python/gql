@@ -481,6 +481,38 @@ async def test_aiohttp_multipart_wrong_part_content_type(multipart_server):
 
 
 @pytest.mark.asyncio
+async def test_aiohttp_multipart_empty_part_no_content_type_skipped(multipart_server):
+    """Test that empty parts with no content-type are skipped."""
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    book1_payload = json.dumps({"payload": {"data": {"book": book1}}})
+
+    parts = [
+        ("--graphql\r\n" "\r\n" "\r\n"),
+        (
+            "--graphql\r\n"
+            "Content-Type: application/json\r\n"
+            "\r\n"
+            f"{book1_payload}\r\n"
+        ),
+        "--graphql--\r\n",
+    ]
+
+    server = await multipart_server(parts)
+    url = server.make_url("/")
+    transport = AIOHTTPTransport(url=url)
+
+    async with Client(transport=transport) as session:
+        query = gql(subscription_str)
+        results = []
+        async for result in session.subscribe(query):
+            results.append(result)
+
+        assert len(results) == 1
+        assert results[0]["book"]["title"] == "Book 1"
+
+
+@pytest.mark.asyncio
 async def test_aiohttp_multipart_response_headers(multipart_server):
     """Test that response headers are captured in the transport."""
     from gql.transport.aiohttp import AIOHTTPTransport
