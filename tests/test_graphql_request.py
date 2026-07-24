@@ -16,7 +16,7 @@ from graphql.type import (
     GraphQLScalarType,
     GraphQLSchema,
 )
-from graphql.utilities import value_from_ast_untyped
+from graphql.utilities import build_schema, value_from_ast_untyped
 
 from gql import GraphQLRequest
 
@@ -204,6 +204,21 @@ def test_serialize_variables_using_money_example():
     req = req.serialize_variable_values(schema)
 
     assert req.variable_values == {"money": {"amount": 10, "currency": "DM"}}
+
+
+def test_serialize_variables_single_value_for_list_type():
+    # A value which is not a list, provided for a list type, should be
+    # coerced into a list of one instead of being iterated over.
+    list_schema = build_schema("type Query {f(ids: [String!], ns: [Int]): String}")
+
+    req = GraphQLRequest(
+        "query q($ids: [String!], $ns: [Int]) {f(ids: $ids, ns: $ns)}",
+        variable_values={"ids": "abc", "ns": 5},
+    )
+
+    req = req.serialize_variable_values(list_schema)
+
+    assert req.variable_values == {"ids": ["abc"], "ns": [5]}
 
 
 def test_graphql_request_using_string_instead_of_document():
