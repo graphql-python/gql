@@ -15,6 +15,7 @@ from graphql.type import (
     GraphQLObjectType,
     GraphQLScalarType,
     GraphQLSchema,
+    GraphQLString,
 )
 from graphql.utilities import build_schema, value_from_ast_untyped
 
@@ -219,6 +220,67 @@ def test_serialize_variables_single_value_for_list_type():
     req = req.serialize_variable_values(list_schema)
 
     assert req.variable_values == {"ids": ["abc"], "ns": [5]}
+
+
+def test_serialize_variables_mapping_as_singleton_input_object():
+    schema = build_schema(
+        "input ItemInput { name: String } type Query { f(items: [ItemInput]): String }"
+    )
+    req = GraphQLRequest(
+        "query q($items: [ItemInput]) { f(items: $items) }",
+        variable_values={"items": {"name": "abc"}},
+    )
+    req = req.serialize_variable_values(schema)
+    assert req.variable_values == {"items": [{"name": "abc"}]}
+
+
+def test_serialize_variables_recursive_list_coercion():
+    schema = build_schema("type Query { f(values: [[Int]]): String }")
+
+    req1 = GraphQLRequest(
+        "query q($values: [[Int]]) { f(values: $values) }",
+        variable_values={"values": 1},
+    )
+    req1 = req1.serialize_variable_values(schema)
+    assert req1.variable_values == {"values": [[1]]}
+
+    req2 = GraphQLRequest(
+        "query q($values: [[Int]]) { f(values: $values) }",
+        variable_values={"values": [1, 2]},
+    )
+    req2 = req2.serialize_variable_values(schema)
+    assert req2.variable_values == {"values": [[1], [2]]}
+
+
+def test_serialize_variables_collection_behavior():
+    schema = build_schema("type Query { f(values: [Int]): String }")
+    req = GraphQLRequest(
+        "query q($values: [Int]) { f(values: $values) }",
+        variable_values={"values": (1, 2)},
+    )
+    req = req.serialize_variable_values(schema)
+    assert req.variable_values == {"values": [1, 2]}
+
+
+def test_serialize_variables_bytes_behavior():
+    bytes_scalar = GraphQLScalarType(name="Bytes", serialize=lambda v: v)
+    schema = GraphQLSchema(
+        query=GraphQLObjectType(
+            "Query",
+            fields={
+                "f": GraphQLField(
+                    GraphQLString,
+                    args={"values": GraphQLArgument(GraphQLList(bytes_scalar))},
+                )
+            },
+        )
+    )
+    req = GraphQLRequest(
+        "query q($values: [Bytes]) { f(values: $values) }",
+        variable_values={"values": b"abc"},
+    )
+    req = req.serialize_variable_values(schema)
+    assert req.variable_values == {"values": [b"abc"]}
 
 
 def test_graphql_request_using_string_instead_of_document():
