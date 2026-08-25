@@ -41,15 +41,6 @@ query1_server_answer = (
 )
 
 
-def test_requests_http_transport_session():
-    from gql.transport.requests import RequestsHTTPTransport
-
-    transport = RequestsHTTPTransport("url", headers={"test": "header"})
-    transport.connect()
-    assert transport.session
-    assert transport.headers == transport.session.headers
-
-
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
 async def test_requests_query(aiohttp_server, run_sync_test):
@@ -1281,3 +1272,24 @@ async def test_requests_json_deserializer(aiohttp_server, run_sync_test):
             assert pi == Decimal("3.141592653589793238462643383279502884197")
 
     await run_sync_test(server, test_code)
+
+
+def test_requests_save_headers_in_session():
+    """Regression test for issue #613"""
+    from gql.transport.requests import RequestsHTTPTransport
+
+    transport = RequestsHTTPTransport("url", headers={"test": "header"})
+    transport.connect()
+    assert transport.session
+    assert transport.session.headers["test"] == "header"
+
+    transport2 = RequestsHTTPTransport("url")
+    transport2.connect()
+    assert transport2.session
+
+    del transport.session.headers["test"]
+
+    assert transport.session.headers == transport2.session.headers
+
+    transport.close()
+    transport2.close()
