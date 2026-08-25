@@ -88,6 +88,16 @@ async def test_aiohttp_query(aiohttp_server):
 
 
 @pytest.mark.asyncio
+async def test_aio_http_transport_session():
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    transport = AIOHTTPTransport("url", headers={"test": "header"})
+    await transport.connect()
+    assert transport.session
+    assert transport.headers == transport.session.headers
+
+
+@pytest.mark.asyncio
 async def test_aiohttp_request_extensions(aiohttp_server):
     from aiohttp import web
 

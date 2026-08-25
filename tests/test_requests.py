@@ -41,6 +41,15 @@ query1_server_answer = (
 )
 
 
+def test_requests_http_transport_session():
+    from gql.transport.requests import RequestsHTTPTransport
+
+    transport = RequestsHTTPTransport("url", headers={"test": "header"})
+    transport.connect()
+    assert transport.session
+    assert transport.headers == transport.session.headers
+
+
 @pytest.mark.aiohttp
 @pytest.mark.asyncio
 async def test_requests_query(aiohttp_server, run_sync_test):
