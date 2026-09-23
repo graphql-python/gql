@@ -123,6 +123,9 @@ class RequestsHTTPTransport(Transport):
             # Creating a session that can later be re-use to configure custom mechanisms
             self.session = requests.Session()
 
+            if self.headers:
+                self.session.headers.update(self.headers)
+
             # If we specified some retries, we provide a predefined retry-logic
             if self.retries > 0:
                 adapter = HTTPAdapter(
