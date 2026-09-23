@@ -14,7 +14,7 @@ from graphql import (
     OperationDefinitionNode,
     type_from_ast,
 )
-from graphql.pyutils import inspect
+from graphql.pyutils import inspect, is_iterable
 
 
 def _get_document_operation(
@@ -76,6 +76,9 @@ def serialize_value(type_: GraphQLType, value: Any) -> Any:
             return serialize_value(inner_type, value)
 
         elif isinstance(type_, GraphQLList):
+            if not is_iterable(value):
+                # Lists accept a non-list value as a list of one.
+                return [serialize_value(inner_type, value)]
             return [serialize_value(inner_type, v) for v in value]
 
     elif isinstance(type_, (GraphQLScalarType, GraphQLEnumType)):
