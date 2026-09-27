@@ -33,8 +33,7 @@ dev_requires = [
     "mypy==2.1.0",
     "sphinx>=8.1.0,<9",
     "sphinx_rtd_theme>=3.0.2,<4",
-    "sphinx-argparse==0.5.2; python_version>='3.10'",
-    "sphinx-argparse==0.4.0; python_version<'3.10'",
+    "sphinx-argparse==0.5.2",
     "types-aiofiles",
     "types-requests",
 ] + tests_requires
@@ -100,6 +99,7 @@ setup(
         "Programming Language :: Python :: 3.12",
         "Programming Language :: Python :: 3.13",
         "Programming Language :: Python :: 3.14",
+        "Programming Language :: Python :: 3.15",
         "Programming Language :: Python :: Implementation :: PyPy",
     ],
     keywords="api graphql protocol rest relay gql client",
