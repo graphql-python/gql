@@ -1918,3 +1918,25 @@ async def test_aiohttp_type_error_execute(aiohttp_server):
             await session.execute("qmlsdkfj")
 
         assert "request should be a GraphQLRequest object" in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+async def test_aiohttp_save_headers_in_session():
+    """Regression test for issue #613"""
+    from gql.transport.aiohttp import AIOHTTPTransport
+
+    transport = AIOHTTPTransport("url", headers={"test": "header"})
+    await transport.connect()
+    assert transport.session
+    assert transport.session.headers["test"] == "header"
+
+    transport2 = AIOHTTPTransport("url")
+    await transport2.connect()
+    assert transport2.session
+
+    del transport.session.headers["test"]
+
+    assert transport.session.headers == transport2.session.headers
+
+    await transport.close()
+    await transport2.close()
